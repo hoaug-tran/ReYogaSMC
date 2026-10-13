@@ -43,6 +43,7 @@ DefinitionBlock ("", "SSDT", 2, "REYOGA", "RYLG", 0x00000001)
             }
             Return ({{fan_command_method}} ({{fan_fullspeed_command}}, {{fan_fullspeed_off}}))
         }
+        Method (RYLW, 0, Serialized) { Return ({{wmi_lighting_supported}}) }
         Method (RYVW, 0, Serialized) { Return ({{verified_writes}}) }
         Method (RYID, 0, Serialized) { Return (0x52590102) }
         Method (RYPN, 0, Serialized) { Return ("{{id}}") }

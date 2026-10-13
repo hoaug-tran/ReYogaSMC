@@ -1,5 +1,11 @@
 # ReYogaSMC changes
 
+## 2.0.2
+
+* Reduce popover and status-message sizes, clip the outer content and use a distinct menu bar glyph.
+* Decode port lighting from state, matching Toolkit. Respect firmware profiles that cannot apply WMI lighting.
+* Keep numeric app build versions and record the source revision separately.
+
 ## 2.0.1
 
 * Preserve the vendor full-speed EC command result in a reviewed bridge and expose it in correlated reports.

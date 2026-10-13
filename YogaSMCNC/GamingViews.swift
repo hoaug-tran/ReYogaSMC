@@ -4,8 +4,8 @@ import SwiftUI
 // explicit switch state. Hardware availability is supplied by the manager.
 @available(macOS 11.0, *)
 private enum ControlDesign {
-    static let width: CGFloat = 420
-    static let height: CGFloat = 640
+    static let width: CGFloat = 360
+    static let height: CGFloat = 500
     static let accent = adaptive(light: (0.78, 0.29, 0.16), dark: (0.96, 0.56, 0.36))
     static let surface = Color(NSColor.controlBackgroundColor)
     static let cpu = adaptive(light: (0.08, 0.55, 0.65), dark: (0.30, 0.76, 0.86))
@@ -176,15 +176,15 @@ public struct GamingPopoverView: View {
     }
     private var dashboard: some View {
         VStack(spacing: 0) {
-            header.padding(16)
+            header.padding(12)
             Picker("Controls", selection: $page) {
                 Text("Device").tag(0); Text("Cooling & Power").tag(1)
             }.labelsHidden().pickerStyle(SegmentedPickerStyle()).padding(.horizontal, 16).padding(.bottom, 12)
             Divider()
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 12) {
                     if page == 0 { deviceControls } else { coolingControls }
-                }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
             }.transaction { $0.animation = nil }
             Divider()
             HStack(spacing: 12) {
@@ -195,7 +195,6 @@ public struct GamingPopoverView: View {
                 Button("Quit ReYogaSMC") { NSApp.terminate(nil) }.keyboardShortcut("q", modifiers: .command)
             }.font(.system(size: 12)).padding(12)
         }.frame(width: ControlDesign.width, height: ControlDesign.height)
-            .background(Color(NSColor.windowBackgroundColor))
     }
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -205,7 +204,6 @@ public struct GamingPopoverView: View {
                 Text("ReYogaSMC").font(.system(size: 10, weight: .semibold)).foregroundColor(ControlDesign.accent)
                 Text(manager.modelName).font(.system(size: 15, weight: .semibold))
                     .fixedSize(horizontal: false, vertical: true)
-                Text(manager.cpuBrand).font(.system(size: 11)).foregroundColor(.secondary).lineLimit(1)
                 Label(manager.isConnected ? "Hardware driver ready" : "Hardware driver unavailable", systemImage: manager.isConnected ? "checkmark.circle.fill" : "exclamationmark.circle")
                     .font(.system(size: 11)).foregroundColor(manager.isConnected ? ControlDesign.connected : .red)
             }
@@ -312,8 +310,7 @@ private struct DriverUnavailableView: View {
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
             }
-        }.padding(24).frame(width: ControlDesign.width, height: ControlDesign.height)
-            .background(Color(NSColor.windowBackgroundColor))
+        }.padding(20).frame(width: ControlDesign.width, height: ControlDesign.height)
     }
 }
 

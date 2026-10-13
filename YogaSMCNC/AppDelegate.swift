@@ -252,7 +252,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             for dark in [false, true] {
                 for mode in ["device", "cooling", "rgb", "settings", "missing-driver"] {
                     let controller = NSHostingController(rootView: ReYogaReviewView(mode: mode, manager: manager))
-                    let size = mode == "settings" ? NSSize(width: 560, height: 480) : NSSize(width: 420, height: mode == "rgb" ? 360 : 640)
+                    let size = mode == "settings" ? NSSize(width: 560, height: 480) : NSSize(width: mode == "rgb" ? 420 : 360, height: mode == "rgb" ? 360 : 500)
                     let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
                     window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                     window.contentViewController = controller
@@ -343,10 +343,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @available(macOS 11.0, *)
     func setupGamingPopover() {
         let pop = NSPopover()
-        pop.contentSize = NSSize(width: 420, height: 640)
+        pop.contentSize = NSSize(width: 360, height: 500)
         pop.behavior = .transient
         pop.animates = false
-        pop.contentViewController = NSHostingController(rootView: GamingPopoverView(manager: GamingManager.shared))
+        let controller = NSHostingController(rootView: GamingPopoverView(manager: GamingManager.shared))
+        controller.view.wantsLayer = true
+        controller.view.layer?.cornerRadius = 12
+        controller.view.layer?.masksToBounds = true
+        pop.contentViewController = controller
         self.gamingPopover = pop
 
         if let button = statusItem?.button {

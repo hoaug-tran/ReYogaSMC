@@ -24,11 +24,13 @@ enum ReYogaBrand {
             let path = NSBezierPath()
             path.lineWidth = 1.8 * scale
             path.lineCapStyle = .round
-            let strokes: [[(CGFloat, CGFloat)]] = [[(9,2),(9,16)],[(4,7),(9,11)],[(9,8),(14,4)]]
-            for points in strokes {
-                path.move(to: NSPoint(x: points[0].0 * scale, y: points[0].1 * scale))
-                path.line(to: NSPoint(x: points[1].0 * scale, y: points[1].1 * scale))
-            }
+            path.lineWidth = 1.8*scale
+            path.lineJoinStyle = .round
+            path.move(to: NSPoint(x: 5*scale, y: 3*scale))
+            path.line(to: NSPoint(x: 5*scale, y: 14*scale))
+            path.line(to: NSPoint(x: 13*scale, y: 14*scale))
+            NSColor.black.setFill()
+            NSBezierPath(ovalIn: NSRect(x: 11*scale, y: 2*scale, width: 3*scale, height: 3*scale)).fill()
             NSColor.black.setStroke(); path.stroke()
             return true
         }
@@ -61,7 +63,7 @@ private final class StatusHUD {
         generation += 1
         let current = generation
         if panel == nil {
-            let frame = NSRect(x: 0, y: 0, width: 400, height: 112)
+            let frame = NSRect(x: 0, y: 0, width: 320, height: 80)
             let window = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             window.isReleasedWhenClosed = false
             window.level = .statusBar
@@ -72,15 +74,15 @@ private final class StatusHUD {
             window.hasShadow = true
             let background = NSVisualEffectView(frame: frame)
             background.material = .hudWindow
-            background.blendingMode = .behindWindow
+            background.blendingMode = .withinWindow
             background.state = .active
             background.wantsLayer = true
-            background.layer?.cornerRadius = 16
+            background.layer?.cornerRadius = 14
             background.layer?.masksToBounds = true
             let text = NSTextField(wrappingLabelWithString: "")
-            text.font = .systemFont(ofSize: 14, weight: .semibold)
+            text.font = .systemFont(ofSize: 13, weight: .semibold)
             text.textColor = .labelColor
-            let image = NSImageView(frame: NSRect(x: 16, y: 34, width: 44, height: 44))
+            let image = NSImageView(frame: NSRect(x: 14, y: 26, width: 28, height: 28))
             image.imageScaling = .scaleProportionallyUpOrDown
             background.addSubview(text)
             background.addSubview(image)
@@ -93,20 +95,27 @@ private final class StatusHUD {
         let bundled = resource?.path.hasPrefix(Bundle.main.resourceURL?.path ?? "\u{0}") == true
         let semantic = symbol ?? (bundled ? ReYogaBrand.eventSymbol(resource!.deletingPathExtension().lastPathComponent) : nil)
         if let semantic = semantic {
-            icon.image = NSImage(systemSymbolName: semantic, accessibilityDescription: prompt) ?? ReYogaBrand.menuImage(size: 44)
+            icon.image = NSImage(systemSymbolName: semantic, accessibilityDescription: prompt) ?? ReYogaBrand.menuImage(size: 28)
             icon.contentTintColor = .labelColor
         } else if let imagePath = imagePath, !bundled {
             icon.image = NSImage(contentsOfFile: imagePath as String)
             icon.contentTintColor = nil
         } else {
-            icon.image = ReYogaBrand.menuImage(size: 44)
+            icon.image = ReYogaBrand.menuImage(size: 28)
             icon.contentTintColor = .labelColor
         }
         icon.isHidden = icon.image == nil
         label.alignment = icon.isHidden ? .center : .left
-        label.frame = NSRect(x: icon.isHidden ? 18 : 76, y: 22, width: icon.isHidden ? 364 : 306, height: 70)
+        let textWidth: CGFloat = icon.isHidden ? 288 : 252
+        let measured = (prompt as NSString).boundingRect(with: NSSize(width: textWidth, height: 1000),
+            options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: label.font!]).height
+        let textHeight = max(28, min(90, ceil(measured)))
+        let panelHeight = max(56, textHeight + 24)
+        window.setContentSize(NSSize(width: 320, height: panelHeight))
+        icon.frame = NSRect(x: 14, y: (panelHeight - 28)/2, width: 28, height: 28)
+        label.frame = NSRect(x: icon.isHidden ? 16 : 54, y: (panelHeight-textHeight)/2, width: textWidth, height: textHeight)
         if let screen = NSScreen.main {
-            window.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - 200, y: screen.visibleFrame.minY + 80))
+            window.setFrameOrigin(NSPoint(x: screen.visibleFrame.midX - 160, y: screen.visibleFrame.minY + 80))
         }
         window.alphaValue = 1
         window.orderFrontRegardless()

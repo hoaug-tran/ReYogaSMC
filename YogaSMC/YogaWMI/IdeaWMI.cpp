@@ -470,9 +470,9 @@ bool IdeaWMIGameZone::getPortLightingStatus(bool *enabled) {
             const UInt8 *bytes = static_cast<const UInt8 *>(data->getBytesNoCopy());
             setProperty("PortLightingRawState", bytes[0], 8);
             setProperty("PortLightingRawBrightness", bytes[1], 8);
-            // Port brightness is byte 1; byte 0 is the state type.
-            if (bytes[1] > 2) { result->release(); return false; }
-            *enabled = bytes[1] != 0;
+            // PortsBacklightState is byte 0, matching Lenovo Legion Toolkit.
+            if (bytes[0] > 2) { result->release(); return false; }
+            *enabled = bytes[0] == 1;
             result->release();
             return true;
         }
@@ -495,15 +495,11 @@ bool IdeaWMIGameZone::setComponentLighting(UInt8 component, bool enable) {
     input->release();
     auto data = OSDynamicCast(OSData, result);
     if (ret != kIOReturnSuccess || !data || data->getLength() != 2) { OSSafeReleaseNULL(result); return false; }
-    // Protocol documented by LenovoLegionLinux legion_wmi_light_get/set:
-    // logo SCST is 1=on, 2=off; port brightness is 0..2 with SCST=1.
-    // https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c
+    // Toolkit's panel-logo and ports features use state 1/2 with level 0.
+    // https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Features/PortsBacklightFeature.cs
     const auto current = static_cast<const UInt8 *>(data->getBytesNoCopy());
-    if ((component == 3 && current[0] > 2) ||
-        (component == 5 && current[1] > 2)) { result->release(); return false; }
-    UInt8 bytes[3] = {component, 1, 0};
-    if (component == 3) bytes[1] = enable ? 1 : 2;
-    else bytes[2] = enable ? (current[1] ? current[1] : 2) : 0;
+    if (current[0] > 2) { result->release(); return false; }
+    UInt8 bytes[3] = {component, static_cast<UInt8>(enable ? 1 : 2), 0};
     OSSafeReleaseNULL(result);
     auto payload = OSData::withBytes(bytes, sizeof(bytes));
     if (!payload) return false;

@@ -1135,11 +1135,14 @@ void IdeaVPC::updateFeatureStatus() {
     add(fullFanPrompt, ok, ok ? "" : "Fan full-speed getter failed or interface missing", "WMI Fan");
     if (ok) setProperty(fullFanPrompt, state);
     else removeProperty(fullFanPrompt);
-    ok = wmig && wmig->getYLogoStatus(&state);
-    add(yLogoPrompt, ok, ok ? "" : "Logo lighting interface is unavailable", "WMI Lighting");
+    UInt32 lightingSupported = 1;
+    if (legionBridge && ec && ec->validateObject("RYLW") == kIOReturnSuccess)
+        ec->evaluateInteger("RYLW", &lightingSupported);
+    ok = lightingSupported && wmig && wmig->getYLogoStatus(&state);
+    add(yLogoPrompt, ok, ok ? "" : lightingSupported ? "Logo lighting interface is unavailable" : "This firmware ignores WMI lighting; use a supported USB RGB mode", "WMI Lighting");
     if (ok) setProperty(yLogoPrompt, state);
     else removeProperty(yLogoPrompt);
-    ok = wmig && wmig->getPortLightingStatus(&state);
+    ok = lightingSupported && wmig && wmig->getPortLightingStatus(&state);
     add(portLightingPrompt, ok, ok ? "" : "Rear port lighting interface is unavailable", "WMI Lighting");
     if (ok) setProperty(portLightingPrompt, state);
     else removeProperty(portLightingPrompt);

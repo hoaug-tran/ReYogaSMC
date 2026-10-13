@@ -652,7 +652,7 @@
 				6F0A987425343357002F9F65 /* Frameworks */,
 				6F0A987525343357002F9F65 /* Resources */,
 				6F7D486E25344D48004074C7 /* Copy Login Item */,
-				6F89849C254941090016FF59 /* Add Commit Hash */,
+				6F89849C254941090016FF59 /* Add Source Revision */,
 			);
 			buildRules = (
 			);
@@ -783,7 +783,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		6F89849C254941090016FF59 /* Add Commit Hash */ = {
+		6F89849C254941090016FF59 /* Add Source Revision */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -793,14 +793,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Add Commit Hash";
+			name = "Add Source Revision";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DESC=$(git --git-dir=\"${PROJECT_DIR}/.git\" --work-tree=\"${PROJECT_DIR}\" describe --always --dirty --tags)\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $DESC\" \"${TARGET_BUILD_DIR}/${EXECUTABLE_NAME}.app/Contents/Info.plist\"\n";
+			shellScript = "REYOGA_REVISION=$(git -C \"${PROJECT_DIR}\" describe --always --dirty --tags)\n/usr/libexec/PlistBuddy -c \"Delete :ReYogaGitRevision\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :ReYogaGitRevision string $REYOGA_REVISION\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -961,7 +961,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2.0.1;
+				CURRENT_PROJECT_VERSION = 2.0.2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1026,7 +1026,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2.0.1;
+				CURRENT_PROJECT_VERSION = 2.0.2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_NS_ASSERTIONS = NO;

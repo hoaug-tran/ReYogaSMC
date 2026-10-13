@@ -17,6 +17,7 @@ Profiles describe reviewed firmware and device layouts. They do not make similar
 | `verified_writes` | Zero until manual curve writes and restoration have been reviewed on hardware |
 | `fan_command_method`, `fan_fullspeed_*` | Reviewed vendor full-speed method and arguments from the matched DSDT |
 | `validation`, `sources` | What was checked, what remains unverified, and supporting references |
+| `wmi_lighting_supported` | Zero when the reviewed firmware accepts but does not apply WMI lighting commands |
 | `fan_labels` | Optional physical fan labels; omit when the cooling identity is unknown |
 
 A binary hash match still needs the required source interfaces. The app's live binary path uses the reviewed binary identity; the command-line tool disassembles tables for additional inspection. Include the BIOS version and original table fingerprint in the review evidence.

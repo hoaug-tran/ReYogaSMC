@@ -58,6 +58,6 @@ for dark in [false,true] {
     try hero.write(to: output.appendingPathComponent(dark ? "readme-dark.svg" : "readme-light.svg"), atomically: true, encoding: .utf8)
 }
 let menu = """
-<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><path d="M9 2v14M4 7l5 4M9 8l5-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><path d="M5 3v11h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12.5" cy="3.5" r="1.5" fill="currentColor"/></svg>
 """
 try menu.write(to: output.appendingPathComponent("menubar.svg"), atomically: true, encoding: .utf8)

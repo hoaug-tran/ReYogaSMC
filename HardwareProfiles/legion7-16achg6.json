@@ -40,7 +40,8 @@
   ],
   "sources": [
     "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
-    "https://psref.lenovo.com/syspool/Sys/PDF/Legion/Legion_7_16ACHg6/Legion_7_16ACHg6_Spec.pdf"
+    "https://psref.lenovo.com/syspool/Sys/PDF/Legion/Legion_7_16ACHg6/Legion_7_16ACHg6_Spec.pdf",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
   ],
   "reviewed_dsdt_hashes": [
     "40f0b447b8ab6e4948f827b36d7a3de9184a802841ce8ce1d5a0eb389c863afb"
@@ -55,5 +56,6 @@
   "fan_command_method": "NCMD",
   "fan_fullspeed_command": "0x59",
   "fan_fullspeed_on": "0x70",
-  "fan_fullspeed_off": "0x76"
+  "fan_fullspeed_off": "0x76",
+  "wmi_lighting_supported": 0
 }

@@ -261,6 +261,18 @@ public final class GamingManager: ObservableObject {
                     backend: "ACPI profile")
             }
         }
+        if let profile = HardwareProfiles.all().first(where: { $0["id"] as? String == props["HardwareProfile"] as? String }),
+           profile["wmi_lighting_supported"] as? Int == 0 {
+            for key in ["YLogoStatus", "PortLighting"] {
+                availability[key] = HardwareFeatureStatus(available: false,
+                    reason: key == "YLogoStatus" ? "Use a USB RGB mode to control the logo on this device" : "This firmware does not apply WMI rear-port lighting commands",
+                    backend: "Firmware lighting unsupported")
+            }
+        }
+        if rgbStatus.available && rgbMode != "Factory" {
+            availability["YLogoStatus"] = HardwareFeatureStatus(available: true,
+                reason: "USB transmission only; the device does not report the physical LED state", backend: "USB HID")
+        }
         if availability != featureStatus {
             featureStatus = availability
             ReYogaDiagnostics.shared.record("capabilities", availability.mapValues { ["available": $0.available, "reason": $0.reason, "backend": $0.backend] })
@@ -494,6 +506,7 @@ public final class GamingManager: ObservableObject {
     public func toggleOverDrive() { apply("DisplayOverDrive", isOverDriveOn ? 0 : 1, title: "Display Overdrive") }
     public func toggleTouchpad() { apply("TouchpadLock", isTouchpadLocked ? 0 : 1, title: "Touchpad Lock") }
     public func toggleYLogo() {
+        guard hasYLogo else { showOSDRaw(featureStatus["YLogoStatus"]?.reason ?? "Logo control unavailable", symbol: "exclamationmark.triangle"); return }
         if rgbMode != "Factory", rgbStatus.available {
             let enabled = !isYLogoOn
             rgbAction("Logo LED") {
