@@ -218,6 +218,7 @@ class IdeaWMIGameZone : public YogaWMI
     UInt32 thermalEvent  {0xe4};
     UInt32 chargeEvent   {0xe5};
 
+public:
     bool hasFanMethod {false};
     bool hasLightingMethod {false};
 
@@ -238,8 +239,8 @@ class IdeaWMIGameZone : public YogaWMI
 
 #ifndef ALTER
     friend class IdeaSMC;
-    friend class IdeaVPC;
 #endif
+    friend class IdeaVPC;
 
     void processWMI() APPLE_KEXT_OVERRIDE;
     void ACPIEvent(UInt32 argument) APPLE_KEXT_OVERRIDE;
