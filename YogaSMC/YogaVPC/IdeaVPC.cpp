@@ -9,7 +9,7 @@
 
 #include "IdeaVPC.hpp"
 #include "YogaWMI.hpp"
-#include "IdeaWMI.hpp"
+#include "../YogaWMI/IdeaWMI.hpp"
 OSDefineMetaClassAndStructors(IdeaVPC, YogaVPC);
 
 void IdeaVPC::updateAll() {
