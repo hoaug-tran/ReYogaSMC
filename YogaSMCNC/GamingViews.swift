@@ -1,5 +1,6 @@
 import SwiftUI
 
+@available(macOS 11.0, *)
 public struct ArcGaugeShape: Shape {
     let startAngle: Angle
     let endAngle: Angle
@@ -19,6 +20,7 @@ public struct ArcGaugeShape: Shape {
     }
 }
 
+@available(macOS 11.0, *)
 public struct FanGaugeCard: View {
     let title: String
     let rpm: Int
@@ -109,6 +111,7 @@ public struct FanGaugeCard: View {
     }
 }
 
+@available(macOS 11.0, *)
 public struct ThermalModePillButton: View {
     let mode: Int
     let title: String
@@ -139,6 +142,7 @@ public struct ThermalModePillButton: View {
     }
 }
 
+@available(macOS 11.0, *)
 public struct QuickActionToggleCard: View {
     let title: String
     let subtitle: String
@@ -205,6 +209,7 @@ public struct QuickActionToggleCard: View {
     }
 }
 
+@available(macOS 11.0, *)
 public struct GamingPopoverView: View {
     @ObservedObject var manager: GamingManager
 
@@ -481,6 +486,7 @@ public struct GamingPopoverView: View {
     }
 }
 
+@available(macOS 11.0, *)
 public struct VisualEffectView: NSViewRepresentable {
     public func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()

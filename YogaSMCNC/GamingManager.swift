@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import IOKit
 
+@available(macOS 11.0, *)
 public final class GamingManager: ObservableObject {
     public static let shared = GamingManager()
 

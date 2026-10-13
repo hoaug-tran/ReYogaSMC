@@ -272,11 +272,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if pop.isShown {
             pop.performClose(sender)
         } else {
-            GamingManager.shared.refreshAll()
+            if #available(macOS 11.0, *) {
+                GamingManager.shared.refreshAll()
+            }
             pop.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
     }
 
+    @available(macOS 11.0, *)
     func setupGamingPopover() {
         let pop = NSPopover()
         pop.contentSize = NSSize(width: 335, height: 520)
@@ -297,8 +300,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "IdeaVPC":
             conf.events = ideaEvents
             isOpen = registerNotification(&conf)
-            GamingManager.shared.service = conf.service
-            setupGamingPopover()
+            if #available(macOS 11.0, *) {
+                GamingManager.shared.service = conf.service
+                setupGamingPopover()
+            }
         case "ThinkVPC":
             conf.events = thinkEvents
             isOpen = registerNotification(&conf)
