@@ -22,7 +22,7 @@ YogaWMI* YogaWMI::withIdeaWMI(WMI *provider) {
         dev = OSTypeAlloc(IdeaWMISuperRes);
     } else if (provider->hasMethod(BAT_INFO_WMI_STRING, ACPI_WMI_EXPENSIVE | ACPI_WMI_STRING)) {
         dev = OSTypeAlloc(IdeaWMIBattery);
-    } else if (provider->hasMethod(GAME_ZONE_DATA_WMI_METHOD)) {
+    } else if (provider->hasMethod(GAME_ZONE_DATA_WMI_METHOD) || provider->hasMethod(LENOVO_FAN_METHOD)) {
         dev = OSTypeAlloc(IdeaWMIGameZone);
     } else {
         dev = OSTypeAlloc(YogaWMI);
@@ -318,8 +318,168 @@ bool IdeaWMIGameZone::getGamzeZoneData(UInt32 query, UInt32 *result) {
     return (ret == kIOReturnSuccess);
 }
 
+bool IdeaWMIGameZone::setGameZoneData(UInt32 query, UInt32 value) {
+    IOReturn ret;
+    OSNumber *in;
+    UInt32 result = 0;
+
+    in = OSNumber::withNumber(static_cast<uint64_t>(value), 32);
+    ret = YWMI->evaluateInteger(GAME_ZONE_DATA_WMI_METHOD, 0, query, &result, in, true);
+    OSSafeReleaseNULL(in);
+
+    if (ret != kIOReturnSuccess)
+        AlwaysLog("Set query %d evaluation failed", query);
+
+    return (ret == kIOReturnSuccess);
+}
+
+bool IdeaWMIGameZone::getFanSpeed(UInt32 fanId, UInt32 *result) {
+    if (!hasFanMethod)
+        return false;
+    IOReturn ret;
+    OSNumber *in = OSNumber::withNumber(static_cast<uint64_t>(fanId), 32);
+    ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 7, result, in, true);
+    OSSafeReleaseNULL(in);
+    return (ret == kIOReturnSuccess);
+}
+
+bool IdeaWMIGameZone::getSensorTemperature(UInt32 sensorId, UInt32 *result) {
+    if (!hasFanMethod)
+        return false;
+    IOReturn ret;
+    OSNumber *in = OSNumber::withNumber(static_cast<uint64_t>(sensorId), 32);
+    ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 8, result, in, true);
+    OSSafeReleaseNULL(in);
+    return (ret == kIOReturnSuccess);
+}
+
+bool IdeaWMIGameZone::getCPUTemperature(UInt32 *result) {
+    if (getSensorTemperature(3, result) && *result > 0 && *result < 125)
+        return true;
+    return getSensorTemperature(0, result);
+}
+
+bool IdeaWMIGameZone::getGPUTemperature(UInt32 *result) {
+    if (getSensorTemperature(4, result) && *result > 0 && *result < 125)
+        return true;
+    return getSensorTemperature(1, result);
+}
+
+bool IdeaWMIGameZone::setFanFullSpeed(bool enable) {
+    if (!hasFanMethod)
+        return false;
+    IOReturn ret;
+    UInt32 dummy = 0;
+    OSNumber *in = OSNumber::withNumber(enable ? 1ULL : 0ULL, 32);
+    ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 2, &dummy, in, true);
+    OSSafeReleaseNULL(in);
+    return (ret == kIOReturnSuccess);
+}
+
+bool IdeaWMIGameZone::getFanFullSpeed(bool *enabled) {
+    if (!hasFanMethod)
+        return false;
+    IOReturn ret;
+    UInt32 result = 0;
+    ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 1, &result, nullptr, true);
+    if (ret == kIOReturnSuccess)
+        *enabled = (result != 0);
+    return (ret == kIOReturnSuccess);
+}
+
+bool IdeaWMIGameZone::getLightingStatus(UInt32 *result) {
+    if (!hasLightingMethod)
+        return false;
+    IOReturn ret;
+    ret = YWMI->evaluateInteger(LENOVO_LIGHTING_METHOD, 0, 1, result, nullptr, true);
+    return (ret == kIOReturnSuccess);
+}
+
+bool IdeaWMIGameZone::setLightingStatus(UInt32 value) {
+    if (!hasLightingMethod)
+        return false;
+    IOReturn ret;
+    UInt32 dummy = 0;
+    OSNumber *in = OSNumber::withNumber(static_cast<uint64_t>(value), 32);
+    ret = YWMI->evaluateInteger(LENOVO_LIGHTING_METHOD, 0, 2, &dummy, in, true);
+    OSSafeReleaseNULL(in);
+    return (ret == kIOReturnSuccess);
+}
+
+bool IdeaWMIGameZone::getYLogoStatus(bool *enabled) {
+    if (!hasLightingMethod)
+        return false;
+    OSNumber *in = OSNumber::withNumber(3ULL, 32);
+    OSObject *result = nullptr;
+    IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 1, &result, in, true);
+    OSSafeReleaseNULL(in);
+    if (ret == kIOReturnSuccess && result) {
+        OSData *data = OSDynamicCast(OSData, result);
+        if (data && data->getLength() >= 1) {
+            const UInt8 *bytes = static_cast<const UInt8 *>(data->getBytesNoCopy());
+            *enabled = (bytes[0] != 0);
+            result->release();
+            return true;
+        }
+        result->release();
+    }
+    return false;
+}
+
+bool IdeaWMIGameZone::setYLogoStatus(bool enable) {
+    if (!hasLightingMethod)
+        return false;
+    UInt8 buf[3] = {0x03, static_cast<UInt8>(enable ? 1 : 0), 0x00};
+    OSData *in = OSData::withBytes(buf, 3);
+    OSObject *result = nullptr;
+    IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 2, &result, in, true);
+    OSSafeReleaseNULL(in);
+    OSSafeReleaseNULL(result);
+    return (ret == kIOReturnSuccess);
+}
+
+bool IdeaWMIGameZone::getPortLightingStatus(bool *enabled) {
+    if (!hasLightingMethod)
+        return false;
+    OSNumber *in = OSNumber::withNumber(5ULL, 32);
+    OSObject *result = nullptr;
+    IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 1, &result, in, true);
+    OSSafeReleaseNULL(in);
+    if (ret == kIOReturnSuccess && result) {
+        OSData *data = OSDynamicCast(OSData, result);
+        if (data && data->getLength() >= 1) {
+            const UInt8 *bytes = static_cast<const UInt8 *>(data->getBytesNoCopy());
+            *enabled = (bytes[0] != 0);
+            result->release();
+            return true;
+        }
+        result->release();
+    }
+    return false;
+}
+
+bool IdeaWMIGameZone::setPortLightingStatus(bool enable) {
+    if (!hasLightingMethod)
+        return false;
+    UInt8 buf[3] = {0x05, static_cast<UInt8>(enable ? 1 : 0), 0x00};
+    OSData *in = OSData::withBytes(buf, 3);
+    OSObject *result = nullptr;
+    IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 2, &result, in, true);
+    OSSafeReleaseNULL(in);
+    OSSafeReleaseNULL(result);
+    return (ret == kIOReturnSuccess);
+}
+
 void IdeaWMIGameZone::processWMI() {
     setProperty("Feature", feature);
+
+    hasFanMethod = YWMI->hasMethod(LENOVO_FAN_METHOD);
+    hasLightingMethod = YWMI->hasMethod(LENOVO_LIGHTING_METHOD);
+
+    if (hasFanMethod)
+        setProperty("LenovoFanMethod", true);
+    if (hasLightingMethod)
+        setProperty("LenovoLightingMethod", true);
 
     UInt32 result;
 
@@ -328,19 +488,47 @@ void IdeaWMIGameZone::processWMI() {
     else
         AlwaysLog("Failed to get version");
 
-    if (getGamzeZoneData(GAME_ZONE_WMI_GET_FAN_NUM, &result))
+    if (hasFanMethod) {
+        setProperty("Fan number", 2, 32);
+        if (getFanSpeed(0, &result))
+            setProperty("Fan1Speed", result, 32);
+        if (getFanSpeed(1, &result))
+            setProperty("Fan2Speed", result, 32);
+    } else if (getGamzeZoneData(GAME_ZONE_WMI_GET_FAN_NUM, &result)) {
         setProperty("Fan number", result, 32);
-    else
+    } else {
         AlwaysLog("Failed to get fan number");
+    }
 
     if (getGamzeZoneData(GAME_ZONE_WMI_CAP_KEYBOARD, &result))
         setProperty("Keyboard Feature", result, 32);
     else
         AlwaysLog("Failed to get keyboard feature");
+
+    if (getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &result))
+        setProperty("SmartFanMode", result, 32);
+
+    if (getGamzeZoneData(GAME_ZONE_WMI_GET_OVER_DRIVE, &result))
+        setProperty("DisplayOverDrive", result, 32);
 }
 
 void IdeaWMIGameZone::ACPIEvent(UInt32 argument) {
-    OSObject *result;
+    if (argument == smartFanEvent) {
+        UInt32 mode = 0;
+        if (getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &mode))
+            setProperty("SmartFanMode", mode, 32);
+        return;
+    }
+    if (argument == keyEvent) {
+        UInt32 state = 0;
+        if (getGamzeZoneData(GAME_ZONE_WMI_GET_WIN_KEY, &state))
+            setProperty("WinKeyLock", state, 32);
+        if (getGamzeZoneData(GAME_ZONE_WMI_GET_TOUCHPAD, &state))
+            setProperty("TouchpadLock", state, 32);
+        return;
+    }
+
+    OSObject *result = nullptr;
     OSNumber *id;
     if (YWMI->getEventData(argument, &result) && (id = (OSDynamicCast(OSNumber, result))))
         DebugLog("message: ACPI notification 0x%04x - 0x%04x", argument, id->unsigned32BitValue());
@@ -360,6 +548,12 @@ const char* IdeaWMIGameZone::registerEvent(OSString *guid, UInt32 id) {
         fanEvent = id;
     else if (guid->isEqualTo(GAME_ZONE_KEY_WMI_EVENT))
         keyEvent = id;
+    else if (guid->isEqualTo(GAME_ZONE_SMART_FAN_EVENT))
+        smartFanEvent = id;
+    else if (guid->isEqualTo(GAME_ZONE_THERMAL_EVENT))
+        thermalEvent = id;
+    else if (guid->isEqualTo(GAME_ZONE_CHARGE_EVENT))
+        chargeEvent = id;
     else
         return nullptr;
     return feature;

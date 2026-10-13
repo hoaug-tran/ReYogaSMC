@@ -31,6 +31,13 @@
 #define GAME_ZONE_GPU_WMI_EVENT     "bfd42481-aee3-4502-a107-afb68425c5f8"
 #define GAME_ZONE_FAN_WMI_EVENT     "bc72a435-e8c1-4275-b3e2-d8b8074aba59"
 #define GAME_ZONE_KEY_WMI_EVENT     "10afc6d9-ea8b-4590-a2e7-1cd3c84bb4b1"
+#define LENOVO_FAN_METHOD           "92549549-4bde-4f06-ac04-ce8bf898dbaa"
+#define LENOVO_CPU_METHOD           "14afd777-106f-4c9b-b334-d388dc7809be"
+#define LENOVO_GPU_METHOD           "da7547f1-824d-405f-be79-d9903e29ced7"
+#define LENOVO_LIGHTING_METHOD      "8c5b9127-ecd4-4657-980f-851019f99ca5"
+#define GAME_ZONE_SMART_FAN_EVENT   "d320289e-8fea-41e0-86f9-611d83151b5f"
+#define GAME_ZONE_THERMAL_EVENT     "d320289e-8fea-41e0-86f9-911d83151b5f"
+#define GAME_ZONE_CHARGE_EVENT      "d320289e-8fea-41e0-86f9-711d83151b5f"
 #define SUPER_RES_DATA_WMI_METHOD   "77e614ed-f19e-46d6-a613-a8669fee1ff0"
 #define SUPER_RES_WMI_EVENT         "95d1df76-d6c0-4e16-9193-7b2a849f3df2"
 
@@ -207,11 +214,31 @@ class IdeaWMIGameZone : public YogaWMI
     UInt32 GPUEvent  {0xe0};
     UInt32 fanEvent  {0xe1};
     UInt32 keyEvent  {0xe2};
+    UInt32 smartFanEvent {0xe3};
+    UInt32 thermalEvent  {0xe4};
+    UInt32 chargeEvent   {0xe5};
+
+    bool hasFanMethod {false};
+    bool hasLightingMethod {false};
 
     bool getGamzeZoneData(UInt32 query, UInt32 *result);
+    bool setGameZoneData(UInt32 query, UInt32 value);
+    bool getFanSpeed(UInt32 fanId, UInt32 *result);
+    bool getSensorTemperature(UInt32 sensorId, UInt32 *result);
+    bool getCPUTemperature(UInt32 *result);
+    bool getGPUTemperature(UInt32 *result);
+    bool setFanFullSpeed(bool enable);
+    bool getFanFullSpeed(bool *enabled);
+    bool getLightingStatus(UInt32 *result);
+    bool setLightingStatus(UInt32 value);
+    bool getYLogoStatus(bool *enabled);
+    bool setYLogoStatus(bool enable);
+    bool getPortLightingStatus(bool *enabled);
+    bool setPortLightingStatus(bool enable);
 
 #ifndef ALTER
     friend class IdeaSMC;
+    friend class IdeaVPC;
 #endif
 
     void processWMI() APPLE_KEXT_OVERRIDE;
@@ -219,4 +246,4 @@ class IdeaWMIGameZone : public YogaWMI
     const char* registerEvent(OSString *guid, UInt32 id) APPLE_KEXT_OVERRIDE;
 };
 
-#endif /* IdeaWMI_hpp */
+#endif
