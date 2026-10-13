@@ -197,7 +197,6 @@ public final class GamingManager: ObservableObject {
                 self.refreshInFlight = false
                 guard handle == self.service else { return }
                 if let snapshot = snapshot {
-                    self.accept(snapshot)
                     if let reading = smcGPU {
                         self.publish(\.gpuTemp, Int(reading.celsius.rounded()))
                         self.publish(\.gpuTemperatureSource, reading.source)
@@ -207,6 +206,7 @@ public final class GamingManager: ObservableObject {
                         self.publish(\.gpuTemperatureSource, self.gpuTemp > 0 ? "Firmware GPU sensor" : "No GPU temperature source")
                     }
                     self.publish(\.gpuTemperatureReason, smcReason)
+                    self.accept(snapshot)
                 } else {
                     self.service = 0
                     self.setDriverState(.unavailable, message: "The hardware driver stopped responding. Retry the connection or check the driver log.")
@@ -325,6 +325,7 @@ public final class GamingManager: ObservableObject {
             if detailedLogging {
                 ReYogaDiagnostics.shared.record("telemetry", ["sequence": sequence, "fan1RPM": fan1RPM,
                     "fan2RPM": fan2RPM, "cpuC": cpuTemp, "gpuC": gpuTemp,
+                    "gpuSource": gpuTemperatureSource, "gpuReason": gpuTemperatureReason,
                     "sensorStatus": props["SensorStatus"] ?? [:]])
             }
         }
