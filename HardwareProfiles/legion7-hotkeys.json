@@ -1,0 +1,40 @@
+{
+  "kind": "hotkeys",
+  "id": "legion7-gen6-hotkeys",
+  "name": "Legion 7 Gen 6",
+  "source": "https://download.lenovo.com/pccbbs/pubs/legion_7_16_6/html_en/EN/SHARED_feature_intro_hotkeys_legion_7_16.html",
+  "keycodes": {
+    "122": "mute",
+    "120": "volumeDown",
+    "99": "volumeUp",
+    "118": "micMute",
+    "96": "brightnessDown",
+    "97": "brightnessUp",
+    "98": "displays",
+    "100": "airplane",
+    "101": "controlCenter",
+    "109": "touchpad",
+    "103": "mission",
+    "111": "calculator"
+  },
+  "requiresFnFlag": true,
+  "consumerUsages": {
+    "402": "calculator",
+    "101": "screenshot"
+  },
+  "printScreenKeycodes": [
+    105
+  ],
+  "notes": "Normal F1-F12 are preserved. Raw Fn fallback requires an observed physical Fn flagsChanged event; the generic function-key modifier is never treated as evidence that Fn is held. Firmware-handled keys use consumer/ACPI paths.",
+  "matchProfiles": [
+    "ite-c968-gen6",
+    "legion7-16achg6-gkcn"
+  ],
+  "physicalFnKeycode": 63,
+  "repeatableActions": [
+    "volumeDown",
+    "volumeUp",
+    "brightnessDown",
+    "brightnessUp"
+  ]
+}

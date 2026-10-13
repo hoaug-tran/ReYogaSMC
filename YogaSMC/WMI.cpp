@@ -107,7 +107,7 @@ bool WMI::initialize()
     mData = OSDictionary::withCapacity(1);
     mEvent = OSDictionary::withCapacity(1);
 
-    if (!extractData()) {
+    if (!mData || !mEvent || !extractData()) {
         AlwaysLog("WMI method %s not found", kWMIMethod);
         return false;
     }
@@ -124,7 +124,7 @@ WMI::~WMI()
 // Parse the _WDG method output for WMI data blocks
 bool WMI::extractData()
 {
-    OSObject *wdg;
+    OSObject *wdg = nullptr;
     OSData *data;
 
     if (mDevice->evaluateObject(kWMIMethod, &wdg) != kIOReturnSuccess) {
@@ -136,10 +136,15 @@ bool WMI::extractData()
 
     if (!data) {
         AlwaysLog("%s did not return a data blob", kWMIMethod);
-        wdg->release();
+        OSSafeReleaseNULL(wdg);
         return false;
     }
 
+    if (data->getLength() % WMI_DATA_SIZE != 0) {
+        AlwaysLog("Malformed _WDG length=%u entrySize=%lu", data->getLength(), sizeof(WMI_DATA));
+        data->release();
+        return false;
+    }
     int count = data->getLength() / WMI_DATA_SIZE;
 
     for (int i = 0; i < count; i++)
@@ -198,7 +203,7 @@ OSDictionary* WMI::getMethod(const char * guid, UInt8 flg, bool mute)
             DebugLog("GUID %s matched, verifying flag %d", guid, flg);
 
         OSNumber *flags = OSDynamicCast(OSNumber, entry->getObject(kWMIFlags));
-        if (!flg | (flags->unsigned32BitValue() & flg))
+        if (flags && (!flg || (flags->unsigned32BitValue() & flg)))
             return entry;
     }
     
@@ -340,18 +345,21 @@ bool WMI::parseBMF()
     OSData *data;
     if (!(data = OSDynamicCast(OSData, bmf))) {
         AlwaysLog("BMF not a data blob");
+        OSSafeReleaseNULL(bmf);
         return false;
     }
 
     uint32_t len = data->getLength();
     if (len <= 16) {
         AlwaysLog("BMF too short");
+        data->release();
         return false;
     }
 
     uint32_t *pin = (uint32_t *)(data->getBytesNoCopy());
     if (pin[0] != 0x424D4F46 || pin[1] != 0x01 || pin[2] != len-16) {
         AlwaysLog("BMF format invalid");
+        data->release();
         return false;
     }
 
@@ -359,9 +367,18 @@ bool WMI::parseBMF()
     mDevice->setProperty("BMF size", data->getLength(), sizeof(unsigned int)*8);
 #endif
     uint32_t size = pin[3];
+    // Bounded diagnostic metadata cannot exhaust kernel memory on malformed firmware.
+    if (size < 20 || size > 1024 * 1024) {
+        AlwaysLog("BMF decoded size rejected: %u", size);
+        data->release();
+        return false;
+    }
     char *pout = new char[size];
+    if (!pout) { data->release(); return false; }
     if (ds_dec((char *)pin+16, len-16, pout, size, 0) != size) {
         AlwaysLog("BMF Decompress failed");
+        delete[] pout;
+        data->release();
         return false;
     }
     pin = nullptr;
@@ -372,7 +389,7 @@ bool WMI::parseBMF()
     mDevice->removeProperty("MOF");
 
     OSObject *result = mof.parse_bmf();
-    mDevice->setProperty("MOF", result);
+    if (result) mDevice->setProperty("MOF", result);
     if (!mof.parsed)
         mDevice->setProperty("BMF data", data);
     OSSafeReleaseNULL(result);
@@ -392,7 +409,7 @@ IOReturn WMI::evaluateMethod(const char *guid, UInt8 instance, UInt32 methodId, 
     if (!objectId) return kIOReturnNotFound;
 
     OSNumber *instanceCount = OSDynamicCast(OSNumber, method->getObject(kWMIInstanceCount));
-    if (instanceCount->unsigned8BitValue() <= instance)
+    if (!instanceCount || instanceCount->unsigned8BitValue() <= instance)
         return kIOReturnBadArgument;
 
     char methodName[5];
@@ -404,7 +421,10 @@ IOReturn WMI::evaluateMethod(const char *guid, UInt8 instance, UInt32 methodId, 
         input
     };
 
+    if (!params[0] || !params[1]) { OSSafeReleaseNULL(params[0]); OSSafeReleaseNULL(params[1]); return kIOReturnNoMemory; }
     ret = mDevice->evaluateObject(methodName, result, params, input ? 3 : 2);
+    if (ret != kIOReturnSuccess)
+        AlwaysLog("WMI guid=%s method=%u instance=%u ACPI=%s status=0x%x", guid, methodId, instance, methodName, ret);
     params[0]->release();
     params[1]->release();
 
@@ -415,6 +435,7 @@ IOReturn WMI::evaluateInteger(const char * guid, UInt8 instance, UInt32 methodId
     IOReturn ret;
     OSObject *obj = nullptr;
 
+    if (!result) return kIOReturnBadArgument;
     ret = evaluateMethod(guid, instance, methodId, &obj, input, mute);
     if (ret == kIOReturnSuccess) {
         OSNumber *num = OSDynamicCast(OSNumber, obj);
@@ -438,7 +459,7 @@ IOReturn WMI::queryBlock(const char *guid, UInt8 instance, OSObject ** result, b
     if (!objectId) return kIOReturnNotFound;
 
     OSNumber *instanceCount = OSDynamicCast(OSNumber, method->getObject(kWMIInstanceCount));
-    if (instanceCount->unsigned8BitValue() <= instance)
+    if (!instanceCount || instanceCount->unsigned8BitValue() <= instance)
         return kIOReturnBadArgument;
 
     OSNumber *flags = OSDynamicCast(OSNumber, method->getObject(kWMIFlags));

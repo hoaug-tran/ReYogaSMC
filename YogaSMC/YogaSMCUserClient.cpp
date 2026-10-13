@@ -10,58 +10,35 @@
 #include "YogaSMCUserClientPrivate.hpp"
 
 OSDefineMetaClassAndStructors(YogaSMCUserClient, IOUserClient)
-// https://github.com/HelmutJ/CocoaSampleCode/blob/master/SimpleUserClient/SimpleUserClient.cpp
-IOExternalMethod *
-YogaSMCUserClient::getTargetAndMethodForIndex(IOService **target, UInt32 index)
-{
-    static const IOExternalMethod sMethods[kYSMCUCNumMethods] =
-    {
-        {    // kYSMCUCOpen
-            NULL,    // IOService * determined at runtime below
-            (IOMethod) &YogaSMCUserClient::userClientOpen,
-            kIOUCScalarIScalarO,
-            0,    // no inputs
-            0    // no outputs
-        },
-        {    // kYSMCUCClose
-            NULL,    // IOService * determined at runtime below
-            (IOMethod) &YogaSMCUserClient::userClientClose,
-            kIOUCScalarIScalarO,
-            0,    // no inputs
-            0    // no outputs
-        },
-        {    // kYSMCUCReadEC
-            NULL,    // IOService * determined at runtime below
-            (IOMethod) &YogaSMCUserClient::readEC,
-            kIOUCScalarIStructO,
-            1,
-            kIOUCVariableStructureSize
-        },
-        {    // kYSMCUCWriteEC
-            NULL,    // IOService * determined at runtime below
-            (IOMethod) &YogaSMCUserClient::writeEC,
-            kIOUCScalarIStructI,
-            1,
-            kIOUCVariableStructureSize
-        },
-        {    // kYSMCUCReadECName
-            NULL,    // IOService * determined at runtime below
-            (IOMethod) &YogaSMCUserClient::readECName,
-            kIOUCStructIStructO,
-            4,
-            1
-        }
+// Preserve the public selector ABI while using explicit scalar/structure counts.
+IOReturn YogaSMCUserClient::externalMethod(uint32_t selector, IOExternalMethodArguments *arguments,
+    IOExternalMethodDispatch *, OSObject *, void *) {
+    const IOExternalMethodDispatch methods[kYSMCUCNumMethods] = {
+        { [](OSObject *object, void *, IOExternalMethodArguments *) -> IOReturn {
+            return static_cast<YogaSMCUserClient *>(object)->userClientOpen();
+        }, 0, 0, 0, 0 },
+        { [](OSObject *object, void *, IOExternalMethodArguments *) -> IOReturn {
+            return static_cast<YogaSMCUserClient *>(object)->userClientClose();
+        }, 0, 0, 0, 0 },
+        { [](OSObject *object, void *, IOExternalMethodArguments *args) -> IOReturn {
+            IOByteCount size = args->structureOutputSize;
+            IOReturn ret = static_cast<YogaSMCUserClient *>(object)->readEC(args->scalarInput[0],
+                static_cast<UInt8 *>(args->structureOutput), &size);
+            args->structureOutputSize = static_cast<uint32_t>(size);
+            return ret;
+        }, 1, 0, 0, kIOUCVariableStructureSize },
+        { [](OSObject *object, void *, IOExternalMethodArguments *args) -> IOReturn {
+            return static_cast<YogaSMCUserClient *>(object)->writeEC(args->scalarInput[0],
+                const_cast<UInt8 *>(static_cast<const UInt8 *>(args->structureInput)), args->structureInputSize);
+        }, 1, kIOUCVariableStructureSize, 0, 0 },
+        { [](OSObject *object, void *, IOExternalMethodArguments *args) -> IOReturn {
+            return static_cast<YogaSMCUserClient *>(object)->readECName(static_cast<const char *>(args->structureInput),
+                static_cast<UInt8 *>(args->structureOutput));
+        }, 0, 4, 0, 1 }
     };
-
-    if (index < (UInt32)kYSMCUCNumMethods) {
-        DebugLog("%s (index=%u)", __FUNCTION__, index);
-        *target = this;
-        return((IOExternalMethod *) &sMethods[index]);
-    } else {
-        AlwaysLog("%s not found (index=%u)", __FUNCTION__, index);
-        *target = NULL;
-        return(NULL);
-    }
+    if (selector >= kYSMCUCNumMethods || !arguments) return kIOReturnBadArgument;
+    return super::externalMethod(selector, arguments,
+        const_cast<IOExternalMethodDispatch *>(&methods[selector]), this, nullptr);
 }
 
 IOReturn YogaSMCUserClient::userClientOpen(void) {
@@ -90,6 +67,7 @@ IOReturn YogaSMCUserClient::userClientClose(void) {
         DebugLog("%s notification unregistered", __FUNCTION__);
     }
 
+    m_notificationPort = MACH_PORT_NULL;
     fProvider->close(this);
     DebugLog("%s", __FUNCTION__);
     return kIOReturnSuccess;
@@ -104,7 +82,7 @@ IOReturn YogaSMCUserClient::readEC(UInt64 offset, UInt8* output, IOByteCount *ou
         return kIOReturnBadArgument;
     }
 
-    if (offset + *outputSizeP > 0x100) {
+    if (offset >= 0x100 || *outputSizeP == 0 || *outputSizeP > 0x100 - offset) {
         AlwaysLog("%s invalid range", __FUNCTION__);
         return kIOReturnBadArgument;
     }
@@ -117,16 +95,20 @@ IOReturn YogaSMCUserClient::readEC(UInt64 offset, UInt8* output, IOByteCount *ou
         }
         *output = result;
     } else {
-        OSData *result;
+        OSData *result = nullptr;
         if (fProvider->method_recb(UInt32(offset), UInt32(*outputSizeP), &result) != kIOReturnSuccess) {
             AlwaysLog("%s recb failed", __FUNCTION__);
             return kIOReturnIOError;
         }
+        if (!result)
+            return kIOReturnIOError;
         if (result->getLength() == *outputSizeP) {
             const UInt8* data = reinterpret_cast<const UInt8 *>(result->getBytesNoCopy());
             memcpy(output, data, result->getLength());
         } else {
             *outputSizeP = 0;
+            result->release();
+            return kIOReturnIOError;
         }
         result->release();
     }
@@ -163,24 +145,32 @@ IOReturn YogaSMCUserClient::writeEC(UInt64 offset, UInt8* input, IOByteCount inp
     return kIOReturnSuccess;
 }
 
-IOReturn YogaSMCUserClient::readECName(char* name, UInt8* output) {
+IOReturn YogaSMCUserClient::readECName(const char* name, UInt8* output) {
     if (!fProvider || !fProvider->isOpen(this))
         return kIOReturnNotReady;
 
+    if (!name || !output || !fProvider->ec)
+        return kIOReturnBadArgument;
+    char field[5] = {name[0], name[1], name[2], name[3], '\0'};
+    for (unsigned i = 0; i < 4; ++i) {
+        if (!(field[i] == '_' || (field[i] >= 'A' && field[i] <= 'Z') ||
+              (i > 0 && field[i] >= '0' && field[i] <= '9')))
+            return kIOReturnBadArgument;
+    }
     UInt32 result = 0;
-    if (fProvider->ec->evaluateInteger(name, &result) != kIOReturnSuccess) {
-        AlwaysLog("%s read %s failed", __FUNCTION__, name);
+    if (fProvider->ec->evaluateInteger(field, &result) != kIOReturnSuccess) {
+        AlwaysLog("%s read %s failed", __FUNCTION__, field);
         return kIOReturnIOError;
     }
 
     *output = result;
 
-    DebugLog("%s @ %s", __FUNCTION__, name);
+    DebugLog("%s @ %s", __FUNCTION__, field);
     return kIOReturnSuccess;
 }
 
 IOReturn YogaSMCUserClient::registerNotificationPort(mach_port_t port, UInt32 type, io_user_reference_t refCon) {
-    if (!fProvider->isOpen(this) || !fProvider)
+    if (!fProvider || !fProvider->isOpen(this))
         return kIOReturnNotReady;
 
     if (fProvider->client) {

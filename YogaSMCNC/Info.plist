@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIconFile</key>
-	<string>YogaSMCNC.icns</string>
+	<string>ReYogaSMC.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -24,10 +24,12 @@
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>ReYogaRepositoryID</key>
+	<string>1416389510</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string></string>
+	<string>ReYogaSMC uses automation to run the system and application actions you configure.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2022 Zhen. All rights reserved.</string>
 	<key>NSMainStoryboardFile</key>

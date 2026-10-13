@@ -20,14 +20,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let pathComponents = bundlePath.pathComponents
         let path = NSString.path(withComponents: Array(pathComponents[0 ..< (pathComponents.count - 4)]))
 
-        if !NSWorkspace.shared.launchApplication(path) {
-            let alert = NSAlert()
-            alert.messageText = "Failed to open \(path)"
-            alert.alertStyle = .warning
-            alert.addButton(withTitle: "OK")
-            alert.runModal()
+        NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: .init()) { _, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    let alert = NSAlert()
+                    alert.messageText = "Could not open ReYogaSMC"
+                    alert.informativeText = error.localizedDescription
+                    alert.alertStyle = .warning
+                    alert.addButton(withTitle: "OK")
+                    alert.runModal()
+                }
+                NSApp.terminate(nil)
+            }
         }
-        NSApp.terminate(nil)
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {}

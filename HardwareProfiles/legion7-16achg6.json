@@ -1,0 +1,55 @@
+{
+  "id": "legion7-16achg6-gkcn",
+  "name": "Lenovo Legion 7 2021 16ACHg6",
+  "machine_type": "82N6",
+  "bios_family": "GKCN",
+  "validation": "ACPI identity reviewed; EC fan writes disabled pending hardware validation after a reported shutdown",
+  "ec_path": "\\_SB.PCI0.LPC0.EC0",
+  "ec_base": "0xFE00D400",
+  "ec_size": "0x600",
+  "rpm_scale": 100,
+  "offsets": {
+    "fan1_curve": "0x140",
+    "fan2_curve": "0x150",
+    "fan1_rpm": "0x1E0",
+    "fan2_rpm": "0x1E2",
+    "cpu_temp": "0x138",
+    "gpu_temp": "0x139",
+    "update_counter1": "0x1FE",
+    "update_counter2": "0x1FF",
+    "curve_point": "0x134",
+    "curve_size": "0x135",
+    "internal_cpu_level": "0x234",
+    "internal_gpu_level": "0x235",
+    "internal_sensor_level": "0x236"
+  },
+  "required_patterns": [
+    "OEM ID\\s+\\\"LENOVO\\\"",
+    "OperationRegion \\(ERAX, SystemMemory, 0xFE00D400, 0xFF\\)",
+    "Method \\(WMB2, 3, NotSerialized\\)",
+    "Method \\(GBMD, 0, NotSerialized\\)",
+    "Method \\(SBMC, 1, NotSerialized\\)",
+    "QCBX,\\s+1",
+    "QCHO,\\s+1",
+    "BTSM,\\s+1",
+    "CPUT,\\s+8",
+    "GPUT,\\s+8",
+    "FANS,\\s+8",
+    "FA2S,\\s+8",
+    "SPMO,\\s+4"
+  ],
+  "sources": [
+    "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
+    "https://psref.lenovo.com/syspool/Sys/PDF/Legion/Legion_7_16ACHg6/Legion_7_16ACHg6_Spec.pdf"
+  ],
+  "reviewed_dsdt_hashes": [
+    "40f0b447b8ab6e4948f827b36d7a3de9184a802841ce8ce1d5a0eb389c863afb"
+  ],
+  "kind": "acpi",
+  "power_mode_field": "SPMO",
+  "reviewed_aml_hashes": [
+    "14562d2904be242b29e46377e4ea2c667f37686ff240f415694ab89610f76d87"
+  ],
+  "curve_points_max": 10,
+  "verified_writes": 0
+}

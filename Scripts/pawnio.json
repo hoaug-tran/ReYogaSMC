@@ -1,0 +1,7 @@
+{
+  "url": "https://raw.githubusercontent.com/LibreHardwareMonitor/LibreHardwareMonitor/cd60f10f3290ff9b706e0f489b27ba9a50c1f9fa/LibreHardwareMonitorLib/Resources/PawnIo/LpcACPIEC.bin",
+  "sha256": "c38fd116e7aff4d1fdb0a494e296be0a6708e5a22fc72f14587442fb7f8f7906",
+  "source": "https://github.com/namazso/PawnIO.Modules/blob/main/LpcACPIEC.p",
+  "license": "LGPL-2.1-or-later",
+  "driver": "https://pawnio.eu/"
+}

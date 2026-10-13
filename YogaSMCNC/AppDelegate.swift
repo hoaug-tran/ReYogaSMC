@@ -22,6 +22,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     var statusItem: NSStatusItem?
     var gamingPopover: NSPopover?
+    var settingsWindow: NSWindow?
+    private var flagsMonitor: Any?
+    private var driverPort: IONotificationPortRef?
+    private var driverInterest: io_object_t = 0
     @IBOutlet weak var appMenu: NSMenu!
     var hide = false
 
@@ -79,22 +83,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    @objc func openPrefpane() {
-        prefpaneHelper()
-    }
-
-    @objc func midnightTimer(sender: Timer) {
-        setHolidayIcon(statusItem!)
-        let calendar = Calendar.current
-        let midnight = calendar.startOfDay(for: Date())
-        sender.fireDate = calendar.date(byAdding: .day, value: 1, to: midnight)!
-        if #available(macOS 10.12, *) {
-            os_log("Timer sheduled at %s", type: .info, sender.fireDate.description(with: Locale.current))
-        }
+    @objc func openAppSettings() {
+        showSettings()
     }
 
     @objc func iconWakeup() {
-        setHolidayIcon(statusItem!)
+        statusItem?.button?.image = ReYogaBrand.menuImage()
+        statusItem?.button?.title = ""
+        statusItem?.button?.toolTip = "ReYogaSMC"
+        GamingManager.shared.restoreAfterWake()
     }
 
     @objc func update () {
@@ -136,85 +133,150 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Application
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        var iter: io_iterator_t = 0
-
-        IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("YogaVPC"), &iter)
-
-        while let service = IOIteratorNextOptional(iter) {
-            guard let IOClass = getString("IOClass", service) else {
-                if #available(macOS 10.12, *) {
-                    os_log("Invalid YogaVPC instance", type: .info)
-                }
-                continue
+        if CommandLine.arguments.contains("--render-ui") { renderUIReview(); return }
+        #if DEBUG
+        if CommandLine.arguments.contains("--check-missing-driver") {
+            GamingManager.shared.setDriverState(.missing, message: "ReYogaSMC.kext is required. Install a compatible driver and restart macOS.")
+            initMenu("Driver required"); setupGamingPopover()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                let clean = self.conf.service == 0 && self.conf.connect == 0 && GamingManager.shared.driverState == .missing
+                print(clean ? "PASS missing driver: no client, no device dashboard; recovery screen active" : "FAIL missing-driver startup")
+                NSApp.terminate(nil)
             }
-
-            if #available(macOS 10.12, *) {
-                os_log("Found %s", type: .info, IOClass)
-            }
-
-            var connect: io_connect_t = 0
-
-            guard kIOReturnSuccess == IOServiceOpen(service, mach_task_self_, 0, &connect) else { continue }
-
-            conf.service = service
-            self.IOClass = IOClass
-
-            guard kIOReturnSuccess == IOConnectCallScalarMethod(connect, UInt32(kYSMCUCOpen), nil, 0, nil, nil) else {
-                IOServiceClose(connect)
-                continue
-            }
-
-            conf.connect = connect
-            break
-        }
-
-        guard conf.service != 0 else {
-            if #available(macOS 10.12, *) {
-                os_log("Failed to connect to YogaSMC", type: .fault)
-            }
-            showOSD("ConnectFail", duration: 2000)
-            NSApp.terminate(nil)
             return
         }
-
-        guard let props = getProperties(conf.service) else {
-            if #available(macOS 10.12, *) {
-                os_log("YogaSMC unavailable", type: .error)
-            }
-            showOSD("YogaSMC Unavailable", duration: 2000)
-            NSApp.terminate(nil)
-            return
+        #endif
+        ReYogaPreferences.shared.begin()
+        initMenu("ReYogaSMC")
+        attemptDriverConnection()
+        if CommandLine.arguments.contains("--show-controls") {
+            DispatchQueue.main.async { self.toggleGamingPopover(nil) }
         }
-
-        guard conf.connect != 0 else {
-            if #available(macOS 10.12, *) {
-                os_log("Another instance has connected to %s", type: .fault, IOClass)
-            }
-            showOSD("AlreadyConnected", duration: 2000)
-            NSApp.terminate(nil)
-            return
-        }
-
-        if #available(macOS 10.12, *) {
-            os_log("Connected to %s", type: .info, IOClass)
-        }
-
-        loadConfig()
-
-        initMenu(props["VersionInfo"] as? String ?? NSLocalizedString("Unknown Version", comment: ""))
-        initNotification(props["EC Capability"] as? String)
 
         capslockState = GetCurrentKeyModifiers() & UInt32(alphaLock) != 0
         if capslockState {
             conf.modifier.insert(.capsLock)
         }
-        NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged, handler: flagsCallBack)
+        flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged, handler: flagsCallBack)
+    }
+
+    @available(macOS 11.0, *)
+    func attemptDriverConnection() {
+        guard conf.connect == 0 else { return }
+        let manager = GamingManager.shared
+        manager.setDriverState(.checking, message: "Checking the hardware driver…")
+        var iterator: io_iterator_t = 0
+        let result = IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("YogaVPC"), &iterator)
+        defer { if iterator != 0 { IOObjectRelease(iterator) } }
+        var found = false
+        var error = "ReYogaSMC.kext is required. Install the driver and its required dependencies in your bootloader, then restart macOS."
+        if result == kIOReturnSuccess {
+            while let service = IOIteratorNextOptional(iterator) {
+                found = true
+                guard let props = getProperties(service), let provider = props["IOClass"] as? String else {
+                    error = "The driver was found but its properties could not be read. Check the driver log."
+                    IOObjectRelease(service); continue
+                }
+                let protocolVersion = props["ControlProtocolVersion"] as? Int ?? 0
+                if provider == "IdeaVPC" && protocolVersion != 1 {
+                    error = "The loaded driver does not provide a compatible control protocol. Boot the matching ReYogaSMC driver and retry."
+                    IOObjectRelease(service); continue
+                }
+                var connection: io_connect_t = 0
+                let openStatus = IOServiceOpen(service, mach_task_self_, 0, &connection)
+                guard openStatus == kIOReturnSuccess else {
+                    error = String(format: "Cannot open the hardware driver (0x%08x). Check permissions and the driver log.", openStatus)
+                    IOObjectRelease(service); continue
+                }
+                let claim = IOConnectCallScalarMethod(connection, UInt32(kYSMCUCOpen), nil, 0, nil, nil)
+                guard claim == kIOReturnSuccess else {
+                    error = String(format: "The driver rejected the connection (0x%08x). Another copy of this app may already be running.", claim)
+                    IOServiceClose(connection); IOObjectRelease(service); continue
+                }
+                conf.service = service; conf.connect = connection; IOClass = provider
+                manager.setDriverState(.ready, message: "Hardware driver ready")
+                watchDriverTermination(service)
+                loadConfig()
+                initNotification(props["EC Capability"] as? String)
+                return
+            }
+        } else { error = String(format: "IOKit driver discovery failed (0x%08x).", result) }
+        manager.setDriverState(found ? .unavailable : .missing, message: error)
+        setupGamingPopover()
+    }
+
+    private func watchDriverTermination(_ service: io_service_t) {
+        guard let port = IONotificationPortCreate(kIOMasterPortDefault) else { return }
+        driverPort = port
+        if let source = IONotificationPortGetRunLoopSource(port)?.takeUnretainedValue() {
+            CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        }
+        let status = IOServiceAddInterestNotification(port, service, kIOGeneralInterest, { context, _, message, _ in
+            guard message == ReYogaServiceTerminatedMessage(), let context = context else { return }
+            let delegate = Unmanaged<AppDelegate>.fromOpaque(context).takeUnretainedValue()
+            DispatchQueue.main.async {
+                GamingManager.shared.service = 0
+                delegate.closeDriverConnection()
+                GamingManager.shared.setDriverState(.unavailable, message: "The hardware driver disconnected. Retry the connection or restart with the matching kext.")
+            }
+        }, Unmanaged.passUnretained(self).toOpaque(), &driverInterest)
+        if status != kIOReturnSuccess { IONotificationPortDestroy(port); driverPort = nil }
+    }
+
+    func closeDriverConnection() {
+        if driverInterest != 0 { IOObjectRelease(driverInterest); driverInterest = 0 }
+        if let port = driverPort { IONotificationPortDestroy(port); driverPort = nil }
+        if let source = conf.notificationSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        if let port = conf.notificationPort { CFMachPortInvalidate(port) }
+        conf.notificationSource = nil; conf.notificationPort = nil
+        if conf.connect != 0 {
+            _ = IOConnectCallScalarMethod(conf.connect, UInt32(kYSMCUCClose), nil, 0, nil, nil)
+            IOServiceClose(conf.connect); conf.connect = 0
+        }
+        if conf.service != 0 { IOObjectRelease(conf.service); conf.service = 0 }
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        if CommandLine.arguments.contains("--render-ui") { return }
+        if #available(macOS 11.0, *) { GamingManager.shared.refreshPermissions() }
+    }
+
+    @available(macOS 11.0, *)
+    private func renderUIReview() {
+        let manager = GamingManager.shared
+        let service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IdeaVPC"))
+        if service != 0 { manager.loadReadOnlyPreview(service); IOObjectRelease(service) }
+        let directory = URL(fileURLWithPath: ProcessInfo.processInfo.environment["REYOGA_UI_REVIEW_DIR"] ?? NSTemporaryDirectory()).appendingPathComponent("ReYogaUIReview")
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            for dark in [false, true] {
+                for mode in ["device", "cooling", "rgb", "settings", "missing-driver"] {
+                    let controller = NSHostingController(rootView: ReYogaReviewView(mode: mode, manager: manager))
+                    let size = mode == "settings" ? NSSize(width: 560, height: 480) : NSSize(width: 420, height: mode == "rgb" ? 360 : 640)
+                    let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
+                    window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                    window.contentViewController = controller
+                    controller.view.frame = NSRect(origin: .zero, size: size)
+                    controller.view.layoutSubtreeIfNeeded()
+                    if let bitmap = controller.view.bitmapImageRepForCachingDisplay(in: controller.view.bounds) {
+                        controller.view.cacheDisplay(in: controller.view.bounds, to: bitmap)
+                        if let data = bitmap.representation(using: .png, properties: [:]) {
+                            try? data.write(to: directory.appendingPathComponent("\(mode)-\(dark ? "dark" : "light").png"))
+                        }
+                    }
+                }
+            }
+            NSApp.terminate(nil)
+        }
     }
 
     func applicationWillTerminate(_ aNotification: Notification) {
+        if CommandLine.arguments.contains("--render-ui") { return }
+        if #available(macOS 11.0, *) { GamingManager.shared.shutdown() }
         saveConfig()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
-        IOServiceClose(conf.connect)
+        if let monitor = flagsMonitor { NSEvent.removeMonitor(monitor); flagsMonitor = nil }
+        closeDriverConnection()
     }
 
     // MARK: - Configuration
@@ -229,24 +291,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem?.menu = appMenu
-        if let title = defaults.string(forKey: "Title") {
-            statusItem?.title = title
-            statusItem?.toolTip = defaults.string(forKey: "ToolTip")
-        } else {
-            _ = Timer.scheduledTimer(
-                timeInterval: 0,
-                target: self,
-                selector: #selector(midnightTimer(sender:)),
-                userInfo: nil,
-                repeats: true
-            )
-            NSWorkspace.shared.notificationCenter.addObserver(
-                self,
-                selector: #selector(iconWakeup),
-                name: NSWorkspace.didWakeNotification,
-                object: nil
-            )
-        }
+        statusItem?.button?.image = ReYogaBrand.menuImage()
+        statusItem?.button?.title = ""
+        statusItem?.button?.toolTip = "ReYogaSMC"
+        statusItem?.button?.setAccessibilityLabel("ReYogaSMC")
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(iconWakeup), name: NSWorkspace.didWakeNotification, object: nil)
 
         appMenu.delegate = self
 
@@ -262,28 +311,41 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         appMenu.insertItem(login, at: 5)
 
         let prefPrompt = NSLocalizedString("Preferences", comment: "")
-        let pref = NSMenuItem(title: prefPrompt, action: #selector(openPrefpane), keyEquivalent: "p")
+        let pref = NSMenuItem(title: prefPrompt, action: #selector(openAppSettings), keyEquivalent: "p")
         appMenu.insertItem(NSMenuItem.separator(), at: 6)
         appMenu.insertItem(pref, at: 7)
     }
 
     @objc func toggleGamingPopover(_ sender: AnyObject?) {
-        guard let button = statusItem?.button, let pop = gamingPopover else { return }
-        if pop.isShown {
-            pop.performClose(sender)
-        } else {
-            if #available(macOS 11.0, *) {
-                GamingManager.shared.refreshAll()
+        guard let popover = gamingPopover else { return }
+        if popover.isShown { popover.performClose(sender) }
+        else { showControlsWhenAnchored() }
+    }
+
+    private func showControlsWhenAnchored(attempt: Int = 0) {
+        guard let button = statusItem?.button, let popover = gamingPopover else { return }
+        if let window = button.window, let screen = window.screen, window.isVisible {
+            let anchor = window.convertToScreen(button.convert(button.bounds, to: nil))
+            if screen.frame.intersects(anchor), anchor.midY > screen.frame.maxY - NSStatusBar.system.thickness * 2 {
+                if #available(macOS 11.0, *) { GamingManager.shared.refreshAll() }
+                ReYogaDiagnostics.shared.record("popover_shown", ["anchor": NSStringFromRect(anchor), "screen": NSStringFromRect(screen.frame)])
+                popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+                return
             }
-            pop.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         }
+        guard attempt < 20 else {
+            ReYogaDiagnostics.shared.record("popover_anchor_failed", ["attempts": attempt])
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.showControlsWhenAnchored(attempt: attempt + 1) }
     }
 
     @available(macOS 11.0, *)
     func setupGamingPopover() {
         let pop = NSPopover()
-        pop.contentSize = NSSize(width: 335, height: 520)
+        pop.contentSize = NSSize(width: 420, height: 640)
         pop.behavior = .transient
+        pop.animates = false
         pop.contentViewController = NSHostingController(rootView: GamingPopoverView(manager: GamingManager.shared))
         self.gamingPopover = pop
 
@@ -292,6 +354,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             button.action = #selector(toggleGamingPopover(_:))
             statusItem?.menu = nil
         }
+    }
+
+    @available(macOS 11.0, *)
+    func showSettings(tab: Int = 0) {
+        gamingPopover?.performClose(nil)
+        ReYogaPreferences.shared.selectedTab = tab
+        ReYogaPreferences.shared.refreshLoginStatus()
+        if settingsWindow == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 480),
+                                  styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+            window.title = "ReYogaSMC Settings"
+            window.isReleasedWhenClosed = false
+            window.contentViewController = NSHostingController(rootView: ReYogaSettingsView(manager: GamingManager.shared, preferences: ReYogaPreferences.shared))
+            window.center()
+            settingsWindow = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    @available(macOS 11.0, *)
+    func returnToControls() {
+        settingsWindow?.orderOut(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.main.async { self.showControlsWhenAnchored() }
     }
 
     func initNotification(_ ECCap: String?) {
@@ -361,7 +448,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if #available(macOS 10.12, *) {
                 os_log("Unknown class", type: .error)
             }
-            showOSD("Unknown Class", duration: 2000)
+            if getNumber("ControlProtocolVersion", conf.service) == 1 {
+                GamingManager.shared.service = conf.service
+                setupGamingPopover()
+            } else {
+                GamingManager.shared.setDriverState(.unavailable, message: "This driver provider has no compatible control protocol.")
+                setupGamingPopover()
+            }
         }
         if isOpen { loadEvents(&conf) }
     }
@@ -447,6 +540,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func saveConfig() {
+        guard conf.service != 0 else { return }
         if !conf.events.isEmpty,
            Bundle.main.bundlePath.hasPrefix("/Applications"),
            IOClass != "YogaHIDD" {
@@ -465,5 +559,105 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Save driver settings
         defaults.setValue(getNumber("AutoBacklight", conf.service), forKey: "AutoBacklight")
         defaults.setValue(getNumber("BacklightTimeout", conf.service), forKey: "BacklightTimeout")
+    }
+}
+
+// Login state is obtained from the OS. Updates use published releases, never
+// silent EFI edits or unsigned replacement of a running kernel extension.
+@available(macOS 11.0, *)
+final class ReYogaPreferences: ObservableObject {
+    static let shared = ReYogaPreferences()
+    private let defaults = UserDefaults(suiteName: "org.zhen.YogaSMC")!
+    @Published var selectedTab = 0 { didSet { defaults.set(selectedTab, forKey: "SettingsTab") } }
+    @Published var startAtLogin = false
+    @Published var loginStatus = ""
+    @Published var automaticUpdates = false
+    @Published var checking = false
+    @Published var updateStatus = ""
+    @Published var releaseURL: URL?
+    private var timer: Timer?
+    func begin() {
+        selectedTab = min(2, max(0, defaults.integer(forKey: "SettingsTab")))
+        automaticUpdates = defaults.bool(forKey: "AutomaticUpdateChecks")
+        refreshLoginStatus()
+        checkIfDue()
+        timer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in self?.checkIfDue() }
+    }
+    func refreshLoginStatus() {
+        if #available(macOS 13.0, *) {
+            let status = SMAppService.mainApp.status
+            startAtLogin = status == .enabled || status == .requiresApproval
+            loginStatus = status == .requiresApproval ? "Approve ReYogaSMC in System Settings → Login Items." : ""
+        } else {
+            startAtLogin = defaults.bool(forKey: "StartAtLogin")
+        }
+    }
+    func setStartAtLogin(_ enabled: Bool) {
+        do {
+            if #available(macOS 13.0, *) {
+                if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+                refreshLoginStatus()
+            } else {
+                guard let id = Bundle.main.bundleIdentifier, SMLoginItemSetEnabled((id + "Helper") as CFString, enabled) else {
+                    throw SupportError.message("macOS could not change the login item. Install the app in Applications and retry.")
+                }
+                startAtLogin = enabled
+            }
+            defaults.set(startAtLogin, forKey: "StartAtLogin")
+            showOSDRaw(loginStatus.isEmpty ? "Start with macOS: \(startAtLogin ? "On" : "Off")" : loginStatus)
+        } catch {
+            refreshLoginStatus()
+            loginStatus = error.localizedDescription
+            showOSDRaw("Login item: \(error.localizedDescription)", duration: 3000)
+        }
+    }
+    func setAutomaticUpdates(_ enabled: Bool) {
+        automaticUpdates = enabled
+        defaults.set(enabled, forKey: "AutomaticUpdateChecks")
+        showOSDRaw("Automatic update checks: \(enabled ? "On" : "Off")")
+        if enabled { checkIfDue() }
+    }
+    private func checkIfDue() {
+        let last = defaults.object(forKey: "LastUpdateCheck") as? Date ?? .distantPast
+        if automaticUpdates && Date().timeIntervalSince(last) >= 86400 { checkForUpdates(manual: false) }
+    }
+    func checkForUpdates(manual: Bool) {
+        guard !checking else { return }
+        guard let repository = Bundle.main.object(forInfoDictionaryKey: "ReYogaRepositoryID") as? String,
+              UInt64(repository) != nil else {
+            updateStatus = "The release repository is not configured in this app build."
+            return
+        }
+        checking = true; updateStatus = "Checking published releases…"; releaseURL = nil
+        // GitHub's repository ID survives a rename; release checks do not depend on the old slug.
+        var request = URLRequest(url: URL(string: "https://api.github.com/repositories/\(repository)/releases/latest")!)
+        request.timeoutInterval = 20
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("ReYogaSMC", forHTTPHeaderField: "User-Agent")
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            var message: String
+            var release: URL?
+            if let error = error { message = "Update check failed: \(error.localizedDescription)" }
+            else if (response as? HTTPURLResponse)?.statusCode == 404 { message = "No public release is available for this fork yet." }
+            else if (response as? HTTPURLResponse)?.statusCode != 200 { message = "GitHub update service returned HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)." }
+            else if let data = data, let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let tag = json["tag_name"] as? String, let link = json["html_url"] as? String,
+                    let url = URL(string: link), url.scheme == "https", url.host == "github.com", url.pathComponents.count >= 5, url.pathComponents[3] == "releases" {
+                let current = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+                let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+                let components = version.split(separator: ".", omittingEmptySubsequences: false)
+                let numeric = !components.isEmpty && components.allSatisfy { !$0.isEmpty && $0.allSatisfy { $0 >= "0" && $0 <= "9" } }
+                if numeric && version.compare(current, options: .numeric) == .orderedDescending {
+                    message = "Update available: \(tag)."; release = url
+                } else if numeric { message = "No newer published version. Installed: \(current)." }
+                else { message = "Published release: \(tag). Review its compatibility before installing."; release = url }
+            } else { message = "Invalid release response from GitHub." }
+            ReYogaDiagnostics.shared.record("update_check", ["result": message, "manual": manual])
+            DispatchQueue.main.async {
+                self.checking = false; self.updateStatus = message; self.releaseURL = release
+                self.defaults.set(Date(), forKey: "LastUpdateCheck")
+                if manual || release != nil { showOSDRaw(message, duration: 3000) }
+            }
+        }.resume()
     }
 }

@@ -20,17 +20,18 @@ class YogaSMCUserClient : public IOUserClient {
     OSDeclareDefaultStructors(YogaSMCUserClient)
 
 protected:
-    YogaVPC* fProvider;
-    const char* iname;
-    task_t fTask;
-    mach_port_t m_notificationPort;
-    SMCNotificationMessage notification;
+    YogaVPC* fProvider {nullptr};
+    const char* iname {nullptr};
+    task_t fTask {nullptr};
+    mach_port_t m_notificationPort {MACH_PORT_NULL};
+    SMCNotificationMessage notification {};
 
 public:
     virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
     virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
 
-    virtual IOExternalMethod *getTargetAndMethodForIndex(IOService **target, UInt32 Index) APPLE_KEXT_OVERRIDE;
+    IOReturn externalMethod(uint32_t selector, IOExternalMethodArguments *arguments,
+        IOExternalMethodDispatch *dispatch = nullptr, OSObject *target = nullptr, void *reference = nullptr) APPLE_KEXT_OVERRIDE;
     IOReturn registerNotificationPort(mach_port_t port, UInt32 type, io_user_reference_t refCon) APPLE_KEXT_OVERRIDE;
 
     virtual IOReturn clientClose(void) APPLE_KEXT_OVERRIDE;
@@ -43,7 +44,7 @@ public:
     IOReturn userClientClose(void);
     IOReturn readEC(UInt64 offset, UInt8 *output, IOByteCount *outputSizeP);
     IOReturn writeEC(UInt64 offset, UInt8 *input, IOByteCount inputSizeP);
-    IOReturn readECName(char* name, UInt8* output);
+    IOReturn readECName(const char* name, UInt8* output);
 
 };
 #endif /* YogaSMCUserClientPrivate_hpp */

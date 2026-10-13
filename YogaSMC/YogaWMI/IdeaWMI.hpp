@@ -226,6 +226,9 @@ public:
     bool setGameZoneData(UInt32 query, UInt32 value);
     bool getFanSpeed(UInt32 fanId, UInt32 *result);
     bool getSensorTemperature(UInt32 sensorId, UInt32 *result);
+    bool setComponentLighting(UInt8 component, bool enable);
+    bool getPowerLimit(UInt32 query, UInt32 range[4]);
+    bool setPowerLimit(UInt32 query, UInt32 watts);
     bool getCPUTemperature(UInt32 *result);
     bool getGPUTemperature(UInt32 *result);
     bool setFanFullSpeed(bool enable);

@@ -36,8 +36,12 @@ YogaWMI* YogaWMI::withDYWMI(WMI *provider) {
 }
 
 IOReturn DYWMI::setProperties(OSObject *props) {
-    commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &DYWMI::setPropertiesGated), props);
-    return kIOReturnSuccess;
+    if (!commandGate) return kIOReturnNotReady;
+    if (!OSDynamicCast(OSDictionary, props)) return kIOReturnBadArgument;
+    return commandGate->runAction([](OSObject *owner, void *properties, void *, void *, void *) -> IOReturn {
+        static_cast<DYWMI *>(owner)->setPropertiesGated(static_cast<OSObject *>(properties));
+        return kIOReturnSuccess;
+    }, props);
 }
 
 void DYWMI::setPropertiesGated(OSObject* props) {
@@ -57,7 +61,7 @@ void DYWMI::setPropertiesGated(OSObject* props) {
                     continue;
                 }
 
-                OSObject *result;
+                OSObject *result = nullptr;
                 if (getSensorInfo(value->unsigned8BitValue(), &result)) {
                     char sensorName[10];
                     snprintf(sensorName, 10, "Sensor %d", value->unsigned8BitValue());
@@ -183,7 +187,7 @@ void DYWMI::ACPIEvent(UInt32 argument) {
         return;
     }
 
-    OSObject *result;
+    OSObject *result = nullptr;
     if (!YWMI->getEventData(argument, &result))
         AlwaysLog("message: Unknown ACPI notification 0x%04X", argument);
     else

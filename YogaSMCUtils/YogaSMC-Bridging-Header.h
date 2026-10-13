@@ -10,8 +10,11 @@
 #define YogaSMC_Bridging_Header_h
 
 #import <Foundation/Foundation.h>
-#import <OSD/OSDManager.h>
 #import <CoreGraphics/CoreGraphics.h>
+#import <IOKit/IOMessage.h>
+
+// Expose the SDK macro to Swift without duplicating its numeric value.
+static inline UInt32 ReYogaServiceTerminatedMessage(void) { return kIOMessageServiceIsTerminated; }
 
 #import "../YogaSMC/YogaSMCUserClient.h"
 #import "../YogaSMC/YogaVPC/ThinkEvents.h"

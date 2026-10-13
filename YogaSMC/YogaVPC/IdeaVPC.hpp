@@ -17,137 +17,140 @@
 // from linux/drivers/platform/x86/ideapad-laptop.c
 
 enum {
-    CFG_WIRELESS_COEX_BIT, /* 0 */
-    CFG_RESERVED_BIT, /* 1 */
-    CFG_PROCESSOR_BIT, /* 2 */
-    CFG_QUITE_BIT, /* 3 */
-    CFG_TOUCH_BIT, /* 4 */
-    CFG_SUPER_PERF_BIT, /* 5 */
-    CFG_UNDERCLOCK_BIT, /* 6 */
-    CFG_DCR_BIT, /* 7 */
-    CFG_GRAPHICS_3BIT, /* 8 */
+    CFG_WIRELESS_COEX_BIT = 0, /* 0 */
+    CFG_RESERVED_BIT = 1, /* 1 */
+    CFG_PROCESSOR_BIT = 2, /* 2 */
+    CFG_QUITE_BIT = 3, /* 3 */
+    CFG_TOUCH_BIT = 4, /* 4 */
+    CFG_SUPER_PERF_BIT = 5, /* 5 */
+    CFG_UNDERCLOCK_BIT = 6, /* 6 */
+    CFG_DCR_BIT = 7, /* 7 */
+    CFG_GRAPHICS_3BIT = 8, /* 8 */
     CFG_HDMI_BIT = 11,
-    CFG_ACTIVE_VGA_BIT, /* 12 */
-    CFG_EQ_BUTTON_3BIT, /* 13 */
+    CFG_ACTIVE_VGA_BIT = 12, /* 12 */
+    CFG_EQ_BUTTON_3BIT = 13, /* 13 */
     CFG_BT_BIT = 16,
-    CFG_3G_BIT, /* 17 */
-    CFG_WIFI_BIT, /* 18 */
-    CFG_CAMERA_BIT, /* 19 */
-    CFG_USER_BUTTON_3BIT, /* 20 */
-    CFG_COLOR_ENGINE_BIT, /* 23 */
-    CFG_PRODUCT_INFO_2BIT, /* 24 */
-    CFG_TOUCHPAD_OSD_BIT, /* 26 */
-    CFG_NUMLK_OSD_BIT, /* 27 */
-    CFG_CAPSLK_OSD_BIT, /* 28 */
-    CFG_MIC_OSD_BIT, /* 29 */
-    CFG_TOUCHPAD_BIT, /* 30 */
-    CFG_CAMERA_OSD_BIT, /* 31 */
+    CFG_3G_BIT = 17, /* 17 */
+    CFG_WIFI_BIT = 18, /* 18 */
+    CFG_CAMERA_BIT = 19, /* 19 */
+    CFG_USER_BUTTON_3BIT = 20, /* 20 */
+    CFG_COLOR_ENGINE_BIT = 23, /* 23 */
+    CFG_PRODUCT_INFO_2BIT = 24, /* 24 */
+    CFG_TOUCHPAD_OSD_BIT = 26, /* 26 */
+    CFG_NUMLK_OSD_BIT = 27, /* 27 */
+    CFG_CAPSLK_OSD_BIT = 28, /* 28 */
+    CFG_MIC_OSD_BIT = 29, /* 29 */
+    CFG_TOUCHPAD_BIT = 30, /* 30 */
+    CFG_CAMERA_OSD_BIT = 31, /* 31 */
 };
 
 enum {
-    BM0_CALIBRATION_BIT, /* 0 */
-    BM_STORAGEMODE_SEL_BIT,  /* 1 */
-    BM_RAPIDCHARGE_BIT, /* 2 */
-    BM0_BATTERYBAD_BIT, /* 3 */
-    BM1_BATTERYBAD_BIT, /* 4 */
-    BM0_CONSERVATION_BIT, /* 5 */
-    BM1_CONSERVATION_BIT, /* 6 */
-    BM0_ILLEGAL_BIT, /* 7 */
-    BM0_PERF_DEGRADE_BIT, /* 8 */
-    BM0_STORAGEMODE_STA_BIT, /* 9 */
-    BM1_ILLEGAL_BIT, /* 10 */
-    BM0_NORMAL_BIT, /* 11 */
-    BM1_NORMAL_BIT, /* 12 */
-    BM1_PERF_DEGRADE_BIT, /* 13 */
-    BM_BATTERYNUM_BIT, /* 14 */
-    BM_ADAPTER_TYPE_2BIT, /* 15 */
-    BM_RAPIDCHARGE_CAP, /* 17 */
-    BM_SHIPMODE_CAP, /* 18 */
-    BM_ADAPTER_TYPE_CAP, /* 19 */
-    BM1_CALIBRATION_BIT, /* 20 */
-    BM1_STORAGEMODE_STA_BIT, /* 21 */
-    BM_SHIPMODE_BIT, /* 22 */
-    BM_CHARGE_THRES_BIT, /* 23 */
+    BM0_CALIBRATION_BIT = 0, /* 0 */
+    BM_STORAGEMODE_SEL_BIT = 1,  /* 1 */
+    BM_RAPIDCHARGE_BIT = 2, /* 2 */
+    BM0_BATTERYBAD_BIT = 3, /* 3 */
+    BM1_BATTERYBAD_BIT = 4, /* 4 */
+    BM0_CONSERVATION_BIT = 5, /* 5 */
+    BM1_CONSERVATION_BIT = 6, /* 6 */
+    BM0_ILLEGAL_BIT = 7, /* 7 */
+    BM0_PERF_DEGRADE_BIT = 8, /* 8 */
+    BM0_STORAGEMODE_STA_BIT = 9, /* 9 */
+    BM1_ILLEGAL_BIT = 10, /* 10 */
+    BM0_NORMAL_BIT = 11, /* 11 */
+    BM1_NORMAL_BIT = 12, /* 12 */
+    BM1_PERF_DEGRADE_BIT = 13, /* 13 */
+    BM_BATTERYNUM_BIT = 14, /* 14 */
+    BM_ADAPTER_TYPE_2BIT = 15, /* 15 */
+    BM_RAPIDCHARGE_CAP = 17, /* 17 */
+    BM_SHIPMODE_CAP = 18, /* 18 */
+    BM_ADAPTER_TYPE_CAP = 19, /* 19 */
+    BM1_CALIBRATION_BIT = 20, /* 20 */
+    BM1_STORAGEMODE_STA_BIT = 21, /* 21 */
+    BM_SHIPMODE_BIT = 22, /* 22 */
+    BM_CHARGE_THRES_BIT = 23, /* 23 */
 };
 
+static_assert(BM_RAPIDCHARGE_CAP == 17, "GBMD capability bit 17 follows a two-bit adapter field");
+static_assert((0x10060020U & (1U << BM_RAPIDCHARGE_CAP)) != 0, "Reviewed Legion GBMD supports rapid charge");
+
 enum {
-    BMCMD0_CALIBRATION_END, /* 0 */
-    BMCMD0_CALIBRATION_INIT, /* 1 */
+    BMCMD0_CALIBRATION_END = 0, /* 0 */
+    BMCMD0_CALIBRATION_INIT = 1, /* 1 */
     BMCMD0_CONSERVATION_ON = 3,
     BMCMD0_CONSERVATION_OFF = 5,
-    BMCMD0_STORAGEMODE_CLR, /* 6 */
-    BMCMD0_RAPIDCHARGE_ON, /* 7 */
-    BMCMD0_RAPIDCHARGE_OFF, /* 8 */
-    BMCMD_SHIPMODE_ENTER, /* 9 */
-    BMCMD1_CALIBRATION_END, /* 10 */
-    BMCMD1_CALIBRATION_INIT, /* 11 */
+    BMCMD0_STORAGEMODE_CLR = 6, /* 6 */
+    BMCMD0_RAPIDCHARGE_ON = 7, /* 7 */
+    BMCMD0_RAPIDCHARGE_OFF = 8, /* 8 */
+    BMCMD_SHIPMODE_ENTER = 9, /* 9 */
+    BMCMD1_CALIBRATION_END = 10, /* 10 */
+    BMCMD1_CALIBRATION_INIT = 11, /* 11 */
     BMCMD1_CONSERVATION_ON = 13,
     BMCMD1_CONSERVATION_OFF = 15,
-    BMCMD_SHIPMODE_EXIT, /* 16 */
+    BMCMD_SHIPMODE_EXIT = 16, /* 16 */
 };
 
 enum {
-    HA_ALS_BIT, /* 0 */
-    HA_ALSKBC_BIT, /* 1 */
-    HA_ALSKBC_CAP, /* 2 */
-    HA_ALS_CAP, /* 3 */
-    HA_BACKLIGHT_CAP, /* 4 */
-    HA_BACKLIGHT_BIT, /* 5 */
-    HA_AOUSB_CAP, /* 6 */
-    HA_AOUSB_BIT, /* 7 */
-    HA_AUTODIS_CAP, /* 8 */
-    HA_FNLOCK_CAP, /* 9 */
-    HA_FNLOCK_BIT, /* 10 */
-    HA_PRIMEKEY_BIT, /* 11 */
-    HA_S0IL_CAP, /* 12 */
-    HA_ITS_BIT, /* 13 */
-    HA_AOUSBBAT_CAP, /* 14 */
-    HA_AOUSBBAT_BIT, /* 15 */
+    HA_ALS_BIT = 0, /* 0 */
+    HA_ALSKBC_BIT = 1, /* 1 */
+    HA_ALSKBC_CAP = 2, /* 2 */
+    HA_ALS_CAP = 3, /* 3 */
+    HA_BACKLIGHT_CAP = 4, /* 4 */
+    HA_BACKLIGHT_BIT = 5, /* 5 */
+    HA_AOUSB_CAP = 6, /* 6 */
+    HA_AOUSB_BIT = 7, /* 7 */
+    HA_AUTODIS_CAP = 8, /* 8 */
+    HA_FNLOCK_CAP = 9, /* 9 */
+    HA_FNLOCK_BIT = 10, /* 10 */
+    HA_PRIMEKEY_BIT = 11, /* 11 */
+    HA_S0IL_CAP = 12, /* 12 */
+    HA_ITS_BIT = 13, /* 13 */
+    HA_AOUSBBAT_CAP = 14, /* 14 */
+    HA_AOUSBBAT_BIT = 15, /* 15 */
 };
 
 enum {
-    HACMD_S0IL_OFF, /* 0 */
-    HACMD_S0IL_ON, /* 1 */
+    HACMD_S0IL_OFF = 0, /* 0 */
+    HACMD_S0IL_ON = 1, /* 1 */
     HACMD_COLOR_ENG_ON = 4,
-    HACMD_COLOR_ENG_OFF, /* 5 */
-    HACMD_ALS_OFF, /* 6 */
-    HACMD_ALS_ON, /* 7 */
-    HACMD_BACKLIGHT_ON, /* 8 */
-    HACMD_BACKLIGHT_OFF, /* 9 */
-    HACMD_AOUSB_ON, /* 10 */
-    HACMD_AOUSB_OFF, /* 11 */
-    HACMD_AUTOKT_ON, /* 12 */
-    HACMD_AUTOKT_OFF, /* 13 */
-    HACMD_FNLOCK_ON, /* 14 */
-    HACMD_FNLOCK_OFF, /* 15 */
-    HACMD_S0IL_ENTER, /* 16 */
-    HACMD_S0IL_EXIT, /* 17 */
-    HACMD_AOUSBBAT_OFF, /* 18 */
-    HACMD_AOUSBBAT_ON, /* 19 */
+    HACMD_COLOR_ENG_OFF = 5, /* 5 */
+    HACMD_ALS_OFF = 6, /* 6 */
+    HACMD_ALS_ON = 7, /* 7 */
+    HACMD_BACKLIGHT_ON = 8, /* 8 */
+    HACMD_BACKLIGHT_OFF = 9, /* 9 */
+    HACMD_AOUSB_ON = 10, /* 10 */
+    HACMD_AOUSB_OFF = 11, /* 11 */
+    HACMD_AUTOKT_ON = 12, /* 12 */
+    HACMD_AUTOKT_OFF = 13, /* 13 */
+    HACMD_FNLOCK_ON = 14, /* 14 */
+    HACMD_FNLOCK_OFF = 15, /* 15 */
+    HACMD_S0IL_ENTER = 16, /* 16 */
+    HACMD_S0IL_EXIT = 17, /* 17 */
+    HACMD_AOUSBBAT_OFF = 18, /* 18 */
+    HACMD_AOUSBBAT_ON = 19, /* 19 */
 };
 
 enum {
     VPCCMD_R_VPC1 = 0x10,
-    VPCCMD_R_BL_MAX, /* 0x11 */
-    VPCCMD_R_BL, /* 0x12 */
-    VPCCMD_W_BL, /* 0x13 */
-    VPCCMD_R_WIFI, /* 0x14 */
-    VPCCMD_W_WIFI, /* 0x15 */
-    VPCCMD_R_BT, /* 0x16 */
-    VPCCMD_W_BT, /* 0x17 */
-    VPCCMD_R_BL_POWER, /* 0x18 */
-    VPCCMD_R_NOVO, /* 0x19 */
-    VPCCMD_R_VPC2, /* 0x1A */
-    VPCCMD_R_TOUCHPAD, /* 0x1B */
-    VPCCMD_W_TOUCHPAD, /* 0x1C */
-    VPCCMD_R_CAMERA, /* 0x1D */
-    VPCCMD_W_CAMERA, /* 0x1E */
-    VPCCMD_R_3G, /* 0x1F */
-    VPCCMD_W_3G, /* 0x20 */
-    VPCCMD_R_ODD, /* 0x21 */
-    VPCCMD_W_FAN, /* 0x22 */
-    VPCCMD_R_RF, /* 0x23 */
-    VPCCMD_W_RF, /* 0x24 */
+    VPCCMD_R_BL_MAX = 0x11, /* 0x11 */
+    VPCCMD_R_BL = 0x12, /* 0x12 */
+    VPCCMD_W_BL = 0x13, /* 0x13 */
+    VPCCMD_R_WIFI = 0x14, /* 0x14 */
+    VPCCMD_W_WIFI = 0x15, /* 0x15 */
+    VPCCMD_R_BT = 0x16, /* 0x16 */
+    VPCCMD_W_BT = 0x17, /* 0x17 */
+    VPCCMD_R_BL_POWER = 0x18, /* 0x18 */
+    VPCCMD_R_NOVO = 0x19, /* 0x19 */
+    VPCCMD_R_VPC2 = 0x1A, /* 0x1A */
+    VPCCMD_R_TOUCHPAD = 0x1B, /* 0x1B */
+    VPCCMD_W_TOUCHPAD = 0x1C, /* 0x1C */
+    VPCCMD_R_CAMERA = 0x1D, /* 0x1D */
+    VPCCMD_W_CAMERA = 0x1E, /* 0x1E */
+    VPCCMD_R_3G = 0x1F, /* 0x1F */
+    VPCCMD_W_3G = 0x20, /* 0x20 */
+    VPCCMD_R_ODD = 0x21, /* 0x21 */
+    VPCCMD_W_FAN = 0x22, /* 0x22 */
+    VPCCMD_R_RF = 0x23, /* 0x23 */
+    VPCCMD_W_RF = 0x24, /* 0x24 */
     VPCCMD_R_FAN = 0x2B,
     VPCCMD_R_SPECIAL_BUTTONS = 0x31,
     VPCCMD_W_BL_POWER = 0x33,
@@ -183,6 +186,24 @@ private:
     bool exitVPC() APPLE_KEXT_OVERRIDE;
 
     class IdeaWMIGameZone *wmig {nullptr};
+    IOTimerEventSource *telemetryPoller {nullptr};
+    bool telemetryAwake {true};
+    bool detailedTelemetry {false};
+    UInt64 sampleSequence {0};
+    UInt32 telemetryIntervalMS {500};
+    bool legionBridge {false};
+    UInt32 legionBridgeVersion {0};
+    bool powerLimitsSaved {false};
+    UInt32 originalPowerLimits[2] {0, 0};
+    UInt32 powerLimitsProfile {0};
+    IOReturn setPowerStateGated(unsigned long state, IOService *device);
+    bool restorePowerLimits();
+    void updateTelemetry();
+    void updateFeatureStatus();
+    void controlRequest(OSDictionary *request);
+    IOReturn setControl(const char *key, OSObject *value);
+    IOReturn setBridgeFan(UInt32 fan, UInt32 rpm);
+    IOReturn setPowerState(unsigned long state, IOService *device) APPLE_KEXT_OVERRIDE;
 
     /**
      *  Always on USB mode capability, will be update on init

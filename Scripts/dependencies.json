@@ -1,0 +1,5 @@
+{
+  "MacKernelSDK": {"revision": "3f750085caa17ec3a7880f11c11bf4f48cd6a164"},
+  "Lilu": {"version": "1.7.2", "sha256": "e95df95d82e8b151047abf359ecd9c853755c59293e19dfcc3907da8fbd8cf89"},
+  "VirtualSMC": {"version": "1.3.8", "sha256": "d1a13a4ad5564f97d4fa4cb584eaa63cb4fbe280c6997100133789dd4bdac200"}
+}

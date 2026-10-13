@@ -55,14 +55,19 @@ func getProperties(_ service: io_service_t) -> NSDictionary? {
     return CFProps?.takeRetainedValue() as NSDictionary?
 }
 
+private func writeProperty(_ key: String, _ value: CFTypeRef, _ service: io_service_t) -> Bool {
+    let result = IORegistryEntrySetCFProperty(service, key as CFString, value)
+    return result == kIOReturnSuccess
+}
+
 func sendBoolean(_ key: String, _ value: Bool, _ service: io_service_t) -> Bool {
-    return (kIOReturnSuccess == IORegistryEntrySetCFProperty(service, key as CFString, value as CFBoolean))
+    return writeProperty(key, value as CFBoolean, service)
 }
 
 func sendNumber(_ key: String, _ value: Int, _ service: io_service_t) -> Bool {
-    return (kIOReturnSuccess == IORegistryEntrySetCFProperty(service, key as CFString, value as CFNumber))
+    return writeProperty(key, value as CFNumber, service)
 }
 
 func sendString(_ key: String, _ value: String, _ service: io_service_t) -> Bool {
-    return (kIOReturnSuccess == IORegistryEntrySetCFProperty(service, key as CFString, value as CFString))
+    return writeProperty(key, value as CFString, service)
 }

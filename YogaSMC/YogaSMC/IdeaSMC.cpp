@@ -76,6 +76,18 @@ void IdeaSMC::updateECVendor() {
     UInt32 value;
     for (UInt8 index = 0; index < ECSensorBase; ++index) {
         UInt8 code = sensorIndex[index];
+        // Reuse the VPC telemetry sample rather than querying the EC twice.
+        if (sensorProvider && sensorProvider->getProperty("SensorSampleSequence")) {
+            const char *key = (code == 0xF0 || code == GAME_ZONE_WMI_GET_FAN_ONE) ? "Fan1RPM" :
+                (code == 0xF1 || code == GAME_ZONE_WMI_GET_FAN_TWO) ? "Fan2RPM" :
+                (code == 0xE0 || code == GAME_ZONE_WMI_GET_TMP_CPU) ? "CPUTemp" :
+                (code == 0xE1 || code == GAME_ZONE_WMI_GET_TMP_GPU) ? "GPUTemp" : nullptr;
+            if (key) {
+                auto sample = OSDynamicCast(OSNumber, sensorProvider->getProperty(key));
+                atomic_store_explicit(&currentSensor[index], sample ? sample->unsigned32BitValue() : 0, memory_order_release);
+                continue;
+            }
+        }
         if (code == 0xF0) {
             if (wmig->getFanSpeed(0, &value))
                 atomic_store_explicit(&currentSensor[index], value, memory_order_release);
@@ -96,5 +108,6 @@ void IdeaSMC::updateECVendor() {
 }
 
 void IdeaSMC::getWMISensor(IOService *provder) {
+    sensorProvider = provder;
     wmig = OSDynamicCast(IdeaWMIGameZone, provder->getProperty("Game Zone"));
 }

@@ -227,8 +227,12 @@ void IdeaWMISuperRes::processWMI() {
 }
 
 IOReturn IdeaWMISuperRes::setProperties(OSObject *props) {
-    commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &IdeaWMISuperRes::setPropertiesGated), props);
-    return kIOReturnSuccess;
+    if (!commandGate) return kIOReturnNotReady;
+    if (!OSDynamicCast(OSDictionary, props)) return kIOReturnBadArgument;
+    return commandGate->runAction([](OSObject *owner, void *properties, void *, void *, void *) -> IOReturn {
+        static_cast<IdeaWMISuperRes *>(owner)->setPropertiesGated(static_cast<OSObject *>(properties));
+        return kIOReturnSuccess;
+    }, props);
 }
 
 void IdeaWMISuperRes::setPropertiesGated(OSObject* props) {
@@ -283,7 +287,7 @@ void IdeaWMIBattery::processWMI() {
 
 bool IdeaWMIBattery::getBatteryInfo(UInt32 index, OSArray *bat) {
     IOReturn ret;
-    OSObject *result;
+    OSObject *result = nullptr;
     OSString *info;
 
     ret = YWMI->queryBlock(BAT_INFO_WMI_STRING, index, &result);
@@ -354,36 +358,45 @@ bool IdeaWMIGameZone::getSensorTemperature(UInt32 sensorId, UInt32 *result) {
 }
 
 bool IdeaWMIGameZone::getCPUTemperature(UInt32 *result) {
-    if (getSensorTemperature(3, result) && *result > 0 && *result < 125)
-        return true;
-    return getSensorTemperature(0, result);
+    bool ok = hasFanMethod ? getSensorTemperature(3, result) :
+        getGamzeZoneData(GAME_ZONE_WMI_GET_TMP_CPU, result);
+    return ok && *result < 125;
 }
 
 bool IdeaWMIGameZone::getGPUTemperature(UInt32 *result) {
-    if (getSensorTemperature(4, result) && *result > 0 && *result < 125)
-        return true;
-    return getSensorTemperature(1, result);
+    bool ok = hasFanMethod ? getSensorTemperature(4, result) :
+        getGamzeZoneData(GAME_ZONE_WMI_GET_TMP_GPU, result);
+    // A powered-off dGPU may return zero; the telemetry layer labels it.
+    return ok && *result < 125;
 }
 
 bool IdeaWMIGameZone::setFanFullSpeed(bool enable) {
     if (!hasFanMethod)
         return false;
     IOReturn ret;
-    UInt32 dummy = 0;
-    OSNumber *in = OSNumber::withNumber(enable ? 1ULL : 0ULL, 32);
-    ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 2, &dummy, in, true);
+    OSObject *result = nullptr;
+    const UInt8 state = enable ? 1 : 0;
+    OSData *in = OSData::withBytes(&state, sizeof(state));
+    if (!in) return false;
+    // LENOVO_FAN_METHOD accepts a one-byte buffer; a successful call may have no return object.
+    ret = YWMI->evaluateMethod(LENOVO_FAN_METHOD, 0, 2, &result, in, true);
+    OSSafeReleaseNULL(result);
     OSSafeReleaseNULL(in);
     return (ret == kIOReturnSuccess);
 }
 
 bool IdeaWMIGameZone::getFanFullSpeed(bool *enabled) {
+    removeProperty("FanFullSpeedRaw");
+    if (!enabled) return false;
     if (!hasFanMethod)
         return false;
     IOReturn ret;
     UInt32 result = 0;
     ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 1, &result, nullptr, true);
-    if (ret == kIOReturnSuccess)
-        *enabled = (result != 0);
+    if (ret == kIOReturnSuccess) {
+        setProperty("FanFullSpeedRaw", result, 32);
+        *enabled = result != 0;
+    }
     return (ret == kIOReturnSuccess);
 }
 
@@ -407,17 +420,26 @@ bool IdeaWMIGameZone::setLightingStatus(UInt32 value) {
 }
 
 bool IdeaWMIGameZone::getYLogoStatus(bool *enabled) {
+    removeProperty("YLogoRawState");
+    removeProperty("YLogoRawBrightness");
     if (!hasLightingMethod)
         return false;
-    OSNumber *in = OSNumber::withNumber(3ULL, 32);
+    if (!enabled) return false;
+    const UInt8 component = 3;
+    OSData *in = OSData::withBytes(&component, sizeof(component));
+    if (!in) return false;
     OSObject *result = nullptr;
     IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 1, &result, in, true);
     OSSafeReleaseNULL(in);
     if (ret == kIOReturnSuccess && result) {
         OSData *data = OSDynamicCast(OSData, result);
-        if (data && data->getLength() >= 1) {
+        if (data && data->getLength() == 2) {
             const UInt8 *bytes = static_cast<const UInt8 *>(data->getBytesNoCopy());
-            *enabled = (bytes[0] != 0);
+            setProperty("YLogoRawState", bytes[0], 8);
+            setProperty("YLogoRawBrightness", bytes[1], 8);
+            // LCST uses 1=on. Older one-bit EC fields read back 0 for off; newer interfaces may return 2.
+            if (bytes[0] > 2) { result->release(); return false; }
+            *enabled = bytes[0] == 1;
             result->release();
             return true;
         }
@@ -427,29 +449,30 @@ bool IdeaWMIGameZone::getYLogoStatus(bool *enabled) {
 }
 
 bool IdeaWMIGameZone::setYLogoStatus(bool enable) {
-    if (!hasLightingMethod)
-        return false;
-    UInt8 buf[3] = {0x03, static_cast<UInt8>(enable ? 1 : 0), 0x00};
-    OSData *in = OSData::withBytes(buf, 3);
-    OSObject *result = nullptr;
-    IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 2, &result, in, true);
-    OSSafeReleaseNULL(in);
-    OSSafeReleaseNULL(result);
-    return (ret == kIOReturnSuccess);
+    return setComponentLighting(3, enable);
 }
 
 bool IdeaWMIGameZone::getPortLightingStatus(bool *enabled) {
+    removeProperty("PortLightingRawState");
+    removeProperty("PortLightingRawBrightness");
     if (!hasLightingMethod)
         return false;
-    OSNumber *in = OSNumber::withNumber(5ULL, 32);
+    if (!enabled) return false;
+    const UInt8 component = 5;
+    OSData *in = OSData::withBytes(&component, sizeof(component));
+    if (!in) return false;
     OSObject *result = nullptr;
     IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 1, &result, in, true);
     OSSafeReleaseNULL(in);
     if (ret == kIOReturnSuccess && result) {
         OSData *data = OSDynamicCast(OSData, result);
-        if (data && data->getLength() >= 1) {
+        if (data && data->getLength() == 2) {
             const UInt8 *bytes = static_cast<const UInt8 *>(data->getBytesNoCopy());
-            *enabled = (bytes[0] != 0);
+            setProperty("PortLightingRawState", bytes[0], 8);
+            setProperty("PortLightingRawBrightness", bytes[1], 8);
+            // Port brightness is byte 1; byte 0 is the state type.
+            if (bytes[1] > 2) { result->release(); return false; }
+            *enabled = bytes[1] != 0;
             result->release();
             return true;
         }
@@ -459,15 +482,35 @@ bool IdeaWMIGameZone::getPortLightingStatus(bool *enabled) {
 }
 
 bool IdeaWMIGameZone::setPortLightingStatus(bool enable) {
-    if (!hasLightingMethod)
-        return false;
-    UInt8 buf[3] = {0x05, static_cast<UInt8>(enable ? 1 : 0), 0x00};
-    OSData *in = OSData::withBytes(buf, 3);
+    return setComponentLighting(5, enable);
+}
+
+bool IdeaWMIGameZone::setComponentLighting(UInt8 component, bool enable) {
+    if (!hasLightingMethod) return false;
+    if (component != 3 && component != 5) return false;
+    auto input = OSData::withBytes(&component, sizeof(component));
+    if (!input) return false;
     OSObject *result = nullptr;
-    IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 2, &result, in, true);
-    OSSafeReleaseNULL(in);
+    IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 1, &result, input, true);
+    input->release();
+    auto data = OSDynamicCast(OSData, result);
+    if (ret != kIOReturnSuccess || !data || data->getLength() != 2) { OSSafeReleaseNULL(result); return false; }
+    // Protocol documented by LenovoLegionLinux legion_wmi_light_get/set:
+    // logo SCST is 1=on, 2=off; port brightness is 0..2 with SCST=1.
+    // https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c
+    const auto current = static_cast<const UInt8 *>(data->getBytesNoCopy());
+    if ((component == 3 && current[0] > 2) ||
+        (component == 5 && current[1] > 2)) { result->release(); return false; }
+    UInt8 bytes[3] = {component, 1, 0};
+    if (component == 3) bytes[1] = enable ? 1 : 2;
+    else bytes[2] = enable ? (current[1] ? current[1] : 2) : 0;
     OSSafeReleaseNULL(result);
-    return (ret == kIOReturnSuccess);
+    auto payload = OSData::withBytes(bytes, sizeof(bytes));
+    if (!payload) return false;
+    ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 2, &result, payload, true);
+    payload->release();
+    OSSafeReleaseNULL(result);
+    return ret == kIOReturnSuccess;
 }
 
 void IdeaWMIGameZone::processWMI() {
@@ -557,4 +600,35 @@ const char* IdeaWMIGameZone::registerEvent(OSString *guid, UInt32 id) {
     else
         return nullptr;
     return feature;
+}
+
+// Firmware supplies current/step/min/max as four little-endian dwords.
+bool IdeaWMIGameZone::getPowerLimit(UInt32 query, UInt32 range[4]) {
+    if (!YWMI->hasMethod(LENOVO_CPU_METHOD)) return false;
+    OSObject *result = nullptr;
+    auto input = OSNumber::withNumber(0ULL, 32);
+    if (!input) return false;
+    IOReturn ret = YWMI->evaluateMethod(LENOVO_CPU_METHOD, 0, query, &result, input, true);
+    input->release();
+    auto data = OSDynamicCast(OSData, result);
+    bool valid = ret == kIOReturnSuccess && data && data->getLength() == 16;
+    if (valid) {
+        const auto bytes = static_cast<const UInt8 *>(data->getBytesNoCopy());
+        for (unsigned i = 0; i < 4; ++i)
+            range[i] = UInt32(bytes[i * 4]) | UInt32(bytes[i * 4 + 1]) << 8 |
+                       UInt32(bytes[i * 4 + 2]) << 16 | UInt32(bytes[i * 4 + 3]) << 24;
+        valid = range[1] > 0 && range[2] <= range[0] && range[0] <= range[3] && range[2] < range[3];
+    }
+    OSSafeReleaseNULL(result);
+    return valid;
+}
+
+bool IdeaWMIGameZone::setPowerLimit(UInt32 query, UInt32 watts) {
+    OSObject *result = nullptr;
+    auto input = OSNumber::withNumber(watts, 32);
+    if (!input) return false;
+    IOReturn ret = YWMI->evaluateMethod(LENOVO_CPU_METHOD, 0, query, &result, input, true);
+    input->release();
+    OSSafeReleaseNULL(result);
+    return ret == kIOReturnSuccess;
 }

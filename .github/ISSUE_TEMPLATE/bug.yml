@@ -1,0 +1,30 @@
+name: Bug report
+description: Report a reproducible driver or app problem.
+title: "[Bug] "
+body:
+  - type: input
+    id: hardware
+    attributes:
+      label: Model and BIOS
+      description: Exact model, machine type and firmware version.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Software versions
+      description: macOS, ReYogaSMC kext/app and OpenCore versions.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps and observed behavior
+      description: What you requested, what happened, what you expected, and whether AC/battery or sleep changes it. Do not repeat a command that caused shutdown.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Diagnostics
+      description: Attach a reviewed report, correlated result and relevant logs. Remove private identifiers first.

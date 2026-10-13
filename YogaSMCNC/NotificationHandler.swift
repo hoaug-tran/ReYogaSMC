@@ -10,27 +10,19 @@ import AppKit
 import os.log
 
 func registerNotification(_ conf: inout SharedConfig) -> Bool {
-    // fix warning per https://forums.swift.org/t/swift-5-2-pointers-and-coretext/34862
-    var portContext: CFMachPortContext = withUnsafeMutableBytes(of: &conf) { conf in
-        CFMachPortContext(version: 0, info: conf.baseAddress, retain: nil, release: nil, copyDescription: nil)
-    }
-
-    guard let notificationPort = CFMachPortCreate(kCFAllocatorDefault, notificationCallback, &portContext, nil),
-       let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, notificationPort, 0) else {
-        if #available(macOS 10.12, *) {
-            os_log("Failed to create mach port", type: .error)
-        }
+    var portContext = CFMachPortContext(version: 0, info: Unmanaged.passUnretained(conf).toOpaque(),
+                                        retain: nil, release: nil, copyDescription: nil)
+    guard let port = CFMachPortCreate(kCFAllocatorDefault, notificationCallback, &portContext, nil),
+          let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0) else { return false }
+    let ret = IOConnectSetNotificationPort(conf.connect, 0, CFMachPortGetPort(port), 0)
+    guard ret == kIOReturnSuccess else {
+        CFMachPortInvalidate(port)
+        ReYogaDiagnostics.shared.record("notification_registration_failed", ["status": ret])
         return false
     }
-
-    CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .defaultMode)
-
-    if kIOReturnSuccess != IOConnectSetNotificationPort(conf.connect, 0, CFMachPortGetPort(notificationPort), 0) {
-        if #available(macOS 10.12, *) {
-            os_log("Failed to set notification port", type: .error)
-        }
-        return false
-    }
+    conf.notificationPort = port
+    conf.notificationSource = source
+    CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
     return true
 }
 
@@ -40,19 +32,16 @@ func notificationCallback(
     _ size: CFIndex,
     _ info: UnsafeMutableRawPointer?
 ) {
-    guard var conf = info?.load(as: SharedConfig.self) else {
+    guard let info = info, let msg = msg, size >= MemoryLayout<SMCNotificationMessage>.size else {
         if #available(macOS 10.12, *) {
             os_log("Invalid config", type: .error)
         }
         return
     }
 
-    guard let notification = msg?.load(as: SMCNotificationMessage.self) else {
-        if #available(macOS 10.12, *) {
-            os_log("Invalid notification", type: .error)
-        }
-        return
-    }
+    var conf = Unmanaged<SharedConfig>.fromOpaque(info).takeUnretainedValue()
+    let notification = msg.load(as: SMCNotificationMessage.self)
+    ReYogaDiagnostics.shared.record("ec_notification", ["event": notification.event, "data": notification.data])
 
     if let events = conf.events[notification.event] {
         let mod = conf.modifier.subtracting(.capsLock)
@@ -164,6 +153,10 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
         bluetoothDiscoverableHelper(desc.name, desc.display)
     case .backlight:
         if !desc.display { return }
+        if getNumber("BacklightLevel", conf.service) < 0 && getBoolean("LenovoLightingMethod", conf.service) {
+            showOSDRaw("Lighting changed")
+            return
+        }
         if (data & 0x10 != 0) { return }
         switch data & 0x0f {
         case 0:
@@ -199,8 +192,8 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
         CoreDockSendNotification("com.apple.expose.awake" as CFString, nil)
     case .launchpad:
         CoreDockSendNotification("com.apple.launchpad.toggle" as CFString, nil)
-    case .prefpane:
-        prefpaneHelper()
+    case .settings:
+        (NSApp.delegate as? AppDelegate)?.showSettings()
     case .sleep:
         if desc.display {
             showOSDRes(desc.name, .kSleep)
@@ -213,7 +206,22 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
         _ = scriptHelper(siriAS, desc.name)
     case .spotlight:
         _ = scriptHelper(spotlightAS, desc.name)
+    case .controls:
+        (NSApp.delegate as? AppDelegate)?.toggleGamingPopover(nil)
+        showOSD(desc.name)
+    case .calculator, .screenshot:
+        let bundle = desc.action == .calculator ? "com.apple.calculator" : "com.apple.Screenshot"
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) {
+            NSWorkspace.shared.openApplication(at: url, configuration: .init()) { _, error in
+                if let error = error { ReYogaDiagnostics.shared.record("hotkey_launch_failed", ["bundle": bundle, "error": error.localizedDescription]) }
+            }
+            showOSD(desc.name)
+        } else { showOSDRaw("\(desc.name): application unavailable") }
+    case .displaysettings, .mirror:
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.displays") { NSWorkspace.shared.open(url) }
+        showOSDRaw("Display Settings")
     case .thermal:
+        if #available(macOS 11.0, *) { GamingManager.shared.refreshAll() }
         showOSD(desc.name, desc.image)
         if #available(macOS 10.12, *) {
             os_log("%s: thermal event", type: .info, desc.name)

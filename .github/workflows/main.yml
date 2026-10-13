@@ -1,104 +1,44 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
-
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
 on:
   push:
-    branches: [ master ]
   pull_request:
-    branches: [ master ]
-
   workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+permissions:
+  contents: read
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: macos-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+  support-tool:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    - name: Download MacKernelSDK
-      run: git clone --depth 1 https://github.com/acidanthera/MacKernelSDK.git
-    - name: Download Lilu / VirtualSMC SDK (script from hieplpvip/AsusSMC (Acidanthera/Lilu))
-      run: src=$(/usr/bin/curl -Lfs https://raw.githubusercontent.com/hieplpvip/AsusSMC/master/Scripts/bootstrap.sh) && eval "$src" || exit 1
-    - name: Xcodebuild Debug
-      uses: sersoft-gmbh/xcodebuild-action@v3.2.0
-      with:
-        project: YogaSMC.xcodeproj
-        # scheme: # optional
-        # destination: # optional
-        configuration: Debug
-        build-settings: ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES=NO MACOSX_DEPLOYMENT_TARGET=11.0
-        target: BuildAll
-        action: build
-    - name: Xcodebuild Release
-      uses: sersoft-gmbh/xcodebuild-action@v3.2.0
-      with:
-        project: YogaSMC.xcodeproj
-        # destination: # optional
-        configuration: Release
-        build-settings: ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES=NO MACOSX_DEPLOYMENT_TARGET=11.0
-        target: BuildAll
-        action: build
-    - name: Prepare release image
-      run: |
-        mkdir build/Release-App
-        mv build/Release/YogaSMCNC.app build/Release-App/
-        mv build/Release/YogaSMCPane.prefPane build/Release-App/
-        cp LICENSE build/Release-App/
-        ln -s /Applications build/Release-App/
-        cp -r YogaSMC/SSDTSample build/Release/
-    - name: Prepare debug image
-      run: |
-        mkdir build/Debug-App
-        mv build/Debug/YogaSMCNC.app build/Debug-App/
-        mv build/Debug/YogaSMCPane.prefPane build/Debug-App/
-        cp LICENSE build/Debug-App/
-        ln -s /Applications build/Debug-App/
-        cp -r YogaSMC/SSDTSample build/Debug/
-    - name: Upload debug kext
-      uses: actions/upload-artifact@v4
-      with:
-        name: YogaSMC-Debug
-        path: |
-          build/Debug/*.kext
-          build/Debug/LICENSE
-          build/Debug/SSDTSample
-    - name: Upload release kext
-      uses: actions/upload-artifact@v4
-      with:
-        name: YogaSMC-Release
-        path: |
-          build/Release/*.kext
-          build/Release/LICENSE
-          build/Release/SSDTSample
-    - name: Create DMG image
-      run: |
-        brew install create-dmg
-        create-dmg --no-internet-enable --sandbox-safe --window-size 450 450 build/YogaSMC-App-Debug.dmg build/Debug-App/
-        create-dmg --no-internet-enable --sandbox-safe --window-size 450 450 build/YogaSMC-App-Release.dmg build/Release-App/
-    - name: Upload debug app
-      uses: actions/upload-artifact@v4
-      with:
-        name: YogaSMC-App-Debug
-        path: build/YogaSMC-App-Debug.dmg
-    - name: Upload release app
-      uses: actions/upload-artifact@v4
-      with:
-        name: YogaSMC-App-Release
-        path: build/YogaSMC-App-Release.dmg
-    - name: Upload release dSYM
-      uses: actions/upload-artifact@v4
-      with:
-        name: YogaSMC-Release-dSYM
-        path: |
-          build/Release/*.dSYM
-          build/Release/LICENSE
+      - uses: actions/checkout@v4
+      - name: Check profile matching and export recovery
+        run: python -m unittest discover -s Tests -p "test_*.py"
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Bootstrap locked dependencies
+        run: bash Scripts/bootstrap.sh
+      - name: Check support adapters
+        run: |
+          mkdir -p build
+          cp -R HardwareProfiles build/HardwareProfiles
+          swiftc YogaSMCNC/HardwareSupport.swift YogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
+          build/SupportTests
+      - name: Build Debug and Release
+        run: |
+          xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Debug CODE_SIGNING_ALLOWED=NO
+          xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Release CODE_SIGNING_ALLOWED=NO
+      - name: Package development builds
+        run: |
+          bash Scripts/package.sh Debug
+          bash Scripts/package.sh Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ReYogaSMC-development
+          path: build/packages/**/*.zip
+          if-no-files-found: error

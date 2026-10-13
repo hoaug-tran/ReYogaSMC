@@ -1,0 +1,13 @@
+{
+  "release": "20260408",
+  "source": {
+    "url": "https://github.com/open-acpica/acpica/releases/download/20260408/acpica-unix-20260408.tar.gz",
+    "sha256": "e66ceb26d6d514ce164fe22f5a4f7ca165cc38349d7a97f41a21f19b364647a2"
+  },
+  "Windows": {
+    "iasl": {
+      "url": "https://github.com/open-acpica/acpica/releases/download/20260408/iasl.exe",
+      "sha256": "739c597bcee4563f18d13e73b2051bb661707713e6154cf5712a1b7eef4a5df9"
+    }
+  }
+}

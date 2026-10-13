@@ -11,22 +11,23 @@
 #include "common.h"
 #include <uuid/uuid.h>
 
-#define error(str) do { IOLog("YSMC - Info: YogaBMF::%s %d: error %s at %s:%d\n", wmi_name, indent, str, __func__, __LINE__); OSSafeReleaseNULL(name); parsed = false; return dict;} while (0)
-#define errors(str) do { IOLog("YSMC - Info: YogaBMF::%s %d: error %s at %s:%d\n", wmi_name, indent, str, __func__, __LINE__); parsed = false;} while (0)
-#define warning(str) do { IOLog("YSMC - Info: YogaBMF::%s %d: warning %s at %s:%d\n", wmi_name, indent, str, __func__, __LINE__);} while (0)
+#define error(str) do { IOLog("RYSMC - Info: YogaBMF::%s %d: error %s at %s:%d\n", wmi_name, indent, str, __func__, __LINE__); OSSafeReleaseNULL(name); parsed = false; return dict;} while (0)
+#define errors(str) do { IOLog("RYSMC - Info: YogaBMF::%s %d: error %s at %s:%d\n", wmi_name, indent, str, __func__, __LINE__); parsed = false;} while (0)
+#define warning(str) do { IOLog("RYSMC - Info: YogaBMF::%s %d: warning %s at %s:%d\n", wmi_name, indent, str, __func__, __LINE__);} while (0)
 
 OSString *MOF::parse_string(char *buf, uint32_t size) {
   uint16_t *buf2 = reinterpret_cast<uint16_t *>(buf);
-  if (size % 2 != 0) {
+  if (size % 2 != 0 || !contains(buf, size)) {
     errors("invalid size");
     return OSString::withCString("invalid size");
   }
-  char *out = reinterpret_cast<char *>(IOMalloc(size+1));
+  const uint32_t outputSize = (size / 2) * 3 + 1;
+  char *out = reinterpret_cast<char *>(IOMalloc(outputSize));
   if (!out) {
     errors("malloc failed");
     return OSString::withCString("malloc failed");
   }
-  bzero(out, size+1);
+  bzero(out, outputSize);
 
   uint32_t i, j;
   for (i=0, j=0; i<size/2; ++i) {
@@ -44,13 +45,6 @@ OSString *MOF::parse_string(char *buf, uint32_t size) {
       out[j++] = 0x80 | ((c >> 12) & 0x3F);
       out[j++] = 0x80 | ((c >> 6) & 0x3F);
       out[j++] = 0x80 | (c & 0x3F);
-    } else if (buf2[i] >= 0xD800 && buf2[i] <= 0xDBFF && i+1 < size/2 && buf2[i+1] >= 0xDC00 && buf2[i+1] <= 0xDFFF) {
-      uint32_t c = 0x10000 + ((buf2[i] - 0xD800) << 10) + (buf2[i+1] - 0xDC00);
-      ++i;
-      out[j++] = 0xF0 | (c >> 18);
-      out[j++] = 0x80 | ((c >> 12) & 0x3F);
-      out[j++] = 0x80 | ((c >> 6) & 0x3F);
-      out[j++] = 0x80 | (c & 0x3F);
     } else {
       out[j++] = 0xE0 | (buf2[i] >> 12);
       out[j++] = 0x80 | ((buf2[i] >> 6) & 0x3F);
@@ -59,7 +53,7 @@ OSString *MOF::parse_string(char *buf, uint32_t size) {
   }
   out[j] = 0;
   OSString *ret = OSString::withCString(out);
-  IOFree(out, size+1);
+  IOFree(out, outputSize);
   return ret;
 }
 
@@ -79,8 +73,9 @@ uint16_t MOF::parse_valuemap(uint16_t *buf, bool map, uint32_t i) {
 
 uint32_t MOF::parse_valuemap(int32_t *buf, bool map, uint32_t i) {
     OSString *value;
-    char * res = new char[10];
-    snprintf(res, 10, "%d", buf[0]);
+    if (!contains(buf, sizeof(int32_t))) { errors("valuemap truncated"); return 0; }
+    char res[12];
+    snprintf(res, sizeof(res), "%d", buf[0]);
     value = OSString::withCString(res);
     if (map)
       valuemap->setObject(i, value);
@@ -109,6 +104,10 @@ uint32_t MOF::parse_valuemap(int32_t *buf, bool map, uint32_t i) {
 OSDictionary* MOF::parse_method(uint32_t *buf, uint32_t verify) {
     ++indent;
     OSDictionary *dict = OSDictionary::withCapacity(5);
+    if (!dict || !contains(buf, 20) || buf[0] < 20 || !contains(buf, buf[0])) {
+        parsed = false;
+        return dict;
+    }
     uint8_t *type = (uint8_t *)buf + 4;
     OSObject *value;
     OSDictionary *item;
@@ -421,6 +420,10 @@ OSDictionary* MOF::parse_method(uint32_t *buf, uint32_t verify) {
 OSDictionary* MOF::parse_class(uint32_t *buf) {
     ++indent;
     OSDictionary *dict = OSDictionary::withCapacity(11);
+    if (!dict || !contains(buf, 20) || buf[0] < 20 || !contains(buf, buf[0])) {
+        parsed = false;
+        return dict;
+    }
     uint32_t type = buf[1];
     OSObject *value;
     OSDictionary *item;
@@ -453,7 +456,7 @@ OSDictionary* MOF::parse_class(uint32_t *buf) {
 //#endif
     
     buf += 5;
-    
+    if (!contains(buf, 8)) error("class body truncated");
     if (!type) {
         if (indent != 1) warning("wrong class level");
         count = buf[1];
@@ -612,6 +615,7 @@ OSDictionary* MOF::parse_class(uint32_t *buf) {
 *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
 OSObject* MOF::parse_bmf() {
+    if (!contains(buf, 20)) { parsed = false; return OSString::withCString("BMF header truncated"); }
     uint32_t *nbuf = (uint32_t *)buf;
 
     if (nbuf[0] != 0x424D4F46) errors("header mismatch");
@@ -620,7 +624,9 @@ OSObject* MOF::parse_bmf() {
     if (!parsed) return OSString::withCString("parse error");
     
     uint32_t count = nbuf[4];
+    if (count > 0xff) { parsed = false; return OSString::withCString("BMF count exceeded"); }
     OSDictionary *dict = OSDictionary::withCapacity(5+count);
+    if (!dict) { parsed = false; return nullptr; }
     OSObject *value;
     OSDictionary *item;
     OSString *name = nullptr;
@@ -639,7 +645,9 @@ OSObject* MOF::parse_bmf() {
     nbuf+=5;
     if (count > 0xff) error("count exceeded");
     for (uint32_t i=0; i<count; i++) {
+        if (!contains(nbuf, 20)) error("class header truncated");
         item = parse_class(nbuf);
+        if (!item) error("class allocation failed");
         if ((name = OSDynamicCast(OSString, item->getObject("__CLASS")))) {
             dict->setObject(name, item);
             name = nullptr;
@@ -654,6 +662,7 @@ OSObject* MOF::parse_bmf() {
     }
     if (!parsed) return dict;
     
+    if (!contains(nbuf, 20)) error("footer truncated");
     if (nbuf[0] != 0x464F4D42 | nbuf[1] != 0x4C415551 | nbuf[2] != 0x56414C46 | nbuf[3] != 0x3131524F)  error("footer mismatch");
     
     count = nbuf[4];
@@ -661,7 +670,9 @@ OSObject* MOF::parse_bmf() {
     if (count > 0x1ff) error("count exceeded");
     OSArray *offsets = OSArray::withCapacity(count);
     for (uint32_t i=0; i<count; i++) {
+        if (!contains(nbuf, 8) || nbuf[0] >= size) { errors("offset table truncated"); break; }
         item = parse_method((uint32_t *)(buf+nbuf[0]), nbuf[1]);
+        if (!item) { errors("method allocation failed"); break; }
         if (item->getObject("verified"))
         {
             OSDictionary *offset = OSDictionary::withCapacity(3);

@@ -17,64 +17,45 @@
 #endif
 
 #ifdef DEBUG
-#define DebugLog(str, ...) do { IOLog("YSMC - Debug: %s::%s " str "\n", iname ? iname : "(null)", getName(), ## __VA_ARGS__); } while (0)
+#define DebugLog(str, ...) do { IOLog("RYSMC - Debug: %s::%s " str "\n", iname ? iname : "(null)", getName(), ## __VA_ARGS__); } while (0)
 #else
 #define DebugLog(str, ...) do { } while (0)
 #endif
-#define AlwaysLog(str, ...) do { IOLog("YSMC - Info: %s::%s " str "\n", iname ? iname : "(null)", getName(), ## __VA_ARGS__); } while (0)
+#define AlwaysLog(str, ...) do { IOLog("RYSMC - Info: %s::%s " str "\n", iname ? iname : "(null)", getName(), ## __VA_ARGS__); } while (0)
 
 #define BIT(nr) (1U << (nr))
 
 #define ECReadCap    BIT(0)
 #define ECWriteCap   BIT(1)
 
-#define getPropertyBoolean(prompt)     \
-    do { \
-        value = OSDynamicCast(OSBoolean, dict->getObject(prompt));   \
-        if (value == nullptr) { \
-            AlwaysLog(valueInvalid, prompt);  \
-            continue;   \
-        } \
-    } while (0)
-
-#define getPropertyNumber(prompt)     \
-    do { \
-        value = OSDynamicCast(OSNumber, dict->getObject(prompt));   \
-        if (value == nullptr) { \
-            AlwaysLog(valueInvalid, prompt);  \
-            continue;   \
-        } \
-    } while (0)
-
-#define getPropertyString(prompt)     \
-    do { \
-        value = OSDynamicCast(OSString, dict->getObject(prompt));   \
-        if (value == nullptr) { \
-            AlwaysLog(valueInvalid, prompt);  \
-            continue;   \
-        } \
-    } while (0)
+// A malformed property skips the caller's collection loop; a do/while macro
+// would only continue its own loop and leave callers dereferencing null.
+#define getPropertyBoolean(prompt) \
+    if (!(value = OSDynamicCast(OSBoolean, dict->getObject(prompt)))) { \
+        AlwaysLog(valueInvalid, prompt); continue; \
+    }
+#define getPropertyNumber(prompt) \
+    if (!(value = OSDynamicCast(OSNumber, dict->getObject(prompt)))) { \
+        AlwaysLog(valueInvalid, prompt); continue; \
+    }
+#define getPropertyString(prompt) \
+    if (!(value = OSDynamicCast(OSString, dict->getObject(prompt)))) { \
+        AlwaysLog(valueInvalid, prompt); continue; \
+    }
 
 #define setPropertyBoolean(dict, name, boolean) \
     do { dict->setObject(name, boolean ? kOSBooleanTrue : kOSBooleanFalse); } while (0)
 
-// define a OSNumber(OSObject) *value before use
+// Scoped temporaries avoid dependence on the caller's variable names/types.
 #define setPropertyNumber(dict, name, number, bits) \
     do { \
-        value = OSNumber::withNumber(number, bits); \
-        if (value != nullptr) { \
-            dict->setObject(name, value); \
-            value->release(); \
-        } \
+        auto propertyObject = OSNumber::withNumber(number, bits); \
+        if (propertyObject) { dict->setObject(name, propertyObject); propertyObject->release(); } \
     } while (0)
-
 #define setPropertyString(dict, name, str) \
     do { \
-        value = OSString::withCString(str); \
-        if (value != nullptr) { \
-            dict->setObject(name, value); \
-            value->release(); \
-        } \
+        auto propertyObject = OSString::withCString(str); \
+        if (propertyObject) { dict->setObject(name, propertyObject); propertyObject->release(); } \
     } while (0)
 
 #define setPropertyBytes(dict, name, data, len) \

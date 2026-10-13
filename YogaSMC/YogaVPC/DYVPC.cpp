@@ -52,15 +52,15 @@ bool DYVPC::initVPC() {
 
     super::initVPC();
 
-    OSObject * result;
+    OSObject * result = nullptr;
     if (vpc->evaluateObject("RCDS", &result) == kIOReturnSuccess) {
         readCommandDateSize = OSDynamicCast(OSArray, result);
-        readCommandDateSize->retain();
+        if (readCommandDateSize) readCommandDateSize->retain();
     }
     OSSafeReleaseNULL(result);
     if (vpc->evaluateObject("WCDS", &result) == kIOReturnSuccess) {
         writeCommandDateSize = OSDynamicCast(OSArray, result);
-        writeCommandDateSize->retain();
+        if (writeCommandDateSize) writeCommandDateSize->retain();
     }
     OSSafeReleaseNULL(result);
 
@@ -105,7 +105,7 @@ void DYVPC::updateVPC(UInt32 event) {
     UInt32 id;
     UInt32 data;
 
-    OSObject *result;
+    OSObject *result = nullptr;
     if (!YWMI->getEventData(event, &result)) {
         AlwaysLog("message: Unknown ACPI notification 0x%04x", event);
         return;
@@ -160,7 +160,7 @@ bool DYVPC::WMIQuery(UInt32 query, void *buffer, enum hp_wmi_command command, UI
         .data           = { 0 },
     };
 
-    if (insize > sizeof(args.data))
+    if (insize > sizeof(args.data) || (!buffer && (insize || outsize)) || query == 0)
         return false;
 
     UInt32 mid;
@@ -188,7 +188,7 @@ bool DYVPC::WMIQuery(UInt32 query, void *buffer, enum hp_wmi_command command, UI
     memcpy(&args.data[0], buffer, insize);
     OSData *in = OSData::withBytesNoCopy(&args, sizeof(struct bios_args));
 
-    OSObject *result;
+    OSObject *result = nullptr;
 
     IOReturn ret = YWMI->evaluateMethod(BIOS_QUERY_WMI_METHOD, 0, mid, &result, in);
     OSSafeReleaseNULL(in);

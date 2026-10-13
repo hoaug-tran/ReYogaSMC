@@ -14,7 +14,7 @@ OSDefineMetaClassAndStructors(ThinkVPC, YogaVPC);
 
 void ThinkVPC::updateAll() {
     if (hotkey_legacy) {
-        OSObject* result;
+        OSObject *result = nullptr;
         if (vpc->evaluateObject(getHKEYmask, &result) != kIOReturnSuccess)
             AlwaysLog(toggleFailure, "LegacyNotificationMask");
         else

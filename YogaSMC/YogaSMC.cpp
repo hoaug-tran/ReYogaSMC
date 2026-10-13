@@ -108,7 +108,7 @@ void YogaSMC::stop(IOService *provider)
 
 bool YogaSMC::vsmcNotificationHandler(void *sensors, void *refCon, IOService *vsmc, IONotifier *notifier) {
     auto self = OSDynamicCast(YogaSMC, reinterpret_cast<OSMetaClassBase*>(sensors));
-    if (sensors && vsmc) {
+    if (self && vsmc) {
         DBGLOG("yogasmc", "got vsmc notification");
         auto &plugin = self->vsmcPlugin;
         auto ret = vsmc->callPlatformFunction(VirtualSMCAPI::SubmitPlugin, true, sensors, &plugin, nullptr, nullptr);
@@ -210,8 +210,12 @@ void YogaSMC::setPropertiesGated(OSObject* props) {
 }
 
 IOReturn YogaSMC::setProperties(OSObject *props) {
-    commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &YogaSMC::setPropertiesGated), props);
-    return kIOReturnSuccess;
+    if (!commandGate) return kIOReturnNotReady;
+    if (!OSDynamicCast(OSDictionary, props)) return kIOReturnBadArgument;
+    return commandGate->runAction([](OSObject *owner, void *properties, void *, void *, void *) -> IOReturn {
+        static_cast<YogaSMC *>(owner)->setPropertiesGated(static_cast<OSObject *>(properties));
+        return kIOReturnSuccess;
+    }, props);
 }
 
 EXPORT extern "C" kern_return_t ADDPR(kern_start)(kmod_info_t *, void *) {

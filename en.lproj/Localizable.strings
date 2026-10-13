@@ -7,9 +7,9 @@
 */
 
 // OSD Warning
-"ConnectFail" = "Failed to connect \n to YogaSMC";
-"AlreadyConnected" = "Another instance has \n connected to YogaSMC";
-"YogaSMC Unavailable";
+"ConnectFail" = "Failed to connect \n to ReYogaSMC";
+"AlreadyConnected" = "Another instance has \n connected to ReYogaSMC";
+"YogaSMC Unavailable" = "ReYogaSMC unavailable";
 "Unknown Version";
 "ECAccessUnavailable" = "EC access unavailable! \n See SSDT-ECRW.dsl";
 "Unknown Class";

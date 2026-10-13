@@ -1,3 +1,22 @@
+# ReYogaSMC changes
+
+## Unreleased
+
+* Remove the preference pane target and move its settings actions into the menu bar app.
+* Add live standard EC snapshots through Linux ec_sys and Windows PawnIO.
+
+* Add a graphite app icon, a monochrome line glyph for the menu bar and semantic popup icons.
+* Persist RGB effects, zone colors, per-key imports and editing drafts. Restore confirmed settings on compatible hardware and retain reset/Auto semantics.
+
+* Rename the project and build products to ReYogaSMC while preserving driver ABI identifiers, upstream copyright and licensing.
+* Add a Python hardware report workflow with ACPI fingerprints, compiler setup, reviewed SSDT generation and local ZIP export.
+* Disable unvalidated Legion EC fan writes after a reported shutdown; retain automatic cooling and sensor support.
+* Correct WMI lighting state encoding and fan-boost payload type. Publish raw states and distinguish firmware acknowledgement from readback confirmation.
+* Add app diagnostic export, signing guidance and a signing script. Remove Command Lock from the dashboard.
+* Rework documentation, contribution templates and package workflows. CI releases are drafts with unsigned status made explicit.
+
+## Upstream history
+
 YogaSMC Changelog
 ============================
 #### v1.5.2

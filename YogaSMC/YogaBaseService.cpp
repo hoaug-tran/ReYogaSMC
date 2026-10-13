@@ -41,6 +41,8 @@ bool YogaBaseService::start(IOService *provider)
     setProperty("VersionInfo", kmod_info.version);
     setProperty("Variant", "Alter");
 #endif
+    setProperty("ForkName", "ReYogaSMC");
+    setProperty("DiagnosticSchemaVersion", 1, 32);
     workLoop = IOWorkLoop::workLoop();
     commandGate = IOCommandGate::commandGate(this);
     if (!workLoop || !commandGate || (workLoop->addEventSource(commandGate) != kIOReturnSuccess)) {
@@ -81,8 +83,8 @@ bool YogaBaseService::start(IOService *provider)
 
 void YogaBaseService::stop(IOService *provider)
 {
-    _publishNotify->remove();
-    _terminateNotify->remove();
+    if (_publishNotify) _publishNotify->remove();
+    if (_terminateNotify) _terminateNotify->remove();
     _notificationServices->flushCollection();
     OSSafeReleaseNULL(_notificationServices);
     OSSafeReleaseNULL(_deliverNotification);
@@ -115,7 +117,11 @@ void YogaBaseService::dispatchMessage(int message, void* data)
         AlwaysLog("No available notification consumer");
         return;
     }
-    commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &YogaBaseService::dispatchMessageGated), &message, data);
+    if (!commandGate) return;
+    commandGate->runAction([](OSObject *owner, void *message, void *data, void *, void *) -> IOReturn {
+        static_cast<YogaBaseService *>(owner)->dispatchMessageGated(static_cast<int *>(message), data);
+        return kIOReturnSuccess;
+    }, &message, data);
 }
 
 void YogaBaseService::notificationHandlerGated(IOService *newService, IONotifier *notifier)
@@ -133,7 +139,11 @@ void YogaBaseService::notificationHandlerGated(IOService *newService, IONotifier
 
 bool YogaBaseService::notificationHandler(void *refCon, IOService *newService, IONotifier *notifier)
 {
-    commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &YogaBaseService::notificationHandlerGated), newService, notifier);
+    if (!commandGate) return false;
+    commandGate->runAction([](OSObject *owner, void *service, void *notifier, void *, void *) -> IOReturn {
+        static_cast<YogaBaseService *>(owner)->notificationHandlerGated(static_cast<IOService *>(service), static_cast<IONotifier *>(notifier));
+        return kIOReturnSuccess;
+    }, newService, notifier);
     return true;
 }
 
@@ -225,7 +235,8 @@ IOReturn YogaBaseService::method_re1b(UInt32 offset, UInt8 *result) {
     if (!ec || !(ECAccessCap & ECReadCap))
         return kIOReturnUnsupported;
 
-    UInt32 raw;
+    if (!result) return kIOReturnBadArgument;
+    UInt32 raw = 0;
     OSObject* params[1] = {
         OSNumber::withNumber(offset, 32)
     };
@@ -250,7 +261,7 @@ IOReturn YogaBaseService::method_recb(UInt32 offset, UInt32 size, OSData **data)
         OSNumber::withNumber(offset, 32),
         OSNumber::withNumber(size * 8, 32)
     };
-    OSObject* result;
+    OSObject *result = nullptr;
 
     IOReturn ret = ec->evaluateObject(readECBytes, &result, params, 2);
     params[0]->release();

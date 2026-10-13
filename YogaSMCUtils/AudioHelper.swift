@@ -52,7 +52,13 @@ enum AudioPropertyError: Error {
     case emptyResult
 }
 
-struct AudioProperty<T> {
+protocol AudioScalar {
+    static var zero: Self { get }
+}
+extension Float: AudioScalar {}
+extension UInt32: AudioScalar {}
+
+struct AudioProperty<T: AudioScalar> {
     let emptyValue: T?
     let device: AudioDeviceID
     let prop: AudioObjectPropertyAddress
@@ -72,18 +78,17 @@ struct AudioProperty<T> {
         }
 
         var size = UInt32(MemoryLayout<T>.size)
-        var result: T? = emptyValue
-        let error = AudioObjectGetPropertyData(device, &addr, 0, nil, &size, &result)
+        var result = emptyValue ?? T.zero
+        let error = withUnsafeMutableBytes(of: &result) { bytes in
+            AudioObjectGetPropertyData(device, &addr, 0, nil, &size, bytes.baseAddress!)
+        }
 
         if error != noErr {
             return .failure(.getPropertyData(error))
         }
 
-        if let result = result {
-            return .success(result)
-        }
-
-        return .failure(.emptyResult)
+        guard size == MemoryLayout<T>.size else { return .failure(.emptyResult) }
+        return .success(result)
     }
 
     func set(_ newValue: T) -> Result<T, AudioPropertyError> {
@@ -100,7 +105,9 @@ struct AudioProperty<T> {
 
         let size = UInt32(MemoryLayout<T>.size)
         var value = newValue
-        error = AudioObjectSetPropertyData(device, &addr, 0, nil, size, &value)
+        error = withUnsafeBytes(of: &value) { bytes in
+            AudioObjectSetPropertyData(device, &addr, 0, nil, size, bytes.baseAddress!)
+        }
         if error != noErr {
             return .failure(.setPropertyData(error))
         }
@@ -158,15 +165,17 @@ class AudioHelper {
                     }
                 }
                 guard try inputMute.set(0).get() == 0,
-                      sendNumber("MicMuteLED", 0, service) else {
+                      try inputMute.get().get() == 0 else {
                     throw AudioPropertyError.noProperty
                 }
+                if getProperties(service)?["MicMuteLED"] != nil { _ = sendNumber("MicMuteLED", 0, service) }
                 showOSDRes(name, "Unmute", .kMic)
             } else {
                 guard try inputMute.set(1).get() == 1,
-                      sendNumber("MicMuteLED", 2, service) else {
+                      try inputMute.get().get() == 1 else {
                     throw AudioPropertyError.noProperty
                 }
+                if getProperties(service)?["MicMuteLED"] != nil { _ = sendNumber("MicMuteLED", 2, service) }
                 showOSDRes(name, "Mute", .kMicOff)
             }
         } catch {

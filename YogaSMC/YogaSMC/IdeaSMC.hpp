@@ -23,6 +23,7 @@ private:
      *  WMI device, in place of provider and direct ACPI evaluations
      */
     IdeaWMIGameZone *wmig {nullptr};
+    IOService *sensorProvider {nullptr};
 
     /**
      *  Corresponding sensor index

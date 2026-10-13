@@ -14,8 +14,8 @@ enum EventAction: String {
     // Userspace
     case nothing, script, launchapp, launchbundle
     case airplane, wireless, bluetooth, bluetoothdiscoverable
-    case prefpane, spotlight, search, siri, sleep, micmute
-    case mission, launchpad, desktop, expose
+    case settings, spotlight, search, siri, sleep, micmute
+    case mission, launchpad, desktop, expose, controls, calculator, screenshot, displaysettings
     case mirror, camera, yoga
     // Driver
     case backlight, fnlock, keyboard, thermal
@@ -33,8 +33,7 @@ struct EventDesc {
         if let path = img {
             if path.hasPrefix("/") {
                 self.image = path as NSString
-            } else if let res = Bundle.main.path(forResource: path, ofType: nil),
-                      res.hasPrefix("/Applications") {
+            } else if let res = Bundle.main.path(forResource: path, ofType: nil) {
                 self.image = res as NSString
             } else {
                 if #available(macOS 10.12, *) {
@@ -52,8 +51,7 @@ struct EventDesc {
 
     init(_ name: String, _ image: EventImage, act: EventAction = .nothing, display: Bool = true, opt: String? = nil) {
         self.name = name
-        if let path = Bundle.main.path(forResource: String(image.rawValue.dropFirst(1)), ofType: "pdf"),
-           path.hasPrefix("/Applications") {
+        if let path = Bundle.main.path(forResource: String(image.rawValue.dropFirst(1)), ofType: "pdf") {
             self.image = path as NSString
         } else {
             self.image = nil
@@ -64,7 +62,9 @@ struct EventDesc {
     }
 }
 
-struct SharedConfig {
+final class SharedConfig {
+    var notificationPort: CFMachPort?
+    var notificationSource: CFRunLoopSource?
     var connect: io_connect_t = 0
     var events: [UInt32: [UInt32: EventDesc]] = [:]
     var modifier = NSEvent.ModifierFlags()
@@ -79,7 +79,7 @@ let ideaEvents: [UInt32: [UInt32: EventDesc]] = [
     0x00: [
         0x00: EventDesc("Special Button", display: false),
         0x01: EventDesc("Fn-Q Cooling", act: .thermal),
-        0x02: EventDesc("OneKey Theater", .kStar, act: .script, opt: prefpaneAS),
+        0x02: EventDesc("ReYogaSMC Controls", .kStar, act: .controls),
         0x40: EventDesc("Fn-Q Cooling", act: .thermal)
     ],
     0x01: [0: EventDesc("Keyboard Backlight", act: .backlight)],
@@ -92,14 +92,14 @@ let ideaEvents: [UInt32: [UInt32: EventDesc]] = [
         0: EventDesc("TouchPad Off"),
         1: EventDesc("TouchPad On")
     ],
-    0x06: [0: EventDesc("Switch Video")],
+    0x06: [0: EventDesc("Display Settings", act: .displaysettings)],
     0x07: [
         0: EventDesc("Camera", .kCamera, act: .camera),
         optionFlag: EventDesc("Photo Booth", act: .launchapp, display: false, opt: "Photo Booth")
     ],
     0x08: [0: EventDesc("Mic Mute", act: .micmute)],
-    0x0A: [0: EventDesc("TouchPad On", display: false)],
-    0x0C: [0: EventDesc("Keyboard Backlight", act: .backlight, display: false)],
+    0x0A: [0: EventDesc("TouchPad On")],
+    0x0C: [0: EventDesc("Keyboard Backlight", act: .backlight)],
     0x0D: [
         0: EventDesc("Airplane Mode", act: .airplane),
         controlFlag: EventDesc("Bluetooth", act: .bluetooth),
@@ -130,12 +130,12 @@ let thinkEvents: [UInt32: [UInt32: EventDesc]] = [
     TP_HKEY_EV_BRGHT_DOWN.rawValue: [0: EventDesc("Brightness Down", display: false)], // 0x1011
     TP_HKEY_EV_KBD_LIGHT.rawValue: [0: EventDesc("Keyboard Backlight", act: .backlight)], // 0x1012
     TP_HKEY_EV_MIC_MUTE.rawValue: [0: EventDesc("Mic Mute", act: .micmute)], // 0x101B
-    TP_HKEY_EV_SETTING.rawValue: [0: EventDesc("Settings", act: .prefpane, display: false)], // 0x101D
+    TP_HKEY_EV_SETTING.rawValue: [0: EventDesc("Settings", act: .settings, display: false)], // 0x101D
     TP_HKEY_EV_SEARCH.rawValue: [0: EventDesc("Search", act: .siri, display: false)], // 0x101E
     TP_HKEY_EV_MISSION.rawValue: [0: EventDesc("Mission Control", act: .mission, display: false)], // 0x101F
     TP_HKEY_EV_APPS.rawValue: [0: EventDesc("Launchpad", act: .launchpad, display: false)], // 0x1020
     TP_HKEY_EV_STAR.rawValue: [
-        0: EventDesc("Custom Hotkey", .kStar, act: .script, opt: prefpaneAS),
+        0: EventDesc("Settings", .kStar, act: .settings),
         optionFlag: EventDesc("System Prefereces", .kStar, act: .launchbundle, opt: "com.apple.systempreferences")
     ], // 0x1311
     TP_HKEY_EV_BLUETOOTH.rawValue: [

@@ -1,0 +1,2672 @@
+{
+  "kind": "rgb",
+  "id": "ite-c968-gen6",
+  "name": "Legion 7 Gen 6 RGB",
+  "vendorID": 1165,
+  "productID": 51560,
+  "usagePage": 65417,
+  "reportID": 7,
+  "reportSize": 192,
+  "maxLEDsPerPacket": 47,
+  "instructionBase": 160,
+  "softwareMode": 178,
+  "hardwareMode": 177,
+  "layoutQuery": 7,
+  "zones": {
+    "Keyboard ANSI": {
+      "bank": 1,
+      "leds": [
+        {
+          "id": 1,
+          "name": "KEY_EN_ESCAPE"
+        },
+        {
+          "id": 2,
+          "name": "KEY_EN_F1"
+        },
+        {
+          "id": 3,
+          "name": "KEY_EN_F2"
+        },
+        {
+          "id": 4,
+          "name": "KEY_EN_F3"
+        },
+        {
+          "id": 5,
+          "name": "KEY_EN_F4"
+        },
+        {
+          "id": 6,
+          "name": "KEY_EN_F5"
+        },
+        {
+          "id": 7,
+          "name": "KEY_EN_F6"
+        },
+        {
+          "id": 8,
+          "name": "KEY_EN_F7"
+        },
+        {
+          "id": 9,
+          "name": "KEY_EN_F8"
+        },
+        {
+          "id": 10,
+          "name": "KEY_EN_F9"
+        },
+        {
+          "id": 11,
+          "name": "KEY_EN_F10"
+        },
+        {
+          "id": 12,
+          "name": "KEY_EN_F11"
+        },
+        {
+          "id": 13,
+          "name": "KEY_EN_F12"
+        },
+        {
+          "id": 14,
+          "name": "KEY_EN_INSERT"
+        },
+        {
+          "id": 15,
+          "name": "KEY_EN_PRINT_SCREEN"
+        },
+        {
+          "id": 16,
+          "name": "KEY_EN_DELETE"
+        },
+        {
+          "id": 17,
+          "name": "KEY_EN_HOME"
+        },
+        {
+          "id": 18,
+          "name": "KEY_EN_END"
+        },
+        {
+          "id": 19,
+          "name": "KEY_EN_PAGE_UP"
+        },
+        {
+          "id": 20,
+          "name": "KEY_EN_PAGE_DOWN"
+        },
+        {
+          "id": 22,
+          "name": "Key: ~"
+        },
+        {
+          "id": 23,
+          "name": "Key: !"
+        },
+        {
+          "id": 24,
+          "name": "Key: @"
+        },
+        {
+          "id": 25,
+          "name": "KEY_EN_POUND"
+        },
+        {
+          "id": 26,
+          "name": "Key: $"
+        },
+        {
+          "id": 27,
+          "name": "Key: %"
+        },
+        {
+          "id": 28,
+          "name": "Key: ^"
+        },
+        {
+          "id": 29,
+          "name": "Key: &"
+        },
+        {
+          "id": 30,
+          "name": "Key: *"
+        },
+        {
+          "id": 31,
+          "name": "Key: ("
+        },
+        {
+          "id": 32,
+          "name": "Key: )"
+        },
+        {
+          "id": 33,
+          "name": "Key: _"
+        },
+        {
+          "id": 34,
+          "name": "Key: +"
+        },
+        {
+          "id": 38,
+          "name": "KEY_EN_NUMPAD_LOCK"
+        },
+        {
+          "id": 39,
+          "name": "KEY_EN_NUMPAD_DIVIDE"
+        },
+        {
+          "id": 40,
+          "name": "KEY_EN_NUMPAD_TIMES"
+        },
+        {
+          "id": 41,
+          "name": "KEY_EN_NUMPAD_MINUS"
+        },
+        {
+          "id": 43,
+          "name": "KEY_EN_BACK_TICK"
+        },
+        {
+          "id": 44,
+          "name": "KEY_EN_1"
+        },
+        {
+          "id": 45,
+          "name": "KEY_EN_2"
+        },
+        {
+          "id": 46,
+          "name": "KEY_EN_3"
+        },
+        {
+          "id": 47,
+          "name": "KEY_EN_4"
+        },
+        {
+          "id": 48,
+          "name": "KEY_EN_5"
+        },
+        {
+          "id": 49,
+          "name": "KEY_EN_6"
+        },
+        {
+          "id": 50,
+          "name": "KEY_EN_7"
+        },
+        {
+          "id": 51,
+          "name": "KEY_EN_8"
+        },
+        {
+          "id": 52,
+          "name": "KEY_EN_9"
+        },
+        {
+          "id": 53,
+          "name": "KEY_EN_0"
+        },
+        {
+          "id": 54,
+          "name": "KEY_EN_MINUS"
+        },
+        {
+          "id": 55,
+          "name": "KEY_EN_EQUALS"
+        },
+        {
+          "id": 56,
+          "name": "KEY_EN_BACKSPACE"
+        },
+        {
+          "id": 57,
+          "name": "KEY_EN_BACKSPACE"
+        },
+        {
+          "id": 58,
+          "name": "KEY_EN_BACKSPACE"
+        },
+        {
+          "id": 59,
+          "name": "KEY_EN_NUMPAD_LOCK"
+        },
+        {
+          "id": 64,
+          "name": "KEY_EN_TAB"
+        },
+        {
+          "id": 66,
+          "name": "KEY_EN_Q"
+        },
+        {
+          "id": 67,
+          "name": "KEY_EN_W"
+        },
+        {
+          "id": 68,
+          "name": "KEY_EN_E"
+        },
+        {
+          "id": 69,
+          "name": "KEY_EN_R"
+        },
+        {
+          "id": 70,
+          "name": "KEY_EN_T"
+        },
+        {
+          "id": 71,
+          "name": "KEY_EN_Y"
+        },
+        {
+          "id": 72,
+          "name": "KEY_EN_U"
+        },
+        {
+          "id": 73,
+          "name": "KEY_EN_I"
+        },
+        {
+          "id": 74,
+          "name": "KEY_EN_O"
+        },
+        {
+          "id": 75,
+          "name": "KEY_EN_P"
+        },
+        {
+          "id": 76,
+          "name": "Key: {"
+        },
+        {
+          "id": 77,
+          "name": "Key:"
+        },
+        {
+          "id": 78,
+          "name": "Key: |"
+        },
+        {
+          "id": 79,
+          "name": "KEY_EN_NUMPAD_7"
+        },
+        {
+          "id": 80,
+          "name": "KEY_EN_NUMPAD_8"
+        },
+        {
+          "id": 81,
+          "name": "KEY_EN_NUMPAD_9"
+        },
+        {
+          "id": 103,
+          "name": "KEY_EN_NUMPAD_PLUS"
+        },
+        {
+          "id": 85,
+          "name": "KEY_EN_CAPS_LOCK"
+        },
+        {
+          "id": 86,
+          "name": "KEY_EN_CAPS_LOCK"
+        },
+        {
+          "id": 87,
+          "name": "KEY_EN_CAPS_LOCK"
+        },
+        {
+          "id": 109,
+          "name": "KEY_EN_A"
+        },
+        {
+          "id": 110,
+          "name": "KEY_EN_S"
+        },
+        {
+          "id": 88,
+          "name": "KEY_EN_D"
+        },
+        {
+          "id": 89,
+          "name": "KEY_EN_F"
+        },
+        {
+          "id": 90,
+          "name": "KEY_EN_G"
+        },
+        {
+          "id": 113,
+          "name": "KEY_EN_H"
+        },
+        {
+          "id": 114,
+          "name": "KEY_EN_J"
+        },
+        {
+          "id": 91,
+          "name": "KEY_EN_K"
+        },
+        {
+          "id": 92,
+          "name": "KEY_EN_L"
+        },
+        {
+          "id": 93,
+          "name": "Key: :"
+        },
+        {
+          "id": 94,
+          "name": "KEY_EN_SEMICOLON"
+        },
+        {
+          "id": 95,
+          "name": "Key: \\"
+        },
+        {
+          "id": 96,
+          "name": "KEY_EN_QUOTE"
+        },
+        {
+          "id": 119,
+          "name": "KEY_EN_ANSI_ENTER"
+        },
+        {
+          "id": 120,
+          "name": "KEY_EN_ANSI_ENTER"
+        },
+        {
+          "id": 97,
+          "name": "KEY_EN_LEFT_BRACKET"
+        },
+        {
+          "id": 98,
+          "name": "KEY_EN_RIGHT_BRACKET"
+        },
+        {
+          "id": 99,
+          "name": "KEY_EN_ANSI_BACK_SLASH"
+        },
+        {
+          "id": 100,
+          "name": "Key: Number Pad Home"
+        },
+        {
+          "id": 101,
+          "name": "Key: Number Pad Up Arrow"
+        },
+        {
+          "id": 102,
+          "name": "Key: Number Pad Page Up"
+        },
+        {
+          "id": 104,
+          "name": "KEY_EN_NUMPAD_PLUS"
+        },
+        {
+          "id": 106,
+          "name": "KEY_EN_LEFT_SHIFT"
+        },
+        {
+          "id": 107,
+          "name": "KEY_EN_LEFT_SHIFT"
+        },
+        {
+          "id": 130,
+          "name": "KEY_EN_Z"
+        },
+        {
+          "id": 131,
+          "name": "KEY_EN_X"
+        },
+        {
+          "id": 111,
+          "name": "KEY_EN_C"
+        },
+        {
+          "id": 112,
+          "name": "KEY_EN_V"
+        },
+        {
+          "id": 135,
+          "name": "KEY_EN_B"
+        },
+        {
+          "id": 136,
+          "name": "KEY_EN_N"
+        },
+        {
+          "id": 115,
+          "name": "KEY_EN_M"
+        },
+        {
+          "id": 116,
+          "name": "Key: <"
+        },
+        {
+          "id": 117,
+          "name": "Key: >"
+        },
+        {
+          "id": 118,
+          "name": "Key: ?"
+        },
+        {
+          "id": 141,
+          "name": "KEY_EN_RIGHT_SHIFT"
+        },
+        {
+          "id": 162,
+          "name": "KEY_EN_RIGHT_SHIFT"
+        },
+        {
+          "id": 121,
+          "name": "KEY_EN_NUMPAD_4"
+        },
+        {
+          "id": 122,
+          "name": "Key: Number Pad Right Arrow"
+        },
+        {
+          "id": 123,
+          "name": "KEY_EN_NUMPAD_5"
+        },
+        {
+          "id": 124,
+          "name": "KEY_EN_NUMPAD_6"
+        },
+        {
+          "id": 125,
+          "name": "Key: Number Pad Left Arrow"
+        },
+        {
+          "id": 137,
+          "name": "KEY_EN_COMMA"
+        },
+        {
+          "id": 138,
+          "name": "KEY_EN_PERIOD"
+        },
+        {
+          "id": 139,
+          "name": "KEY_EN_FORWARD_SLASH"
+        },
+        {
+          "id": 142,
+          "name": "KEY_EN_NUMPAD_1"
+        },
+        {
+          "id": 143,
+          "name": "Key: Number Pad End"
+        },
+        {
+          "id": 144,
+          "name": "KEY_EN_NUMPAD_2"
+        },
+        {
+          "id": 145,
+          "name": "Key: Number Pad Down Arrow"
+        },
+        {
+          "id": 146,
+          "name": "KEY_EN_NUMPAD_3"
+        },
+        {
+          "id": 147,
+          "name": "Key: Number Pad Page Down"
+        },
+        {
+          "id": 167,
+          "name": "KEY_EN_NUMPAD_ENTER"
+        },
+        {
+          "id": 127,
+          "name": "KEY_EN_LEFT_CONTROL"
+        },
+        {
+          "id": 128,
+          "name": "KEY_EN_LEFT_FUNCTION"
+        },
+        {
+          "id": 150,
+          "name": "KEY_EN_LEFT_WINDOWS"
+        },
+        {
+          "id": 151,
+          "name": "KEY_EN_LEFT_ALT"
+        },
+        {
+          "id": 152,
+          "name": "KEY_EN_SPACE"
+        },
+        {
+          "id": 153,
+          "name": "KEY_EN_SPACE"
+        },
+        {
+          "id": 154,
+          "name": "KEY_EN_RIGHT_ALT"
+        },
+        {
+          "id": 155,
+          "name": "KEY_EN_RIGHT_CONTROL"
+        },
+        {
+          "id": 156,
+          "name": "KEY_EN_LEFT_ARROW"
+        },
+        {
+          "id": 157,
+          "name": "KEY_EN_UP_ARROW"
+        },
+        {
+          "id": 158,
+          "name": "Key: Brightness +"
+        },
+        {
+          "id": 159,
+          "name": "KEY_EN_DOWN_ARROW"
+        },
+        {
+          "id": 160,
+          "name": "Key: Brightness -"
+        },
+        {
+          "id": 161,
+          "name": "KEY_EN_RIGHT_ARROW"
+        },
+        {
+          "id": 163,
+          "name": "KEY_EN_NUMPAD_0"
+        },
+        {
+          "id": 164,
+          "name": "Key: Number Pad Insert"
+        },
+        {
+          "id": 165,
+          "name": "KEY_EN_NUMPAD_PERIOD"
+        },
+        {
+          "id": 166,
+          "name": "Key: Number Pad Delete"
+        },
+        {
+          "id": 168,
+          "name": "KEY_EN_NUMPAD_ENTER"
+        }
+      ]
+    },
+    "Keyboard ISO": {
+      "bank": 1,
+      "leds": [
+        {
+          "id": 1,
+          "name": "KEY_EN_ESCAPE"
+        },
+        {
+          "id": 2,
+          "name": "KEY_EN_F1"
+        },
+        {
+          "id": 3,
+          "name": "KEY_EN_F2"
+        },
+        {
+          "id": 4,
+          "name": "KEY_EN_F3"
+        },
+        {
+          "id": 5,
+          "name": "KEY_EN_F4"
+        },
+        {
+          "id": 6,
+          "name": "KEY_EN_F5"
+        },
+        {
+          "id": 7,
+          "name": "KEY_EN_F6"
+        },
+        {
+          "id": 8,
+          "name": "KEY_EN_F7"
+        },
+        {
+          "id": 9,
+          "name": "KEY_EN_F8"
+        },
+        {
+          "id": 10,
+          "name": "KEY_EN_F9"
+        },
+        {
+          "id": 11,
+          "name": "KEY_EN_F10"
+        },
+        {
+          "id": 12,
+          "name": "KEY_EN_F11"
+        },
+        {
+          "id": 13,
+          "name": "KEY_EN_F12"
+        },
+        {
+          "id": 14,
+          "name": "KEY_EN_INSERT"
+        },
+        {
+          "id": 15,
+          "name": "KEY_EN_PRINT_SCREEN"
+        },
+        {
+          "id": 16,
+          "name": "KEY_EN_DELETE"
+        },
+        {
+          "id": 17,
+          "name": "KEY_EN_HOME"
+        },
+        {
+          "id": 18,
+          "name": "KEY_EN_END"
+        },
+        {
+          "id": 19,
+          "name": "KEY_EN_PAGE_UP"
+        },
+        {
+          "id": 20,
+          "name": "KEY_EN_PAGE_DOWN"
+        },
+        {
+          "id": 22,
+          "name": "Key: \u00ac"
+        },
+        {
+          "id": 23,
+          "name": "Key: !"
+        },
+        {
+          "id": 24,
+          "name": "Key: \\"
+        },
+        {
+          "id": 25,
+          "name": "Key: \u00a3"
+        },
+        {
+          "id": 26,
+          "name": "Key: $"
+        },
+        {
+          "id": 27,
+          "name": "Key: %"
+        },
+        {
+          "id": 28,
+          "name": "Key: ^"
+        },
+        {
+          "id": 29,
+          "name": "Key: &"
+        },
+        {
+          "id": 30,
+          "name": "Key: *"
+        },
+        {
+          "id": 31,
+          "name": "Key: ("
+        },
+        {
+          "id": 32,
+          "name": "Key: )"
+        },
+        {
+          "id": 33,
+          "name": "Key: _"
+        },
+        {
+          "id": 34,
+          "name": "Key: +"
+        },
+        {
+          "id": 38,
+          "name": "KEY_EN_NUMPAD_LOCK"
+        },
+        {
+          "id": 39,
+          "name": "KEY_EN_NUMPAD_DIVIDE"
+        },
+        {
+          "id": 40,
+          "name": "KEY_EN_NUMPAD_TIMES"
+        },
+        {
+          "id": 41,
+          "name": "KEY_EN_NUMPAD_MINUS"
+        },
+        {
+          "id": 43,
+          "name": "KEY_EN_BACK_TICK"
+        },
+        {
+          "id": 44,
+          "name": "KEY_EN_1"
+        },
+        {
+          "id": 45,
+          "name": "KEY_EN_2"
+        },
+        {
+          "id": 46,
+          "name": "KEY_EN_3"
+        },
+        {
+          "id": 47,
+          "name": "KEY_EN_4"
+        },
+        {
+          "id": 48,
+          "name": "KEY_EN_5"
+        },
+        {
+          "id": 49,
+          "name": "KEY_EN_6"
+        },
+        {
+          "id": 50,
+          "name": "KEY_EN_7"
+        },
+        {
+          "id": 51,
+          "name": "KEY_EN_8"
+        },
+        {
+          "id": 52,
+          "name": "KEY_EN_9"
+        },
+        {
+          "id": 53,
+          "name": "KEY_EN_0"
+        },
+        {
+          "id": 54,
+          "name": "KEY_EN_MINUS"
+        },
+        {
+          "id": 55,
+          "name": "KEY_EN_EQUALS"
+        },
+        {
+          "id": 58,
+          "name": "KEY_EN_BACKSPACE"
+        },
+        {
+          "id": 59,
+          "name": "KEY_EN_NUMPAD_LOCK"
+        },
+        {
+          "id": 64,
+          "name": "KEY_EN_TAB"
+        },
+        {
+          "id": 66,
+          "name": "KEY_EN_Q"
+        },
+        {
+          "id": 67,
+          "name": "KEY_EN_W"
+        },
+        {
+          "id": 68,
+          "name": "KEY_EN_E"
+        },
+        {
+          "id": 69,
+          "name": "KEY_EN_R"
+        },
+        {
+          "id": 70,
+          "name": "KEY_EN_T"
+        },
+        {
+          "id": 71,
+          "name": "KEY_EN_Y"
+        },
+        {
+          "id": 72,
+          "name": "KEY_EN_U"
+        },
+        {
+          "id": 73,
+          "name": "KEY_EN_I"
+        },
+        {
+          "id": 74,
+          "name": "KEY_EN_O"
+        },
+        {
+          "id": 75,
+          "name": "KEY_EN_P"
+        },
+        {
+          "id": 76,
+          "name": "Key: {"
+        },
+        {
+          "id": 77,
+          "name": "Key:"
+        },
+        {
+          "id": 78,
+          "name": "KEY_EN_ISO_ENTER"
+        },
+        {
+          "id": 79,
+          "name": "KEY_EN_NUMPAD_7"
+        },
+        {
+          "id": 80,
+          "name": "KEY_EN_NUMPAD_8"
+        },
+        {
+          "id": 81,
+          "name": "KEY_EN_NUMPAD_9"
+        },
+        {
+          "id": 103,
+          "name": "KEY_EN_NUMPAD_PLUS"
+        },
+        {
+          "id": 85,
+          "name": "KEY_EN_CAPS_LOCK"
+        },
+        {
+          "id": 86,
+          "name": "KEY_EN_CAPS_LOCK"
+        },
+        {
+          "id": 87,
+          "name": "KEY_EN_CAPS_LOCK"
+        },
+        {
+          "id": 109,
+          "name": "KEY_EN_A"
+        },
+        {
+          "id": 110,
+          "name": "KEY_EN_S"
+        },
+        {
+          "id": 88,
+          "name": "KEY_EN_D"
+        },
+        {
+          "id": 89,
+          "name": "KEY_EN_F"
+        },
+        {
+          "id": 90,
+          "name": "KEY_EN_G"
+        },
+        {
+          "id": 113,
+          "name": "KEY_EN_H"
+        },
+        {
+          "id": 114,
+          "name": "KEY_EN_J"
+        },
+        {
+          "id": 91,
+          "name": "KEY_EN_K"
+        },
+        {
+          "id": 92,
+          "name": "KEY_EN_L"
+        },
+        {
+          "id": 93,
+          "name": "Key: :"
+        },
+        {
+          "id": 94,
+          "name": "KEY_EN_SEMICOLON"
+        },
+        {
+          "id": 95,
+          "name": "Key: @"
+        },
+        {
+          "id": 96,
+          "name": "KEY_EN_QUOTE"
+        },
+        {
+          "id": 119,
+          "name": "Key: ~"
+        },
+        {
+          "id": 120,
+          "name": "KEY_EN_POUND"
+        },
+        {
+          "id": 97,
+          "name": "KEY_EN_LEFT_BRACKET"
+        },
+        {
+          "id": 98,
+          "name": "KEY_EN_RIGHT_BRACKET"
+        },
+        {
+          "id": 100,
+          "name": "Key: Number Pad Home"
+        },
+        {
+          "id": 101,
+          "name": "Key: Number Pad Up Arrow"
+        },
+        {
+          "id": 102,
+          "name": "Key: Number Pad Page Up"
+        },
+        {
+          "id": 104,
+          "name": "KEY_EN_NUMPAD_PLUS"
+        },
+        {
+          "id": 106,
+          "name": "KEY_EN_LEFT_SHIFT"
+        },
+        {
+          "id": 108,
+          "name": "Key: |"
+        },
+        {
+          "id": 129,
+          "name": "KEY_EN_ISO_BACK_SLASH"
+        },
+        {
+          "id": 130,
+          "name": "KEY_EN_Z"
+        },
+        {
+          "id": 131,
+          "name": "KEY_EN_X"
+        },
+        {
+          "id": 111,
+          "name": "KEY_EN_C"
+        },
+        {
+          "id": 112,
+          "name": "KEY_EN_V"
+        },
+        {
+          "id": 135,
+          "name": "KEY_EN_B"
+        },
+        {
+          "id": 136,
+          "name": "KEY_EN_N"
+        },
+        {
+          "id": 115,
+          "name": "KEY_EN_M"
+        },
+        {
+          "id": 116,
+          "name": "Key: <"
+        },
+        {
+          "id": 117,
+          "name": "Key: >"
+        },
+        {
+          "id": 118,
+          "name": "Key: ?"
+        },
+        {
+          "id": 141,
+          "name": "KEY_EN_RIGHT_SHIFT"
+        },
+        {
+          "id": 162,
+          "name": "KEY_EN_RIGHT_SHIFT"
+        },
+        {
+          "id": 121,
+          "name": "KEY_EN_NUMPAD_4"
+        },
+        {
+          "id": 122,
+          "name": "Key: Number Pad Right Arrow"
+        },
+        {
+          "id": 123,
+          "name": "KEY_EN_NUMPAD_5"
+        },
+        {
+          "id": 124,
+          "name": "KEY_EN_NUMPAD_6"
+        },
+        {
+          "id": 125,
+          "name": "Key: Number Pad Left Arrow"
+        },
+        {
+          "id": 137,
+          "name": "KEY_EN_COMMA"
+        },
+        {
+          "id": 138,
+          "name": "KEY_EN_PERIOD"
+        },
+        {
+          "id": 139,
+          "name": "KEY_EN_FORWARD_SLASH"
+        },
+        {
+          "id": 142,
+          "name": "KEY_EN_NUMPAD_1"
+        },
+        {
+          "id": 143,
+          "name": "Key: Number Pad End"
+        },
+        {
+          "id": 144,
+          "name": "KEY_EN_NUMPAD_2"
+        },
+        {
+          "id": 145,
+          "name": "Key: Number Pad Down Arrow"
+        },
+        {
+          "id": 146,
+          "name": "KEY_EN_NUMPAD_3"
+        },
+        {
+          "id": 147,
+          "name": "Key: Number Pad Page Down"
+        },
+        {
+          "id": 167,
+          "name": "KEY_EN_NUMPAD_ENTER"
+        },
+        {
+          "id": 127,
+          "name": "KEY_EN_LEFT_CONTROL"
+        },
+        {
+          "id": 128,
+          "name": "KEY_EN_LEFT_FUNCTION"
+        },
+        {
+          "id": 150,
+          "name": "KEY_EN_LEFT_WINDOWS"
+        },
+        {
+          "id": 151,
+          "name": "KEY_EN_LEFT_ALT"
+        },
+        {
+          "id": 152,
+          "name": "KEY_EN_SPACE"
+        },
+        {
+          "id": 153,
+          "name": "KEY_EN_SPACE"
+        },
+        {
+          "id": 154,
+          "name": "KEY_EN_RIGHT_ALT"
+        },
+        {
+          "id": 155,
+          "name": "KEY_EN_RIGHT_CONTROL"
+        },
+        {
+          "id": 156,
+          "name": "KEY_EN_LEFT_ARROW"
+        },
+        {
+          "id": 157,
+          "name": "KEY_EN_UP_ARROW"
+        },
+        {
+          "id": 158,
+          "name": "Key: Brightness +"
+        },
+        {
+          "id": 159,
+          "name": "KEY_EN_DOWN_ARROW"
+        },
+        {
+          "id": 160,
+          "name": "Key: Brightness -"
+        },
+        {
+          "id": 161,
+          "name": "KEY_EN_RIGHT_ARROW"
+        },
+        {
+          "id": 163,
+          "name": "KEY_EN_NUMPAD_0"
+        },
+        {
+          "id": 164,
+          "name": "Key: Number Pad Insert"
+        },
+        {
+          "id": 165,
+          "name": "KEY_EN_NUMPAD_PERIOD"
+        },
+        {
+          "id": 166,
+          "name": "Key: Number Pad Delete"
+        },
+        {
+          "id": 168,
+          "name": "KEY_EN_NUMPAD_ENTER"
+        }
+      ]
+    },
+    "Keyboard Japan": {
+      "bank": 1,
+      "leds": [
+        {
+          "id": 1,
+          "name": "KEY_EN_ESCAPE"
+        },
+        {
+          "id": 2,
+          "name": "KEY_EN_F1"
+        },
+        {
+          "id": 3,
+          "name": "KEY_EN_F2"
+        },
+        {
+          "id": 4,
+          "name": "KEY_EN_F3"
+        },
+        {
+          "id": 5,
+          "name": "KEY_EN_F4"
+        },
+        {
+          "id": 6,
+          "name": "KEY_EN_F5"
+        },
+        {
+          "id": 7,
+          "name": "KEY_EN_F6"
+        },
+        {
+          "id": 8,
+          "name": "KEY_EN_F7"
+        },
+        {
+          "id": 9,
+          "name": "KEY_EN_F8"
+        },
+        {
+          "id": 10,
+          "name": "KEY_EN_F9"
+        },
+        {
+          "id": 11,
+          "name": "KEY_EN_F10"
+        },
+        {
+          "id": 12,
+          "name": "KEY_EN_F11"
+        },
+        {
+          "id": 13,
+          "name": "KEY_EN_F12"
+        },
+        {
+          "id": 14,
+          "name": "KEY_EN_INSERT"
+        },
+        {
+          "id": 15,
+          "name": "KEY_EN_PRINT_SCREEN"
+        },
+        {
+          "id": 16,
+          "name": "KEY_EN_DELETE"
+        },
+        {
+          "id": 17,
+          "name": "KEY_EN_HOME"
+        },
+        {
+          "id": 18,
+          "name": "KEY_EN_END"
+        },
+        {
+          "id": 19,
+          "name": "KEY_EN_PAGE_UP"
+        },
+        {
+          "id": 20,
+          "name": "KEY_EN_PAGE_DOWN"
+        },
+        {
+          "id": 22,
+          "name": "KEY_JP_ZENKAKU"
+        },
+        {
+          "id": 23,
+          "name": "Key: !"
+        },
+        {
+          "id": 24,
+          "name": "Key: \\"
+        },
+        {
+          "id": 25,
+          "name": "KEY_EN_POUND"
+        },
+        {
+          "id": 26,
+          "name": "Key: $"
+        },
+        {
+          "id": 27,
+          "name": "Key: %"
+        },
+        {
+          "id": 28,
+          "name": "Key: &"
+        },
+        {
+          "id": 29,
+          "name": "Key: '"
+        },
+        {
+          "id": 30,
+          "name": "Key: ("
+        },
+        {
+          "id": 31,
+          "name": "Key: )"
+        },
+        {
+          "id": 32,
+          "name": "Key: wo"
+        },
+        {
+          "id": 33,
+          "name": "KEY_EN_EQUALS"
+        },
+        {
+          "id": 34,
+          "name": "Key: ~"
+        },
+        {
+          "id": 35,
+          "name": "Key: |"
+        },
+        {
+          "id": 38,
+          "name": "KEY_EN_NUMPAD_LOCK"
+        },
+        {
+          "id": 39,
+          "name": "KEY_EN_NUMPAD_DIVIDE"
+        },
+        {
+          "id": 40,
+          "name": "KEY_EN_NUMPAD_TIMES"
+        },
+        {
+          "id": 41,
+          "name": "KEY_EN_NUMPAD_MINUS"
+        },
+        {
+          "id": 43,
+          "name": "Key: kanji"
+        },
+        {
+          "id": 44,
+          "name": "KEY_EN_1"
+        },
+        {
+          "id": 45,
+          "name": "KEY_EN_2"
+        },
+        {
+          "id": 46,
+          "name": "KEY_EN_3"
+        },
+        {
+          "id": 47,
+          "name": "KEY_EN_4"
+        },
+        {
+          "id": 48,
+          "name": "KEY_EN_5"
+        },
+        {
+          "id": 49,
+          "name": "KEY_EN_6"
+        },
+        {
+          "id": 50,
+          "name": "KEY_EN_7"
+        },
+        {
+          "id": 51,
+          "name": "KEY_EN_8"
+        },
+        {
+          "id": 52,
+          "name": "KEY_EN_9"
+        },
+        {
+          "id": 53,
+          "name": "KEY_EN_0"
+        },
+        {
+          "id": 54,
+          "name": "KEY_EN_MINUS"
+        },
+        {
+          "id": 55,
+          "name": "KEY_JP_CHEVRON"
+        },
+        {
+          "id": 56,
+          "name": "KEY_JP_YEN"
+        },
+        {
+          "id": 37,
+          "name": "KEY_EN_BACKSPACE"
+        },
+        {
+          "id": 58,
+          "name": "KEY_EN_BACKSPACE"
+        },
+        {
+          "id": 59,
+          "name": "KEY_EN_NUMPAD_LOCK"
+        },
+        {
+          "id": 64,
+          "name": "KEY_EN_TAB"
+        },
+        {
+          "id": 66,
+          "name": "KEY_EN_Q"
+        },
+        {
+          "id": 67,
+          "name": "KEY_EN_W"
+        },
+        {
+          "id": 68,
+          "name": "KEY_EN_E"
+        },
+        {
+          "id": 69,
+          "name": "KEY_EN_R"
+        },
+        {
+          "id": 70,
+          "name": "KEY_EN_T"
+        },
+        {
+          "id": 71,
+          "name": "KEY_EN_Y"
+        },
+        {
+          "id": 72,
+          "name": "KEY_EN_U"
+        },
+        {
+          "id": 73,
+          "name": "KEY_EN_I"
+        },
+        {
+          "id": 74,
+          "name": "KEY_EN_O"
+        },
+        {
+          "id": 75,
+          "name": "KEY_EN_P"
+        },
+        {
+          "id": 76,
+          "name": "KEY_EN_BACK_TICK"
+        },
+        {
+          "id": 97,
+          "name": "KEY_JP_AT"
+        },
+        {
+          "id": 77,
+          "name": "Key: {"
+        },
+        {
+          "id": 98,
+          "name": "KEY_EN_LEFT_BRACKET"
+        },
+        {
+          "id": 78,
+          "name": "KEY_EN_ISO_ENTER"
+        },
+        {
+          "id": 79,
+          "name": "KEY_EN_NUMPAD_7"
+        },
+        {
+          "id": 80,
+          "name": "KEY_EN_NUMPAD_8"
+        },
+        {
+          "id": 81,
+          "name": "KEY_EN_NUMPAD_9"
+        },
+        {
+          "id": 103,
+          "name": "KEY_EN_NUMPAD_PLUS"
+        },
+        {
+          "id": 85,
+          "name": "KEY_EN_CAPS_LOCK"
+        },
+        {
+          "id": 86,
+          "name": "KEY_EN_CAPS_LOCK"
+        },
+        {
+          "id": 87,
+          "name": "KEY_EN_CAPS_LOCK"
+        },
+        {
+          "id": 109,
+          "name": "KEY_EN_A"
+        },
+        {
+          "id": 110,
+          "name": "KEY_EN_S"
+        },
+        {
+          "id": 88,
+          "name": "KEY_EN_D"
+        },
+        {
+          "id": 89,
+          "name": "KEY_EN_F"
+        },
+        {
+          "id": 90,
+          "name": "KEY_EN_G"
+        },
+        {
+          "id": 113,
+          "name": "KEY_EN_H"
+        },
+        {
+          "id": 114,
+          "name": "KEY_EN_J"
+        },
+        {
+          "id": 91,
+          "name": "KEY_EN_K"
+        },
+        {
+          "id": 92,
+          "name": "KEY_EN_L"
+        },
+        {
+          "id": 93,
+          "name": "Key: +"
+        },
+        {
+          "id": 94,
+          "name": "KEY_EN_SEMICOLON"
+        },
+        {
+          "id": 95,
+          "name": "Key: *"
+        },
+        {
+          "id": 96,
+          "name": "KEY_JP_COLON"
+        },
+        {
+          "id": 119,
+          "name": "Key:"
+        },
+        {
+          "id": 120,
+          "name": "KEY_EN_RIGHT_BRACKET"
+        },
+        {
+          "id": 99,
+          "name": "KEY_EN_ISO_ENTER"
+        },
+        {
+          "id": 100,
+          "name": "Key: Number Pad Home"
+        },
+        {
+          "id": 101,
+          "name": "Key: Number Pad Up Arrow"
+        },
+        {
+          "id": 102,
+          "name": "Key: Number Pad Page Up"
+        },
+        {
+          "id": 104,
+          "name": "KEY_EN_NUMPAD_PLUS"
+        },
+        {
+          "id": 106,
+          "name": "KEY_EN_LEFT_SHIFT"
+        },
+        {
+          "id": 107,
+          "name": "KEY_EN_LEFT_SHIFT"
+        },
+        {
+          "id": 130,
+          "name": "KEY_EN_Z"
+        },
+        {
+          "id": 131,
+          "name": "KEY_EN_X"
+        },
+        {
+          "id": 111,
+          "name": "KEY_EN_C"
+        },
+        {
+          "id": 112,
+          "name": "KEY_EN_V"
+        },
+        {
+          "id": 135,
+          "name": "KEY_EN_B"
+        },
+        {
+          "id": 136,
+          "name": "KEY_EN_N"
+        },
+        {
+          "id": 115,
+          "name": "KEY_EN_M"
+        },
+        {
+          "id": 116,
+          "name": "Key: <"
+        },
+        {
+          "id": 137,
+          "name": "KEY_EN_COMMA"
+        },
+        {
+          "id": 117,
+          "name": "Key: >"
+        },
+        {
+          "id": 138,
+          "name": "KEY_EN_PERIOD"
+        },
+        {
+          "id": 118,
+          "name": "Key: ?"
+        },
+        {
+          "id": 139,
+          "name": "KEY_EN_FORWARD_SLASH"
+        },
+        {
+          "id": 140,
+          "name": "KEY_JP_RO"
+        },
+        {
+          "id": 141,
+          "name": "KEY_EN_RIGHT_SHIFT"
+        },
+        {
+          "id": 162,
+          "name": "KEY_EN_RIGHT_SHIFT"
+        },
+        {
+          "id": 121,
+          "name": "KEY_EN_NUMPAD_4"
+        },
+        {
+          "id": 122,
+          "name": "Key: Number Pad Right Arrow"
+        },
+        {
+          "id": 123,
+          "name": "KEY_EN_NUMPAD_5"
+        },
+        {
+          "id": 124,
+          "name": "KEY_EN_NUMPAD_6"
+        },
+        {
+          "id": 125,
+          "name": "Key: Number Pad Left Arrow"
+        },
+        {
+          "id": 142,
+          "name": "KEY_EN_NUMPAD_1"
+        },
+        {
+          "id": 143,
+          "name": "Key: Number Pad End"
+        },
+        {
+          "id": 144,
+          "name": "KEY_EN_NUMPAD_2"
+        },
+        {
+          "id": 145,
+          "name": "Key: Number Pad Down Arrow"
+        },
+        {
+          "id": 146,
+          "name": "KEY_EN_NUMPAD_3"
+        },
+        {
+          "id": 147,
+          "name": "Key: Number Pad Page Down"
+        },
+        {
+          "id": 167,
+          "name": "KEY_EN_NUMPAD_ENTER"
+        },
+        {
+          "id": 127,
+          "name": "KEY_EN_LEFT_CONTROL"
+        },
+        {
+          "id": 128,
+          "name": "KEY_EN_LEFT_FUNCTION"
+        },
+        {
+          "id": 150,
+          "name": "KEY_EN_LEFT_WINDOWS"
+        },
+        {
+          "id": 151,
+          "name": "KEY_EN_LEFT_ALT"
+        },
+        {
+          "id": 152,
+          "name": "KEY_JP_MUHENKAN"
+        },
+        {
+          "id": 133,
+          "name": "KEY_EN_SPACE"
+        },
+        {
+          "id": 134,
+          "name": "KEY_EN_SPACE"
+        },
+        {
+          "id": 153,
+          "name": "KEY_JP_HENKAN"
+        },
+        {
+          "id": 154,
+          "name": "KEY_JP_KANA"
+        },
+        {
+          "id": 155,
+          "name": "KEY_EN_RIGHT_CONTROL"
+        },
+        {
+          "id": 156,
+          "name": "KEY_EN_LEFT_ARROW"
+        },
+        {
+          "id": 157,
+          "name": "KEY_EN_UP_ARROW"
+        },
+        {
+          "id": 158,
+          "name": "Key: Brightness +"
+        },
+        {
+          "id": 159,
+          "name": "KEY_EN_DOWN_ARROW"
+        },
+        {
+          "id": 160,
+          "name": "Key: Brightness -"
+        },
+        {
+          "id": 161,
+          "name": "KEY_EN_RIGHT_ARROW"
+        },
+        {
+          "id": 163,
+          "name": "KEY_EN_NUMPAD_0"
+        },
+        {
+          "id": 164,
+          "name": "Key: Number Pad Insert"
+        },
+        {
+          "id": 165,
+          "name": "KEY_EN_NUMPAD_PERIOD"
+        },
+        {
+          "id": 166,
+          "name": "Key: Number Pad Delete"
+        },
+        {
+          "id": 168,
+          "name": "KEY_EN_NUMPAD_ENTER"
+        }
+      ]
+    },
+    "Logo": {
+      "bank": 2,
+      "leds": [
+        {
+          "id": 1,
+          "name": "Logo Bottom Left"
+        },
+        {
+          "id": 2,
+          "name": "Logo LED 2"
+        },
+        {
+          "id": 3,
+          "name": "Logo LED 3"
+        },
+        {
+          "id": 4,
+          "name": "Logo LED 4"
+        },
+        {
+          "id": 5,
+          "name": "Logo LED Top Left"
+        },
+        {
+          "id": 6,
+          "name": "Logo LED 6"
+        },
+        {
+          "id": 7,
+          "name": "Logo LED 7"
+        },
+        {
+          "id": 8,
+          "name": "Logo LED 8"
+        },
+        {
+          "id": 9,
+          "name": "Logo LED Top Right"
+        },
+        {
+          "id": 10,
+          "name": "Logo LED 10"
+        },
+        {
+          "id": 11,
+          "name": "Logo LED 11"
+        },
+        {
+          "id": 12,
+          "name": "Logo LED 12"
+        },
+        {
+          "id": 13,
+          "name": "Logo Bottom Right"
+        }
+      ]
+    },
+    "Vents": {
+      "bank": 3,
+      "leds": [
+        {
+          "id": 1,
+          "name": "Left Vent Front"
+        },
+        {
+          "id": 2,
+          "name": "Left Vent LED 2"
+        },
+        {
+          "id": 3,
+          "name": "Left Vent LED 3"
+        },
+        {
+          "id": 4,
+          "name": "Left Vent LED 4"
+        },
+        {
+          "id": 5,
+          "name": "Left Vent LED 5"
+        },
+        {
+          "id": 6,
+          "name": "Left Vent LED 6"
+        },
+        {
+          "id": 7,
+          "name": "Left Vent LED 7"
+        },
+        {
+          "id": 8,
+          "name": "Left Vent LED 8"
+        },
+        {
+          "id": 9,
+          "name": "Left Vent LED 9"
+        },
+        {
+          "id": 10,
+          "name": "Left Vent LED 10"
+        },
+        {
+          "id": 11,
+          "name": "Left Vent LED 11"
+        },
+        {
+          "id": 12,
+          "name": "Left Vent LED 12"
+        },
+        {
+          "id": 13,
+          "name": "Left Vent LED 13"
+        },
+        {
+          "id": 14,
+          "name": "Left Vent LED 14"
+        },
+        {
+          "id": 15,
+          "name": "Left Vent LED 15"
+        },
+        {
+          "id": 16,
+          "name": "Left Vent LED 16"
+        },
+        {
+          "id": 17,
+          "name": "Left Vent LED 17"
+        },
+        {
+          "id": 18,
+          "name": "Left Vent LED 18"
+        },
+        {
+          "id": 19,
+          "name": "Left Vent LED 19"
+        },
+        {
+          "id": 20,
+          "name": "Left Vent LED 20"
+        },
+        {
+          "id": 21,
+          "name": "Left Vent LED 21"
+        },
+        {
+          "id": 22,
+          "name": "Left Vent LED 22"
+        },
+        {
+          "id": 23,
+          "name": "Left Vent LED 23"
+        },
+        {
+          "id": 24,
+          "name": "Left Vent LED 24"
+        },
+        {
+          "id": 25,
+          "name": "Left Vent LED 25"
+        },
+        {
+          "id": 26,
+          "name": "Left Vent LED 26"
+        },
+        {
+          "id": 27,
+          "name": "Left Vent Back"
+        },
+        {
+          "id": 28,
+          "name": "Right Vent Front"
+        },
+        {
+          "id": 29,
+          "name": "Right Vent LED 2"
+        },
+        {
+          "id": 30,
+          "name": "Right Vent LED 3"
+        },
+        {
+          "id": 31,
+          "name": "Right Vent LED 4"
+        },
+        {
+          "id": 32,
+          "name": "Right Vent LED 5"
+        },
+        {
+          "id": 33,
+          "name": "Right Vent LED 6"
+        },
+        {
+          "id": 34,
+          "name": "Right Vent LED 7"
+        },
+        {
+          "id": 35,
+          "name": "Right Vent LED 8"
+        },
+        {
+          "id": 36,
+          "name": "Right Vent LED 9"
+        },
+        {
+          "id": 37,
+          "name": "Right Vent LED 10"
+        },
+        {
+          "id": 38,
+          "name": "Right Vent LED 11"
+        },
+        {
+          "id": 39,
+          "name": "Right Vent LED 12"
+        },
+        {
+          "id": 40,
+          "name": "Right Vent LED 13"
+        },
+        {
+          "id": 41,
+          "name": "Right Vent LED 14"
+        },
+        {
+          "id": 42,
+          "name": "Right Vent LED 15"
+        },
+        {
+          "id": 43,
+          "name": "Right Vent LED 16"
+        },
+        {
+          "id": 44,
+          "name": "Right Vent LED 17"
+        },
+        {
+          "id": 45,
+          "name": "Right Vent LED 18"
+        },
+        {
+          "id": 46,
+          "name": "Right Vent LED 19"
+        },
+        {
+          "id": 47,
+          "name": "Right Vent LED 20"
+        },
+        {
+          "id": 48,
+          "name": "Right Vent LED 21"
+        },
+        {
+          "id": 49,
+          "name": "Right Vent LED 22"
+        },
+        {
+          "id": 50,
+          "name": "Right Vent LED 23"
+        },
+        {
+          "id": 51,
+          "name": "Right Vent LED 24"
+        },
+        {
+          "id": 52,
+          "name": "Right Vent LED 25"
+        },
+        {
+          "id": 53,
+          "name": "Right Vent LED 26"
+        },
+        {
+          "id": 54,
+          "name": "Right Vent Back"
+        },
+        {
+          "id": 55,
+          "name": "Back Right Vent Left"
+        },
+        {
+          "id": 56,
+          "name": "Back Right Vent 2"
+        },
+        {
+          "id": 57,
+          "name": "Back Right Vent 3"
+        },
+        {
+          "id": 58,
+          "name": "Back Right Vent 4"
+        },
+        {
+          "id": 59,
+          "name": "Back Right Vent 5"
+        },
+        {
+          "id": 60,
+          "name": "Back Right Vent 6"
+        },
+        {
+          "id": 61,
+          "name": "Back Right Vent 7"
+        },
+        {
+          "id": 62,
+          "name": "Back Right Vent 8"
+        },
+        {
+          "id": 63,
+          "name": "Back Right Vent 10"
+        },
+        {
+          "id": 64,
+          "name": "Back Right Vent 11"
+        },
+        {
+          "id": 65,
+          "name": "Back Right Vent 12"
+        },
+        {
+          "id": 66,
+          "name": "Back Right Vent 13"
+        },
+        {
+          "id": 67,
+          "name": "Back Right Vent 14"
+        },
+        {
+          "id": 68,
+          "name": "Back Right Vent 15"
+        },
+        {
+          "id": 69,
+          "name": "Back Right Vent 16"
+        },
+        {
+          "id": 70,
+          "name": "Back Right Vent 17"
+        },
+        {
+          "id": 71,
+          "name": "Back Right Vent 18"
+        },
+        {
+          "id": 72,
+          "name": "Back Right Vent 19"
+        },
+        {
+          "id": 73,
+          "name": "Back Right Vent 20"
+        },
+        {
+          "id": 74,
+          "name": "Back Right Vent 21"
+        },
+        {
+          "id": 75,
+          "name": "Back Right Vent 22"
+        },
+        {
+          "id": 76,
+          "name": "Back Right Vent 23"
+        },
+        {
+          "id": 77,
+          "name": "Back Right Vent 24"
+        },
+        {
+          "id": 78,
+          "name": "Back Right Vent 25"
+        },
+        {
+          "id": 79,
+          "name": "Back Right Vent 26"
+        },
+        {
+          "id": 80,
+          "name": "Back Right Vent Right"
+        },
+        {
+          "id": 81,
+          "name": "Back Left Vent Right"
+        },
+        {
+          "id": 82,
+          "name": "Back Left Vent 2"
+        },
+        {
+          "id": 83,
+          "name": "Back Left Vent 3"
+        },
+        {
+          "id": 84,
+          "name": "Back Left Vent 4"
+        },
+        {
+          "id": 85,
+          "name": "Back Left Vent 5"
+        },
+        {
+          "id": 86,
+          "name": "Back Left Vent 6"
+        },
+        {
+          "id": 87,
+          "name": "Back Left Vent 7"
+        },
+        {
+          "id": 88,
+          "name": "Back Left Vent 8"
+        },
+        {
+          "id": 89,
+          "name": "Back Left Vent 10"
+        },
+        {
+          "id": 90,
+          "name": "Back Left Vent 11"
+        },
+        {
+          "id": 91,
+          "name": "Back Left Vent 12"
+        },
+        {
+          "id": 92,
+          "name": "Back Left Vent 13"
+        },
+        {
+          "id": 93,
+          "name": "Back Left Vent 14"
+        },
+        {
+          "id": 94,
+          "name": "Back Left Vent 15"
+        },
+        {
+          "id": 95,
+          "name": "Back Left Vent 16"
+        },
+        {
+          "id": 96,
+          "name": "Back Left Vent 17"
+        },
+        {
+          "id": 97,
+          "name": "Back Left Vent 18"
+        },
+        {
+          "id": 98,
+          "name": "Back Left Vent 19"
+        },
+        {
+          "id": 99,
+          "name": "Back Left Vent 20"
+        },
+        {
+          "id": 100,
+          "name": "Back Left Vent 21"
+        },
+        {
+          "id": 101,
+          "name": "Back Left Vent 22"
+        },
+        {
+          "id": 102,
+          "name": "Back Left Vent 23"
+        },
+        {
+          "id": 103,
+          "name": "Back Left Vent 24"
+        },
+        {
+          "id": 104,
+          "name": "Back Left Vent 25"
+        },
+        {
+          "id": 105,
+          "name": "Back Left Vent 26"
+        },
+        {
+          "id": 106,
+          "name": "Back Left Vent Left"
+        }
+      ]
+    },
+    "Neon strip": {
+      "bank": 4,
+      "leds": [
+        {
+          "id": 1,
+          "name": "Neon LED 1 Top Left"
+        },
+        {
+          "id": 2,
+          "name": "Neon LED 2"
+        },
+        {
+          "id": 3,
+          "name": "Neon LED 3"
+        },
+        {
+          "id": 4,
+          "name": "Neon LED 4"
+        },
+        {
+          "id": 5,
+          "name": "Neon LED 5"
+        },
+        {
+          "id": 6,
+          "name": "Neon LED 6"
+        },
+        {
+          "id": 7,
+          "name": "Neon LED 7"
+        },
+        {
+          "id": 8,
+          "name": "Neon LED 8"
+        },
+        {
+          "id": 9,
+          "name": "Neon LED 9"
+        },
+        {
+          "id": 10,
+          "name": "Neon LED 10"
+        },
+        {
+          "id": 11,
+          "name": "Neon LED 11"
+        },
+        {
+          "id": 12,
+          "name": "Neon LED 12"
+        },
+        {
+          "id": 13,
+          "name": "Neon LED 13"
+        },
+        {
+          "id": 14,
+          "name": "Neon LED 14"
+        },
+        {
+          "id": 15,
+          "name": "Neon LED 15"
+        },
+        {
+          "id": 16,
+          "name": "Neon LED 16"
+        },
+        {
+          "id": 17,
+          "name": "Neon LED 17"
+        },
+        {
+          "id": 18,
+          "name": "Neon LED 18"
+        },
+        {
+          "id": 19,
+          "name": "Neon LED 19"
+        },
+        {
+          "id": 20,
+          "name": "Neon LED 20"
+        },
+        {
+          "id": 21,
+          "name": "Neon LED 21 Left Corner"
+        },
+        {
+          "id": 22,
+          "name": "Neon LED 22 Left Corner"
+        },
+        {
+          "id": 23,
+          "name": "Neon LED 23"
+        },
+        {
+          "id": 24,
+          "name": "Neon LED 24"
+        },
+        {
+          "id": 25,
+          "name": "Neon LED 25"
+        },
+        {
+          "id": 26,
+          "name": "Neon LED 26"
+        },
+        {
+          "id": 27,
+          "name": "Neon LED 27"
+        },
+        {
+          "id": 28,
+          "name": "Neon LED 28"
+        },
+        {
+          "id": 29,
+          "name": "Neon LED 29"
+        },
+        {
+          "id": 30,
+          "name": "Neon LED 30"
+        },
+        {
+          "id": 31,
+          "name": "Neon LED 31"
+        },
+        {
+          "id": 32,
+          "name": "Neon LED 32"
+        },
+        {
+          "id": 33,
+          "name": "Neon LED 33"
+        },
+        {
+          "id": 34,
+          "name": "Neon LED 34"
+        },
+        {
+          "id": 35,
+          "name": "Neon LED 35"
+        },
+        {
+          "id": 36,
+          "name": "Neon LED 36"
+        },
+        {
+          "id": 37,
+          "name": "Neon LED 37"
+        },
+        {
+          "id": 38,
+          "name": "Neon LED 38"
+        },
+        {
+          "id": 39,
+          "name": "Neon LED 39"
+        },
+        {
+          "id": 40,
+          "name": "Neon LED 40"
+        },
+        {
+          "id": 41,
+          "name": "Neon LED 41"
+        },
+        {
+          "id": 42,
+          "name": "Neon LED 42"
+        },
+        {
+          "id": 43,
+          "name": "Neon LED 43"
+        },
+        {
+          "id": 44,
+          "name": "Neon LED 44"
+        },
+        {
+          "id": 45,
+          "name": "Neon LED 45"
+        },
+        {
+          "id": 46,
+          "name": "Neon LED 46"
+        },
+        {
+          "id": 47,
+          "name": "Neon LED 47"
+        },
+        {
+          "id": 48,
+          "name": "Neon LED 48"
+        },
+        {
+          "id": 49,
+          "name": "Neon LED 49"
+        },
+        {
+          "id": 50,
+          "name": "Neon LED 50"
+        },
+        {
+          "id": 51,
+          "name": "Neon LED 51"
+        },
+        {
+          "id": 52,
+          "name": "Neon LED 52"
+        },
+        {
+          "id": 53,
+          "name": "Neon LED 53"
+        },
+        {
+          "id": 54,
+          "name": "Neon LED 54"
+        },
+        {
+          "id": 55,
+          "name": "Neon LED 55"
+        },
+        {
+          "id": 56,
+          "name": "Neon LED 56"
+        },
+        {
+          "id": 57,
+          "name": "Neon LED 57"
+        },
+        {
+          "id": 58,
+          "name": "Neon LED 58"
+        },
+        {
+          "id": 59,
+          "name": "Neon LED 59"
+        },
+        {
+          "id": 60,
+          "name": "Neon LED 60"
+        },
+        {
+          "id": 61,
+          "name": "Neon LED 61"
+        },
+        {
+          "id": 62,
+          "name": "Neon LED 62"
+        },
+        {
+          "id": 63,
+          "name": "Neon LED 63"
+        },
+        {
+          "id": 64,
+          "name": "Neon LED 64"
+        },
+        {
+          "id": 65,
+          "name": "Neon LED 65"
+        },
+        {
+          "id": 66,
+          "name": "Neon LED 66"
+        },
+        {
+          "id": 67,
+          "name": "Neon LED 67"
+        },
+        {
+          "id": 68,
+          "name": "Neon LED 68"
+        },
+        {
+          "id": 69,
+          "name": "Neon LED 69"
+        },
+        {
+          "id": 70,
+          "name": "Neon LED 70"
+        },
+        {
+          "id": 71,
+          "name": "Neon LED 71"
+        },
+        {
+          "id": 72,
+          "name": "Neon LED 72"
+        },
+        {
+          "id": 73,
+          "name": "Neon LED 73"
+        },
+        {
+          "id": 74,
+          "name": "Neon LED 74"
+        },
+        {
+          "id": 75,
+          "name": "Neon LED 75"
+        },
+        {
+          "id": 76,
+          "name": "Neon LED 76"
+        },
+        {
+          "id": 77,
+          "name": "Neon LED 77"
+        },
+        {
+          "id": 78,
+          "name": "Neon LED 78 Right Corner"
+        },
+        {
+          "id": 79,
+          "name": "Neon LED 79 Right Corner"
+        },
+        {
+          "id": 80,
+          "name": "Neon LED 80"
+        },
+        {
+          "id": 81,
+          "name": "Neon LED 81"
+        },
+        {
+          "id": 82,
+          "name": "Neon LED 82"
+        },
+        {
+          "id": 83,
+          "name": "Neon LED 83"
+        },
+        {
+          "id": 84,
+          "name": "Neon LED 84"
+        },
+        {
+          "id": 85,
+          "name": "Neon LED 85"
+        },
+        {
+          "id": 86,
+          "name": "Neon LED 86"
+        },
+        {
+          "id": 87,
+          "name": "Neon LED 87"
+        },
+        {
+          "id": 88,
+          "name": "Neon LED 88"
+        },
+        {
+          "id": 89,
+          "name": "Neon LED 89"
+        },
+        {
+          "id": 90,
+          "name": "Neon LED 90"
+        },
+        {
+          "id": 91,
+          "name": "Neon LED 91"
+        },
+        {
+          "id": 92,
+          "name": "Neon LED 92"
+        },
+        {
+          "id": 93,
+          "name": "Neon LED 93"
+        },
+        {
+          "id": 94,
+          "name": "Neon LED 94"
+        },
+        {
+          "id": 95,
+          "name": "Neon LED 95"
+        },
+        {
+          "id": 96,
+          "name": "Neon LED 96"
+        },
+        {
+          "id": 97,
+          "name": "Neon LED 97"
+        },
+        {
+          "id": 98,
+          "name": "Neon LED 98"
+        },
+        {
+          "id": 99,
+          "name": "Neon LED 99 Top Right"
+        }
+      ]
+    }
+  },
+  "sources": [
+    "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/LenovoControllers/LenovoUSBController/LenovoUSBController.cpp",
+    "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/LenovoControllers/LenovoDevices.h"
+  ],
+  "credits": "OpenRGB, Cooper Hall (geobot19), GPL-2.0-or-later"
+}

@@ -26,19 +26,7 @@ void IdeaVPC::updateAll() {
             setProperty(winKeyPrompt, val, 32);
         if (wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_TOUCHPAD, &val))
             setProperty(touchpadLockPrompt, val, 32);
-        if (wmig->hasFanMethod) {
-            if (wmig->getFanSpeed(0, &val))
-                setProperty("Fan1RPM", val, 32);
-            if (wmig->getFanSpeed(1, &val))
-                setProperty("Fan2RPM", val, 32);
-            if (wmig->getCPUTemperature(&val))
-                setProperty(cpuTempPrompt, val, 32);
-            if (wmig->getGPUTemperature(&val))
-                setProperty(gpuTempPrompt, val, 32);
-            bool full = false;
-            if (wmig->getFanFullSpeed(&full))
-                setProperty(fullFanPrompt, full);
-        }
+        updateTelemetry();
         if (wmig->hasLightingMethod) {
             bool en = false;
             if (wmig->getYLogoStatus(&en)) {
@@ -51,6 +39,7 @@ void IdeaVPC::updateAll() {
             }
         }
     }
+    updateFeatureStatus();
     super::updateAll();
 }
 
@@ -139,6 +128,18 @@ void IdeaVPC::brightnessAction(OSObject *owner, IOTimerEventSource *timer) {
 }
 
 bool IdeaVPC::exitVPC() {
+    telemetryAwake = false;
+    restorePowerLimits();
+    if (telemetryPoller) {
+        telemetryPoller->cancelTimeout();
+        telemetryPoller->disable();
+        workLoop->removeEventSource(telemetryPoller);
+        OSSafeReleaseNULL(telemetryPoller);
+    }
+    if (legionBridge) {
+        UInt32 restored = 0;
+        ec->evaluateInteger("RYFA", &restored);
+    }
     if (brightnessPoller) {
         brightnessPoller->disable();
         workLoop->removeEventSource(brightnessPoller);
@@ -206,12 +207,44 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
     OSDictionary *dict = OSDynamicCast(OSDictionary, props);
     if (!dict)
         return;
+    if (auto request = OSDynamicCast(OSDictionary, dict->getObject("ControlRequest"))) {
+        controlRequest(request);
+        return;
+    }
+    if (auto value = OSDynamicCast(OSBoolean, dict->getObject("DetailedTelemetry"))) {
+        detailedTelemetry = value->getValue();
+        setProperty("DetailedTelemetry", detailedTelemetry);
+        AlwaysLog("diagnostics detailedTelemetry=%d", detailedTelemetry);
+        return;
+    }
+    if (dict->getObject("RefreshSensors")) {
+        updateTelemetry();
+        return;
+    }
 
 //    AlwaysLog("%d objects in properties", dict->getCount());
     OSCollectionIterator* i = OSCollectionIterator::withCollection(dict);
 
     if (i) {
         while (OSString* key = OSDynamicCast(OSString, i->getNextObject())) {
+            auto features = OSDynamicCast(OSDictionary, getProperty("FeatureStatus"));
+            if (features && features->getObject(key->getCStringNoCopy())) {
+                auto request = OSDictionary::withCapacity(3);
+                if (request) {
+                    char requestID[32];
+                    snprintf(requestID, sizeof(requestID), "legacy-%llu", sampleSequence);
+                    auto id = OSString::withCString(requestID);
+                    if (id) {
+                        request->setObject("RequestID", id);
+                        request->setObject("Property", key);
+                        request->setObject("Value", dict->getObject(key));
+                        controlRequest(request);
+                        id->release();
+                    }
+                    request->release();
+                }
+                continue;
+            }
             if (key->isEqualTo(alwaysOnUSBPrompt)) {
                 OSBoolean *bval = OSDynamicCast(OSBoolean, dict->getObject(alwaysOnUSBPrompt));
                 OSNumber *nval = OSDynamicCast(OSNumber, dict->getObject(alwaysOnUSBPrompt));
@@ -221,39 +254,6 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
                     setAlwaysOnUSBState(bval->getValue() ? 1 : 0);
                 else
                     toggleAlwaysOnUSB();
-            } else if (key->isEqualTo(alwaysOnUSBStatePrompt)) {
-                OSNumber *nval = OSDynamicCast(OSNumber, dict->getObject(alwaysOnUSBStatePrompt));
-                if (nval)
-                    setAlwaysOnUSBState(nval->unsigned32BitValue());
-            } else if (key->isEqualTo(conservationPrompt)) {
-#ifdef DEBUG
-                OSNumber *raw = OSDynamicCast(OSNumber, dict->getObject(conservationPrompt));
-                if (raw != nullptr) {
-                    IOReturn ret = evaluateIntegerParam(setBatteryMode, nullptr, raw->unsigned8BitValue());
-                    if (ret != kIOReturnSuccess)
-                        AlwaysLog(toggleError, conservationPrompt, ret);
-                    else
-                        AlwaysLog(toggleSuccess, conservationPrompt, raw->unsigned32BitValue(), "see ioreg");
-                    continue;
-                }
-#endif
-                OSBoolean *value;
-                getPropertyBoolean(conservationPrompt);
-                updateBattery(false);
-
-                if (value->getValue() == conservationMode)
-                    DebugLog(valueMatched, conservationPrompt, conservationMode);
-                else
-                    toggleConservation();
-            } else if (key->isEqualTo(rapidChargePrompt)) {
-                OSBoolean *value;
-                getPropertyBoolean(rapidChargePrompt);
-                updateBattery(false);
-
-                if (value->getValue() == rapidChargeMode)
-                    DebugLog(valueMatched, rapidChargePrompt, rapidChargeMode);
-                else
-                    toggleRapidCharge();
             } else if (key->isEqualTo(ECLockPrompt)) {
                 OSBoolean *value;
                 getPropertyBoolean(ECLockPrompt);
@@ -290,46 +290,6 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
                     AlwaysLog("%s 0x%x 0x%x success %d", writeECPrompt, command, data, retries);
                 else
                     AlwaysLog("%s 0x%x 0x%x failed %d", writeECPrompt, command, data, retries);
-            } else if (key->isEqualTo(smartFanPrompt)) {
-                OSNumber *value = OSDynamicCast(OSNumber, dict->getObject(smartFanPrompt));
-                if (value && wmig) {
-                    wmig->setGameZoneData(GAME_ZONE_WMI_SET_SMARTFAN_MODE, value->unsigned32BitValue());
-                    setProperty(smartFanPrompt, value);
-                }
-            } else if (key->isEqualTo(overDrivePrompt)) {
-                OSNumber *value = OSDynamicCast(OSNumber, dict->getObject(overDrivePrompt));
-                if (value && wmig) {
-                    wmig->setGameZoneData(GAME_ZONE_WMI_SET_OVER_DRIVE, value->unsigned32BitValue());
-                    setProperty(overDrivePrompt, value);
-                }
-            } else if (key->isEqualTo(winKeyPrompt)) {
-                OSNumber *value = OSDynamicCast(OSNumber, dict->getObject(winKeyPrompt));
-                if (value && wmig) {
-                    wmig->setGameZoneData(GAME_ZONE_WMI_SET_WIN_KEY, value->unsigned32BitValue());
-                    setProperty(winKeyPrompt, value);
-                }
-            } else if (key->isEqualTo(touchpadLockPrompt)) {
-                OSNumber *value = OSDynamicCast(OSNumber, dict->getObject(touchpadLockPrompt));
-                if (value && wmig) {
-                    wmig->setGameZoneData(GAME_ZONE_WMI_SET_TOUCHPAD, value->unsigned32BitValue());
-                    setProperty(touchpadLockPrompt, value);
-                }
-            } else if (key->isEqualTo(fullFanPrompt)) {
-                OSBoolean *value = OSDynamicCast(OSBoolean, dict->getObject(fullFanPrompt));
-                if (value && wmig) {
-                    wmig->setFanFullSpeed(value->getValue());
-                    setProperty(fullFanPrompt, value);
-                }
-            } else if (key->isEqualTo(yLogoPrompt)) {
-                OSBoolean *bval = OSDynamicCast(OSBoolean, dict->getObject(yLogoPrompt));
-                OSNumber *nval = OSDynamicCast(OSNumber, dict->getObject(yLogoPrompt));
-                bool en = bval ? bval->getValue() : (nval ? nval->unsigned32BitValue() != 0 : false);
-                setYLogo(en);
-            } else if (key->isEqualTo(portLightingPrompt)) {
-                OSBoolean *bval = OSDynamicCast(OSBoolean, dict->getObject(portLightingPrompt));
-                OSNumber *nval = OSDynamicCast(OSNumber, dict->getObject(portLightingPrompt));
-                bool en = bval ? bval->getValue() : (nval ? nval->unsigned32BitValue() != 0 : false);
-                setPortLighting(en);
             } else if (key->isEqualTo(batteryPrompt)) {
                 OSBoolean *value;
                 getPropertyBoolean(batteryPrompt);
@@ -489,7 +449,7 @@ UInt64 extractBatteryID(OSObject *raw) {
 }
 
 bool IdeaVPC::updateBatteryID(OSDictionary *bat0, OSDictionary *bat1) {
-    OSObject *result;
+    OSObject *result = nullptr;
     if (vpc->evaluateObject(getBatteryID, &result) != kIOReturnSuccess) {
         AlwaysLog(updateFailure, "Battery ID");
         return false;
@@ -555,7 +515,7 @@ bool IdeaVPC::updateBatteryID(OSDictionary *bat0, OSDictionary *bat1) {
 
 OSData *IdeaVPC::extractBatteryInfo(UInt32 index) {
     OSData *data = nullptr;
-    OSObject *result;
+    OSObject *result = nullptr;
 
     OSObject* params[1] = {
         OSNumber::withNumber(index, 32),
@@ -634,6 +594,9 @@ bool IdeaVPC::updateBattery(bool update) {
         DebugLog(updateSuccess, batteryPrompt, state);
     }
 
+    setProperty("BatteryModeRaw", state, 32);
+    rapidChargeCap = (state & BIT(BM_RAPIDCHARGE_CAP)) != 0;
+    if (!rapidChargeCap) setProperty(rapidChargePrompt, "firmware-gated: QCBX=0");
     conservationMode = BIT(BM0_CONSERVATION_BIT) & state;
     setProperty(conservationPrompt, conservationMode);
     if (rapidChargeCap) {
@@ -645,7 +608,7 @@ bool IdeaVPC::updateBattery(bool update) {
 }
 
 bool IdeaVPC::updateKeyboard(bool update) {
-    if (!FnlockCap && !backlightCap)
+    if (!FnlockCap && !backlightCap && !alwaysOnUSBCap)
         return true;
 
     UInt32 state;
@@ -696,39 +659,32 @@ bool IdeaVPC::toggleAlwaysOnUSB() {
 }
 
 bool IdeaVPC::setAlwaysOnUSBState(UInt32 state) {
-    if (!alwaysOnUSBCap)
+    if (!alwaysOnUSBCap || state > 2)
         return false;
 
     UInt32 result = 0;
-    if (state == 0) {
-        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSB_OFF);
-        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSBBAT_OFF);
-        alwaysOnUSBMode = false;
-        alwaysOnUSBState = 0;
-    } else if (state == 1) {
-        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSB_ON);
-        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSBBAT_OFF);
-        alwaysOnUSBMode = true;
-        alwaysOnUSBState = 1;
-    } else if (state == 2) {
-        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSB_ON);
-        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSBBAT_ON);
-        alwaysOnUSBMode = true;
-        alwaysOnUSBState = 2;
+    IOReturn ret = evaluateIntegerParam(setKeyboardMode, &result,
+        state == 0 ? HACMD_AOUSB_OFF : HACMD_AOUSB_ON);
+    if (ret == kIOReturnSuccess)
+        ret = evaluateIntegerParam(setKeyboardMode, &result,
+            state == 2 ? HACMD_AOUSBBAT_ON : HACMD_AOUSBBAT_OFF);
+    updateKeyboard(false);
+    if (ret != kIOReturnSuccess) {
+        AlwaysLog(toggleError, alwaysOnUSBPrompt, ret);
+        return false;
     }
-    setProperty(alwaysOnUSBPrompt, alwaysOnUSBMode);
-    setProperty(alwaysOnUSBStatePrompt, alwaysOnUSBState, 32);
-    return true;
+    return alwaysOnUSBState == state;
 }
 
 bool IdeaVPC::setYLogo(bool enable) {
     if (!wmig)
         return false;
     bool ok = wmig->setYLogoStatus(enable);
-    if (ok) {
-        yLogoMode = enable;
-        setProperty(yLogoPrompt, yLogoMode);
-    }
+    bool actual = false;
+    if (ok && wmig->getYLogoStatus(&actual)) {
+        yLogoMode = actual;
+        setProperty(yLogoPrompt, actual);
+    } else { removeProperty(yLogoPrompt); }
     return ok;
 }
 
@@ -736,16 +692,21 @@ bool IdeaVPC::setPortLighting(bool enable) {
     if (!wmig)
         return false;
     bool ok = wmig->setPortLightingStatus(enable);
-    if (ok) {
-        portLightingMode = enable;
-        setProperty(portLightingPrompt, portLightingMode);
-    }
+    bool actual = false;
+    if (ok && wmig->getPortLightingStatus(&actual)) {
+        portLightingMode = actual;
+        setProperty(portLightingPrompt, actual);
+    } else { removeProperty(portLightingPrompt); }
     return ok;
 }
 
 bool IdeaVPC::toggleConservation() {
-    IOReturn ret = evaluateIntegerParam(setBatteryMode, nullptr, conservationMode ? BMCMD0_CONSERVATION_OFF : BMCMD0_CONSERVATION_ON);
-    if (ret != kIOReturnSuccess) {
+    if (!conservationMode && rapidChargeMode && !toggleRapidCharge())
+        return false;
+    UInt32 firmwareResult = 0;
+    IOReturn ret = evaluateIntegerParam(setBatteryMode, &firmwareResult, conservationMode ? BMCMD0_CONSERVATION_OFF : BMCMD0_CONSERVATION_ON);
+    if (ret != kIOReturnSuccess || firmwareResult != 0) {
+        AlwaysLog("SBMC firmware status=0x%x", firmwareResult);
         AlwaysLog(toggleError, conservationPrompt, ret);
         return false;
     }
@@ -754,24 +715,29 @@ bool IdeaVPC::toggleConservation() {
     DebugLog(toggleSuccess, conservationPrompt, (conservationMode ? BMCMD0_CONSERVATION_ON : BMCMD0_CONSERVATION_OFF), (conservationMode ? "on" : "off"));
     setProperty(conservationPrompt, conservationMode);
 
+    updateBattery(false);
     notifyBattery();
     return true;
 }
 
 bool IdeaVPC::toggleRapidCharge() {
     if (!rapidChargeCap)
-        return true;
+        return false;
 
-    IOReturn ret = evaluateIntegerParam(setBatteryMode, nullptr, rapidChargeMode ? BMCMD0_RAPIDCHARGE_OFF : BMCMD0_RAPIDCHARGE_ON);
-    if (ret != kIOReturnSuccess) {
+    if (!rapidChargeMode && conservationMode && !toggleConservation())
+        return false;
+    UInt32 firmwareResult = 0;
+    IOReturn ret = evaluateIntegerParam(setBatteryMode, &firmwareResult, rapidChargeMode ? BMCMD0_RAPIDCHARGE_OFF : BMCMD0_RAPIDCHARGE_ON);
+    if (ret != kIOReturnSuccess || firmwareResult != 0) {
+        AlwaysLog("SBMC firmware status=0x%x", firmwareResult);
         AlwaysLog(toggleError, rapidChargePrompt, ret);
         return false;
     }
 
     rapidChargeMode = !rapidChargeMode;
     DebugLog(toggleSuccess, rapidChargePrompt, (rapidChargeMode ? BMCMD0_RAPIDCHARGE_ON : BMCMD0_RAPIDCHARGE_OFF), (rapidChargeMode ? "on" : "off"));
-    setProperty(rapidChargePrompt, conservationMode);
-
+    setProperty(rapidChargePrompt, rapidChargeMode);
+    updateBattery(false);
     return true;
 }
 
@@ -1069,6 +1035,42 @@ bool IdeaVPC::examineWMI(IOService *provider) {
         feature->isEqualTo("Game Zone")) {
         wmig = OSDynamicCast(IdeaWMIGameZone, provider);
         setProperty("Game Zone", provider);
+        if (wmig) {
+            UInt32 bridgeID = 0;
+            legionBridge = ec->evaluateInteger("RYID", &bridgeID) == kIOReturnSuccess && (bridgeID == 0x52590101 || bridgeID == 0x52590102);
+            legionBridgeVersion = legionBridge ? bridgeID & 0xff : 0;
+            setProperty("ACPIBridgeVersion", legionBridgeVersion, 32);
+            if (legionBridge) {
+                OSObject *identity = nullptr;
+                if (ec->evaluateObject("RYPN", &identity) == kIOReturnSuccess && OSDynamicCast(OSString, identity))
+                    setProperty("HardwareProfile", identity);
+                OSSafeReleaseNULL(identity);
+                if (ec->evaluateObject("RYNM", &identity) == kIOReturnSuccess && OSDynamicCast(OSString, identity))
+                    setProperty("HardwareProfileName", identity);
+                OSSafeReleaseNULL(identity);
+            }
+            setProperty("ControlProtocolVersion", 1, 32);
+            setProperty("TelemetryIntervalMS", telemetryIntervalMS, 32);
+            setProperty("LenovoFanMethod", wmig->hasFanMethod);
+            setProperty("LenovoLightingMethod", wmig->hasLightingMethod);
+            OSObject *fans = provider->getProperty("Fan number");
+            if (fans) setProperty("Fan number", fans);
+            updateAll();
+            if (!telemetryPoller) {
+                telemetryPoller = IOTimerEventSource::timerEventSource(this, [](OSObject *owner, IOTimerEventSource *timer) {
+                    auto self = OSDynamicCast(IdeaVPC, owner);
+                    if (self && self->telemetryAwake) {
+                        self->updateTelemetry();
+                        timer->setTimeoutMS(self->telemetryIntervalMS);
+                    }
+                });
+                if (telemetryPoller && workLoop->addEventSource(telemetryPoller) == kIOReturnSuccess) {
+                    telemetryPoller->enable();
+                    telemetryPoller->setTimeoutMS(telemetryIntervalMS);
+                } else
+                    OSSafeReleaseNULL(telemetryPoller);
+            }
+        }
     }
     return true;
 }
@@ -1087,4 +1089,336 @@ bool IdeaVPC::isPowerChanged() {
 
     adapterConnected = powerState;
     return ret;
+}
+
+// Control protocol v1: each request receives a correlated result; transport success
+// is never interpreted as firmware success. Existing property names remain an ABI.
+void IdeaVPC::updateFeatureStatus() {
+    auto features = OSDictionary::withCapacity(16);
+    if (!features) return;
+    auto add = [&](const char *key, bool available, const char *reason, const char *backend) {
+        auto entry = OSDictionary::withCapacity(4);
+        if (!entry) return;
+        entry->setObject("Available", available ? kOSBooleanTrue : kOSBooleanFalse);
+        setPropertyString(entry, "Reason", reason);
+        setPropertyString(entry, "Backend", backend);
+        features->setObject(key, entry);
+        entry->release();
+    };
+    const bool battery = vpc->validateObject(getBatteryMode) == kIOReturnSuccess &&
+                         vpc->validateObject(setBatteryMode) == kIOReturnSuccess;
+    add(conservationPrompt, battery, battery ? "" : "ACPI GBMD/SBMC missing", "ACPI");
+    add(rapidChargePrompt, battery && rapidChargeCap,
+        rapidChargeCap ? "" : "GBMD bit 17 (EC QCBX) is clear; SBMC(7/8) is firmware-gated", "ACPI");
+    add(alwaysOnUSBStatePrompt, alwaysOnUSBCap, alwaysOnUSBCap ? "" : "HALS Always-On USB capability is clear", "ACPI");
+    add(FnKeyPrompt, FnlockCap, FnlockCap ? "" : "HALS Fn Lock capability is clear", "ACPI");
+    add(backlightPrompt, backlightCap, backlightCap ? "" : "ACPI backlight unavailable; RGB may use USB HID", "ACPI");
+    UInt32 cap = 0, actual = 0;
+    auto wmi = [&](const char *key, UInt32 capability, UInt32 getter) {
+        cap = actual = 0;
+        const bool capabilityRead = wmig && wmig->getGamzeZoneData(capability, &cap);
+        const bool ok = capabilityRead && cap && wmig->getGamzeZoneData(getter, &actual);
+        const char *reason = !wmig ? "WMI Game Zone provider unavailable" :
+            !capabilityRead ? "WMI capability query failed; inspect the kernel WMI status" :
+            !cap ? "Firmware reports this capability unavailable" :
+            !ok ? "WMI state getter failed; inspect the kernel WMI status" : "";
+        add(key, ok, reason, "WMI Game Zone");
+        if (ok) setProperty(key, actual, 32);
+        else removeProperty(key);
+    };
+    wmi(smartFanPrompt, GAME_ZONE_WMI_CAP_SMARTFAN, GAME_ZONE_WMI_GET_SMARTFAN_MODE);
+    wmi(overDrivePrompt, GAME_ZONE_WMI_CAP_OVER_DRIVE, GAME_ZONE_WMI_GET_OVER_DRIVE);
+    wmi(winKeyPrompt, GAME_ZONE_WMI_CAP_WIN_KEY, GAME_ZONE_WMI_GET_WIN_KEY);
+    wmi(touchpadLockPrompt, GAME_ZONE_WMI_CAP_TOUCHPAD, GAME_ZONE_WMI_GET_TOUCHPAD);
+    bool state = false;
+    bool ok = wmig && wmig->getFanFullSpeed(&state);
+    add(fullFanPrompt, ok, ok ? "" : "Fan full-speed getter failed or interface missing", "WMI Fan");
+    if (ok) setProperty(fullFanPrompt, state);
+    else removeProperty(fullFanPrompt);
+    ok = wmig && wmig->getYLogoStatus(&state);
+    add(yLogoPrompt, ok, ok ? "" : "Logo lighting interface is unavailable", "WMI Lighting");
+    if (ok) setProperty(yLogoPrompt, state);
+    else removeProperty(yLogoPrompt);
+    ok = wmig && wmig->getPortLightingStatus(&state);
+    add(portLightingPrompt, ok, ok ? "" : "Rear port lighting interface is unavailable", "WMI Lighting");
+    if (ok) setProperty(portLightingPrompt, state);
+    else removeProperty(portLightingPrompt);
+    UInt32 verifiedWrites = 0;
+    const bool fanWrites = legionBridgeVersion >= 2 &&
+        ec->evaluateInteger("RYVW", &verifiedWrites) == kIOReturnSuccess && verifiedWrites == 1;
+    setProperty("FanWritesValidated", fanWrites);
+    add("FanControlMode", legionBridgeVersion >= 2, legionBridgeVersion >= 2 ? "" : "Install the reviewed ACPI bridge v2 for fan control; v1 lacks EC curve recomputation", "ACPI profile");
+    add("Fan1TargetRPM", fanWrites, fanWrites ? "" : "Fan writes disabled: this bridge has no hardware-validated write profile", "ACPI profile");
+    add("Fan2TargetRPM", fanWrites, fanWrites ? "" : "Fan writes disabled: this bridge has no hardware-validated write profile", "ACPI profile");
+    const char *rawKeys[] = {"YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw"};
+    for (const char *raw : rawKeys) {
+        auto value = wmig ? wmig->getProperty(raw) : nullptr;
+        if (value) setProperty(raw, value);
+        else removeProperty(raw);
+    }
+    auto ranges = OSDictionary::withCapacity(2);
+    const char *powerKeys[] = {"CPUBoostPower", "CPUSustainedPower"};
+    for (unsigned i = 0; i < 2; ++i) {
+        UInt32 range[4] = {};
+        bool supported = wmig && wmig->getPowerLimit(i == 0 ? 3 : 5, range);
+        add(powerKeys[i], supported, supported ? "" : "CPU WMI power-limit range unavailable", "WMI CPU");
+        if (supported && ranges) {
+            auto item = OSDictionary::withCapacity(3);
+            if (item) {
+                setPropertyNumber(item, "Step", range[1], 32);
+                setPropertyNumber(item, "Min", range[2], 32);
+                setPropertyNumber(item, "Max", range[3], 32);
+                ranges->setObject(powerKeys[i], item);
+                item->release();
+            }
+            setProperty(powerKeys[i], range[0], 32);
+        } else removeProperty(powerKeys[i]);
+    }
+    UInt32 resetRange[4] = {};
+    const bool resetAvailable = wmig && wmig->getPowerLimit(3, resetRange) && wmig->getPowerLimit(5, resetRange);
+    add("CPUPowerReset", resetAvailable, resetAvailable ? "" : "CPU profile reset interface unavailable", "WMI CPU");
+    setProperty("CPUPowerModified", powerLimitsSaved);
+    setProperty("CPUPowerReset", static_cast<UInt64>(0), 32);
+    add("GPUPowerLimit", false, "Requires an active supported graphics driver; firmware NPF notifications alone do not apply the limit", "Graphics driver required");
+    add("GPUOverclock", false, "No verified macOS graphics overclock backend is available for this firmware", "Graphics driver required");
+    add("HybridGraphics", false, "Graphics topology changes require compatible graphics drivers and a reboot; not exposed as a live toggle", "Boot configuration");
+    add("CPUOverclock", false, "No verified overclock interface for this CPU/firmware", "Unavailable");
+    if (ranges) { setProperty("PowerLimitRanges", ranges); ranges->release(); }
+    setProperty("FeatureStatus", features);
+    features->release();
+}
+
+void IdeaVPC::updateTelemetry() {
+    if (!wmig || !telemetryAwake) return;
+    auto status = OSDictionary::withCapacity(4);
+    const char *keys[] = {"Fan1RPM", "Fan2RPM", cpuTempPrompt, gpuTempPrompt};
+    const char *methods[] = {"RYF0", "RYF1", "RYT0", "RYT1"};
+    for (unsigned i = 0; i < 4; ++i) {
+        UInt32 value = 0;
+        bool ok = false;
+        if (legionBridge) ok = ec->evaluateInteger(methods[i], &value) == kIOReturnSuccess;
+        else if (i < 2) ok = wmig->hasFanMethod ? wmig->getFanSpeed(i, &value) :
+            wmig->getGamzeZoneData(i == 0 ? GAME_ZONE_WMI_GET_FAN_ONE : GAME_ZONE_WMI_GET_FAN_TWO, &value);
+        else ok = i == 2 ? wmig->getCPUTemperature(&value) : wmig->getGPUTemperature(&value);
+        if (i >= 2 && (value == 0 || value >= 125)) ok = false;
+        if (i < 2 && (value == 0xFFFFFFFF || value == 0xFFFF)) ok = false;
+        if (ok) setProperty(keys[i], value, 32);
+        else removeProperty(keys[i]);
+        if (status) setPropertyString(status, keys[i], ok ? "ok" :
+            (i >= 2 && value == 0 ? "firmware returned zero; sensor may be powered off" : "ACPI/WMI read failed or value invalid"));
+    }
+    if (status) { setProperty("SensorStatus", status); status->release(); }
+    setProperty("TelemetrySource", legionBridge ? "ACPI profile / precise EC RPM" : "WMI / firmware RPM resolution");
+    if (legionBridge) {
+        UInt32 value = 0;
+        if (ec->evaluateInteger("RYFM", &value) == kIOReturnSuccess) setProperty("FanControlMode", value, 32);
+        if (ec->evaluateInteger("RYG0", &value) == kIOReturnSuccess) setProperty("Fan1TargetRPM", value, 32);
+        if (ec->evaluateInteger("RYG1", &value) == kIOReturnSuccess) setProperty("Fan2TargetRPM", value, 32);
+        if (ec->evaluateInteger("RYM0", &value) == kIOReturnSuccess) setProperty("Fan1MaxRPM", value, 32);
+        if (ec->evaluateInteger("RYM1", &value) == kIOReturnSuccess) setProperty("Fan2MaxRPM", value, 32);
+    }
+    UInt32 profile = 0;
+    if (wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &profile) && profile >= 1 && profile <= 3) {
+        if (powerLimitsSaved && profile != powerLimitsProfile) powerLimitsSaved = false;
+        setProperty(smartFanPrompt, profile, 32);
+    }
+    setProperty("CPUPowerModified", powerLimitsSaved);
+    if (sampleSequence % 4 == 0) {
+        bool oldCapability = rapidChargeCap;
+        updateBattery(false);
+        updateKeyboard(false);
+        if (oldCapability != rapidChargeCap) updateFeatureStatus();
+    }
+    UInt64 uptime = 0, ns = 0;
+    clock_get_uptime(&uptime);
+    absolutetime_to_nanoseconds(uptime, &ns);
+    setProperty("SensorSampleTimeMS", ns / 1000000, 64);
+    setProperty("SensorSampleSequence", ++sampleSequence, 64);
+    if (detailedTelemetry || sampleSequence == 1 || sampleSequence % 20 == 0)
+        DebugLog("sample=%llu source=%s timeMS=%llu", sampleSequence,
+                 legionBridge ? "ACPI-profile" : "WMI", ns / 1000000);
+}
+
+IOReturn IdeaVPC::setBridgeFan(UInt32 fan, UInt32 rpm) {
+    UInt32 verified = 0;
+    if (!ec || ec->evaluateInteger("RYVW", &verified) != kIOReturnSuccess || verified != 1)
+        return kIOReturnUnsupported;
+    if (fan > 1) return kIOReturnBadArgument;
+    OSObject *args[] = {OSNumber::withNumber(fan, 32), OSNumber::withNumber(rpm, 32)};
+    if (!args[0] || !args[1]) { OSSafeReleaseNULL(args[0]); OSSafeReleaseNULL(args[1]); return kIOReturnNoMemory; }
+    UInt32 result = 0;
+    IOReturn ret = ec->evaluateInteger("RYFS", &result, args, 2);
+    args[0]->release(); args[1]->release();
+    return ret == kIOReturnSuccess && result != 0 ? kIOReturnIOError : ret;
+}
+
+IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
+    auto flags = OSDynamicCast(OSDictionary, getProperty("FeatureStatus"));
+    auto feature = flags ? OSDynamicCast(OSDictionary, flags->getObject(key)) : nullptr;
+    if (!feature || feature->getObject("Available") != kOSBooleanTrue) return kIOReturnUnsupported;
+    auto number = OSDynamicCast(OSNumber, value);
+    auto boolean = OSDynamicCast(OSBoolean, value);
+    if (number == nullptr && boolean == nullptr) return kIOReturnBadArgument;
+    if (number != nullptr && number->unsigned64BitValue() > 0xffffffffULL) return kIOReturnBadArgument;
+    UInt32 target = number != nullptr ? number->unsigned32BitValue() : (boolean->getValue() ? 1 : 0);
+    if (!strcmp(key, "CPUPowerReset")) {
+        if (number == nullptr || target != 0) return kIOReturnBadArgument;
+        return restorePowerLimits() ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, "CPUBoostPower") || !strcmp(key, "CPUSustainedPower")) {
+        if (number == nullptr || !wmig) return kIOReturnBadArgument;
+        unsigned index = !strcmp(key, "CPUSustainedPower") ? 1 : 0;
+        UInt32 range[4] = {};
+        if (!wmig->getPowerLimit(index == 0 ? 3 : 5, range)) return kIOReturnIOError;
+        if (!range[1] || range[2] > range[3] || target < range[2] || target > range[3] || (target - range[2]) % range[1]) return kIOReturnBadArgument;
+        if (!powerLimitsSaved) {
+            UInt32 other[4] = {};
+            if (!wmig->getPowerLimit(index == 0 ? 5 : 3, other)) return kIOReturnIOError;
+            if (!wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &powerLimitsProfile)) return kIOReturnIOError;
+            originalPowerLimits[index] = range[0]; originalPowerLimits[1 - index] = other[0];
+            powerLimitsSaved = true;
+        }
+        return wmig->setPowerLimit(index == 0 ? 4 : 6, target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, "Fan1TargetRPM") || !strcmp(key, "Fan2TargetRPM")) {
+        if (number == nullptr) return kIOReturnBadArgument;
+        return setBridgeFan(!strcmp(key, "Fan2TargetRPM") ? 1 : 0, target);
+    }
+    if (!strcmp(key, "FanControlMode")) {
+        UInt32 result = 0;
+        if (target != 0) return kIOReturnBadArgument; // Manual is entered by a target-RPM request.
+        IOReturn ret = ec->evaluateInteger("RYFA", &result);
+        return ret == kIOReturnSuccess && result != 0 ? kIOReturnIOError : ret;
+    }
+    if (!strcmp(key, smartFanPrompt)) {
+        if (number == nullptr || target < 1 || target > 3) return kIOReturnBadArgument;
+        restorePowerLimits();
+        if (legionBridge) { UInt32 result; ec->evaluateInteger("RYFA", &result); }
+        return wmig->setGameZoneData(GAME_ZONE_WMI_SET_SMARTFAN_MODE, target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, alwaysOnUSBStatePrompt)) {
+        if (number == nullptr || target > 2) return kIOReturnBadArgument;
+        return setAlwaysOnUSBState(target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, backlightPrompt)) {
+        if (number == nullptr || target > 2) return kIOReturnBadArgument;
+        return setBacklight(target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (target > 1) return kIOReturnBadArgument;
+    if (!strcmp(key, conservationPrompt)) {
+        if (boolean == nullptr) return kIOReturnBadArgument;
+        if (!updateBattery(false)) return kIOReturnIOError;
+        return target == conservationMode || toggleConservation() ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, rapidChargePrompt)) {
+        if (boolean == nullptr) return kIOReturnBadArgument;
+        if (!updateBattery(false)) return kIOReturnIOError;
+        return target == rapidChargeMode || toggleRapidCharge() ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, fullFanPrompt)) {
+        if (boolean == nullptr || target > 1) return kIOReturnBadArgument;
+        return wmig->setFanFullSpeed(target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, overDrivePrompt)) {
+        if (number == nullptr || target > 1) return kIOReturnBadArgument;
+        return wmig->setGameZoneData(GAME_ZONE_WMI_SET_OVER_DRIVE, target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, winKeyPrompt)) {
+        if (number == nullptr || target > 1) return kIOReturnBadArgument;
+        return wmig->setGameZoneData(GAME_ZONE_WMI_SET_WIN_KEY, target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, touchpadLockPrompt)) {
+        if (number == nullptr || target > 1) return kIOReturnBadArgument;
+        return wmig->setGameZoneData(GAME_ZONE_WMI_SET_TOUCHPAD, target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, yLogoPrompt)) {
+        if (boolean == nullptr || target > 1) return kIOReturnBadArgument;
+        return setYLogo(target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, portLightingPrompt)) {
+        if (boolean == nullptr || target > 1) return kIOReturnBadArgument;
+        return setPortLighting(target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    if (!strcmp(key, FnKeyPrompt)) {
+        if (boolean == nullptr || target > 1) return kIOReturnBadArgument;
+        return setFnLock(target) ? kIOReturnSuccess : kIOReturnIOError;
+    }
+    return kIOReturnUnsupported;
+}
+
+void IdeaVPC::controlRequest(OSDictionary *request) {
+    auto key = OSDynamicCast(OSString, request->getObject("Property"));
+    auto id = OSDynamicCast(OSString, request->getObject("RequestID"));
+    OSObject *value = request->getObject("Value");
+    if (!key || !id || !value || key->getLength() > 64 || id->getLength() > 64) return;
+    updateFeatureStatus();
+    IOReturn ret = setControl(key->getCStringNoCopy(), value);
+    const IOReturn commandStatus = ret;
+    if (ret == kIOReturnSuccess) updateAll();
+    OSObject *actual = getProperty(key->getCStringNoCopy());
+    if (ret == kIOReturnSuccess && (!actual || !actual->isEqualTo(value))) ret = kIOReturnIOError;
+    const bool readbackPending = commandStatus == kIOReturnSuccess && ret == kIOReturnIOError;
+    auto result = OSDictionary::withCapacity(12);
+    if (!result) return;
+    result->setObject("RequestID", id);
+    result->setObject("Property", key);
+    result->setObject("Requested", value);
+    if (actual) result->setObject("Actual", actual);
+    setPropertyNumber(result, "Status", ret, 32);
+    setPropertyNumber(result, "CommandStatus", commandStatus, 32);
+    result->setObject("ReadbackPending", readbackPending ? kOSBooleanTrue : kOSBooleanFalse);
+    setPropertyString(result, "Reason", ret == kIOReturnSuccess ? "Firmware readback matched" :
+        ret == kIOReturnUnsupported ? "Feature unavailable; inspect FeatureStatus" :
+        ret == kIOReturnBadArgument ? "Invalid type or value" : readbackPending ? "Firmware accepted the request but readback differs or is missing; export diagnostics with the requested and actual values" : "Firmware command failed");
+    setPropertyString(result, "Code", ret == kIOReturnSuccess ? "confirmed" :
+        ret == kIOReturnUnsupported ? "unsupported" : ret == kIOReturnBadArgument ? "invalid_request" :
+        readbackPending ? "readback_mismatch" : "firmware_call_failed");
+    setPropertyString(result, "Stage", ret == kIOReturnSuccess || readbackPending ? "readback" :
+        ret == kIOReturnUnsupported || ret == kIOReturnBadArgument ? "validation" : "firmware");
+    if (ret == kIOReturnUnsupported) {
+        auto flags = OSDynamicCast(OSDictionary, getProperty("FeatureStatus"));
+        auto feature = flags ? OSDynamicCast(OSDictionary, flags->getObject(key->getCStringNoCopy())) : nullptr;
+        if (feature && feature->getObject("Reason")) result->setObject("Reason", feature->getObject("Reason"));
+    }
+    setProperty("LastControlResult", result);
+    result->release();
+    AlwaysLog("control id=%s property=%s status=0x%x", id->getCStringNoCopy(), key->getCStringNoCopy(), ret);
+}
+
+IOReturn IdeaVPC::setPowerState(unsigned long state, IOService *device) {
+    if (!commandGate) return kIOPMAckImplied;
+    return commandGate->runAction([](OSObject *owner, void *ordinal, void *device, void *, void *) -> IOReturn {
+        return static_cast<IdeaVPC *>(owner)->setPowerStateGated(*static_cast<unsigned long *>(ordinal), static_cast<IOService *>(device));
+    }, &state, device);
+}
+
+IOReturn IdeaVPC::setPowerStateGated(unsigned long state, IOService *device) {
+    if (state == 0) {
+        telemetryAwake = false;
+        restorePowerLimits();
+        if (telemetryPoller) telemetryPoller->cancelTimeout();
+        if (legionBridge) { UInt32 result = 0; ec->evaluateInteger("RYFA", &result); }
+    }
+    IOReturn ret = super::setPowerState(state, device);
+    if (state != 0) {
+        telemetryAwake = true;
+        if (telemetryPoller) telemetryPoller->setTimeoutMS(telemetryIntervalMS);
+    }
+    return ret;
+}
+
+bool IdeaVPC::restorePowerLimits() {
+    if (!powerLimitsSaved) return true;
+    if (!wmig) return false;
+    UInt32 profile = 0;
+    if (!wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &profile)) return false;
+    if (profile != powerLimitsProfile) { powerLimitsSaved = false; return true; }
+    bool boost = wmig->setPowerLimit(4, originalPowerLimits[0]);
+    bool sustained = wmig->setPowerLimit(6, originalPowerLimits[1]);
+    UInt32 actualBoost[4] = {}, actualSustained[4] = {};
+    bool confirmed = boost && sustained && wmig->getPowerLimit(3, actualBoost) && wmig->getPowerLimit(5, actualSustained) &&
+                     actualBoost[0] == originalPowerLimits[0] && actualSustained[0] == originalPowerLimits[1];
+    if (confirmed) powerLimitsSaved = false;
+    else AlwaysLog("CPU power-limit restoration failed boost=%d sustained=%d confirmed=%d", boost, sustained, confirmed);
+    return confirmed;
 }

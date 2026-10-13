@@ -148,8 +148,13 @@ class ThinkFanHelper {
         if !updateLevel { return }
 
         outputSize = 1
-        guard kIOReturnSuccess == IOConnectCallMethod(connect, UInt32(kYSMCUCReadECName),
-                                                      nil, 0, &fanLevel, 4, nil, nil, &output, &outputSize) else {
+        let field = Array(fanLevel.utf8)
+        guard field.count == 4 else { return }
+        let status = field.withUnsafeBytes { bytes in
+            IOConnectCallMethod(connect, UInt32(kYSMCUCReadECName),
+                                nil, 0, bytes.baseAddress, 4, nil, nil, &output, &outputSize)
+        }
+        guard status == kIOReturnSuccess, outputSize == 1 else {
             showOSD("ReadFanFail")
             if #available(macOS 10.12, *) {
                 os_log("Failed to read fan level!", type: .error)

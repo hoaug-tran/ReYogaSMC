@@ -101,6 +101,7 @@ bool YogaVPC::start(IOService *provider) {
         return false;
 
     validateEC();
+    setProperty("ACPIExportVersion", 1, 32);
 
     updateAll();
 
@@ -195,6 +196,20 @@ void YogaVPC::setPropertiesGated(OSObject* props) {
     OSDictionary* dict = OSDynamicCast(OSDictionary, props);
     if (!dict)
         return;
+    if (auto requested = OSDynamicCast(OSBoolean, dict->getObject("ExportDSDT"))) {
+        if (!requested->getValue()) { removeProperty("ExportedDSDT"); return; }
+        const OSData *table = vpc ? vpc->getACPITableData("DSDT", 0) : nullptr;
+        if (table && table->getLength() >= 36 && table->getLength() <= 1024 * 1024) {
+            setProperty("ExportedDSDT", const_cast<OSData *>(table));
+            setProperty("ACPIExportStatus", static_cast<UInt32>(kIOReturnSuccess), 32);
+            AlwaysLog("ACPI DSDT export size=%u", table->getLength());
+        } else {
+            removeProperty("ExportedDSDT");
+            setProperty("ACPIExportStatus", static_cast<UInt32>(kIOReturnNotFound), 32);
+            AlwaysLog("ACPI DSDT export unavailable");
+        }
+        return;
+    }
 
 //    DebugLog("Found %d objects in properties", dict->getCount());
     OSCollectionIterator* i = OSCollectionIterator::withCollection(dict);
@@ -346,8 +361,12 @@ void YogaVPC::setPropertiesGated(OSObject* props) {
 }
 
 IOReturn YogaVPC::setProperties(OSObject *props) {
-    commandGate->runAction(OSMemberFunctionCast(IOCommandGate::Action, this, &YogaVPC::setPropertiesGated), props);
-    return kIOReturnSuccess;
+    if (!commandGate) return kIOReturnNotReady;
+    if (!OSDynamicCast(OSDictionary, props)) return kIOReturnBadArgument;
+    return commandGate->runAction([](OSObject *owner, void *properties, void *, void *, void *) -> IOReturn {
+        static_cast<YogaVPC *>(owner)->setPropertiesGated(static_cast<OSObject *>(properties));
+        return kIOReturnSuccess;
+    }, props);
 }
 
 bool YogaVPC::updateClamshell(bool update) {

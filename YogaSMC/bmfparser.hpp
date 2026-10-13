@@ -52,6 +52,11 @@ public:
     bool parsed {true};
 private:
     const char* wmi_name;
+    bool contains(const void *pointer, uint32_t length) const {
+        const auto begin = reinterpret_cast<uintptr_t>(buf);
+        const auto address = reinterpret_cast<uintptr_t>(pointer);
+        return pointer && address >= begin && address - begin <= size && length <= size - (address - begin);
+    }
     OSString *parse_string(char *buf, uint32_t size);
     uint16_t parse_valuemap(uint16_t *buf, bool map, uint32_t i);
     uint32_t parse_valuemap(int32_t *buf, bool map, uint32_t i);

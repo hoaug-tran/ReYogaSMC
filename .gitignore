@@ -7,3 +7,10 @@ xcshareddata/
 build/
 /MacKernelSDK
 /Index
+
+# Local diagnostics and hardware exports
+/log.txt
+/ReYoga-report*/
+/ReYoga-report*.zip
+**/__pycache__/
+/.tools/

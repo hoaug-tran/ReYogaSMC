@@ -2,6 +2,6 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "self:YogaSMC.xcodeproj">
+      location = "self:ReYogaSMC.xcodeproj">
    </FileRef>
 </Workspace>

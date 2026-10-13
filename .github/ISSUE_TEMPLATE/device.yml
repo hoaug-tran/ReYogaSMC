@@ -1,0 +1,24 @@
+name: Device support
+description: Request support for a model or firmware interface.
+title: "[Device] "
+body:
+  - type: input
+    id: identity
+    attributes:
+      label: Model, machine type and BIOS
+    validations:
+      required: true
+  - type: textarea
+    id: features
+    attributes:
+      label: Features and current behavior
+      description: List working, failing and unavailable features separately. Include macOS and driver versions.
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Hardware report and source evidence
+      description: Attach the ReYoga export after reviewing it. Include known Windows behavior and protocol references if available.
+    validations:
+      required: true
