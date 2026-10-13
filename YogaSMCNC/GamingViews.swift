@@ -84,12 +84,11 @@ public struct FanGaugeCard: View {
                     ),
                     style: StrokeStyle(lineWidth: 6.5, lineCap: .round)
                 )
-                .animation(.spring(response: 0.45, dampingFraction: 0.72), value: progress)
+                .animation(.spring(response: 0.45, dampingFraction: 0.72))
 
                 VStack(spacing: 1) {
                     Text("\(rpm)")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .monospacedDigit()
                         .foregroundColor(.primary)
                     Text("RPM")
                         .font(.system(size: 9, weight: .semibold, design: .rounded))
