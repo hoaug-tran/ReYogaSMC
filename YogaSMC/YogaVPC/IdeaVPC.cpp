@@ -9,12 +9,48 @@
 
 #include "IdeaVPC.hpp"
 #include "YogaWMI.hpp"
+#include "IdeaWMI.hpp"
 OSDefineMetaClassAndStructors(IdeaVPC, YogaVPC);
 
 void IdeaVPC::updateAll() {
     updateBattery();
     updateKeyboard();
     updateVPC();
+    if (wmig) {
+        UInt32 val = 0;
+        if (wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &val))
+            setProperty(smartFanPrompt, val, 32);
+        if (wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_OVER_DRIVE, &val))
+            setProperty(overDrivePrompt, val, 32);
+        if (wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_WIN_KEY, &val))
+            setProperty(winKeyPrompt, val, 32);
+        if (wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_TOUCHPAD, &val))
+            setProperty(touchpadLockPrompt, val, 32);
+        if (wmig->hasFanMethod) {
+            if (wmig->getFanSpeed(0, &val))
+                setProperty("Fan1RPM", val, 32);
+            if (wmig->getFanSpeed(1, &val))
+                setProperty("Fan2RPM", val, 32);
+            if (wmig->getCPUTemperature(&val))
+                setProperty(cpuTempPrompt, val, 32);
+            if (wmig->getGPUTemperature(&val))
+                setProperty(gpuTempPrompt, val, 32);
+            bool full = false;
+            if (wmig->getFanFullSpeed(&full))
+                setProperty(fullFanPrompt, full);
+        }
+        if (wmig->hasLightingMethod) {
+            bool en = false;
+            if (wmig->getYLogoStatus(&en)) {
+                yLogoMode = en;
+                setProperty(yLogoPrompt, yLogoMode);
+            }
+            if (wmig->getPortLightingStatus(&en)) {
+                portLightingMode = en;
+                setProperty(portLightingPrompt, portLightingMode);
+            }
+        }
+    }
     super::updateAll();
 }
 
@@ -177,14 +213,18 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
     if (i) {
         while (OSString* key = OSDynamicCast(OSString, i->getNextObject())) {
             if (key->isEqualTo(alwaysOnUSBPrompt)) {
-                OSBoolean *value;
-                getPropertyBoolean(alwaysOnUSBPrompt);
-                updateKeyboard(false);
-
-                if (value->getValue() == alwaysOnUSBMode)
-                    DebugLog(valueMatched, alwaysOnUSBPrompt, alwaysOnUSBMode);
+                OSBoolean *bval = OSDynamicCast(OSBoolean, dict->getObject(alwaysOnUSBPrompt));
+                OSNumber *nval = OSDynamicCast(OSNumber, dict->getObject(alwaysOnUSBPrompt));
+                if (nval)
+                    setAlwaysOnUSBState(nval->unsigned32BitValue());
+                else if (bval)
+                    setAlwaysOnUSBState(bval->getValue() ? 1 : 0);
                 else
                     toggleAlwaysOnUSB();
+            } else if (key->isEqualTo(alwaysOnUSBStatePrompt)) {
+                OSNumber *nval = OSDynamicCast(OSNumber, dict->getObject(alwaysOnUSBStatePrompt));
+                if (nval)
+                    setAlwaysOnUSBState(nval->unsigned32BitValue());
             } else if (key->isEqualTo(conservationPrompt)) {
 #ifdef DEBUG
                 OSNumber *raw = OSDynamicCast(OSNumber, dict->getObject(conservationPrompt));
@@ -250,6 +290,46 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
                     AlwaysLog("%s 0x%x 0x%x success %d", writeECPrompt, command, data, retries);
                 else
                     AlwaysLog("%s 0x%x 0x%x failed %d", writeECPrompt, command, data, retries);
+            } else if (key->isEqualTo(smartFanPrompt)) {
+                OSNumber *value = OSDynamicCast(OSNumber, dict->getObject(smartFanPrompt));
+                if (value && wmig) {
+                    wmig->setGameZoneData(GAME_ZONE_WMI_SET_SMARTFAN_MODE, value->unsigned32BitValue());
+                    setProperty(smartFanPrompt, value);
+                }
+            } else if (key->isEqualTo(overDrivePrompt)) {
+                OSNumber *value = OSDynamicCast(OSNumber, dict->getObject(overDrivePrompt));
+                if (value && wmig) {
+                    wmig->setGameZoneData(GAME_ZONE_WMI_SET_OVER_DRIVE, value->unsigned32BitValue());
+                    setProperty(overDrivePrompt, value);
+                }
+            } else if (key->isEqualTo(winKeyPrompt)) {
+                OSNumber *value = OSDynamicCast(OSNumber, dict->getObject(winKeyPrompt));
+                if (value && wmig) {
+                    wmig->setGameZoneData(GAME_ZONE_WMI_SET_WIN_KEY, value->unsigned32BitValue());
+                    setProperty(winKeyPrompt, value);
+                }
+            } else if (key->isEqualTo(touchpadLockPrompt)) {
+                OSNumber *value = OSDynamicCast(OSNumber, dict->getObject(touchpadLockPrompt));
+                if (value && wmig) {
+                    wmig->setGameZoneData(GAME_ZONE_WMI_SET_TOUCHPAD, value->unsigned32BitValue());
+                    setProperty(touchpadLockPrompt, value);
+                }
+            } else if (key->isEqualTo(fullFanPrompt)) {
+                OSBoolean *value = OSDynamicCast(OSBoolean, dict->getObject(fullFanPrompt));
+                if (value && wmig) {
+                    wmig->setFanFullSpeed(value->getValue());
+                    setProperty(fullFanPrompt, value);
+                }
+            } else if (key->isEqualTo(yLogoPrompt)) {
+                OSBoolean *bval = OSDynamicCast(OSBoolean, dict->getObject(yLogoPrompt));
+                OSNumber *nval = OSDynamicCast(OSNumber, dict->getObject(yLogoPrompt));
+                bool en = bval ? bval->getValue() : (nval ? nval->unsigned32BitValue() != 0 : false);
+                setYLogo(en);
+            } else if (key->isEqualTo(portLightingPrompt)) {
+                OSBoolean *bval = OSDynamicCast(OSBoolean, dict->getObject(portLightingPrompt));
+                OSNumber *nval = OSDynamicCast(OSNumber, dict->getObject(portLightingPrompt));
+                bool en = bval ? bval->getValue() : (nval ? nval->unsigned32BitValue() != 0 : false);
+                setPortLighting(en);
             } else if (key->isEqualTo(batteryPrompt)) {
                 OSBoolean *value;
                 getPropertyBoolean(batteryPrompt);
@@ -594,8 +674,15 @@ bool IdeaVPC::updateKeyboard(bool update) {
         setProperty(FnKeyPrompt, FnlockMode);
     }
     if (alwaysOnUSBCap) {
+        alwaysOnUSBMode = (BIT(HA_AOUSB_BIT) & state) != 0;
+        if (!alwaysOnUSBMode)
+            alwaysOnUSBState = 0;
+        else if (BIT(23) & state)
+            alwaysOnUSBState = 2;
+        else
+            alwaysOnUSBState = 1;
         setProperty(alwaysOnUSBPrompt, alwaysOnUSBMode);
-        alwaysOnUSBMode = BIT(HA_AOUSB_BIT) & state;
+        setProperty(alwaysOnUSBStatePrompt, alwaysOnUSBState, 32);
     }
 
     return true;
@@ -605,20 +692,55 @@ bool IdeaVPC::toggleAlwaysOnUSB() {
     if (!alwaysOnUSBCap)
         return true;
 
-    UInt32 result;
-    IOReturn ret;
+    return setAlwaysOnUSBState(alwaysOnUSBMode ? 0 : 1);
+}
 
-    ret = evaluateIntegerParam(setKeyboardMode, &result, (alwaysOnUSBMode ? HACMD_AOUSB_OFF : HACMD_AOUSB_ON));
-    if (ret != kIOReturnSuccess || result != 0) {
-        AlwaysLog(toggleError, alwaysOnUSBPrompt, ret ?: result);
+bool IdeaVPC::setAlwaysOnUSBState(UInt32 state) {
+    if (!alwaysOnUSBCap)
         return false;
+
+    UInt32 result = 0;
+    if (state == 0) {
+        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSB_OFF);
+        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSBBAT_OFF);
+        alwaysOnUSBMode = false;
+        alwaysOnUSBState = 0;
+    } else if (state == 1) {
+        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSB_ON);
+        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSBBAT_OFF);
+        alwaysOnUSBMode = true;
+        alwaysOnUSBState = 1;
+    } else if (state == 2) {
+        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSB_ON);
+        evaluateIntegerParam(setKeyboardMode, &result, HACMD_AOUSBBAT_ON);
+        alwaysOnUSBMode = true;
+        alwaysOnUSBState = 2;
     }
-
-    alwaysOnUSBMode = !alwaysOnUSBMode;
-    DebugLog(toggleSuccess, alwaysOnUSBPrompt, (alwaysOnUSBMode ? HACMD_AOUSB_ON : HACMD_AOUSB_OFF), (alwaysOnUSBMode ? "on" : "off"));
     setProperty(alwaysOnUSBPrompt, alwaysOnUSBMode);
-
+    setProperty(alwaysOnUSBStatePrompt, alwaysOnUSBState, 32);
     return true;
+}
+
+bool IdeaVPC::setYLogo(bool enable) {
+    if (!wmig)
+        return false;
+    bool ok = wmig->setYLogoStatus(enable);
+    if (ok) {
+        yLogoMode = enable;
+        setProperty(yLogoPrompt, yLogoMode);
+    }
+    return ok;
+}
+
+bool IdeaVPC::setPortLighting(bool enable) {
+    if (!wmig)
+        return false;
+    bool ok = wmig->setPortLightingStatus(enable);
+    if (ok) {
+        portLightingMode = enable;
+        setProperty(portLightingPrompt, portLightingMode);
+    }
+    return ok;
 }
 
 bool IdeaVPC::toggleConservation() {
@@ -945,6 +1067,7 @@ bool IdeaVPC::examineWMI(IOService *provider) {
     OSString *feature;
     if ((feature = OSDynamicCast(OSString, provider->getProperty("Feature"))) &&
         feature->isEqualTo("Game Zone")) {
+        wmig = OSDynamicCast(IdeaWMIGameZone, provider);
         setProperty("Game Zone", provider);
     }
     return true;

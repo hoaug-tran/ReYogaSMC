@@ -181,16 +181,18 @@ private:
     void updateAll() APPLE_KEXT_OVERRIDE;
     void updateVPC(UInt32 event=0) APPLE_KEXT_OVERRIDE;
     bool exitVPC() APPLE_KEXT_OVERRIDE;
+    bool examineWMI(IOService *provider) APPLE_KEXT_OVERRIDE;
+
+    class IdeaWMIGameZone *wmig {nullptr};
 
     /**
      *  Always on USB mode capability, will be update on init
      */
     bool alwaysOnUSBCap {false};
-
-    /**
-     *  Always on USB mode status
-     */
     bool alwaysOnUSBMode {false};
+    UInt32 alwaysOnUSBState {0};
+    bool yLogoMode {false};
+    bool portLightingMode {false};
 
     /**
      *  Saved brightness level
@@ -366,6 +368,9 @@ private:
      *  @return true if success
      */
     bool toggleAlwaysOnUSB();
+    bool setAlwaysOnUSBState(UInt32 state);
+    bool setYLogo(bool enable);
+    bool setPortLighting(bool enable);
 
     /**
      *  Toggle battery conservation mode

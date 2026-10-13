@@ -1,11 +1,3 @@
-//
-//  IdeaSMCPane.swift
-//  YogaSMCPane
-//
-//  Created by Zhen on 12/9/20.
-//  Copyright © 2020 Zhen. All rights reserved.
-//
-
 import AppKit
 import Foundation
 
@@ -26,6 +18,40 @@ extension YogaSMCPane {
         if !sendBoolean("ConservationMode", vConservationMode.state == .on, service) {
             vConservationMode.state = getBoolean("ConservationMode", service) ? .on : .off
         }
+    }
+
+    @IBAction func vRapidChargeModeSet(_ sender: NSButton) {
+        if !sendBoolean("RapidChargeMode", vRapidChargeMode.state == .on, service) {
+            vRapidChargeMode.state = getBoolean("RapidChargeMode", service) ? .on : .off
+        }
+    }
+
+    @IBAction func vSmartFanSet(_ sender: NSSegmentedControl) {
+        _ = sendNumber("SmartFanMode", sender.selectedSegment + 1, service)
+    }
+
+    @IBAction func vOverDriveSet(_ sender: NSButton) {
+        _ = sendNumber("DisplayOverDrive", sender.state == .on ? 1 : 0, service)
+    }
+
+    @IBAction func vWinKeySet(_ sender: NSButton) {
+        _ = sendNumber("WinKeyLock", sender.state == .on ? 1 : 0, service)
+    }
+
+    @IBAction func vFullFanSet(_ sender: NSButton) {
+        _ = sendBoolean("FanFullSpeed", sender.state == .on, service)
+    }
+
+    @IBAction func vYLogoSet(_ sender: NSButton) {
+        _ = sendBoolean("YLogoStatus", sender.state == .on, service)
+    }
+
+    @IBAction func vPortLightingSet(_ sender: NSButton) {
+        _ = sendBoolean("PortLighting", sender.state == .on, service)
+    }
+
+    @IBAction func vAlwaysOnUSBStateSet(_ sender: NSSegmentedControl) {
+        _ = sendNumber("AlwaysOnUSBState", sender.selectedSegment, service)
     }
 
     func updateIdeaBattery(_ dict: NSDictionary) {
@@ -53,7 +79,7 @@ extension YogaSMCPane {
             switch val {
             case "Intel":
                 vGraphics.textColor = NSColor(red: 0/0xff, green: 0x71/0xff, blue: 0xc5/0xff, alpha: 1)
-            case "ATI", "Intel and ATI":
+            case "AMD", "ATI", "Intel and ATI":
                 vGraphics.textColor = NSColor(red: 0x97/0xff, green: 0x0a/0xff, blue: 0x1b/0xff, alpha: 1)
             case "Nvidia", "Intel and Nvidia":
                 vGraphics.textColor = NSColor(red: 0x76/0xff, green: 0xb9/0xff, blue: 0/0xff, alpha: 1)
