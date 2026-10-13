@@ -25,7 +25,6 @@ public struct FanGaugeCard: View {
     let title: String
     let rpm: Int
     let temp: Int
-    let maxRPM: Double = 5200.0
     let accentColor: Color
 
     public init(title: String, rpm: Int, temp: Int, accentColor: Color) {
@@ -33,6 +32,10 @@ public struct FanGaugeCard: View {
         self.rpm = rpm
         self.temp = temp
         self.accentColor = accentColor
+    }
+
+    private var maxRPM: Double {
+        max(Double(rpm) * 1.15, 5000.0)
     }
 
     private var progress: Double {
