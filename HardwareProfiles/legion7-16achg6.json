@@ -51,5 +51,9 @@
     "14562d2904be242b29e46377e4ea2c667f37686ff240f415694ab89610f76d87"
   ],
   "curve_points_max": 10,
-  "verified_writes": 0
+  "verified_writes": 0,
+  "fan_command_method": "NCMD",
+  "fan_fullspeed_command": "0x59",
+  "fan_fullspeed_on": "0x70",
+  "fan_fullspeed_off": "0x76"
 }

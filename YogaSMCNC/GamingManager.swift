@@ -490,7 +490,7 @@ public final class GamingManager: ObservableObject {
         apply("FanControlMode", 0, title: "Manual Fan Minimum") }
     public func toggleConservation() { apply("ConservationMode", isConservationOn ? 0 : 1, boolean: true, title: "Conservation") }
     public func toggleRapidCharge() { apply("RapidChargeMode", isRapidChargeOn ? 0 : 1, boolean: true, title: "Rapid Charge") }
-    public func toggleFullFan() { apply("FanFullSpeed", isFullFanOn ? 0 : 1, boolean: true, title: "Fan Boost") }
+    public func toggleFullFan() { apply("FanFullSpeed", isFullFanOn ? 0 : 1, boolean: true, title: "Maximum fan speed") }
     public func toggleOverDrive() { apply("DisplayOverDrive", isOverDriveOn ? 0 : 1, title: "Display Overdrive") }
     public func toggleTouchpad() { apply("TouchpadLock", isTouchpadLocked ? 0 : 1, title: "Touchpad Lock") }
     public func toggleYLogo() {
@@ -545,7 +545,7 @@ public final class GamingManager: ObservableObject {
         hardwareQueue.async {
             defer { if handle != 0 { IOObjectRelease(handle) } }
             let keys = ["VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
-                        "ACPIBridgeVersion", "FanWritesValidated", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "SensorSampleSequence", "SensorSampleTimeMS",
+                        "ACPIBridgeVersion", "FanWritesValidated", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "FanFullSpeedECResult", "FanFullSpeedCommandBackend", "SensorSampleSequence", "SensorSampleTimeMS",
                         "Fan1RPM", "Fan2RPM", "Fan1TargetRPM", "Fan2TargetRPM", "FanControlMode", "CPUTemp", "GPUTemp"]
             let snapshot: NSDictionary = handle != 0 ? getProperties(handle) ?? [:] : [:]
             var driver: [String: Any] = [:]
@@ -851,7 +851,7 @@ public struct HardwareFeatureStatus: Equatable {
     public let backend: String
     public static let catalog: [String: String] = [
         "SmartFanMode": "Power Profile", "ConservationMode": "Conservation", "RapidChargeMode": "Rapid Charge",
-        "DisplayOverDrive": "Display Overdrive", "FanFullSpeed": "Fan Boost", "TouchpadLock": "Touchpad Lock",
+        "DisplayOverDrive": "Display Overdrive", "FanFullSpeed": "Maximum fan speed", "TouchpadLock": "Touchpad Lock",
         "AlwaysOnUSBState": "Always-On USB", "FnlockMode": "Fn Lock", "BacklightLevel": "Keyboard Backlight",
         "YLogoStatus": "Logo Lighting", "PortLighting": "Port Lighting", "FanControlMode": "Manual Fan Control",
         "Fan1TargetRPM": "Fan 1 Minimum", "Fan2TargetRPM": "Fan 2 Minimum",

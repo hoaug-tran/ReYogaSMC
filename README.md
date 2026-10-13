@@ -37,9 +37,8 @@ This is a fork of [YogaSMC by Zhen](https://github.com/zhen-zen/YogaSMC), mainta
 | :--- | :--- | :--- |
 | Battery conservation / rapid charge | ACPI | Methods, capability flags and state readback |
 | Power mode / display overdrive / touchpad | WMI | Capability query and getter |
-| Fan boost | WMI fan interface | Command acceptance followed by state readback; physical cooling needs validation |
+| Maximum fan speed | WMI fan interface | Command acceptance followed by state readback; physical cooling needs validation |
 | Fan RPM / temperatures | WMI, reviewed ACPI or AppleSMC | Source and sample validity are reported separately |
-| Fan minimum | Reviewed ACPI bridge | Unavailable in the current profile |
 | CPU power limits | WMI | Firmware-provided range and step; edits save the previous values for reset |
 | Logo / rear port lighting | WMI or USB HID | Firmware readback or a USB transport result; physical light output is not measured |
 | Fn hotkeys | Firmware events / reviewed mappings | Native firmware events where possible; app mappings require macOS privacy permission |

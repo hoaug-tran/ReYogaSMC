@@ -14,13 +14,16 @@ Profiles describe reviewed firmware and device layouts. They do not make similar
 | `ec_path`, `ec_base`, `ec_size` | Reviewed namespace path and operation region |
 | `offsets` | Adapter-specific field locations, with source evidence |
 | `rpm_scale`, `curve_points_max` | Proven units and layout bounds |
-| `verified_writes` | Zero until write safety and restoration have been reviewed on hardware |
+| `verified_writes` | Zero until manual curve writes and restoration have been reviewed on hardware |
+| `fan_command_method`, `fan_fullspeed_*` | Reviewed vendor full-speed method and arguments from the matched DSDT |
 | `validation`, `sources` | What was checked, what remains unverified, and supporting references |
 | `fan_labels` | Optional physical fan labels; omit when the cooling identity is unknown |
 
 A binary hash match still needs the required source interfaces. The app's live binary path uses the reviewed binary identity; the command-line tool disassembles tables for additional inspection. Include the BIOS version and original table fingerprint in the review evidence.
 
-The supplied Legion profile's `verified_writes` is zero. The SSDT advertises that through `RYVW`, rejects fan-write methods, and the kext separately rejects those commands. The app also requires the driver's `FanWritesValidated` property, so an older driver cannot silently make an unvalidated manual control available.
+The supplied Legion profile's `verified_writes` is zero. The SSDT advertises that through `RYVW`, rejects manual fan-curve writes, and the kext separately rejects those commands. The app also requires the driver's `FanWritesValidated` property, so an older driver cannot silently make an unvalidated manual control available.
+
+`RYFF` preserves the return value of the vendor full-speed command. It uses the same method and arguments as the firmware WMI dispatcher, with profile data supplying them. An EC error is exported separately from ACPI transport success and state readback. This path does not enable manual curve writes.
 
 ## USB and hotkey profiles
 

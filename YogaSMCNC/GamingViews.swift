@@ -274,16 +274,10 @@ public struct GamingPopoverView: View {
             sensors
             profile
             ControlSection("Cooling") {
-                row("Full Fan Boost", "FanFullSpeed", "wind", manager.isFullFanOn, manager.hasFullFan) { manager.toggleFullFan() }
+                row("Maximum fan speed", "FanFullSpeed", "wind", manager.isFullFanOn, manager.hasFullFan) { manager.toggleFullFan() }
             }
-            if manager.featureStatus["FanControlMode"]?.available == true {
+            if manager.featureStatus["Fan1TargetRPM"]?.available == true || manager.featureStatus["Fan2TargetRPM"]?.available == true {
                 ManualFanControls(manager: manager)
-            } else {
-                ControlSection("Manual Fan Minimum") {
-                    Text(manager.featureStatus["FanControlMode"]?.reason ?? "Requires a reviewed hardware interface.")
-                        .font(.system(size: 12)).foregroundColor(.secondary)
-                    Button("Compatibility details…") { (NSApp.delegate as? AppDelegate)?.showSettings(tab: 2) }.padding(.top, 8)
-                }
             }
             CPUPowerControls(manager: manager)
         }

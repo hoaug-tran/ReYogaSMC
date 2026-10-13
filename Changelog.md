@@ -1,6 +1,11 @@
 # ReYogaSMC changes
 
-## Unreleased
+## 2.0.1
+
+* Preserve the vendor full-speed EC command result in a reviewed bridge and expose it in correlated reports.
+* Use Maximum fan speed for the control label and hide manual RPM controls without a validated write interface.
+
+## 2.0.0
 
 * Remove the preference pane target and move its settings actions into the menu bar app.
 * Add live standard EC snapshots through Linux ec_sys and Windows PawnIO.

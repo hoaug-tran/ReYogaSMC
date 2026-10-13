@@ -8,6 +8,7 @@ DefinitionBlock ("", "SSDT", 2, "REYOGA", "RYLG", 0x00000001)
 {
     External ({{ec_path}}, DeviceObj)
     External ({{ec_path}}.{{power_mode_field}}, FieldUnitObj)
+    External ({{ec_path}}.{{fan_command_method}}, MethodObj)
     Scope ({{ec_path}})
     {
         OperationRegion (RYER, SystemMemory, {{ec_base}}, {{ec_size}})
@@ -31,6 +32,17 @@ DefinitionBlock ("", "SSDT", 2, "REYOGA", "RYLG", 0x00000001)
         Name (RYA1, Zero)
         Name (RYP0, Zero)
         Name (RYP1, Zero)
+        // Preserve the result discarded by the firmware WMI dispatcher.
+        // This is the same vendor full-speed command, not a fan-curve write.
+        Method (RYFF, 1, Serialized)
+        {
+            If (Arg0 > One) { Return (0x02) }
+            If (Arg0)
+            {
+                Return ({{fan_command_method}} ({{fan_fullspeed_command}}, {{fan_fullspeed_on}}))
+            }
+            Return ({{fan_command_method}} ({{fan_fullspeed_command}}, {{fan_fullspeed_off}}))
+        }
         Method (RYVW, 0, Serialized) { Return ({{verified_writes}}) }
         Method (RYID, 0, Serialized) { Return (0x52590102) }
         Method (RYPN, 0, Serialized) { Return ("{{id}}") }

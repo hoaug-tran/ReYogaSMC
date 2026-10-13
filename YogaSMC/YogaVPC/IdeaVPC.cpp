@@ -1317,6 +1317,20 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
     }
     if (!strcmp(key, fullFanPrompt)) {
         if (boolean == nullptr || target > 1) return kIOReturnBadArgument;
+        removeProperty("FanFullSpeedECResult");
+        if (legionBridge && ec && ec->validateObject("RYFF") == kIOReturnSuccess) {
+            auto argument = OSNumber::withNumber(target, 32);
+            if (!argument) return kIOReturnNoMemory;
+            OSObject *arguments[] = {argument};
+            UInt32 ecResult = 0;
+            IOReturn status = ec->evaluateInteger("RYFF", &ecResult, arguments, 1);
+            argument->release();
+            setProperty("FanFullSpeedCommandBackend", "ACPI vendor command / return status");
+            if (status != kIOReturnSuccess) return status;
+            setProperty("FanFullSpeedECResult", ecResult, 32);
+            return ecResult == 0 ? kIOReturnSuccess : kIOReturnIOError;
+        }
+        setProperty("FanFullSpeedCommandBackend", "WMI / firmware discards EC return status");
         return wmig->setFanFullSpeed(target) ? kIOReturnSuccess : kIOReturnIOError;
     }
     if (!strcmp(key, overDrivePrompt)) {
@@ -1375,6 +1389,17 @@ void IdeaVPC::controlRequest(OSDictionary *request) {
         readbackPending ? "readback_mismatch" : "firmware_call_failed");
     setPropertyString(result, "Stage", ret == kIOReturnSuccess || readbackPending ? "readback" :
         ret == kIOReturnUnsupported || ret == kIOReturnBadArgument ? "validation" : "firmware");
+    if (!strcmp(key->getCStringNoCopy(), fullFanPrompt)) {
+        if (auto backend = getProperty("FanFullSpeedCommandBackend")) result->setObject("Backend", backend);
+        if (auto ecStatus = OSDynamicCast(OSNumber, getProperty("FanFullSpeedECResult"))) {
+            result->setObject("ECResult", ecStatus);
+            if (ecStatus->unsigned32BitValue() != 0) {
+                setPropertyString(result, "Code", "ec_command_failed");
+                setPropertyString(result, "Stage", "ec_handshake");
+                setPropertyString(result, "Reason", "The vendor EC command returned an error; no full-speed state was confirmed");
+            }
+        }
+    }
     if (ret == kIOReturnUnsupported) {
         auto flags = OSDynamicCast(OSDictionary, getProperty("FeatureStatus"));
         auto feature = flags ? OSDynamicCast(OSDictionary, flags->getObject(key->getCStringNoCopy())) : nullptr;

@@ -8,6 +8,7 @@ let keys = [
     "TelemetrySource", "TelemetryIntervalMS", "DetailedTelemetry", "LastControlResult",
     "Fan1RPM", "Fan2RPM", "Fan1MaxRPM", "Fan2MaxRPM", "Fan1TargetRPM", "Fan2TargetRPM",
     "FanControlMode", "FanWritesValidated", "FanFullSpeed", "FanFullSpeedRaw",
+    "FanFullSpeedECResult", "FanFullSpeedCommandBackend",
     "CPUTemp", "GPUTemp", "CPUBoostPower", "CPUSustainedPower", "CPUPowerModified",
     "PowerLimitRanges", "SmartFanMode", "YLogoStatus", "YLogoRawState", "YLogoRawBrightness",
     "PortLighting", "PortLightingRawState", "PortLightingRawBrightness"
