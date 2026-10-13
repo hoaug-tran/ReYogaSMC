@@ -12,6 +12,7 @@ import Carbon
 import NotificationCenter
 import os.log
 import ServiceManagement
+import SwiftUI
 
 @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -20,6 +21,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var IOClass = "YogaSMC"
 
     var statusItem: NSStatusItem?
+    var gamingPopover: NSPopover?
     @IBOutlet weak var appMenu: NSMenu!
     var hide = false
 
@@ -265,12 +267,38 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         appMenu.insertItem(pref, at: 7)
     }
 
+    @objc func toggleGamingPopover(_ sender: AnyObject?) {
+        guard let button = statusItem?.button, let pop = gamingPopover else { return }
+        if pop.isShown {
+            pop.performClose(sender)
+        } else {
+            GamingManager.shared.refreshAll()
+            pop.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
+    }
+
+    func setupGamingPopover() {
+        let pop = NSPopover()
+        pop.contentSize = NSSize(width: 335, height: 520)
+        pop.behavior = .transient
+        pop.contentViewController = NSHostingController(rootView: GamingPopoverView(manager: GamingManager.shared))
+        self.gamingPopover = pop
+
+        if let button = statusItem?.button {
+            button.target = self
+            button.action = #selector(toggleGamingPopover(_:))
+            statusItem?.menu = nil
+        }
+    }
+
     func initNotification(_ ECCap: String?) {
         var isOpen = false
         switch IOClass {
         case "IdeaVPC":
             conf.events = ideaEvents
             isOpen = registerNotification(&conf)
+            GamingManager.shared.service = conf.service
+            setupGamingPopover()
         case "ThinkVPC":
             conf.events = thinkEvents
             isOpen = registerNotification(&conf)

@@ -19,6 +19,8 @@
 		6F08ACE824746B8B00681A63 /* YogaWMI.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F08ACE724746B8B00681A63 /* YogaWMI.hpp */; };
 		6F08ACEA24746B8B00681A63 /* YogaWMI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F08ACE924746B8B00681A63 /* YogaWMI.cpp */; };
 		6F0A987A25343357002F9F65 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A987925343357002F9F65 /* AppDelegate.swift */; };
+		6F0A989A25343357002F9F65 /* GamingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A989C25343357002F9F65 /* GamingManager.swift */; };
+		6F0A989B25343357002F9F65 /* GamingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A989D25343357002F9F65 /* GamingViews.swift */; };
 		6F0A987E25343359002F9F65 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6F0A987D25343359002F9F65 /* Assets.xcassets */; };
 		6F0A988125343359002F9F65 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 6F0A987F25343359002F9F65 /* Main.storyboard */; };
 		6F14956F2580BF7200A3BA83 /* AudioHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F14956E2580BF7200A3BA83 /* AudioHelper.swift */; };
@@ -215,6 +217,8 @@
 		6F08ACEB24746B8B00681A63 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		6F0A987725343357002F9F65 /* YogaSMCNC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YogaSMCNC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F0A987925343357002F9F65 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		6F0A989C25343357002F9F65 /* GamingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamingManager.swift; sourceTree = "<group>"; };
+		6F0A989D25343357002F9F65 /* GamingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GamingViews.swift; sourceTree = "<group>"; };
 		6F0A987D25343359002F9F65 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6F0A988025343359002F9F65 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		6F0A988225343359002F9F65 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -446,6 +450,8 @@
 				6F86121D253AF7FA008FB857 /* Resources */,
 				6F8B1FEA2538D64B003DD8A8 /* YogaSMCNC.entitlements */,
 				6F0A987925343357002F9F65 /* AppDelegate.swift */,
+				6F0A989C25343357002F9F65 /* GamingManager.swift */,
+				6F0A989D25343357002F9F65 /* GamingViews.swift */,
 				6FC40F392592856A004A6D48 /* NotificationHandler.swift */,
 				6F0A987D25343359002F9F65 /* Assets.xcassets */,
 				6F0A987F25343359002F9F65 /* Main.storyboard */,
@@ -949,6 +955,8 @@
 				6F8B1F71253821C3003DD8A8 /* ScriptHelper.swift in Sources */,
 				6F8B1FC52538CB37003DD8A8 /* SystemPreferences.swift in Sources */,
 				6F0A987A25343357002F9F65 /* AppDelegate.swift in Sources */,
+				6F0A989A25343357002F9F65 /* GamingManager.swift in Sources */,
+				6F0A989B25343357002F9F65 /* GamingViews.swift in Sources */,
 				6F861243253BD7FB008FB857 /* Configuration.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
