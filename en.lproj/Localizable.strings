@@ -1,6 +1,6 @@
 /* 
   Localizable.strings
-  YogaSMC
+  ReYogaSMC
 
   Created by Zhen on 11/17/20.
   Copyright © 2020 Zhen. All rights reserved.
@@ -9,7 +9,7 @@
 // OSD Warning
 "ConnectFail" = "Failed to connect \n to ReYogaSMC";
 "AlreadyConnected" = "Another instance has \n connected to ReYogaSMC";
-"YogaSMC Unavailable" = "ReYogaSMC unavailable";
+"ReYogaSMC Unavailable" = "ReYogaSMC unavailable";
 "Unknown Version";
 "ECAccessUnavailable" = "EC access unavailable! \n See SSDT-ECRW.dsl";
 "Unknown Class";

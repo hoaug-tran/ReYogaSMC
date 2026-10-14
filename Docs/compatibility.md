@@ -1,25 +1,18 @@
-# Compatibility and release checks
+# macOS compatibility
 
-The deployment target is macOS 11. Newer APIs need an availability check and a working fallback. There is no upper-version restriction; macOS 26 still needs its own runtime validation.
+The app targets macOS 11 and has no upper-version restriction. Hardware support depends on the firmware interfaces and loaded drivers.
 
-| Area | Required evidence |
-| :--- | :--- |
-| Driver loading | Correct OpenCore paths and dependencies, one driver variant, clean boot and shutdown |
-| App identity | Same installed path, bundle ID and signing requirement across launches and updates |
-| Privacy | Accessibility and Input Monitoring granted/denied, relaunch, revoked permissions, retry |
-| Login | Helper on 11/12; ServiceManagement registration on newer versions, enabled/disabled and relaunch |
-| Firmware commands | Capability, requested value, command result, readback and visible effect |
-| Cooling | Valid sensor units, automatic cooling, restore, mode transitions; no writes without reviewed evidence |
-| Power | AC/battery transitions, sleep/wake and reset to saved values |
-| Interface | Menu bar placement, dark/light mode, missing-driver recovery and unavailable controls |
-| Export | Unknown firmware still produces a report, disassembly failures visible, private data reviewed |
+| Component | macOS 11–12 | macOS 13–15 | macOS 26 |
+| :--- | :--- | :--- | :--- |
+| Controls | SwiftUI and AppKit popover | Fixed hosting-controller size | Same controls, native glass for status messages when available |
+| Start at login | Embedded helper | ServiceManagement app registration | ServiceManagement app registration |
+| Hotkey mapping | Accessibility and Input Monitoring | Accessibility and Input Monitoring | Accessibility and Input Monitoring |
+| Kext | OpenCore with compatible dependencies | OpenCore with compatible dependencies | OpenCore with compatible dependencies |
 
-The supplied Legion profile has unvalidated fan writes disabled. Do not certify it from compilation or a shared model name. Enabling writes requires model-specific hardware validation.
+Settings and RGB configurations persist in the app's preferences. macOS manages privacy permissions separately; changing the bundle or signing identity can require permission to be granted again.
 
-Release packages must distinguish signed/notarized distribution from unsigned development output. Never claim privacy persistence from a build made with `CODE_SIGNING_ALLOWED=NO`. Signing identity is controlled by the distributor; a repository cannot supply the private signing credential.
+## Dependencies
 
-## Dependency baseline
+Pinned dependency versions and SHA-256 checksums are in `Scripts/dependencies.json`. The main kext requires Lilu and VirtualSMC. The Alter variant omits VirtualSMC integration and must be loaded separately.
 
-The dependency lock uses Lilu 1.7.2 and VirtualSMC 1.3.8. Lilu 1.7.2 includes the AMDSupport lockup/panic fix for macOS 26; the preceding release enabled macOS 26 loading without a beta flag. See the [Lilu changelog](https://github.com/acidanthera/Lilu/blob/master/Changelog.md). VirtualSMC documents macOS 26 and below as enabled by default in its [README](https://github.com/acidanthera/VirtualSMC).
-
-Those dependency capabilities do not certify ReYogaSMC's firmware controls or the companion UI. Validate the complete boot and hardware flow on the target OS. Keep graphics, audio and input-driver troubleshooting separate from a confirmed ReYoga command failure, and include those dependencies when a report involves a shared interface.
+A compiler deployment target establishes API compatibility, not a successful hardware boot on every listed version. Device-support contributions include the model, BIOS and macOS versions used.

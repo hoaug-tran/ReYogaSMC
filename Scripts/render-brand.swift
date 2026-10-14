@@ -63,3 +63,17 @@ let menu = """
 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><path d="M5 3v11h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12.5" cy="3.5" r="1.5" fill="currentColor"/></svg>
 """
 try menu.write(to: output.appendingPathComponent("menubar.svg"), atomically: true, encoding: .utf8)
+
+let catalog = root.appendingPathComponent("ReYogaSMCNC/Assets.xcassets/AppIcon.appiconset")
+let manifestURL = catalog.appendingPathComponent("Contents.json")
+var manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as! [String: Any]
+var images = manifest["images"] as! [[String: String]]
+for index in images.indices {
+    let size = images[index]["size"]!.components(separatedBy: "x")[0]
+    let suffix = images[index]["scale"] == "2x" ? "@2x" : ""
+    let name = "icon_\(size)x\(size)\(suffix).png"
+    try Data(contentsOf: iconset.appendingPathComponent(name)).write(to: catalog.appendingPathComponent(name))
+    images[index]["filename"] = name
+}
+manifest["images"] = images
+try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys]).write(to: manifestURL)

@@ -19,7 +19,7 @@ A community macOS driver, menu bar app and ACPI support tool.
 
 ReYogaSMC connects supported laptop firmware to macOS. The kext handles ACPI, WMI, hardware events and VirtualSMC sensors. The companion app shows what the loaded driver can actually use, with a reason when a feature is unavailable.
 
-This is a fork of [YogaSMC by Zhen](https://github.com/zhen-zen/YogaSMC), maintained by Tran Kinh Hoang. The original authorship, source notices and GPL license remain part of the project. ReYogaSMC continues that work with firmware profiles, correlated control results and a device-report workflow.
+ReYogaSMC is maintained by Tran Kinh Hoang and builds on [YogaSMC by Zhen](https://github.com/zhen-zen/YogaSMC). Original copyright notices and the GPL v2 license are preserved.
 
 ## Hardware support
 
@@ -30,14 +30,13 @@ This is a fork of [YogaSMC by Zhen](https://github.com/zhen-zen/YogaSMC), mainta
 | Lenovo Legion Game Zone | IdeaVPC / IdeaWMI | Firmware power modes, available temperatures, fan telemetry and model-dependent controls |
 | Legion 7 16ACHg6, GKCN | Reviewed ACPI identity | Sensor bridge; manual fan control unavailable |
 | ITE c968 USB RGB | Profile-backed HID adapter | Keyboard and lighting zones for the matching device/layout; transport acknowledgement only |
-| Generic Intel HID / HP | YogaHIDD / DYVPC | Experimental; requires compatible firmware and a vanilla EC |
+| Generic Intel HID / HP | ReYogaHIDD / DYVPC | Experimental; requires compatible firmware and a vanilla EC |
 | Unknown firmware | ReYoga support tool | Export evidence for review; no guessed EC addresses or generated control profile |
 
 | Feature | Source | How support is established |
 | :--- | :--- | :--- |
 | Battery conservation / rapid charge | ACPI | Methods, capability flags and state readback |
 | Power mode / display overdrive / touchpad | WMI | Capability query and getter |
-| Maximum fan speed | WMI fan interface | Command acceptance followed by state readback; physical cooling needs validation |
 | Fan RPM / temperatures | WMI, reviewed ACPI or AppleSMC | Source and sample validity are reported separately |
 | CPU power limits | WMI | Firmware-provided range and step; edits save the previous values for reset |
 | Logo / rear port lighting | WMI or USB HID | Firmware readback or a USB transport result; physical light output is not measured |
@@ -49,11 +48,11 @@ Model data belongs in [HardwareProfiles](HardwareProfiles). Protocol constants s
 
 1. Build the project or use an appropriate published package.
 2. Load Lilu and VirtualSMC before `ReYogaSMC.kext` in OpenCore. Use current compatible dependencies.
-3. Replace any older YogaSMC/ReYogaSMC kext. Update `BundlePath` and `ExecutablePath` for the new product name. Load only one primary or Alter variant.
+3. Replace the previously installed kext. Update `BundlePath` and `ExecutablePath` for the new product name. Load only one primary or Alter variant.
 4. Install `ReYogaSMCNC.app` in `/Applications` and open it. Check the driver connection and feature status before changing settings.
 5. Add an optional SSDT only when its firmware profile matches your machine. Keep a bootable recovery configuration before changing EFI.
 
-The original bundle IDs and IOService class names are retained for existing driver clients, preferences and privacy identity. Source names and runtime modules still include upstream identifiers for compatibility. Public products and the Xcode project use ReYoga names.
+The driver, app, helper and shared service classes use ReYogaSMC names. The app imports preferences from earlier installations on its first launch.
 
 ### Packages
 
@@ -107,7 +106,7 @@ Permissions, login registration and update preferences use macOS and persistent 
 
 The app records correlated requests, transport status, firmware command status, requested/actual values, capabilities and sensor sources. Logs rotate under `~/Library/Logs/ReYogaSMC`. Settings provides local report export and opens the issue draft for you to review. Nothing is submitted automatically.
 
-A command acknowledgement means the firmware accepted the call. The app reports confirmation only when its readable state matches. A mismatch should include the feature, firmware version, requested state, readback and reproduction steps. USB RGB has no color readback, so its result is explicitly a transport acknowledgement.
+A successful transport result means the request reached the driver. The app reports confirmation only when its readable state matches. A mismatch should include the feature, firmware version, requested state, readback and reproduction steps. USB RGB has no color readback, so its result is explicitly a transport acknowledgement.
 
 For kernel output:
 
@@ -134,7 +133,7 @@ The minimum deployment target is macOS 11. The app uses availability checks for 
 | 13–15 | Verify login service registration, permission persistence |
 | 26 | Runtime testing required with its SDK, System Settings and kext-loading environment |
 
-Compilation is not runtime certification. This repository does not claim that every machine and macOS version has been tested. Each profile contribution should state the versions actually booted, including AC/battery and sleep/wake behavior.
+Device reports list the macOS versions and firmware actually used.
 
 ## Building
 
@@ -153,7 +152,7 @@ bash Scripts/sign-app.sh 'Developer ID Application: your name (TEAM)' build/Rele
 bash Scripts/package.sh Release
 ```
 
-Keep the same identity for updates. Signing does not notarize the app. CI prepares unsigned packages and draft releases so distribution status can be checked before publication. [Compatibility and release checks](Docs/compatibility.md) describes the hardware validation expected before release.
+Keep the same identity for updates. Signing does not notarize the app. CI builds unsigned packages. See [macOS compatibility](Docs/compatibility.md) for API availability and dependencies.
 
 ## Credits and license
 

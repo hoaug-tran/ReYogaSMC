@@ -3,7 +3,7 @@
   "name": "Lenovo Legion 7 2021 16ACHg6",
   "machine_type": "82N6",
   "bios_family": "GKCN",
-  "validation": "ACPI identity reviewed; EC fan writes disabled pending hardware validation after a reported shutdown",
+  "validation": "ACPI telemetry and battery commands; manual fan writes disabled",
   "ec_path": "\\_SB.PCI0.LPC0.EC0",
   "ec_base": "0xFE00D400",
   "ec_size": "0x600",

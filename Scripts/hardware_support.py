@@ -168,7 +168,7 @@ def inventory(windows_live=False):
         report['windows'] = windows_support.inventory(live=windows_live)
     elif platform.system() == 'Darwin':
         report['probes']['os'] = run(['sw_vers'])
-        for name in ['IdeaVPC', 'ThinkVPC', 'YogaHIDD', 'DYVPC', 'IOHIDDevice']:
+        for name in ['IdeaVPC', 'ThinkVPC', 'ReYogaHIDD', 'DYVPC', 'IOHIDDevice']:
             raw = subprocess.run(['ioreg', '-a', '-r', '-c', name], capture_output=True, timeout=30)
             if raw.returncode or not raw.stdout.strip():
                 report['probes'][name] = {'status': raw.returncode, 'reason': raw.stderr.decode(errors='replace')}

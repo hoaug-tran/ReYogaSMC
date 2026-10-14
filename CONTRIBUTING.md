@@ -14,7 +14,7 @@ For writable interfaces, record requested and actual values, allowed range/step,
 
 ## Code changes
 
-Preserve upstream authorship and license notices. Explain the final behavior and any ABI changes. Keep original service names and bundle IDs unless a migration is part of the change. A product rename must also update packaging, helper lookup and release scripts.
+Preserve upstream authorship and license notices. Explain the final behavior and any ABI changes. Changes to service names or bundle IDs need a migration. A product rename must also update packaging, helper lookup and release scripts.
 
 Do not add machine-specific fallbacks to shared code. Avoid optimistic hardware state, silent failed calls and success messages based only on transport acknowledgement. Errors should say which stage failed, what was requested, what was observed and the next useful action.
 
@@ -24,7 +24,7 @@ Build the affected targets and run relevant checks. A firmware change needs a bo
 
 Use the PR template. Keep changes focused and attach reproducible evidence. State which checks ran and which hardware or OS versions remain untested. Include compiler output only when it explains a failure.
 
-Source control should contain source, profiles, useful documentation and maintained tests. Keep build products, logs, device dumps, credentials, personal notes and internal review transcripts out of commits. Do not remove legitimate protocol terms or author credits during cleanup.
+Source control should contain source, profiles, useful documentation and maintained tests. Keep build products, logs, device dumps, credentials, personal notes out of commits. Do not remove legitimate protocol terms or author credits during cleanup.
 
 ## Working together
 

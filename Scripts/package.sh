@@ -13,7 +13,7 @@ for package_product in ReYogaSMC.kext ReYogaSMCAlter.kext ReYogaSMCNC.app; do
     test -d "$package_products/$package_product" || { echo "Missing product: $package_product" >&2; exit 1; }
 done
 mkdir -p "$package_output" "$package_stage/kexts" "$package_stage/apps" "$package_stage/tool/Scripts" "$package_stage/tool/HardwareProfiles"
-cp -R "$package_products/ReYogaSMC.kext" "$package_products/ReYogaSMCAlter.kext" "$package_root/YogaSMC/SSDTSample" "$package_stage/kexts/"
+cp -R "$package_products/ReYogaSMC.kext" "$package_products/ReYogaSMCAlter.kext" "$package_root/ReYogaSMC/SSDTSample" "$package_stage/kexts/"
 cp -R "$package_products/ReYogaSMCNC.app" "$package_stage/apps/"
 cp "$package_root/LICENSE" "$package_root/README.md" "$package_stage/kexts/"
 cp "$package_root/LICENSE" "$package_root/README.md" "$package_stage/apps/"

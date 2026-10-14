@@ -1,206 +1,26 @@
-# ReYogaSMC changes
+# Releases
 
-## 2.0.4
+## 2.1.0
 
-* Correct profile-specific conservation/rapid-charge state masks without changing the legacy protocol defaults.
-* Activate the popover, reliably reopen the native color panel and limit pending-state visuals to the affected control.
-* Use the L and dot mark for the app icon and retain queued control requests.
+- Use ReYogaSMC source, service and bundle names, with preference migration.
+- Include the L and dot icon at every app icon size.
+- Keep the controls popover at a fixed size during startup and driver connection.
+- Prefer firmware GPU temperatures when available.
 
-## 2.0.3
+## 2.0.6
 
-* Restore the main popover width and keep spacing inside each power-mode button.
-* Rebuild status messages with function icons, balanced text and an effect mask; use native glass on macOS 26.
-* Resolve lighting capability records per component and acquire software ownership before state changes.
-* Export Windows registry tables, instance data, reviewed getter outputs and collection failures.
+- Separate power profiles into individual buttons.
+- Remove maximum fan speed from app controls and preference restoration.
 
-## 2.0.2
+## 2.0.5
 
-* Reduce popover and status-message sizes, clip the outer content and use a distinct menu bar glyph.
-* Decode port lighting from state, matching Toolkit. Respect firmware profiles that cannot apply WMI lighting.
-* Keep numeric app build versions and record the source revision separately.
-
-## 2.0.1
-
-* Preserve the vendor full-speed EC command result in a reviewed bridge and expose it in correlated reports.
-* Use Maximum fan speed for the control label and hide manual RPM controls without a validated write interface.
+- Load battery state masks, setter commands and capability gates from firmware profiles.
+- Include binary registry data in diagnostic exports.
 
 ## 2.0.0
 
-* Remove the preference pane target and move its settings actions into the menu bar app.
-* Add live standard EC snapshots through Linux ec_sys and Windows PawnIO.
+- Add firmware profiles, a cross-platform hardware tool and local diagnostic export.
+- Add USB RGB controls and persistent settings.
+- Replace the preference pane with app settings.
 
-* Add a graphite app icon, a monochrome line glyph for the menu bar and semantic popup icons.
-* Persist RGB effects, zone colors, per-key imports and editing drafts. Restore confirmed settings on compatible hardware and retain reset/Auto semantics.
-
-* Rename the project and build products to ReYogaSMC while preserving driver ABI identifiers, upstream copyright and licensing.
-* Add a Python hardware report workflow with ACPI fingerprints, compiler setup, reviewed SSDT generation and local ZIP export.
-* Disable unvalidated Legion EC fan writes after a reported shutdown; retain automatic cooling and sensor support.
-* Correct WMI lighting state encoding and fan-boost payload type. Publish raw states and distinguish firmware acknowledgement from readback confirmation.
-* Add app diagnostic export, signing guidance and a signing script. Remove Command Lock from the dashboard.
-* Rework documentation, contribution templates and package workflows. CI releases are drafts with unsigned status made explicit.
-
-## Upstream history
-
-YogaSMC Changelog
-============================
-#### v1.5.2
-- YogaVPC: query available DYTC functions
-- YogaVPC: fix updateAll call hierarchy, thx @antoniomcr96
-- ThinkVPC: support SCPF method (DEBUG)
-- Pane: adjust text color for Idea variant capability
-- ThinkVPC: don't disable top case when Yoga mode changes with clamshell mode enabled, thx @antoniomcr96
-- YogaBaseService: publish VersionInfo in alter version, thx @marianopela
-- ThinkVPC: remove deprecated methods
-- YogaBaseService: rework findPNP; minor fixes
-- DYVPC: correct comments for command type
-- IdeaWMI: support an extension of Yoga mode control device
-- YogaWMI: simplify WMI parsing
-- YogaVPC: fix battery notification
-- IdeaVPC: simplify capabilities update
-- Project: lower executable target to 10.10 (drop console log)
-- YogaVPC: fix notification delivery
-- ThinkVPC: filter invalid value
-- YogaVPC: use evaluateIntegerParam to call methods with only 1 parameter
-- ThinkVPC: implement setFnLock as an override function
-- IdeaVPC: ignore return of SBMC and SALS
-- IdeaVPC: fix conservation backlight update in release build
-- YogaVPC: support DYTC PSC function, thx @Someone52 @1Revenger1
-- ThinkVPC: skip Yoga mode notification when Clamshell mode is enabled, thx @antoniomcr96
-- YogaWMI: temporary fix for missing qualifiers in methods
-- IdeaWMI: support super resolution device and assign to FnLock
-- YogaWMI: fix clang analysis during mof decompress
-- YogaBMF: return OSString from parse_string; fix remaining memory issues
-- YogaBMF: unify log format; add more data typpr
-- YogaBMF: simplify method handling; remove debug properties
-- YogaSMCUtils: fix broken header; rename deprecated APIs
-- DYVPC: validate input data size; expose WMIQuery (DEBUG)
-- IdeaVPC: check adapter status to isolate keyboard backlight event
-- YogaVPC: support setting timeout on keyboard backlight
-
-#### v1.5.1
-- YogaSMC: refactor updateEC
-- YogaWMI: fix panic in release build, thx @Chris2fourlaw
-- YogaWMI: postpone late start to 2s
-- YogaSMC: fix kernel panic when setPowerState is called before poller initialized, thx @Chris2fourlaw
-- IdeaVPC: add workaround to extract battery info, thx @Chris2fourlaw @SukkaW
-
-#### v1.5.0
-- IdeaVPC: wait for EC region init
-- IdeaVPC: set conservationModeLock via Battery flag; update keyboard and battery capability via reset
-- ThinkVPC: only turn off mic mute led during init
-- YogaWMI: skip TB interface by _UID
-- ThinkVPC: evaluate raw tablet mode, thx @antoniomcr96
-- ThinkVPC: support basic fan speed control through setProperties, thx @wrobeljakub
-- YogaBaseService: rework findPNP
-- YogaWMI: various improvements
-- YogaSMC: store preset with struct
-- DYVPC: initial event support
-- DYWMI: initial event support
-- DYSMC: support sensor reading, thx @jqqqqqqqqqq
-- YogaWMI: remove intermediate class
-- YogaWMI: fix duplicated loading
-- Project: adjust deployment target
-- YogaBaseService: fix logging internal name
-- YogaSMC: validate EC availability
-- YogaSMC: support read internal status
-- DYSMC: fix conflict with DirectECKey, thx @jqqqqqqqqqq
-- NC: Add Docking Station Notification Events, thx @Sniki
-- NC: add icons for dock / undock
-- DYSMC: add more sensor names
-- YogaWMI: replace checkEvent wth registerEvent
-- YogaWMI: locate BMF blob with GUID
-- YogaWMI: fix probe timeout on WMI-based VPC
-- DYSMC: validate wmis presence
-- DYWMI: BIOS event support
-- BaseService: simplify PM support check
-- IdeaWMI: Game Zone sensor support
-- YogaSMC: simplify message handling
-- BaseService: adjust log prefix
-- YogaVPC: skip tb interface with GUID
-- YogaVPC: optimize WMI handling
-- YogaWMI: switch to evaluateMethod and queryBlock
-- IdeaVPC: show raw battery info (DEBUG)
-
-#### v1.4.3
-- YogaWMI: fix BMF parsing
-
-#### v1.4.2
-- YogaWMI: complete event handling
-- NC: use timer for distinguish input method switch, thx @vnln
-- NC: simplify RFHelper handling
-- IdeaVPC: support toggle Always On USB
-- Project: cleanup
-- YogaWMI: seperate BMF validation
-- NC: update holiday list
-- ThinkVPC: debug:  support keyboard locale
-- IdeaVPC: notify battery on conservation mode change
-- NC: support launchbundle, thx @simprecicchiani
-- Pane: display threshold for all three battery types, thx @antoniomcr96
-
-#### v1.4.1
-- ThinkVPC: fix LEDSupport evaluation, thx @tylernguyen
-- NC: add AudioHelper workaround
-- NC: fix holiday date, thx @1Revenger1
-
-#### v1.4.0
-- Pane: debug: enable RapidChargeMode checkbox
-- ThinkVPC: fix forgotten break in switch case, thx @junaedahmed
-- NC: update presets, thx @antoniomcr96 @Ab2774
-- NC: support localization
-- ThinkVPC: check LED availability
-- NC: support hideText for actions with customized OSD
-- Build: switch ARCHS to x86_64
-- ThinkVPC: support yoga mode detection
-- NC: support DisableFan option
-- YogaHIDD: fix support for devices without `_DSM`
-- YogaVPC: validate clamshellCap and updateBacklight support
-- YogaWMI: fix getNotifyID
-- IdeaWMI: fix getBatteryInfo retain count
-- NC: hide selected text which status is revealed by image
-- YogaVPC: notify timestamp for key press
-- NC: fix easter egg and enable it by default
-- YogaWMI: evaluate all possible BMF names
-- YogaSMC: support atomicSpDeciKelvinKey
-- Docs: merge SSDT samples for ThinkSMC; add suggestions for LNUX
-- Pane: separate different views and update when reopen
-- YogaSMC: support atomicSpDeciKelvinKey
-- NC: update resources, thx @hexart
-- NC: support multiple instance, specifically YogaHIDD
-- NC: support modifier
-- NC: support Caps Lock monitor
-- ThinkVPC: evaluate GMKS for FnLock state
-- NC: add launchapp action
-- YogaBaseService: add identifier for Alter version
-- NC: fix ECCap detection, thanks @buyddy
-- Pane: support ClamshellMode
-- Pane: fix battery detection
-- NC: improve audio status handling
-- NC: support SaveFanLevel
-- IdeaVPC: workaround for buggy event evaluation
-- NC: improve config readability, backup your customizations first! 
-
-#### v1.3.0
-- Pane: fix loading prior to 10.14.4 with embedded swift runtime, thx @Charlyo
-- NC: update presets, thx @junaedahmed @Sniki @tylernguyen
-- NC: support dual fan speed reading and control for think variant, thx @1Revenger1
-- Pane: fix LED Automation, thx @junaedahmed
-- Build: fix short version display
-- YogaSMC: pause polling during sleep
-- UserClient: recover read by name and write support
-- Build: use commit hash as CFBundleVersion
-- Build: adapt to Lilu kern_version
-- NC: add easter egg for menubar icon
-- Pane: support customized menubar title
-- YogaVPC: handle WMI probing
-- NC: optimize menu handling
-- NC: override unknown events with updated presets
-- BaseService: support extended EC operation
-- YogaSMC: add constants for fan support
-- NC: Using cached wireless status, thx @H15teve
-- YogaHIDD: experimental support for Intel HID event & 5 button array driver 
-- BaseService: support sending key to primary keyboard and palm rejection
-- IdeaVPC: poll hotkey status with buggy EC notification with `-ideabr`, thx @moutorde
-- Pane: phase out muteCheck for release branch
-- ThinkVPC: fix legacy hotkey mask update, thx @junaedahmed
-
-Change of earlier versions may be tracked in [commits](https://github.com/zhen-zen/YogaSMC/commits/master) and [releases](https://github.com/zhen-zen/YogaSMC/releases).
+Earlier upstream changes remain in the [original releases](https://github.com/zhen-zen/YogaSMC/releases).

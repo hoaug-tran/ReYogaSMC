@@ -27,7 +27,7 @@ jobs:
         run: |
           mkdir -p build
           cp -R HardwareProfiles build/HardwareProfiles
-          swiftc YogaSMCNC/HardwareSupport.swift YogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
+          swiftc ReYogaSMCNC/HardwareSupport.swift ReYogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
           build/SupportTests
       - name: Build Debug and Release
         run: |

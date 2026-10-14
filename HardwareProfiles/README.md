@@ -22,7 +22,7 @@ Profiles describe reviewed firmware and device layouts. They do not make similar
 
 A binary hash match still needs the required source interfaces. The app's live binary path uses the reviewed binary identity; the command-line tool disassembles tables for additional inspection. Include the BIOS version and original table fingerprint in the review evidence.
 
-The supplied Legion profile's `verified_writes` is zero. The SSDT advertises that through `RYVW`, rejects manual fan-curve writes, and the kext separately rejects those commands. The app also requires the driver's `FanWritesValidated` property, so an older driver cannot silently make an unvalidated manual control available.
+`RYVW` and `FanWritesValidated` gate manual fan-curve writes in both the bridge and driver. Zero keeps the control read-only.
 
 `RYFF` preserves the return value of the vendor full-speed command. It uses the same method and arguments as the firmware WMI dispatcher, with profile data supplying them. An EC error is exported separately from ACPI transport success and state readback. This path does not enable manual curve writes.
 

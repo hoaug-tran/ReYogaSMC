@@ -14,12 +14,12 @@
 		6F0095B725455F2C002C8E1F /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F1C709F251473CD007D1DFC /* IOKit.framework */; };
 		6F0095B825455F36002C8E1F /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F8611F1253AC075008FB857 /* ApplicationServices.framework */; };
 		6F0095BE25455F99002C8E1F /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F1C70A1251473DF007D1DFC /* CoreFoundation.framework */; };
-		6F05D7E2252E35A000471F57 /* YogaSMCUserClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F05D7E0252E35A000471F57 /* YogaSMCUserClient.cpp */; };
-		6F05D7E3252E35A000471F57 /* YogaSMCUserClientPrivate.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F05D7E1252E35A000471F57 /* YogaSMCUserClientPrivate.hpp */; };
-		6F05D7E7252E362600471F57 /* YogaSMCUserClientPrivate.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F05D7E1252E35A000471F57 /* YogaSMCUserClientPrivate.hpp */; };
-		6F05D7EB252E362A00471F57 /* YogaSMCUserClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F05D7E0252E35A000471F57 /* YogaSMCUserClient.cpp */; };
-		6F08ACE824746B8B00681A63 /* YogaWMI.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F08ACE724746B8B00681A63 /* YogaWMI.hpp */; };
-		6F08ACEA24746B8B00681A63 /* YogaWMI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F08ACE924746B8B00681A63 /* YogaWMI.cpp */; };
+		6F05D7E2252E35A000471F57 /* ReYogaSMCUserClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F05D7E0252E35A000471F57 /* ReYogaSMCUserClient.cpp */; };
+		6F05D7E3252E35A000471F57 /* ReYogaSMCUserClientPrivate.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F05D7E1252E35A000471F57 /* ReYogaSMCUserClientPrivate.hpp */; };
+		6F05D7E7252E362600471F57 /* ReYogaSMCUserClientPrivate.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F05D7E1252E35A000471F57 /* ReYogaSMCUserClientPrivate.hpp */; };
+		6F05D7EB252E362A00471F57 /* ReYogaSMCUserClient.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F05D7E0252E35A000471F57 /* ReYogaSMCUserClient.cpp */; };
+		6F08ACE824746B8B00681A63 /* ReYogaWMI.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F08ACE724746B8B00681A63 /* ReYogaWMI.hpp */; };
+		6F08ACEA24746B8B00681A63 /* ReYogaWMI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F08ACE924746B8B00681A63 /* ReYogaWMI.cpp */; };
 		6F0A987A25343357002F9F65 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A987925343357002F9F65 /* AppDelegate.swift */; };
 		6F0A989A25343357002F9F65 /* GamingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A989C25343357002F9F65 /* GamingManager.swift */; };
 		6F0A989B25343357002F9F65 /* GamingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A989D25343357002F9F65 /* GamingViews.swift */; };
@@ -54,8 +54,8 @@
 		6F7D488425346677004074C7 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F1C70A3251473E7007D1DFC /* AppKit.framework */; };
 		6F7E23E626478D2900155D18 /* Undock.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F7E23E426478D2900155D18 /* Undock.pdf */; };
 		6F7E23E726478D2900155D18 /* Dock.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F7E23E526478D2900155D18 /* Dock.pdf */; };
-		6F81FC4425317B1200CFEDF5 /* YogaSMCUserClient.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F81FC4025317AE100CFEDF5 /* YogaSMCUserClient.h */; };
-		6F81FC4825317B1300CFEDF5 /* YogaSMCUserClient.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F81FC4025317AE100CFEDF5 /* YogaSMCUserClient.h */; };
+		6F81FC4425317B1200CFEDF5 /* ReYogaSMCUserClient.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F81FC4025317AE100CFEDF5 /* ReYogaSMCUserClient.h */; };
+		6F81FC4825317B1300CFEDF5 /* ReYogaSMCUserClient.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F81FC4025317AE100CFEDF5 /* ReYogaSMCUserClient.h */; };
 		6F83587324D0C2B50031512F /* KeyImplementations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F83587124D0C2B50031512F /* KeyImplementations.cpp */; };
 		6F83587424D0C2B50031512F /* KeyImplementations.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F83587224D0C2B50031512F /* KeyImplementations.hpp */; };
 		6F8611D5253AB59F008FB857 /* RFHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8611D4253AB59F008FB857 /* RFHelper.swift */; };
@@ -66,31 +66,30 @@
 		6F861230253B692C008FB857 /* Antenna.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F86122E253B692C008FB857 /* Antenna.pdf */; };
 		6F861237253BD518008FB857 /* Star.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F861236253BD518008FB857 /* Star.pdf */; };
 		6F861243253BD7FB008FB857 /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F861242253BD7FB008FB857 /* Configuration.swift */; };
-		6F861251253BF805008FB857 /* YogaBaseService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F86124F253BF805008FB857 /* YogaBaseService.cpp */; };
-		6F861252253BF805008FB857 /* YogaBaseService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F86124F253BF805008FB857 /* YogaBaseService.cpp */; };
-		6F861253253BF805008FB857 /* YogaBaseService.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F861250253BF805008FB857 /* YogaBaseService.hpp */; };
-		6F861254253BF805008FB857 /* YogaBaseService.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F861250253BF805008FB857 /* YogaBaseService.hpp */; };
+		6F861251253BF805008FB857 /* ReYogaBaseService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F86124F253BF805008FB857 /* ReYogaBaseService.cpp */; };
+		6F861252253BF805008FB857 /* ReYogaBaseService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F86124F253BF805008FB857 /* ReYogaBaseService.cpp */; };
+		6F861253253BF805008FB857 /* ReYogaBaseService.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F861250253BF805008FB857 /* ReYogaBaseService.hpp */; };
+		6F861254253BF805008FB857 /* ReYogaBaseService.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F861250253BF805008FB857 /* ReYogaBaseService.hpp */; };
 		6F86DD06263A3E670037A878 /* DYSMC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F86DD04263A3E670037A878 /* DYSMC.cpp */; };
 		6F86DD07263A3E670037A878 /* DYSMC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F86DD05263A3E670037A878 /* DYSMC.hpp */; };
-		6F87BF8024D26A5D00D64375 /* YogaSMC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F87BF7E24D26A5D00D64375 /* YogaSMC.cpp */; };
-		6F87BF8124D26A5D00D64375 /* YogaSMC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F87BF7F24D26A5D00D64375 /* YogaSMC.hpp */; };
+		6F87BF8024D26A5D00D64375 /* ReYogaSMC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F87BF7E24D26A5D00D64375 /* ReYogaSMC.cpp */; };
+		6F87BF8124D26A5D00D64375 /* ReYogaSMC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F87BF7F24D26A5D00D64375 /* ReYogaSMC.hpp */; };
 		6F88067924EB575F00ACD6C8 /* WMI.h in Headers */ = {isa = PBXBuildFile; fileRef = 6FCF7F572474B74800A82B13 /* WMI.h */; };
-		6F88067A24EB575F00ACD6C8 /* YogaVPC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F96A30B24B93D25006562EC /* YogaVPC.hpp */; };
+		6F88067A24EB575F00ACD6C8 /* ReYogaVPC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F96A30B24B93D25006562EC /* ReYogaVPC.hpp */; };
 		6F88067B24EB575F00ACD6C8 /* bmfparser.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6FD2BB8C247B37A20018EA36 /* bmfparser.hpp */; };
 		6F88067C24EB575F00ACD6C8 /* common.h in Headers */ = {isa = PBXBuildFile; fileRef = 6FCF7F5B2474B89000A82B13 /* common.h */; };
-		6F88067E24EB575F00ACD6C8 /* YogaWMI.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F08ACE724746B8B00681A63 /* YogaWMI.hpp */; };
+		6F88067E24EB575F00ACD6C8 /* ReYogaWMI.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F08ACE724746B8B00681A63 /* ReYogaWMI.hpp */; };
 		6F88067F24EB575F00ACD6C8 /* ThinkVPC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F6CEDA324BC14C2004D553F /* ThinkVPC.hpp */; };
 		6F88068124EB575F00ACD6C8 /* IdeaWMI.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F48676224A293A0003AD4CA /* IdeaWMI.hpp */; };
 		6F88068324EB575F00ACD6C8 /* IdeaVPC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F9553B924BA515B00215EBB /* IdeaVPC.hpp */; };
 		6F88068524EB575F00ACD6C8 /* IdeaVPC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F9553B824BA515B00215EBB /* IdeaVPC.cpp */; };
 		6F88068624EB575F00ACD6C8 /* ThinkVPC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F6CEDA224BC14C2004D553F /* ThinkVPC.cpp */; };
-		6F88068724EB575F00ACD6C8 /* YogaWMI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F08ACE924746B8B00681A63 /* YogaWMI.cpp */; };
+		6F88068724EB575F00ACD6C8 /* ReYogaWMI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F08ACE924746B8B00681A63 /* ReYogaWMI.cpp */; };
 		6F88068924EB575F00ACD6C8 /* IdeaWMI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F48676124A293A0003AD4CA /* IdeaWMI.cpp */; };
 		6F88068A24EB575F00ACD6C8 /* bmfdec.c in Sources */ = {isa = PBXBuildFile; fileRef = 6FD2BB47247721040018EA36 /* bmfdec.c */; };
 		6F88068B24EB575F00ACD6C8 /* WMI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6FCF7F582474B74800A82B13 /* WMI.cpp */; };
-		6F88068C24EB575F00ACD6C8 /* YogaVPC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F96A30A24B93D25006562EC /* YogaVPC.cpp */; };
+		6F88068C24EB575F00ACD6C8 /* ReYogaVPC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F96A30A24B93D25006562EC /* ReYogaVPC.cpp */; };
 		6F88068E24EB575F00ACD6C8 /* bmfparser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6FD2BB8B247B37A20018EA36 /* bmfparser.cpp */; };
-		6F8AF130254DEDEE00438EC8 /* DateHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8AF12F254DEDEE00438EC8 /* DateHelper.swift */; };
 		6F8B1F262538083A003DD8A8 /* PropertyHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8B1F242538083A003DD8A8 /* PropertyHelper.swift */; };
 		6F8B1F2E253808DC003DD8A8 /* OSDHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8B1F2C253808DC003DD8A8 /* OSDHelper.swift */; };
 		6F8B1F71253821C3003DD8A8 /* ScriptHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8B1F70253821C3003DD8A8 /* ScriptHelper.swift */; };
@@ -111,13 +110,13 @@
 		6F9150792634C29300DF4F9D /* DYWMI.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F9150752634C29200DF4F9D /* DYWMI.hpp */; };
 		6F9553BA24BA515B00215EBB /* IdeaVPC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F9553B824BA515B00215EBB /* IdeaVPC.cpp */; };
 		6F9553BB24BA515B00215EBB /* IdeaVPC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F9553B924BA515B00215EBB /* IdeaVPC.hpp */; };
-		6F96A30C24B93D25006562EC /* YogaVPC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F96A30A24B93D25006562EC /* YogaVPC.cpp */; };
-		6F96A30D24B93D25006562EC /* YogaVPC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F96A30B24B93D25006562EC /* YogaVPC.hpp */; };
+		6F96A30C24B93D25006562EC /* ReYogaVPC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F96A30A24B93D25006562EC /* ReYogaVPC.cpp */; };
+		6F96A30D24B93D25006562EC /* ReYogaVPC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F96A30B24B93D25006562EC /* ReYogaVPC.hpp */; };
 		6F984C33253E1A8A00629109 /* NotificationCenter.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F984C32253E1A8A00629109 /* NotificationCenter.framework */; };
-		6F98BCF825532AD300ACFD99 /* YogaHIDD.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F98BCF625532AD300ACFD99 /* YogaHIDD.cpp */; };
-		6F98BCF925532AD300ACFD99 /* YogaHIDD.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F98BCF625532AD300ACFD99 /* YogaHIDD.cpp */; };
-		6F98BCFA25532AD300ACFD99 /* YogaHIDD.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F98BCF725532AD300ACFD99 /* YogaHIDD.hpp */; };
-		6F98BCFB25532AD300ACFD99 /* YogaHIDD.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F98BCF725532AD300ACFD99 /* YogaHIDD.hpp */; };
+		6F98BCF825532AD300ACFD99 /* ReYogaHIDD.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F98BCF625532AD300ACFD99 /* ReYogaHIDD.cpp */; };
+		6F98BCF925532AD300ACFD99 /* ReYogaHIDD.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F98BCF625532AD300ACFD99 /* ReYogaHIDD.cpp */; };
+		6F98BCFA25532AD300ACFD99 /* ReYogaHIDD.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F98BCF725532AD300ACFD99 /* ReYogaHIDD.hpp */; };
+		6F98BCFB25532AD300ACFD99 /* ReYogaHIDD.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F98BCF725532AD300ACFD99 /* ReYogaHIDD.hpp */; };
 		6FA75308253D68C600EBE9D7 /* FunctionKey.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6FA75307253D68C600EBE9D7 /* FunctionKey.pdf */; };
 		6FB5BE15255521E1001BFDFF /* ThinkFanHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB5BE14255521E1001BFDFF /* ThinkFanHelper.swift */; };
 		6FB613ED28977075005561EF /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FB613EC28977074005561EF /* CoreGraphics.framework */; };
@@ -188,12 +187,12 @@
 /* Begin PBXFileReference section */
         A10000000000000000000002 /* HardwareSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSupport.swift; sourceTree = "<group>"; };
         A10000000000000000000004 /* HardwareProfiles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = HardwareProfiles; sourceTree = SOURCE_ROOT; };
-		6F05D7E0252E35A000471F57 /* YogaSMCUserClient.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = YogaSMCUserClient.cpp; sourceTree = "<group>"; };
-		6F05D7E1252E35A000471F57 /* YogaSMCUserClientPrivate.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = YogaSMCUserClientPrivate.hpp; sourceTree = "<group>"; };
+		6F05D7E0252E35A000471F57 /* ReYogaSMCUserClient.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaSMCUserClient.cpp; sourceTree = "<group>"; };
+		6F05D7E1252E35A000471F57 /* ReYogaSMCUserClientPrivate.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaSMCUserClientPrivate.hpp; sourceTree = "<group>"; };
 		6F05D7F125300CDE00471F57 /* libkmod.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libkmod.a; path = MacKernelSDK/Library/x86_64/libkmod.a; sourceTree = "<group>"; };
-		6F08ACE424746B8B00681A63 /* YogaSMC.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = YogaSMC.kext; sourceTree = BUILT_PRODUCTS_DIR; };
-		6F08ACE724746B8B00681A63 /* YogaWMI.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = YogaWMI.hpp; sourceTree = "<group>"; };
-		6F08ACE924746B8B00681A63 /* YogaWMI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = YogaWMI.cpp; sourceTree = "<group>"; };
+		6F08ACE424746B8B00681A63 /* ReYogaSMC.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ReYogaSMC.kext; sourceTree = BUILT_PRODUCTS_DIR; };
+		6F08ACE724746B8B00681A63 /* ReYogaWMI.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaWMI.hpp; sourceTree = "<group>"; };
+		6F08ACE924746B8B00681A63 /* ReYogaWMI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaWMI.cpp; sourceTree = "<group>"; };
 		6F08ACEB24746B8B00681A63 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		6F0A987725343357002F9F65 /* ReYogaSMCNC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ReYogaSMCNC.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F0A987925343357002F9F65 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -219,7 +218,7 @@
 		6F64A28225A7FA7D00070265 /* DYVPC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DYVPC.hpp; sourceTree = "<group>"; };
 		6F6CEDA224BC14C2004D553F /* ThinkVPC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ThinkVPC.cpp; sourceTree = "<group>"; };
 		6F6CEDA324BC14C2004D553F /* ThinkVPC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ThinkVPC.hpp; sourceTree = "<group>"; };
-		6F70426124D2CFE900FD5659 /* SSDTSample */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SSDTSample; path = YogaSMC/SSDTSample; sourceTree = "<group>"; };
+		6F70426124D2CFE900FD5659 /* SSDTSample */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SSDTSample; path = ReYogaSMC/SSDTSample; sourceTree = "<group>"; };
 		6F77A23624F4FE59007A127B /* IdeaSMC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaSMC.cpp; sourceTree = "<group>"; };
 		6F77A23724F4FE59007A127B /* IdeaSMC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IdeaSMC.hpp; sourceTree = "<group>"; };
 		6F7B5CFD24FBC3CC00AA80FF /* ThinkSMC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ThinkSMC.cpp; sourceTree = "<group>"; };
@@ -230,7 +229,7 @@
 		6F7D487A253465DB004074C7 /* ServiceManagement.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ServiceManagement.framework; path = System/Library/Frameworks/ServiceManagement.framework; sourceTree = SDKROOT; };
 		6F7E23E426478D2900155D18 /* Undock.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = Undock.pdf; sourceTree = "<group>"; };
 		6F7E23E526478D2900155D18 /* Dock.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = Dock.pdf; sourceTree = "<group>"; };
-		6F81FC4025317AE100CFEDF5 /* YogaSMCUserClient.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = YogaSMCUserClient.h; sourceTree = "<group>"; };
+		6F81FC4025317AE100CFEDF5 /* ReYogaSMCUserClient.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ReYogaSMCUserClient.h; sourceTree = "<group>"; };
 		6F83586424D0BFFD0031512F /* Headers */ = {isa = PBXFileReference; lastKnownFileType = text; name = Headers; path = Lilu.kext/Contents/Resources/Headers; sourceTree = SOURCE_ROOT; };
 		6F83586F24D0C0C90031512F /* VirtualSMCSDK */ = {isa = PBXFileReference; lastKnownFileType = text; name = VirtualSMCSDK; path = VirtualSMC.kext/Contents/Resources/VirtualSMCSDK; sourceTree = SOURCE_ROOT; };
 		6F83587124D0C2B50031512F /* KeyImplementations.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = KeyImplementations.cpp; sourceTree = "<group>"; };
@@ -246,21 +245,20 @@
 		6F86122E253B692C008FB857 /* Antenna.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = Antenna.pdf; sourceTree = "<group>"; };
 		6F861236253BD518008FB857 /* Star.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = Star.pdf; sourceTree = "<group>"; };
 		6F861242253BD7FB008FB857 /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
-		6F86124F253BF805008FB857 /* YogaBaseService.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = YogaBaseService.cpp; sourceTree = "<group>"; };
-		6F861250253BF805008FB857 /* YogaBaseService.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = YogaBaseService.hpp; sourceTree = "<group>"; };
+		6F86124F253BF805008FB857 /* ReYogaBaseService.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaBaseService.cpp; sourceTree = "<group>"; };
+		6F861250253BF805008FB857 /* ReYogaBaseService.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaBaseService.hpp; sourceTree = "<group>"; };
 		6F86DD04263A3E670037A878 /* DYSMC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DYSMC.cpp; sourceTree = "<group>"; };
 		6F86DD05263A3E670037A878 /* DYSMC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DYSMC.hpp; sourceTree = "<group>"; };
-		6F87BF7E24D26A5D00D64375 /* YogaSMC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = YogaSMC.cpp; sourceTree = "<group>"; };
-		6F87BF7F24D26A5D00D64375 /* YogaSMC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = YogaSMC.hpp; sourceTree = "<group>"; };
-		6F88069624EB575F00ACD6C8 /* YogaSMCAlter.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = YogaSMCAlter.kext; sourceTree = BUILT_PRODUCTS_DIR; };
+		6F87BF7E24D26A5D00D64375 /* ReYogaSMC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaSMC.cpp; sourceTree = "<group>"; };
+		6F87BF7F24D26A5D00D64375 /* ReYogaSMC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaSMC.hpp; sourceTree = "<group>"; };
+		6F88069624EB575F00ACD6C8 /* ReYogaSMCAlter.kext */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ReYogaSMCAlter.kext; sourceTree = BUILT_PRODUCTS_DIR; };
 		6F88069724EB575F00ACD6C8 /* Alter-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Alter-Info.plist"; sourceTree = "<group>"; };
-		6F8AF12F254DEDEE00438EC8 /* DateHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateHelper.swift; sourceTree = "<group>"; };
 		6F8B1F242538083A003DD8A8 /* PropertyHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PropertyHelper.swift; sourceTree = "<group>"; };
 		6F8B1F2C253808DC003DD8A8 /* OSDHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSDHelper.swift; sourceTree = "<group>"; };
 		6F8B1F70253821C3003DD8A8 /* ScriptHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptHelper.swift; sourceTree = "<group>"; };
 		6F8B1F902538309F003DD8A8 /* ThinkEvents.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ThinkEvents.h; sourceTree = "<group>"; };
 		6F8B1FB92538C53A003DD8A8 /* SystemPreferences.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SystemPreferences.swift; sourceTree = "<group>"; };
-		6F8B1FEA2538D64B003DD8A8 /* YogaSMCNC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = YogaSMCNC.entitlements; sourceTree = "<group>"; };
+		6F8B1FEA2538D64B003DD8A8 /* ReYogaSMCNC.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReYogaSMCNC.entitlements; sourceTree = "<group>"; };
 		6F8B2301253C4241005BEC5D /* Mic.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = Mic.pdf; sourceTree = "<group>"; };
 		6F8B2302253C4241005BEC5D /* MicOff.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = MicOff.pdf; sourceTree = "<group>"; };
 		6F8B230F253CE075005BEC5D /* Keyboard.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = Keyboard.pdf; sourceTree = "<group>"; };
@@ -276,12 +274,12 @@
 		6F93458F255140B900625343 /* Changelog.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = Changelog.md; sourceTree = "<group>"; };
 		6F9553B824BA515B00215EBB /* IdeaVPC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaVPC.cpp; sourceTree = "<group>"; };
 		6F9553B924BA515B00215EBB /* IdeaVPC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IdeaVPC.hpp; sourceTree = "<group>"; };
-		6F96A30A24B93D25006562EC /* YogaVPC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = YogaVPC.cpp; sourceTree = "<group>"; };
-		6F96A30B24B93D25006562EC /* YogaVPC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = YogaVPC.hpp; sourceTree = "<group>"; };
+		6F96A30A24B93D25006562EC /* ReYogaVPC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaVPC.cpp; sourceTree = "<group>"; };
+		6F96A30B24B93D25006562EC /* ReYogaVPC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaVPC.hpp; sourceTree = "<group>"; };
 		6F96F4D524CD9593005A7686 /* message.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = message.h; sourceTree = "<group>"; };
 		6F984C32253E1A8A00629109 /* NotificationCenter.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NotificationCenter.framework; path = System/Library/Frameworks/NotificationCenter.framework; sourceTree = SDKROOT; };
-		6F98BCF625532AD300ACFD99 /* YogaHIDD.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = YogaHIDD.cpp; sourceTree = "<group>"; };
-		6F98BCF725532AD300ACFD99 /* YogaHIDD.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = YogaHIDD.hpp; sourceTree = "<group>"; };
+		6F98BCF625532AD300ACFD99 /* ReYogaHIDD.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaHIDD.cpp; sourceTree = "<group>"; };
+		6F98BCF725532AD300ACFD99 /* ReYogaHIDD.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaHIDD.hpp; sourceTree = "<group>"; };
 		6F9B2AB124D2ADD800005C16 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		6FA75307253D68C600EBE9D7 /* FunctionKey.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = FunctionKey.pdf; sourceTree = "<group>"; };
 		6FB5BE14255521E1001BFDFF /* ThinkFanHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkFanHelper.swift; sourceTree = "<group>"; };
@@ -290,7 +288,7 @@
 		6FCF7F572474B74800A82B13 /* WMI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WMI.h; sourceTree = "<group>"; };
 		6FCF7F582474B74800A82B13 /* WMI.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = WMI.cpp; sourceTree = "<group>"; };
 		6FCF7F5B2474B89000A82B13 /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
-		6FD083002537E87400491976 /* YogaSMC-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "YogaSMC-Bridging-Header.h"; sourceTree = "<group>"; };
+		6FD083002537E87400491976 /* ReYogaSMC-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ReYogaSMC-Bridging-Header.h"; sourceTree = "<group>"; };
 		6FD2BB47247721040018EA36 /* bmfdec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = bmfdec.c; sourceTree = "<group>"; };
 		6FD2BB8B247B37A20018EA36 /* bmfparser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = bmfparser.cpp; sourceTree = "<group>"; };
 		6FD2BB8C247B37A20018EA36 /* bmfparser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = bmfparser.hpp; sourceTree = "<group>"; };
@@ -348,10 +346,10 @@
 				6F1C709E251473CC007D1DFC /* Frameworks */,
 				6F53F83A2564C51F00CC4140 /* Localizable.strings */,
 				6F83586324D0BFEE0031512F /* SDK */,
-				6F08ACE624746B8B00681A63 /* YogaSMC */,
-				6F0A987825343357002F9F65 /* YogaSMCNC */,
-				6F7D484125344C25004074C7 /* YogaSMCNCHelper */,
-				6F8B1F1925380748003DD8A8 /* YogaSMCUtils */,
+				6F08ACE624746B8B00681A63 /* ReYogaSMC */,
+				6F0A987825343357002F9F65 /* ReYogaSMCNC */,
+				6F7D484125344C25004074C7 /* ReYogaSMCNCHelper */,
+				6F8B1F1925380748003DD8A8 /* ReYogaSMCUtils */,
 				6F08ACE524746B8B00681A63 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -359,20 +357,20 @@
 		6F08ACE524746B8B00681A63 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				6F08ACE424746B8B00681A63 /* YogaSMC.kext */,
-				6F88069624EB575F00ACD6C8 /* YogaSMCAlter.kext */,
+				6F08ACE424746B8B00681A63 /* ReYogaSMC.kext */,
+				6F88069624EB575F00ACD6C8 /* ReYogaSMCAlter.kext */,
 				6F0A987725343357002F9F65 /* ReYogaSMCNC.app */,
 				6F7D484025344C25004074C7 /* ReYogaSMCNCHelper.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		6F08ACE624746B8B00681A63 /* YogaSMC */ = {
+		6F08ACE624746B8B00681A63 /* ReYogaSMC */ = {
 			isa = PBXGroup;
 			children = (
-				6F70426024D2CFB900FD5659 /* YogaSMC */,
-				6F9553BC24BA516100215EBB /* YogaVPC */,
-				6F48676024A2937E003AD4CA /* YogaWMI */,
+				6F70426024D2CFB900FD5659 /* ReYogaSMC */,
+				6F9553BC24BA516100215EBB /* ReYogaVPC */,
+				6F48676024A2937E003AD4CA /* ReYogaWMI */,
 				6FCF7F572474B74800A82B13 /* WMI.h */,
 				6FCF7F582474B74800A82B13 /* WMI.cpp */,
 				6FD2BB47247721040018EA36 /* bmfdec.c */,
@@ -382,28 +380,28 @@
 				6F96F4D524CD9593005A7686 /* message.h */,
 				6F83587224D0C2B50031512F /* KeyImplementations.hpp */,
 				6F83587124D0C2B50031512F /* KeyImplementations.cpp */,
-				6F861250253BF805008FB857 /* YogaBaseService.hpp */,
-				6F86124F253BF805008FB857 /* YogaBaseService.cpp */,
-				6F87BF7F24D26A5D00D64375 /* YogaSMC.hpp */,
-				6F87BF7E24D26A5D00D64375 /* YogaSMC.cpp */,
-				6F05D7E1252E35A000471F57 /* YogaSMCUserClientPrivate.hpp */,
-				6F81FC4025317AE100CFEDF5 /* YogaSMCUserClient.h */,
-				6F05D7E0252E35A000471F57 /* YogaSMCUserClient.cpp */,
-				6F96A30B24B93D25006562EC /* YogaVPC.hpp */,
-				6F96A30A24B93D25006562EC /* YogaVPC.cpp */,
-				6F08ACE724746B8B00681A63 /* YogaWMI.hpp */,
-				6F08ACE924746B8B00681A63 /* YogaWMI.cpp */,
+				6F861250253BF805008FB857 /* ReYogaBaseService.hpp */,
+				6F86124F253BF805008FB857 /* ReYogaBaseService.cpp */,
+				6F87BF7F24D26A5D00D64375 /* ReYogaSMC.hpp */,
+				6F87BF7E24D26A5D00D64375 /* ReYogaSMC.cpp */,
+				6F05D7E1252E35A000471F57 /* ReYogaSMCUserClientPrivate.hpp */,
+				6F81FC4025317AE100CFEDF5 /* ReYogaSMCUserClient.h */,
+				6F05D7E0252E35A000471F57 /* ReYogaSMCUserClient.cpp */,
+				6F96A30B24B93D25006562EC /* ReYogaVPC.hpp */,
+				6F96A30A24B93D25006562EC /* ReYogaVPC.cpp */,
+				6F08ACE724746B8B00681A63 /* ReYogaWMI.hpp */,
+				6F08ACE924746B8B00681A63 /* ReYogaWMI.cpp */,
 				6F08ACEB24746B8B00681A63 /* Info.plist */,
 				6F88069724EB575F00ACD6C8 /* Alter-Info.plist */,
 			);
-			path = YogaSMC;
+			path = ReYogaSMC;
 			sourceTree = "<group>";
 		};
-		6F0A987825343357002F9F65 /* YogaSMCNC */ = {
+		6F0A987825343357002F9F65 /* ReYogaSMCNC */ = {
 			isa = PBXGroup;
 			children = (
 				6F86121D253AF7FA008FB857 /* Resources */,
-				6F8B1FEA2538D64B003DD8A8 /* YogaSMCNC.entitlements */,
+				6F8B1FEA2538D64B003DD8A8 /* ReYogaSMCNC.entitlements */,
 				6F0A987925343357002F9F65 /* AppDelegate.swift */,
 				6F0A989C25343357002F9F65 /* GamingManager.swift */,
                 A10000000000000000000002 /* HardwareSupport.swift */,
@@ -414,7 +412,7 @@
 				6F0A987F25343359002F9F65 /* Main.storyboard */,
 				6F0A988225343359002F9F65 /* Info.plist */,
 			);
-			path = YogaSMCNC;
+			path = ReYogaSMCNC;
 			sourceTree = "<group>";
 		};
 		6F1C709E251473CC007D1DFC /* Frameworks */ = {
@@ -434,7 +432,7 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		6F48676024A2937E003AD4CA /* YogaWMI */ = {
+		6F48676024A2937E003AD4CA /* ReYogaWMI */ = {
 			isa = PBXGroup;
 			children = (
 				6F9150752634C29200DF4F9D /* DYWMI.hpp */,
@@ -442,7 +440,7 @@
 				6F48676224A293A0003AD4CA /* IdeaWMI.hpp */,
 				6F48676124A293A0003AD4CA /* IdeaWMI.cpp */,
 			);
-			path = YogaWMI;
+			path = ReYogaWMI;
 			sourceTree = "<group>";
 		};
 		6F70425F24D2CF5200FD5659 /* Docs */ = {
@@ -456,7 +454,7 @@
 			name = Docs;
 			sourceTree = "<group>";
 		};
-		6F70426024D2CFB900FD5659 /* YogaSMC */ = {
+		6F70426024D2CFB900FD5659 /* ReYogaSMC */ = {
 			isa = PBXGroup;
 			children = (
 				6F86DD05263A3E670037A878 /* DYSMC.hpp */,
@@ -466,16 +464,16 @@
 				6F7B5CFE24FBC3CC00AA80FF /* ThinkSMC.hpp */,
 				6F7B5CFD24FBC3CC00AA80FF /* ThinkSMC.cpp */,
 			);
-			path = YogaSMC;
+			path = ReYogaSMC;
 			sourceTree = "<group>";
 		};
-		6F7D484125344C25004074C7 /* YogaSMCNCHelper */ = {
+		6F7D484125344C25004074C7 /* ReYogaSMCNCHelper */ = {
 			isa = PBXGroup;
 			children = (
 				6F7D484225344C25004074C7 /* main.swift */,
 				6F7D484B25344C25004074C7 /* Info.plist */,
 			);
-			path = YogaSMCNCHelper;
+			path = ReYogaSMCNCHelper;
 			sourceTree = "<group>";
 		};
 		6F83586324D0BFEE0031512F /* SDK */ = {
@@ -485,7 +483,7 @@
 				6F83586F24D0C0C90031512F /* VirtualSMCSDK */,
 			);
 			name = SDK;
-			path = YogaSMC;
+			path = ReYogaSMC;
 			sourceTree = "<group>";
 		};
 		6F86121D253AF7FA008FB857 /* Resources */ = {
@@ -519,24 +517,23 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		6F8B1F1925380748003DD8A8 /* YogaSMCUtils */ = {
+		6F8B1F1925380748003DD8A8 /* ReYogaSMCUtils */ = {
 			isa = PBXGroup;
 			children = (
 				6F14956E2580BF7200A3BA83 /* AudioHelper.swift */,
 				6F861242253BD7FB008FB857 /* Configuration.swift */,
-				6F8AF12F254DEDEE00438EC8 /* DateHelper.swift */,
 				6F8B1F2C253808DC003DD8A8 /* OSDHelper.swift */,
 				6F8B1F242538083A003DD8A8 /* PropertyHelper.swift */,
 				6F8611D4253AB59F008FB857 /* RFHelper.swift */,
 				6F8B1F70253821C3003DD8A8 /* ScriptHelper.swift */,
 				6F8B1FB92538C53A003DD8A8 /* SystemPreferences.swift */,
 				6FB5BE14255521E1001BFDFF /* ThinkFanHelper.swift */,
-				6FD083002537E87400491976 /* YogaSMC-Bridging-Header.h */,
+				6FD083002537E87400491976 /* ReYogaSMC-Bridging-Header.h */,
 			);
-			path = YogaSMCUtils;
+			path = ReYogaSMCUtils;
 			sourceTree = "<group>";
 		};
-		6F9553BC24BA516100215EBB /* YogaVPC */ = {
+		6F9553BC24BA516100215EBB /* ReYogaVPC */ = {
 			isa = PBXGroup;
 			children = (
 				6FE3698824F76A5D008B29E4 /* DYTC.h */,
@@ -547,10 +544,10 @@
 				6F8B1F902538309F003DD8A8 /* ThinkEvents.h */,
 				6F6CEDA324BC14C2004D553F /* ThinkVPC.hpp */,
 				6F6CEDA224BC14C2004D553F /* ThinkVPC.cpp */,
-				6F98BCF725532AD300ACFD99 /* YogaHIDD.hpp */,
-				6F98BCF625532AD300ACFD99 /* YogaHIDD.cpp */,
+				6F98BCF725532AD300ACFD99 /* ReYogaHIDD.hpp */,
+				6F98BCF625532AD300ACFD99 /* ReYogaHIDD.cpp */,
 			);
-			path = YogaVPC;
+			path = ReYogaVPC;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -560,21 +557,21 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6F05D7E3252E35A000471F57 /* YogaSMCUserClientPrivate.hpp in Headers */,
+				6F05D7E3252E35A000471F57 /* ReYogaSMCUserClientPrivate.hpp in Headers */,
 				6FCF7F592474B74800A82B13 /* WMI.h in Headers */,
-				6F96A30D24B93D25006562EC /* YogaVPC.hpp in Headers */,
+				6F96A30D24B93D25006562EC /* ReYogaVPC.hpp in Headers */,
 				6F9150782634C29300DF4F9D /* DYWMI.hpp in Headers */,
 				6F64A28525A7FA7D00070265 /* DYVPC.hpp in Headers */,
-				6F861253253BF805008FB857 /* YogaBaseService.hpp in Headers */,
+				6F861253253BF805008FB857 /* ReYogaBaseService.hpp in Headers */,
 				6FD2BB8E247B37A20018EA36 /* bmfparser.hpp in Headers */,
 				6FCF7F5C2474B89000A82B13 /* common.h in Headers */,
-				6F08ACE824746B8B00681A63 /* YogaWMI.hpp in Headers */,
+				6F08ACE824746B8B00681A63 /* ReYogaWMI.hpp in Headers */,
 				6F6CEDA524BC14C2004D553F /* ThinkVPC.hpp in Headers */,
-				6F87BF8124D26A5D00D64375 /* YogaSMC.hpp in Headers */,
-				6F81FC4425317B1200CFEDF5 /* YogaSMCUserClient.h in Headers */,
+				6F87BF8124D26A5D00D64375 /* ReYogaSMC.hpp in Headers */,
+				6F81FC4425317B1200CFEDF5 /* ReYogaSMCUserClient.h in Headers */,
 				6F48676424A293A0003AD4CA /* IdeaWMI.hpp in Headers */,
 				6F86DD07263A3E670037A878 /* DYSMC.hpp in Headers */,
-				6F98BCFA25532AD300ACFD99 /* YogaHIDD.hpp in Headers */,
+				6F98BCFA25532AD300ACFD99 /* ReYogaHIDD.hpp in Headers */,
 				6F77A23924F4FE59007A127B /* IdeaSMC.hpp in Headers */,
 				6F7B5D0024FBC3CC00AA80FF /* ThinkSMC.hpp in Headers */,
 				6F83587424D0C2B50031512F /* KeyImplementations.hpp in Headers */,
@@ -586,17 +583,17 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6F05D7E7252E362600471F57 /* YogaSMCUserClientPrivate.hpp in Headers */,
-				6F81FC4825317B1300CFEDF5 /* YogaSMCUserClient.h in Headers */,
+				6F05D7E7252E362600471F57 /* ReYogaSMCUserClientPrivate.hpp in Headers */,
+				6F81FC4825317B1300CFEDF5 /* ReYogaSMCUserClient.h in Headers */,
 				6F88067924EB575F00ACD6C8 /* WMI.h in Headers */,
-				6F861254253BF805008FB857 /* YogaBaseService.hpp in Headers */,
-				6F98BCFB25532AD300ACFD99 /* YogaHIDD.hpp in Headers */,
+				6F861254253BF805008FB857 /* ReYogaBaseService.hpp in Headers */,
+				6F98BCFB25532AD300ACFD99 /* ReYogaHIDD.hpp in Headers */,
 				6F9150792634C29300DF4F9D /* DYWMI.hpp in Headers */,
-				6F88067A24EB575F00ACD6C8 /* YogaVPC.hpp in Headers */,
+				6F88067A24EB575F00ACD6C8 /* ReYogaVPC.hpp in Headers */,
 				6F88067B24EB575F00ACD6C8 /* bmfparser.hpp in Headers */,
 				6F64A28625A7FA7D00070265 /* DYVPC.hpp in Headers */,
 				6F88067C24EB575F00ACD6C8 /* common.h in Headers */,
-				6F88067E24EB575F00ACD6C8 /* YogaWMI.hpp in Headers */,
+				6F88067E24EB575F00ACD6C8 /* ReYogaWMI.hpp in Headers */,
 				6F88067F24EB575F00ACD6C8 /* ThinkVPC.hpp in Headers */,
 				6F88068124EB575F00ACD6C8 /* IdeaWMI.hpp in Headers */,
 				6F88068324EB575F00ACD6C8 /* IdeaVPC.hpp in Headers */,
@@ -626,9 +623,9 @@
 /* End PBXLegacyTarget section */
 
 /* Begin PBXNativeTarget section */
-		6F08ACE324746B8B00681A63 /* YogaSMC */ = {
+		6F08ACE324746B8B00681A63 /* ReYogaSMC */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 6F08ACEE24746B8B00681A63 /* Build configuration list for PBXNativeTarget "YogaSMC" */;
+			buildConfigurationList = 6F08ACEE24746B8B00681A63 /* Build configuration list for PBXNativeTarget "ReYogaSMC" */;
 			buildPhases = (
 				6F08ACDF24746B8B00681A63 /* Headers */,
 				6F08ACE024746B8B00681A63 /* Sources */,
@@ -641,12 +638,12 @@
 			);
 			name = ReYogaSMC;
 			productName = ReYogaSMC;
-			productReference = 6F08ACE424746B8B00681A63 /* YogaSMC.kext */;
+			productReference = 6F08ACE424746B8B00681A63 /* ReYogaSMC.kext */;
 			productType = "com.apple.product-type.kernel-extension";
 		};
-		6F0A987625343357002F9F65 /* YogaSMCNC */ = {
+		6F0A987625343357002F9F65 /* ReYogaSMCNC */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 6F0A988625343359002F9F65 /* Build configuration list for PBXNativeTarget "YogaSMCNC" */;
+			buildConfigurationList = 6F0A988625343359002F9F65 /* Build configuration list for PBXNativeTarget "ReYogaSMCNC" */;
 			buildPhases = (
 				6F0A987325343357002F9F65 /* Sources */,
 				6F0A987425343357002F9F65 /* Frameworks */,
@@ -664,9 +661,9 @@
 			productReference = 6F0A987725343357002F9F65 /* ReYogaSMCNC.app */;
 			productType = "com.apple.product-type.application";
 		};
-		6F7D483F25344C25004074C7 /* YogaSMCNCHelper */ = {
+		6F7D483F25344C25004074C7 /* ReYogaSMCNCHelper */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 6F7D484D25344C25004074C7 /* Build configuration list for PBXNativeTarget "YogaSMCNCHelper" */;
+			buildConfigurationList = 6F7D484D25344C25004074C7 /* Build configuration list for PBXNativeTarget "ReYogaSMCNCHelper" */;
 			buildPhases = (
 				6F7D483C25344C25004074C7 /* Sources */,
 				6F7D483D25344C25004074C7 /* Frameworks */,
@@ -680,9 +677,9 @@
 			productReference = 6F7D484025344C25004074C7 /* ReYogaSMCNCHelper.app */;
 			productType = "com.apple.product-type.application";
 		};
-		6F88067624EB575F00ACD6C8 /* YogaSMCAlter */ = {
+		6F88067624EB575F00ACD6C8 /* ReYogaSMCAlter */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 6F88069324EB575F00ACD6C8 /* Build configuration list for PBXNativeTarget "YogaSMCAlter" */;
+			buildConfigurationList = 6F88069324EB575F00ACD6C8 /* Build configuration list for PBXNativeTarget "ReYogaSMCAlter" */;
 			buildPhases = (
 				6F88067724EB575F00ACD6C8 /* Headers */,
 				6F88068424EB575F00ACD6C8 /* Sources */,
@@ -694,7 +691,7 @@
 			);
 			name = ReYogaSMCAlter;
 			productName = ReYogaSMC;
-			productReference = 6F88069624EB575F00ACD6C8 /* YogaSMCAlter.kext */;
+			productReference = 6F88069624EB575F00ACD6C8 /* ReYogaSMCAlter.kext */;
 			productType = "com.apple.product-type.kernel-extension";
 		};
 /* End PBXNativeTarget section */
@@ -722,7 +719,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 6F08ACDE24746B8B00681A63 /* Build configuration list for PBXProject "YogaSMC" */;
+			buildConfigurationList = 6F08ACDE24746B8B00681A63 /* Build configuration list for PBXProject "ReYogaSMC" */;
 			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -735,11 +732,11 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				6F08ACE324746B8B00681A63 /* YogaSMC */,
-				6F88067624EB575F00ACD6C8 /* YogaSMCAlter */,
+				6F08ACE324746B8B00681A63 /* ReYogaSMC */,
+				6F88067624EB575F00ACD6C8 /* ReYogaSMCAlter */,
 				6F97877024EB61BB008B03D2 /* BuildAll */,
-				6F0A987625343357002F9F65 /* YogaSMCNC */,
-				6F7D483F25344C25004074C7 /* YogaSMCNCHelper */,
+				6F0A987625343357002F9F65 /* ReYogaSMCNC */,
+				6F7D483F25344C25004074C7 /* ReYogaSMCNCHelper */,
 			);
 		};
 /* End PBXProject section */
@@ -813,20 +810,20 @@
 				6F9553BA24BA515B00215EBB /* IdeaVPC.cpp in Sources */,
 				6F6CEDA424BC14C2004D553F /* ThinkVPC.cpp in Sources */,
 				6F77A23824F4FE59007A127B /* IdeaSMC.cpp in Sources */,
-				6F08ACEA24746B8B00681A63 /* YogaWMI.cpp in Sources */,
-				6F98BCF825532AD300ACFD99 /* YogaHIDD.cpp in Sources */,
+				6F08ACEA24746B8B00681A63 /* ReYogaWMI.cpp in Sources */,
+				6F98BCF825532AD300ACFD99 /* ReYogaHIDD.cpp in Sources */,
 				6F9150762634C29300DF4F9D /* DYWMI.cpp in Sources */,
 				6F83587324D0C2B50031512F /* KeyImplementations.cpp in Sources */,
-				6F05D7E2252E35A000471F57 /* YogaSMCUserClient.cpp in Sources */,
+				6F05D7E2252E35A000471F57 /* ReYogaSMCUserClient.cpp in Sources */,
 				6F48676324A293A0003AD4CA /* IdeaWMI.cpp in Sources */,
 				6F7B5CFF24FBC3CC00AA80FF /* ThinkSMC.cpp in Sources */,
-				6F861251253BF805008FB857 /* YogaBaseService.cpp in Sources */,
+				6F861251253BF805008FB857 /* ReYogaBaseService.cpp in Sources */,
 				6F86DD06263A3E670037A878 /* DYSMC.cpp in Sources */,
 				6FD2BB49247721040018EA36 /* bmfdec.c in Sources */,
 				6FCF7F5A2474B74800A82B13 /* WMI.cpp in Sources */,
-				6F96A30C24B93D25006562EC /* YogaVPC.cpp in Sources */,
+				6F96A30C24B93D25006562EC /* ReYogaVPC.cpp in Sources */,
 				6FD2BB8D247B37A20018EA36 /* bmfparser.cpp in Sources */,
-				6F87BF8024D26A5D00D64375 /* YogaSMC.cpp in Sources */,
+				6F87BF8024D26A5D00D64375 /* ReYogaSMC.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -838,7 +835,6 @@
 				6F14956F2580BF7200A3BA83 /* AudioHelper.swift in Sources */,
 				6F8B1F2E253808DC003DD8A8 /* OSDHelper.swift in Sources */,
 				6FC40F3A2592856A004A6D48 /* NotificationHandler.swift in Sources */,
-				6F8AF130254DEDEE00438EC8 /* DateHelper.swift in Sources */,
 				6F8B1F262538083A003DD8A8 /* PropertyHelper.swift in Sources */,
 				6F8611D5253AB59F008FB857 /* RFHelper.swift in Sources */,
 				6F8B1F71253821C3003DD8A8 /* ScriptHelper.swift in Sources */,
@@ -864,17 +860,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				6F64A28425A7FA7D00070265 /* DYVPC.cpp in Sources */,
-				6F861252253BF805008FB857 /* YogaBaseService.cpp in Sources */,
+				6F861252253BF805008FB857 /* ReYogaBaseService.cpp in Sources */,
 				6F88068524EB575F00ACD6C8 /* IdeaVPC.cpp in Sources */,
-				6F05D7EB252E362A00471F57 /* YogaSMCUserClient.cpp in Sources */,
+				6F05D7EB252E362A00471F57 /* ReYogaSMCUserClient.cpp in Sources */,
 				6F88068624EB575F00ACD6C8 /* ThinkVPC.cpp in Sources */,
 				6F9150772634C29300DF4F9D /* DYWMI.cpp in Sources */,
-				6F88068724EB575F00ACD6C8 /* YogaWMI.cpp in Sources */,
+				6F88068724EB575F00ACD6C8 /* ReYogaWMI.cpp in Sources */,
 				6F88068924EB575F00ACD6C8 /* IdeaWMI.cpp in Sources */,
 				6F88068A24EB575F00ACD6C8 /* bmfdec.c in Sources */,
 				6F88068B24EB575F00ACD6C8 /* WMI.cpp in Sources */,
-				6F98BCF925532AD300ACFD99 /* YogaHIDD.cpp in Sources */,
-				6F88068C24EB575F00ACD6C8 /* YogaVPC.cpp in Sources */,
+				6F98BCF925532AD300ACFD99 /* ReYogaHIDD.cpp in Sources */,
+				6F88068C24EB575F00ACD6C8 /* ReYogaVPC.cpp in Sources */,
 				6F88068E24EB575F00ACD6C8 /* bmfparser.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -884,22 +880,22 @@
 /* Begin PBXTargetDependency section */
 		6F25B6A925343ADB00C2920C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 6F0A987625343357002F9F65 /* YogaSMCNC */;
+			target = 6F0A987625343357002F9F65 /* ReYogaSMCNC */;
 			targetProxy = 6F25B6A825343ADB00C2920C /* PBXContainerItemProxy */;
 		};
 		6F7D488B253509CC004074C7 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 6F7D483F25344C25004074C7 /* YogaSMCNCHelper */;
+			target = 6F7D483F25344C25004074C7 /* ReYogaSMCNCHelper */;
 			targetProxy = 6F7D488A253509CC004074C7 /* PBXContainerItemProxy */;
 		};
 		6F97877524EB61C7008B03D2 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 6F08ACE324746B8B00681A63 /* YogaSMC */;
+			target = 6F08ACE324746B8B00681A63 /* ReYogaSMC */;
 			targetProxy = 6F97877424EB61C7008B03D2 /* PBXContainerItemProxy */;
 		};
 		6F97877724EB61CA008B03D2 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 6F88067624EB575F00ACD6C8 /* YogaSMCAlter */;
+			target = 6F88067624EB575F00ACD6C8 /* ReYogaSMCAlter */;
 			targetProxy = 6F97877624EB61CA008B03D2 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -961,7 +957,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2.0.6;
+				CURRENT_PROJECT_VERSION = 2.1.0;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1026,7 +1022,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2.0.6;
+				CURRENT_PROJECT_VERSION = 2.1.0;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1065,7 +1061,7 @@
 					"${PROJECT_DIR}/VirtualSMC.kext/Contents/Resources",
 					"${PROJECT_DIR}",
 				);
-				INFOPLIST_FILE = YogaSMC/Info.plist;
+				INFOPLIST_FILE = ReYogaSMC/Info.plist;
 				KERNEL_EXTENSION_HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
 				KERNEL_FRAMEWORK_HEADERS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
 				LIBRARY_SEARCH_PATHS = (
@@ -1073,11 +1069,11 @@
 					"$(PROJECT_DIR)/MacKernelSDK/Library/x86_64",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MODULE_NAME = org.zhen.YogaSMC;
+				MODULE_NAME = org.reyoga.ReYogaSMC;
 				MODULE_START = "$(PRODUCT_NAME)_kern_start";
 				MODULE_STOP = "$(PRODUCT_NAME)_kern_stop";
 				MODULE_VERSION = "$(CURRENT_PROJECT_VERSION)";
-				PRODUCT_BUNDLE_IDENTIFIER = org.zhen.YogaSMC;
+				PRODUCT_BUNDLE_IDENTIFIER = org.reyoga.ReYogaSMC;
 				PRODUCT_NAME = ReYogaSMC;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				WRAPPER_EXTENSION = kext;
@@ -1098,7 +1094,7 @@
 					"${PROJECT_DIR}/VirtualSMC.kext/Contents/Resources",
 					"${PROJECT_DIR}",
 				);
-				INFOPLIST_FILE = YogaSMC/Info.plist;
+				INFOPLIST_FILE = ReYogaSMC/Info.plist;
 				KERNEL_EXTENSION_HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
 				KERNEL_FRAMEWORK_HEADERS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
 				LIBRARY_SEARCH_PATHS = (
@@ -1106,11 +1102,11 @@
 					"$(PROJECT_DIR)/MacKernelSDK/Library/x86_64",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MODULE_NAME = org.zhen.YogaSMC;
+				MODULE_NAME = org.reyoga.ReYogaSMC;
 				MODULE_START = "$(PRODUCT_NAME)_kern_start";
 				MODULE_STOP = "$(PRODUCT_NAME)_kern_stop";
 				MODULE_VERSION = "$(CURRENT_PROJECT_VERSION)";
-				PRODUCT_BUNDLE_IDENTIFIER = org.zhen.YogaSMC;
+				PRODUCT_BUNDLE_IDENTIFIER = org.reyoga.ReYogaSMC;
 				PRODUCT_NAME = ReYogaSMC;
 				WRAPPER_EXTENSION = kext;
 			};
@@ -1122,21 +1118,21 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CODE_SIGN_ENTITLEMENTS = YogaSMCNC/YogaSMCNC.entitlements;
+				CODE_SIGN_ENTITLEMENTS = ReYogaSMCNC/ReYogaSMCNC.entitlements;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)",
 				);
-				INFOPLIST_FILE = YogaSMCNC/Info.plist;
+				INFOPLIST_FILE = ReYogaSMCNC/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.zhen.YogaSMCNC;
-				PRODUCT_MODULE_NAME = YogaSMCNC;
+				PRODUCT_BUNDLE_IDENTIFIER = org.reyoga.ReYogaSMCNC;
+				PRODUCT_MODULE_NAME = ReYogaSMCNC;
 				PRODUCT_NAME = ReYogaSMCNC;
-				SWIFT_OBJC_BRIDGING_HEADER = "YogaSMCUtils/YogaSMC-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "ReYogaSMCUtils/ReYogaSMC-Bridging-Header.h";
 				SYSTEM_FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 				);
@@ -1149,21 +1145,21 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CODE_SIGN_ENTITLEMENTS = YogaSMCNC/YogaSMCNC.entitlements;
+				CODE_SIGN_ENTITLEMENTS = ReYogaSMCNC/ReYogaSMCNC.entitlements;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)",
 				);
-				INFOPLIST_FILE = YogaSMCNC/Info.plist;
+				INFOPLIST_FILE = ReYogaSMCNC/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.zhen.YogaSMCNC;
-				PRODUCT_MODULE_NAME = YogaSMCNC;
+				PRODUCT_BUNDLE_IDENTIFIER = org.reyoga.ReYogaSMCNC;
+				PRODUCT_MODULE_NAME = ReYogaSMCNC;
 				PRODUCT_NAME = ReYogaSMCNC;
-				SWIFT_OBJC_BRIDGING_HEADER = "YogaSMCUtils/YogaSMC-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "ReYogaSMCUtils/ReYogaSMC-Bridging-Header.h";
 				SYSTEM_FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 				);
@@ -1174,14 +1170,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				INFOPLIST_FILE = YogaSMCNCHelper/Info.plist;
+				INFOPLIST_FILE = ReYogaSMCNCHelper/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.zhen.YogaSMCNCHelper;
-				PRODUCT_MODULE_NAME = YogaSMCNCHelper;
+				PRODUCT_BUNDLE_IDENTIFIER = org.reyoga.ReYogaSMCNCHelper;
+				PRODUCT_MODULE_NAME = ReYogaSMCNCHelper;
 				PRODUCT_NAME = ReYogaSMCNCHelper;
 			};
 			name = Debug;
@@ -1190,14 +1186,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				INFOPLIST_FILE = YogaSMCNCHelper/Info.plist;
+				INFOPLIST_FILE = ReYogaSMCNCHelper/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.zhen.YogaSMCNCHelper;
-				PRODUCT_MODULE_NAME = YogaSMCNCHelper;
+				PRODUCT_BUNDLE_IDENTIFIER = org.reyoga.ReYogaSMCNCHelper;
+				PRODUCT_MODULE_NAME = ReYogaSMCNCHelper;
 				PRODUCT_NAME = ReYogaSMCNCHelper;
 			};
 			name = Release;
@@ -1217,11 +1213,11 @@
 				);
 				HEADER_SEARCH_PATHS = (
 					"${PROJECT_DIR}",
-					"${PROJECT_DIR}/YogaSMC",
-					"${PROJECT_DIR}/YogaSMC/YogaWMI",
-					"${PROJECT_DIR}/YogaSMC/YogaVPC",
+					"${PROJECT_DIR}/ReYogaSMC",
+					"${PROJECT_DIR}/ReYogaSMC/ReYogaWMI",
+					"${PROJECT_DIR}/ReYogaSMC/ReYogaVPC",
 				);
-				INFOPLIST_FILE = "YogaSMC/Alter-Info.plist";
+				INFOPLIST_FILE = "ReYogaSMC/Alter-Info.plist";
 				KERNEL_EXTENSION_HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
 				KERNEL_FRAMEWORK_HEADERS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
 				LIBRARY_SEARCH_PATHS = (
@@ -1229,9 +1225,9 @@
 					"$(PROJECT_DIR)/MacKernelSDK/Library/x86_64",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MODULE_NAME = org.zhen.YogaSMC;
+				MODULE_NAME = org.reyoga.ReYogaSMC;
 				MODULE_VERSION = "$(CURRENT_PROJECT_VERSION)";
-				PRODUCT_BUNDLE_IDENTIFIER = org.zhen.YogaSMC;
+				PRODUCT_BUNDLE_IDENTIFIER = org.reyoga.ReYogaSMC;
 				PRODUCT_NAME = ReYogaSMCAlter;
 				RUN_CLANG_STATIC_ANALYZER = YES;
 				WRAPPER_EXTENSION = kext;
@@ -1250,11 +1246,11 @@
 				);
 				HEADER_SEARCH_PATHS = (
 					"${PROJECT_DIR}",
-					"${PROJECT_DIR}/YogaSMC",
-					"${PROJECT_DIR}/YogaSMC/YogaWMI",
-					"${PROJECT_DIR}/YogaSMC/YogaVPC",
+					"${PROJECT_DIR}/ReYogaSMC",
+					"${PROJECT_DIR}/ReYogaSMC/ReYogaWMI",
+					"${PROJECT_DIR}/ReYogaSMC/ReYogaVPC",
 				);
-				INFOPLIST_FILE = "YogaSMC/Alter-Info.plist";
+				INFOPLIST_FILE = "ReYogaSMC/Alter-Info.plist";
 				KERNEL_EXTENSION_HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
 				KERNEL_FRAMEWORK_HEADERS = "$(PROJECT_DIR)/MacKernelSDK/Headers";
 				LIBRARY_SEARCH_PATHS = (
@@ -1262,9 +1258,9 @@
 					"$(PROJECT_DIR)/MacKernelSDK/Library/x86_64",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 11.0;
-				MODULE_NAME = org.zhen.YogaSMC;
+				MODULE_NAME = org.reyoga.ReYogaSMC;
 				MODULE_VERSION = "$(CURRENT_PROJECT_VERSION)";
-				PRODUCT_BUNDLE_IDENTIFIER = org.zhen.YogaSMC;
+				PRODUCT_BUNDLE_IDENTIFIER = org.reyoga.ReYogaSMC;
 				PRODUCT_NAME = ReYogaSMCAlter;
 				WRAPPER_EXTENSION = kext;
 			};
@@ -1285,7 +1281,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		6F08ACDE24746B8B00681A63 /* Build configuration list for PBXProject "YogaSMC" */ = {
+		6F08ACDE24746B8B00681A63 /* Build configuration list for PBXProject "ReYogaSMC" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				6F08ACEC24746B8B00681A63 /* Debug */,
@@ -1294,7 +1290,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		6F08ACEE24746B8B00681A63 /* Build configuration list for PBXNativeTarget "YogaSMC" */ = {
+		6F08ACEE24746B8B00681A63 /* Build configuration list for PBXNativeTarget "ReYogaSMC" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				6F08ACEF24746B8B00681A63 /* Debug */,
@@ -1303,7 +1299,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		6F0A988625343359002F9F65 /* Build configuration list for PBXNativeTarget "YogaSMCNC" */ = {
+		6F0A988625343359002F9F65 /* Build configuration list for PBXNativeTarget "ReYogaSMCNC" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				6F0A988425343359002F9F65 /* Debug */,
@@ -1312,7 +1308,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		6F7D484D25344C25004074C7 /* Build configuration list for PBXNativeTarget "YogaSMCNCHelper" */ = {
+		6F7D484D25344C25004074C7 /* Build configuration list for PBXNativeTarget "ReYogaSMCNCHelper" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				6F7D484E25344C25004074C7 /* Debug */,
@@ -1321,7 +1317,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		6F88069324EB575F00ACD6C8 /* Build configuration list for PBXNativeTarget "YogaSMCAlter" */ = {
+		6F88069324EB575F00ACD6C8 /* Build configuration list for PBXNativeTarget "ReYogaSMCAlter" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				6F88069424EB575F00ACD6C8 /* Debug */,
