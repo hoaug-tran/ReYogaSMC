@@ -6,13 +6,15 @@ let output = root.appendingPathComponent("Assets/Brand")
 let iconset = root.appendingPathComponent("build/ReYogaSMC.iconset")
 try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
 func mark(_ scale: CGFloat, color: NSColor) {
-    let points: [(CGFloat, CGFloat)] = [(270,286),(360,286),(512,460),(664,286),(754,286),(548,522),(548,752),(476,752),(476,522)]
     let path = NSBezierPath()
-    path.move(to: NSPoint(x: points[0].0 * scale, y: (1024-points[0].1) * scale))
-    for p in points.dropFirst() { path.line(to: NSPoint(x: p.0 * scale, y: (1024-p.1) * scale)) }
-    path.close(); color.setFill(); path.fill()
-    NSColor(calibratedRed: 0.91, green: 0.18, blue: 0.22, alpha: 1).setFill()
-    NSBezierPath(ovalIn: NSRect(x: 717*scale, y: (1024-257)*scale, width: 74*scale, height: 74*scale)).fill()
+    path.lineWidth = 96*scale
+    path.lineCapStyle = .round; path.lineJoinStyle = .round
+    path.move(to: NSPoint(x: 352*scale, y: (1024-300)*scale))
+    path.line(to: NSPoint(x: 352*scale, y: (1024-720)*scale))
+    path.line(to: NSPoint(x: 686*scale, y: (1024-720)*scale))
+    color.setStroke(); path.stroke()
+    NSColor(calibratedRed: 0.97, green: 0.20, blue: 0.25, alpha: 1).setFill()
+    NSBezierPath(ovalIn: NSRect(x: 654*scale, y: (1024-361)*scale, width: 108*scale, height: 108*scale)).fill()
 }
 func render(_ size: Int) -> Data {
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: size * 4, bitsPerPixel: 32)!
@@ -40,8 +42,8 @@ let svg = """
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
 <defs><linearGradient id="plate" x2="0" y2="1"><stop stop-color="#303030"/><stop offset="1" stop-color="#151515"/></linearGradient></defs>
 <rect x="72" y="72" width="880" height="880" rx="196" fill="url(#plate)"/>
-<path d="M270 286h90l152 174 152-174h90L548 522v230h-72V522Z" fill="#f7f7f7"/>
-<circle cx="754" cy="220" r="37" fill="#e82e38"/>
+<path d="M352 300v420h334" fill="none" stroke="#f7f7f7" stroke-width="96" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="708" cy="307" r="54" fill="#f73340"/>
 </svg>
 """
 try svg.write(to: output.appendingPathComponent("app-icon.svg"), atomically: true, encoding: .utf8)
@@ -50,7 +52,7 @@ for dark in [false,true] {
     let muted = dark ? "#a2a7b2" : "#626976"
     let hero = """
     <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="280" viewBox="0 0 1120 280">
-    <g transform="translate(48 34) scale(.207)"><rect x="72" y="72" width="880" height="880" rx="196" fill="#202226"/><path d="M270 286h90l152 174 152-174h90L548 522v230h-72V522Z" fill="#f7f7f7"/><circle cx="754" cy="220" r="37" fill="#e82e38"/></g>
+    <g transform="translate(48 34) scale(.207)"><rect x="72" y="72" width="880" height="880" rx="196" fill="#202226"/><path d="M352 300v420h334" fill="none" stroke="#f7f7f7" stroke-width="96" stroke-linecap="round" stroke-linejoin="round"/><circle cx="708" cy="307" r="54" fill="#f73340"/></g>
     <text x="306" y="131" fill="\(fg)" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="64" font-weight="650" letter-spacing="-2">ReYogaSMC</text>
     <text x="309" y="177" fill="\(muted)" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif" font-size="23">Your hardware. Your controls.</text>
     </svg>

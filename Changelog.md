@@ -1,5 +1,11 @@
 # ReYogaSMC changes
 
+## 2.0.4
+
+* Correct profile-specific conservation/rapid-charge state masks without changing the legacy protocol defaults.
+* Activate the popover, reliably reopen the native color panel and limit pending-state visuals to the affected control.
+* Use the L and dot mark for the app icon and retain queued control requests.
+
 ## 2.0.3
 
 * Restore the main popover width and keep spacing inside each power-mode button.

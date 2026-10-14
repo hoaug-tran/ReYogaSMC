@@ -59,5 +59,7 @@
   "fan_fullspeed_command": "0x59",
   "fan_fullspeed_on": "0x70",
   "fan_fullspeed_off": "0x76",
-  "lighting_owner_field": "LCON"
+  "lighting_owner_field": "LCON",
+  "battery_conservation_mask": 4,
+  "battery_rapidcharge_mask": 32
 }

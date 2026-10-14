@@ -2,6 +2,7 @@ import Foundation
 import IOKit
 
 let keys = [
+    "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask",
     "VersionInfo", "ForkName", "HardwareProfile", "HardwareProfileName",
     "ControlProtocolVersion", "DiagnosticSchemaVersion", "ACPIBridgeVersion",
     "FeatureStatus", "SensorStatus", "SensorSampleSequence", "SensorSampleTimeMS",

@@ -129,6 +129,8 @@ public final class GamingManager: ObservableObject {
     private var restoringControls: [(String, SavedControlValue)] = []
     private var pendingFanChecks: [Int: (target: Int, deadline: Date)] = [:]
     @Published public var isApplying = false
+    @Published public var applyingControl: String?
+    private var queuedControls: [(String, Int, Bool, String, Bool)] = []
     @Published public var telemetryStatus = "Waiting for driver"
     @Published public var featureStatus: [String: HardwareFeatureStatus] = [:]
     @Published public var cpuBoostWatts = 0
@@ -265,6 +267,18 @@ public final class GamingManager: ObservableObject {
             availability["YLogoStatus"] = HardwareFeatureStatus(available: true,
                 reason: "USB transmission only; the device does not report the physical LED state", backend: "USB HID")
         }
+        if let profile = HardwareProfiles.all().first(where: { $0["id"] as? String == props["HardwareProfile"] as? String }),
+           let conservationMask = profile["battery_conservation_mask"] as? Int,
+           let rapidMask = profile["battery_rapidcharge_mask"] as? Int,
+           (props["BatteryStateSchemaVersion"] as? Int ?? 0) < 2 {
+            if let raw = props["BatteryModeRaw"] as? Int {
+                publish(\.isConservationOn, raw & conservationMask != 0)
+                publish(\.isRapidChargeOn, raw & rapidMask != 0)
+            }
+            for key in ["ConservationMode", "RapidChargeMode"] {
+                availability[key] = HardwareFeatureStatus(available: false, reason: "Boot the updated kext and SSDT to use the corrected battery-state mapping", backend: "ACPI profile")
+            }
+        }
         if availability != featureStatus {
             featureStatus = availability
             ReYogaDiagnostics.shared.record("capabilities", availability.mapValues { ["available": $0.available, "reason": $0.reason, "backend": $0.backend] })
@@ -301,8 +315,10 @@ public final class GamingManager: ObservableObject {
                 showOSDRaw(message, duration: 4000)
             }
         }
-        publish(\.isConservationOn, boolean("ConservationMode"))
-        publish(\.isRapidChargeOn, boolean("RapidChargeMode"))
+        if (props["BatteryStateSchemaVersion"] as? Int ?? 0) >= 2 || HardwareProfiles.all().first(where: { $0["id"] as? String == props["HardwareProfile"] as? String })?["battery_conservation_mask"] == nil {
+            publish(\.isConservationOn, boolean("ConservationMode"))
+            publish(\.isRapidChargeOn, boolean("RapidChargeMode"))
+        }
         publish(\.isFullFanOn, boolean("FanFullSpeed"))
         publish(\.isOverDriveOn, number("DisplayOverDrive") == 1)
         publish(\.isTouchpadLocked, number("TouchpadLock") == 1)
@@ -400,15 +416,20 @@ public final class GamingManager: ObservableObject {
     }
 
     private func apply(_ key: String, _ target: Int, boolean: Bool = false, title: String, restoring: Bool = false) {
-        guard !isApplying else { return }
+        if isApplying { queuedControls.append((key, target, boolean, title, restoring)); return }
         if !restoring { restoringControls.removeAll() }
         guard service != 0, featureStatus[key]?.available == true else {
             let reason = featureStatus[key]?.reason ?? "Driver unavailable"
             showOSDRaw("\(title): \(reason)", duration: 3000, symbol: ReYogaBrand.controlSymbol(key, value: target))
             ReYogaDiagnostics.shared.record("control_unavailable", ["property": key, "reason": reason])
+            if !queuedControls.isEmpty {
+                let next = queuedControls.removeFirst()
+                DispatchQueue.main.async { self.apply(next.0, next.1, boolean: next.2, title: next.3, restoring: next.4) }
+            }
             return
         }
         isApplying = true
+        applyingControl = key
         let handle = service
         IOObjectRetain(handle)
         let requestID = UUID().uuidString
@@ -442,9 +463,14 @@ public final class GamingManager: ObservableObject {
                 "status": confirmed ? 0 : status, "initialStatus": status, "confirmed": confirmed, "reason": confirmed ? "Firmware readback matched" : reason, "requested": targetValue, "actual": snapshot?[key] ?? NSNull(), "code": result["Code"] ?? "unknown", "stage": result["Stage"] ?? "unknown", "initialCommandStatus": result["CommandStatus"] ?? NSNull()])
             IOObjectRelease(handle)
             DispatchQueue.main.async {
-                guard handle == self.service else { self.isApplying = false; return }
+                guard handle == self.service else { self.isApplying = false; self.applyingControl = nil; self.queuedControls.removeAll(); return }
                 if let snapshot = snapshot { self.accept(snapshot) }
                 self.isApplying = false
+                self.applyingControl = nil
+                if !self.queuedControls.isEmpty {
+                    let next = self.queuedControls.removeFirst()
+                    DispatchQueue.main.async { self.apply(next.0, next.1, boolean: next.2, title: next.3, restoring: next.4) }
+                }
                 if confirmed && !restoring { self.saveHardwareSetting(key, target: target, boolean: boolean) }
                 if restoring { DispatchQueue.main.async { self.restoreNextControl() } }
                 if confirmed && key.contains("TargetRPM") && target > 0 {
@@ -549,7 +575,7 @@ public final class GamingManager: ObservableObject {
         if handle != 0 { IOObjectRetain(handle) }
         hardwareQueue.async {
             defer { if handle != 0 { IOObjectRelease(handle) } }
-            let keys = ["VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
+            let keys = ["BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask", "VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
                         "ACPIBridgeVersion", "FanWritesValidated", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "FanFullSpeedECResult", "FanFullSpeedCommandBackend", "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage", "SensorSampleSequence", "SensorSampleTimeMS",
                         "Fan1RPM", "Fan2RPM", "Fan1TargetRPM", "Fan2TargetRPM", "FanControlMode", "CPUTemp", "GPUTemp"]
             let snapshot: NSDictionary = handle != 0 ? getProperties(handle) ?? [:] : [:]

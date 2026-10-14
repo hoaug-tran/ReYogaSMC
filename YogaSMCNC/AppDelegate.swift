@@ -345,7 +345,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if screen.frame.intersects(anchor), anchor.midY > screen.frame.maxY - NSStatusBar.system.thickness * 2 {
                 if #available(macOS 11.0, *) { GamingManager.shared.refreshAll() }
                 ReYogaDiagnostics.shared.record("popover_shown", ["anchor": NSStringFromRect(anchor), "screen": NSStringFromRect(screen.frame)])
+                NSApp.activate(ignoringOtherApps: true)
                 popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+                DispatchQueue.main.async { popover.contentViewController?.view.window?.makeKey() }
                 return
             }
         }
@@ -378,6 +380,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @available(macOS 11.0, *)
     func showSettings(tab: Int = 0) {
+        NSColorPanel.shared.orderOut(nil)
         gamingPopover?.performClose(nil)
         ReYogaPreferences.shared.selectedTab = tab
         ReYogaPreferences.shared.refreshLoginStatus()

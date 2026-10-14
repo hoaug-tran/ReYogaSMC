@@ -76,7 +76,7 @@ private struct ProfileSelector: View {
                     .accessibilityValue(manager.powerProfile == mode.0 ? "Selected" : "Not selected")
             }
         }.padding(4).background(Color.primary.opacity(0.035)).cornerRadius(12)
-            .disabled(!manager.hasPowerProfiles || manager.isApplying)
+            .disabled(!manager.hasPowerProfiles || manager.applyingControl == "SmartFanMode")
     }
     private func background(_ mode: Int) -> some View {
         RoundedRectangle(cornerRadius: 8)
@@ -241,7 +241,7 @@ public struct GamingPopoverView: View {
     private func row(_ title: String, _ key: String, _ icon: String, _ state: Bool, _ available: Bool, action: @escaping () -> Void) -> some View {
         FeatureRow(title: title, icon: icon, isOn: state, available: available,
                    reason: manager.featureStatus[key]?.reason ?? "No verified interface on this device", action: action)
-            .disabled(manager.isApplying)
+            .disabled(manager.applyingControl == key)
     }
     private var deviceControls: some View {
         Group {
@@ -262,7 +262,7 @@ public struct GamingPopoverView: View {
                 Text("Always-On USB Charging").font(.system(size: 12, weight: .medium)).padding(.bottom, 8)
                 Picker("Always-On USB Charging", selection: Binding(get: { manager.alwaysOnUSBState }, set: { manager.setAlwaysOnUSBState($0) })) {
                     Text("Off").tag(0); Text("AC power").tag(1); Text("AC + battery").tag(2)
-                }.labelsHidden().pickerStyle(SegmentedPickerStyle()).disabled(!manager.hasAlwaysOnUSB || manager.isApplying)
+                }.labelsHidden().pickerStyle(SegmentedPickerStyle()).disabled(!manager.hasAlwaysOnUSB || manager.applyingControl == "AlwaysOnUSBState")
             }
             RGBControls(manager: manager)
         }
@@ -395,15 +395,15 @@ private struct CPUPowerControls: View {
                 Label("Advanced control", systemImage: "exclamationmark.triangle").font(.system(size: 11)).foregroundColor(.orange)
                 Spacer()
                 Button("Reset Changes") { manager.resetPowerLimits() }
-                    .disabled(manager.isApplying || !manager.cpuPowerModified || manager.featureStatus["CPUPowerReset"]?.available != true)
+                    .disabled(manager.applyingControl == "CPUPowerReset" || !manager.cpuPowerModified || manager.featureStatus["CPUPowerReset"]?.available != true)
                     .help(manager.featureStatus["CPUPowerReset"]?.available == true ? "Restore the values saved before your edits in this power profile" : "The loaded driver does not expose reset. Boot the matching updated driver.")
             }.padding(.bottom, 8)
             if let range = manager.powerRanges["CPUBoostPower"], manager.featureStatus["CPUBoostPower"]?.available == true {
-                PowerLimitRow(title: "Boost", current: manager.cpuBoostWatts, range: range, busy: manager.isApplying) { manager.setPowerLimit("CPUBoostPower", watts: $0) }
+                PowerLimitRow(title: "Boost", current: manager.cpuBoostWatts, range: range, busy: manager.applyingControl == "CPUBoostPower") { manager.setPowerLimit("CPUBoostPower", watts: $0) }
                 Divider().padding(.vertical, 8)
             }
             if let range = manager.powerRanges["CPUSustainedPower"], manager.featureStatus["CPUSustainedPower"]?.available == true {
-                PowerLimitRow(title: "Sustained", current: manager.cpuSustainedWatts, range: range, busy: manager.isApplying) { manager.setPowerLimit("CPUSustainedPower", watts: $0) }
+                PowerLimitRow(title: "Sustained", current: manager.cpuSustainedWatts, range: range, busy: manager.applyingControl == "CPUSustainedPower") { manager.setPowerLimit("CPUSustainedPower", watts: $0) }
             }
             Text("Higher limits can increase heat and power use; lower limits can reduce performance. Reset Changes restores the pre-edit profile values. These are limits, not measured power.")
                 .font(.system(size: 11)).foregroundColor(.secondary).padding(.top, 8)
@@ -457,7 +457,7 @@ private struct RGBControls: View {
         HStack {
             Text(name).font(.system(size: 12)).frame(width: 84, alignment: .leading)
             Spacer()
-            ColorPicker(name, selection: Binding(get: { Color(SavedRGBSettings.color(color.wrappedValue)) }, set: { color.wrappedValue = SavedRGBSettings.hex(NSColor($0)) }), supportsOpacity: false).labelsHidden().frame(width: 36)
+            PersistentColorWell(hex: color).frame(width: 36, height: 24).accessibilityLabel(name)
             Button("Apply") { manager.setRGBZone(name, color: SavedRGBSettings.color(color.wrappedValue)) }.disabled(manager.rgbApplying)
         }.frame(minHeight: 32)
     }
@@ -555,4 +555,37 @@ struct ReYogaReviewView: View {
         else if mode == "settings" { ReYogaSettingsView(manager: manager, preferences: ReYogaPreferences.shared) }
         else { GamingPopoverView(manager: manager, page: mode == "cooling" ? 1 : 0) }
     }
+}
+
+@available(macOS 11.0, *)
+private struct PersistentColorWell: NSViewRepresentable {
+    @Binding var hex: String
+    final class Well: NSColorWell {
+        override func mouseDown(with event: NSEvent) {
+            NSApp.activate(ignoringOtherApps: true)
+            activate(true)
+            let panel = NSColorPanel.shared
+            panel.showsAlpha = false
+            panel.isContinuous = true
+            panel.level = NSWindow.Level(rawValue: max(NSWindow.Level.floating.rawValue, (window?.level.rawValue ?? 0)+1))
+            panel.makeKeyAndOrderFront(nil)
+        }
+    }
+    final class Coordinator: NSObject {
+        var binding: Binding<String>
+        init(_ binding: Binding<String>) { self.binding = binding }
+        @objc func changed(_ sender: NSColorWell) { binding.wrappedValue = SavedRGBSettings.hex(sender.color) }
+    }
+    func makeCoordinator() -> Coordinator { Coordinator($hex) }
+    func makeNSView(context: Context) -> Well {
+        let view = Well(frame: .zero)
+        view.target = context.coordinator; view.action = #selector(Coordinator.changed(_:))
+        view.isBordered = true
+        return view
+    }
+    func updateNSView(_ view: Well, context: Context) {
+        context.coordinator.binding = $hex
+        if SavedRGBSettings.hex(view.color) != hex { view.color = SavedRGBSettings.color(hex) }
+    }
+    static func dismantleNSView(_ view: Well, coordinator: Coordinator) { view.deactivate() }
 }

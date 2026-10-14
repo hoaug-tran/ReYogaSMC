@@ -597,10 +597,20 @@ bool IdeaVPC::updateBattery(bool update) {
     setProperty("BatteryModeRaw", state, 32);
     rapidChargeCap = (state & BIT(BM_RAPIDCHARGE_CAP)) != 0;
     if (!rapidChargeCap) setProperty(rapidChargePrompt, "firmware-gated: QCBX=0");
-    conservationMode = BIT(BM0_CONSERVATION_BIT) & state;
+    UInt32 conservationMask = BIT(BM0_CONSERVATION_BIT), rapidMask = BIT(BM_RAPIDCHARGE_BIT);
+    UInt32 mappedConservation = 0, mappedRapid = 0;
+    const bool mapped = ec && ec->validateObject("RYCM") == kIOReturnSuccess && ec->validateObject("RYRM") == kIOReturnSuccess &&
+        ec->evaluateInteger("RYCM", &mappedConservation) == kIOReturnSuccess &&
+        ec->evaluateInteger("RYRM", &mappedRapid) == kIOReturnSuccess && mappedConservation && mappedRapid &&
+        !(mappedConservation & (mappedConservation-1)) && !(mappedRapid & (mappedRapid-1)) && !(mappedConservation & mappedRapid);
+    if (mapped) { conservationMask = mappedConservation; rapidMask = mappedRapid; }
+    setProperty("BatteryStateSchemaVersion", mapped ? 2 : 1, 32);
+    setProperty("ConservationStateMask", conservationMask, 32);
+    setProperty("RapidChargeStateMask", rapidMask, 32);
+    conservationMode = (conservationMask & state) != 0;
     setProperty(conservationPrompt, conservationMode);
     if (rapidChargeCap) {
-        rapidChargeMode = BIT(BM_RAPIDCHARGE_BIT) & state;
+        rapidChargeMode = (rapidMask & state) != 0;
         setProperty(rapidChargePrompt, rapidChargeMode);
     }
 
