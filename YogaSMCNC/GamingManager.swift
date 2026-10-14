@@ -247,9 +247,6 @@ public final class GamingManager: ObservableObject {
                     backend: "Unavailable")
             }
         }
-        if let raw = props["BatteryModeRaw"] as? UInt32, raw & (1 << 17) != 0, availability["RapidChargeMode"]?.available != true {
-            availability["RapidChargeMode"] = HardwareFeatureStatus(available: false, reason: "Firmware supports Rapid Charge. Boot the corrected driver to enable it.", backend: "ACPI")
-        }
         if (props["ACPIBridgeVersion"] as? Int ?? 0) < 2 {
             for key in ["FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"] {
                 availability[key] = HardwareFeatureStatus(available: false, reason: "Fan minimums require the corrected ReYogaSMC driver and ACPI bridge v2. Replace the old SSDT and reboot.", backend: "ACPI profile")
@@ -270,13 +267,13 @@ public final class GamingManager: ObservableObject {
         if let profile = HardwareProfiles.all().first(where: { $0["id"] as? String == props["HardwareProfile"] as? String }),
            let conservationMask = profile["battery_conservation_mask"] as? Int,
            let rapidMask = profile["battery_rapidcharge_mask"] as? Int,
-           (props["BatteryStateSchemaVersion"] as? Int ?? 0) < 2 {
+           (props["BatteryStateSchemaVersion"] as? Int ?? 0) < 3 {
             if let raw = props["BatteryModeRaw"] as? Int {
                 publish(\.isConservationOn, raw & conservationMask != 0)
                 publish(\.isRapidChargeOn, raw & rapidMask != 0)
             }
             for key in ["ConservationMode", "RapidChargeMode"] {
-                availability[key] = HardwareFeatureStatus(available: false, reason: "Boot the updated kext and SSDT to use the corrected battery-state mapping", backend: "ACPI profile")
+                availability[key] = HardwareFeatureStatus(available: false, reason: "Boot the updated kext and SSDT to use the corrected battery state and command mapping", backend: "ACPI profile")
             }
         }
         if availability != featureStatus {

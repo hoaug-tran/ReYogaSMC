@@ -24,6 +24,28 @@ class HardwareSupportTests(unittest.TestCase):
             self.assertEqual(bool(raw & profile['battery_rapidcharge_mask']), rapid)
         self.assertEqual(profile['battery_conservation_mask'] & profile['battery_rapidcharge_mask'], 0)
 
+    def test_battery_commands_change_the_same_state_that_is_read(self):
+        profile = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text())
+        # SBMC semantics from reviewed GKCN DSDT. Enabling conservation clears BTSM.
+        def sbmc(command, qcho, btsm):
+            if command == 3: btsm = True
+            elif command == 5: btsm = False
+            elif command == 7: qcho, btsm = True, False
+            elif command == 8: qcho = False
+            else: self.fail('Unreviewed battery command')
+            return (4 if qcho else 0) | (32 if btsm else 0)
+        for mode, mask, initial in [('conservation', 4, (False, True)), ('rapidcharge', 32, (False, False))]:
+            enabled = sbmc(profile[f'battery_{mode}_on'], *initial)
+            self.assertTrue(enabled & mask)
+            disabled = sbmc(profile[f'battery_{mode}_off'], bool(enabled & 4), bool(enabled & 32))
+            self.assertFalse(disabled & mask)
+        self.assertFalse(sbmc(profile['battery_conservation_on'], False, True) & 32)
+        self.assertEqual(profile['battery_conservation_capability_mask'], 1 << 17)
+        self.assertEqual(profile['battery_rapidcharge_capability_mask'], 0)
+        bridge = support.render(profile)
+        for method, key in [('RYCO', 'conservation_on'), ('RYCF', 'conservation_off'), ('RYRO', 'rapidcharge_on'), ('RYRF', 'rapidcharge_off')]:
+            self.assertIn(f'Method ({method}, 0, Serialized) {{ Return ({profile["battery_" + key]}) }}', bridge)
+
     def test_unrelated_firmware_table_is_not_exported(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = pathlib.Path(tmp) / 'MSDM.aml'

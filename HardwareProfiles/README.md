@@ -39,3 +39,6 @@ Hotkey mappings require a known matching profile, physical Fn identity where app
 Attach the tool export to a device-support issue first. The report includes static fields and bit offsets, literal operation-region addresses, WMI GUIDs and Windows class/method metadata where available. These are declarations, not proof that writing a field is safe. Dynamic expressions, namespace aliases, banked/indexed fields and firmware-controlled units require manual review.
 
 Do not add a write-enabled profile from a guessed register map. Follow CONTRIBUTING.md for the required hardware evidence and test matrix.
+
+Battery profiles include separate read masks and SBMC on/off commands for each charge mode. Supply all four command values from the reviewed firmware; masks alone do not define setter behavior.
+Capability masks are independent for each mode; zero means the reviewed setter has no capability-bit gate.

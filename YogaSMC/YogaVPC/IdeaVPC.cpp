@@ -596,7 +596,7 @@ bool IdeaVPC::updateBattery(bool update) {
 
     setProperty("BatteryModeRaw", state, 32);
     rapidChargeCap = (state & BIT(BM_RAPIDCHARGE_CAP)) != 0;
-    if (!rapidChargeCap) setProperty(rapidChargePrompt, "firmware-gated: QCBX=0");
+
     UInt32 conservationMask = BIT(BM0_CONSERVATION_BIT), rapidMask = BIT(BM_RAPIDCHARGE_BIT);
     UInt32 mappedConservation = 0, mappedRapid = 0;
     const bool mapped = ec && ec->validateObject("RYCM") == kIOReturnSuccess && ec->validateObject("RYRM") == kIOReturnSuccess &&
@@ -604,7 +604,25 @@ bool IdeaVPC::updateBattery(bool update) {
         ec->evaluateInteger("RYRM", &mappedRapid) == kIOReturnSuccess && mappedConservation && mappedRapid &&
         !(mappedConservation & (mappedConservation-1)) && !(mappedRapid & (mappedRapid-1)) && !(mappedConservation & mappedRapid);
     if (mapped) { conservationMask = mappedConservation; rapidMask = mappedRapid; }
-    setProperty("BatteryStateSchemaVersion", mapped ? 2 : 1, 32);
+    UInt32 commands[4] = {};
+    const char *commandMethods[] = {"RYCO", "RYCF", "RYRO", "RYRF"};
+    bool mappedCommands = mapped;
+    for (unsigned i = 0; i < 4 && mappedCommands; ++i) {
+        mappedCommands = ec->validateObject(commandMethods[i]) == kIOReturnSuccess &&
+            ec->evaluateInteger(commandMethods[i], &commands[i]) == kIOReturnSuccess &&
+            commands[i] > 0 && commands[i] <= 0xFF;
+        for (unsigned j = 0; j < i; ++j) if (commands[i] == commands[j]) mappedCommands = false;
+    }
+    UInt32 conservationCapMask = 0, rapidCapMask = 0;
+    mappedCommands = mappedCommands && ec->validateObject("RYQC") == kIOReturnSuccess &&
+        ec->validateObject("RYQR") == kIOReturnSuccess &&
+        ec->evaluateInteger("RYQC", &conservationCapMask) == kIOReturnSuccess &&
+        ec->evaluateInteger("RYQR", &rapidCapMask) == kIOReturnSuccess;
+    if (mappedCommands) rapidChargeCap = !rapidCapMask || (state & rapidCapMask) != 0;
+    const bool conservationCap = !mappedCommands || !conservationCapMask || (state & conservationCapMask) != 0;
+    setProperty("ConservationCapability", conservationCap);
+    setProperty("RapidChargeCapability", rapidChargeCap);
+    setProperty("BatteryStateSchemaVersion", mappedCommands ? 3 : (mapped ? 2 : 1), 32);
     setProperty("ConservationStateMask", conservationMask, 32);
     setProperty("RapidChargeStateMask", rapidMask, 32);
     conservationMode = (conservationMask & state) != 0;
@@ -714,7 +732,15 @@ bool IdeaVPC::toggleConservation() {
     if (!conservationMode && rapidChargeMode && !toggleRapidCharge())
         return false;
     UInt32 firmwareResult = 0;
-    IOReturn ret = evaluateIntegerParam(setBatteryMode, &firmwareResult, conservationMode ? BMCMD0_CONSERVATION_OFF : BMCMD0_CONSERVATION_ON);
+    UInt32 command = conservationMode ? BMCMD0_CONSERVATION_OFF : BMCMD0_CONSERVATION_ON;
+    auto schema = OSDynamicCast(OSNumber, getProperty("BatteryStateSchemaVersion"));
+    if (schema && schema->unsigned32BitValue() >= 2) {
+        if (schema->unsigned32BitValue() < 3 || !ec ||
+            ec->evaluateInteger(conservationMode ? "RYCF" : "RYCO", &command) != kIOReturnSuccess) return false;
+    }
+    setProperty("BatteryCommand", command, 32);
+    IOReturn ret = evaluateIntegerParam(setBatteryMode, &firmwareResult, command);
+    setProperty("BatteryCommandResult", firmwareResult, 32);
     if (ret != kIOReturnSuccess || firmwareResult != 0) {
         AlwaysLog("SBMC firmware status=0x%x", firmwareResult);
         AlwaysLog(toggleError, conservationPrompt, ret);
@@ -737,7 +763,15 @@ bool IdeaVPC::toggleRapidCharge() {
     if (!rapidChargeMode && conservationMode && !toggleConservation())
         return false;
     UInt32 firmwareResult = 0;
-    IOReturn ret = evaluateIntegerParam(setBatteryMode, &firmwareResult, rapidChargeMode ? BMCMD0_RAPIDCHARGE_OFF : BMCMD0_RAPIDCHARGE_ON);
+    UInt32 command = rapidChargeMode ? BMCMD0_RAPIDCHARGE_OFF : BMCMD0_RAPIDCHARGE_ON;
+    auto schema = OSDynamicCast(OSNumber, getProperty("BatteryStateSchemaVersion"));
+    if (schema && schema->unsigned32BitValue() >= 2) {
+        if (schema->unsigned32BitValue() < 3 || !ec ||
+            ec->evaluateInteger(rapidChargeMode ? "RYRF" : "RYRO", &command) != kIOReturnSuccess) return false;
+    }
+    setProperty("BatteryCommand", command, 32);
+    IOReturn ret = evaluateIntegerParam(setBatteryMode, &firmwareResult, command);
+    setProperty("BatteryCommandResult", firmwareResult, 32);
     if (ret != kIOReturnSuccess || firmwareResult != 0) {
         AlwaysLog("SBMC firmware status=0x%x", firmwareResult);
         AlwaysLog(toggleError, rapidChargePrompt, ret);
@@ -1117,9 +1151,13 @@ void IdeaVPC::updateFeatureStatus() {
     };
     const bool battery = vpc->validateObject(getBatteryMode) == kIOReturnSuccess &&
                          vpc->validateObject(setBatteryMode) == kIOReturnSuccess;
-    add(conservationPrompt, battery, battery ? "" : "ACPI GBMD/SBMC missing", "ACPI");
-    add(rapidChargePrompt, battery && rapidChargeCap,
-        rapidChargeCap ? "" : "GBMD bit 17 (EC QCBX) is clear; SBMC(7/8) is firmware-gated", "ACPI");
+    auto schema = OSDynamicCast(OSNumber, getProperty("BatteryStateSchemaVersion"));
+    const bool mappingReady = !schema || schema->unsigned32BitValue() != 2;
+    const bool conservationCap = getProperty("ConservationCapability") != kOSBooleanFalse;
+    add(conservationPrompt, battery && mappingReady && conservationCap,
+        !mappingReady ? "Battery setter mapping requires the updated SSDT" : !conservationCap ? "Firmware conservation capability is clear" : battery ? "" : "ACPI GBMD/SBMC missing", "ACPI");
+    add(rapidChargePrompt, battery && mappingReady && rapidChargeCap,
+        !mappingReady ? "Battery setter mapping requires the updated SSDT" : rapidChargeCap ? "" : "Battery charge-mode capability is clear in GBMD", "ACPI");
     add(alwaysOnUSBStatePrompt, alwaysOnUSBCap, alwaysOnUSBCap ? "" : "HALS Always-On USB capability is clear", "ACPI");
     add(FnKeyPrompt, FnlockCap, FnlockCap ? "" : "HALS Fn Lock capability is clear", "ACPI");
     add(backlightPrompt, backlightCap, backlightCap ? "" : "ACPI backlight unavailable; RGB may use USB HID", "ACPI");
@@ -1141,6 +1179,10 @@ void IdeaVPC::updateFeatureStatus() {
     wmi(winKeyPrompt, GAME_ZONE_WMI_CAP_WIN_KEY, GAME_ZONE_WMI_GET_WIN_KEY);
     wmi(touchpadLockPrompt, GAME_ZONE_WMI_CAP_TOUCHPAD, GAME_ZONE_WMI_GET_TOUCHPAD);
     bool state = false;
+    UInt32 coolingCapability = 0;
+    if (wmig && wmig->getGamzeZoneData(GAME_ZONE_WMI_CAP_FAN_COOLING, &coolingCapability))
+        setProperty("FanCoolingCapability", coolingCapability, 32);
+    else removeProperty("FanCoolingCapability");
     bool ok = wmig && wmig->getFanFullSpeed(&state);
     add(fullFanPrompt, ok, ok ? "" : "Fan full-speed getter failed or interface missing", "WMI Fan");
     if (ok) setProperty(fullFanPrompt, state);
@@ -1410,6 +1452,12 @@ void IdeaVPC::controlRequest(OSDictionary *request) {
         ret == kIOReturnUnsupported || ret == kIOReturnBadArgument ? "validation" : "firmware");
     if (!strcmp(key->getCStringNoCopy(), fullFanPrompt)) {
         if (auto backend = getProperty("FanFullSpeedCommandBackend")) result->setObject("Backend", backend);
+        if (auto raw = getProperty("FanFullSpeedRaw")) result->setObject("FirmwareStateRaw", raw);
+        if (auto capability = getProperty("FanCoolingCapability")) result->setObject("CoolingCapability", capability);
+        if (readbackPending) {
+            setPropertyString(result, "Code", "fan_state_unchanged");
+            setPropertyString(result, "Reason", "The vendor command completed, but the firmware full-speed flag did not change. EC return 0 only means no command-port timeout; it does not confirm fan activation.");
+        }
         if (auto ecStatus = OSDynamicCast(OSNumber, getProperty("FanFullSpeedECResult"))) {
             result->setObject("ECResult", ecStatus);
             if (ecStatus->unsigned32BitValue() != 0) {
@@ -1418,6 +1466,11 @@ void IdeaVPC::controlRequest(OSDictionary *request) {
                 setPropertyString(result, "Reason", "The vendor EC command returned an error; no full-speed state was confirmed");
             }
         }
+    }
+    if (!strcmp(key->getCStringNoCopy(), conservationPrompt) || !strcmp(key->getCStringNoCopy(), rapidChargePrompt)) {
+        if (auto command = getProperty("BatteryCommand")) result->setObject("BatteryCommand", command);
+        if (auto status = getProperty("BatteryCommandResult")) result->setObject("BatteryCommandResult", status);
+        if (auto raw = getProperty("BatteryModeRaw")) result->setObject("BatteryModeRaw", raw);
     }
     if (ret == kIOReturnUnsupported) {
         auto flags = OSDynamicCast(OSDictionary, getProperty("FeatureStatus"));

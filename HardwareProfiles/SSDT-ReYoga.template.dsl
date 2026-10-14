@@ -47,6 +47,12 @@ DefinitionBlock ("", "SSDT", 2, "REYOGA", "RYLG", 0x00000001)
         Method (RYLO, 0, Serialized) { Return ({{lighting_owner_field}}) }
         Method (RYCM, 0, Serialized) { Return ({{battery_conservation_mask}}) }
         Method (RYRM, 0, Serialized) { Return ({{battery_rapidcharge_mask}}) }
+        Method (RYQC, 0, Serialized) { Return ({{battery_conservation_capability_mask}}) }
+        Method (RYQR, 0, Serialized) { Return ({{battery_rapidcharge_capability_mask}}) }
+        Method (RYCO, 0, Serialized) { Return ({{battery_conservation_on}}) }
+        Method (RYCF, 0, Serialized) { Return ({{battery_conservation_off}}) }
+        Method (RYRO, 0, Serialized) { Return ({{battery_rapidcharge_on}}) }
+        Method (RYRF, 0, Serialized) { Return ({{battery_rapidcharge_off}}) }
         Method (RYVW, 0, Serialized) { Return ({{verified_writes}}) }
         Method (RYID, 0, Serialized) { Return (0x52590102) }
         Method (RYPN, 0, Serialized) { Return ("{{id}}") }

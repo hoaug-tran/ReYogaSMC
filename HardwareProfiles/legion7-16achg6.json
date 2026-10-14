@@ -61,5 +61,11 @@
   "fan_fullspeed_off": "0x76",
   "lighting_owner_field": "LCON",
   "battery_conservation_mask": 4,
-  "battery_rapidcharge_mask": 32
+  "battery_rapidcharge_mask": 32,
+  "battery_conservation_on": 7,
+  "battery_conservation_off": 8,
+  "battery_rapidcharge_on": 3,
+  "battery_rapidcharge_off": 5,
+  "battery_conservation_capability_mask": 131072,
+  "battery_rapidcharge_capability_mask": 0
 }

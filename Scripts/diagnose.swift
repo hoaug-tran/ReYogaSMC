@@ -2,7 +2,7 @@ import Foundation
 import IOKit
 
 let keys = [
-    "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask",
+    "ConservationCapability", "RapidChargeCapability", "BatteryCommand", "BatteryCommandResult", "FanCoolingCapability", "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask",
     "VersionInfo", "ForkName", "HardwareProfile", "HardwareProfileName",
     "ControlProtocolVersion", "DiagnosticSchemaVersion", "ACPIBridgeVersion",
     "FeatureStatus", "SensorStatus", "SensorSampleSequence", "SensorSampleTimeMS",
@@ -15,6 +15,12 @@ let keys = [
     "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage",
     "PortLighting", "PortLightingRawState", "PortLightingRawBrightness"
 ]
+func jsonValue(_ value: Any) -> Any {
+    if let data = value as? Data { return ["encoding": "base64", "data": data.base64EncodedString()] }
+    if let dict = value as? [String: Any] { return dict.mapValues(jsonValue) }
+    if let array = value as? [Any] { return array.map(jsonValue) }
+    return value
+}
 let arguments = Array(CommandLine.arguments.dropFirst())
 if !arguments.isEmpty && (arguments.count != 2 || arguments[0] != "--output") {
     fputs("Usage: swift Scripts/diagnose.swift [--output report.json]\n", stderr)
@@ -45,7 +51,7 @@ if service == 0 {
     report["driver"] = ["status": "connected", "samples": samples]
 }
 do {
-    let data = try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
+    let data = try JSONSerialization.data(withJSONObject: jsonValue(report), options: [.prettyPrinted, .sortedKeys])
     if arguments.count == 2 {
         let path = URL(fileURLWithPath: arguments[1])
         guard !FileManager.default.fileExists(atPath: path.path) else {
