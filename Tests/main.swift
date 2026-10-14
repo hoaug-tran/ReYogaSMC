@@ -31,8 +31,9 @@ rejects("oversized packet count") { _ = try LegionRGBController.reports(profile:
 corrupt = rgb; corrupt["reportID"] = 256
 rejects("invalid report ID") { _ = try LegionRGBController.reports(profile: corrupt, bank: 1, colors: colors) }
 rejects("unknown DSDT") { _ = try HardwareProfiles.matchingDSDT("DefinitionBlock (\"\", \"DSDT\", 2, \"UNKNOWN\", \"UNKNOWN\", 1) {}") }
-if CommandLine.arguments.count > 1 {
-    let source = try String(contentsOfFile: CommandLine.arguments[1])
+let inputPaths = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("--") }
+if !inputPaths.isEmpty {
+    let source = try String(contentsOfFile: inputPaths[0], encoding: .utf8)
     let match = try HardwareProfiles.matchingDSDT(source)
     require(match["id"] as? String == "legion7-16achg6-gkcn", "Wrong reviewed profile")
     let rendered = try HardwareProfiles.render(match)
@@ -45,8 +46,8 @@ if CommandLine.arguments.count > 1 {
 }
 rejects("truncated AML") { _ = try HardwareProfiles.matchingAML(Data("DSDT".utf8)) }
 rejects("unreviewed AML") { _ = try HardwareProfiles.matchingAML(Data("DSDT".utf8) + Data(repeating: 0, count: 64)) }
-if CommandLine.arguments.count > 2, CommandLine.arguments[2] != "--probe-rgb" {
-    let table = try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2]))
+if inputPaths.count > 1 {
+    let table = try Data(contentsOf: URL(fileURLWithPath: inputPaths[1]))
     let profile = try HardwareProfiles.matchingAML(table)
     require(profile["id"] as? String == "legion7-16achg6-gkcn", "Wrong binary DSDT profile")
     print("PASS raw DSDT hash and live-export profile contract")
@@ -83,6 +84,8 @@ require(SMCTemperatureReader.decodeTemperature(type: "sp78", bytes: [255, 0]) ==
 require(SMCTemperatureReader.decodeTemperature(type: "ui16", bytes: [80, 0]) == nil, "Unknown SMC encoding accepted")
 if CommandLine.arguments.contains("--probe-smc") {
     let reader = SMCTemperatureReader()
+    if let reading = reader.cpuTemperature() { print("LIVE SMC CPU:", reading.celsius, reading.source) }
+    else { print("LIVE SMC CPU unavailable:", reader.cpuReason) }
     if let reading = reader.gpuTemperature() { print("LIVE SMC GPU:", reading.celsius, reading.source) }
     else { print("LIVE SMC GPU unavailable:", reader.reason) }
 }
@@ -109,3 +112,27 @@ require(!invalidColors.isValid, "Unknown preference schema must not be replayed"
 let menuGlyph = ReYogaBrand.menuImage()
 require(menuGlyph.isTemplate && menuGlyph.size == NSSize(width: 18, height: 18), "Menu glyph must follow macOS template rendering")
 print("PASS persistent RGB, reset semantics, hardware isolation and template glyph")
+
+let conservedBattery = LiveBatterySnapshot(properties: ["AppleRawCurrentCapacity": 4694, "AppleRawMaxCapacity": 4694,
+    "ExternalConnected": true, "IsCharging": false, "InstantAmperage": 0])
+require(conservedBattery.percent == 100, "Conservation must not relabel full capacity as a lower percentage")
+require(conservedBattery.summary.contains("Not charging") && conservedBattery.summary.contains("0 mA"), "Battery charge state missing")
+require(LiveBatterySnapshot(properties: [:]).percent == nil, "Missing battery capacity treated as a percentage")
+require(LiveBatterySnapshot(properties: ["CurrentCapacity": 10, "MaxCapacity": 0]).percent == nil, "Zero battery maximum accepted")
+require(LiveBatterySnapshot(properties: ["Amperage": -900]).summary.contains("Discharging"), "Negative current not reported as discharge")
+for visible in [NSRect(x: 0, y: 0, width: 1440, height: 875), NSRect(x: -1920, y: 100, width: 1920, height: 1080)] {
+    for owner in [NSRect(x: visible.minX, y: visible.maxY-640, width: 420, height: 640),
+                  NSRect(x: visible.maxX-420, y: visible.maxY-640, width: 420, height: 640)] {
+        let size = NSSize(width: 260, height: 400)
+        let origin = ColorPanelPlacement.origin(panelSize: size, anchor: owner.insetBy(dx: 12, dy: 20), owner: owner, visible: visible)
+        require(visible.contains(NSRect(origin: origin, size: size)), "Color panel escaped the popover's display")
+        require(!owner.intersects(NSRect(origin: origin, size: size)), "Color panel obscures controls despite available side space")
+    }
+}
+print("PASS battery status and anchored color panel placement across displays")
+
+require(LiveBatterySnapshot(properties: ["AppleRawCurrentCapacity": 4694, "CurrentCapacity": 47, "MaxCapacity": 100]).percent == 47,
+        "Mixed raw mAh and percentage-based battery units")
+
+require(SMCTemperatureReader.cpuTemperatureKeys(available: ["TC0G", "TC0E", "TC0P", "TCGC"], amd: true) == ["TC0E", "TC0P"],
+        "CPU reader selected a placeholder or firmware GPU key")

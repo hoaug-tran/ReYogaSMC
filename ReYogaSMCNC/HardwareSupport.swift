@@ -497,9 +497,34 @@ final class SMCTemperatureReader {
     struct Reading { let celsius: Double; let key: String; let source: String }
     private var connection: io_connect_t = 0
     private var keys: [String] = []
+    private var cpuKeys: [String] = []
+    private var cpuProvider = "SMC"
+    private var gpuProvider = "SMC"
+    private var discovered = false
     private var info: [String: (size: Int, type: String)] = [:]
     private var nextDiscovery = Date.distantPast
     private(set) var reason = "SMC discovery pending"
+    private(set) var cpuReason = "SMC discovery pending"
+    private func providerExists(_ name: String) -> Bool {
+        let service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching(name))
+        if service != 0 { IOObjectRelease(service); return true }
+        let resources = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOResources"))
+        guard resources != 0 else { return false }
+        defer { IOObjectRelease(resources) }
+        var iterator: io_iterator_t = 0
+        guard IORegistryEntryGetChildIterator(resources, kIOServicePlane, &iterator) == kIOReturnSuccess else { return false }
+        defer { IOObjectRelease(iterator) }
+        while case let child = IOIteratorNext(iterator), child != 0 {
+            let matches = IOObjectConformsTo(child, name)
+            IOObjectRelease(child)
+            if matches != 0 { return true }
+        }
+        return false
+    }
+    static func cpuTemperatureKeys(available: [String], amd: Bool) -> [String] {
+        let order = amd ? ["TC0E", "TC0F", "TC0P", "TC0T"] : ["TC0P", "TC0D", "TC0E", "TC0F", "TC0T"]
+        return order.filter { available.contains($0) }
+    }
     private func uint32(_ data: [UInt8], _ offset: Int) -> UInt32 {
         (0..<4).reduce(0) { $0 | UInt32(data[offset + $1]) << UInt32($1 * 8) }
     }
@@ -557,29 +582,37 @@ final class SMCTemperatureReader {
         let count = countData.reduce(UInt32(0)) { ($0 << 8) | UInt32($1) }
         guard count > 0, count <= 4096 else { throw SupportError.message("SMC key count exceeds discovery limit") }
         keys = []
+        var available: [String] = []
         for index in 0..<count {
             let key = string(uint32(try call(command: 8, index: index), 0))
+            available.append(key)
             if key.range(of: "^TG[0-9A-F][DP]$", options: .regularExpression) != nil { keys.append(key) }
         }
         keys.sort()
         // Multiple GPU indices need an explicit identity association. Never
         // silently label the first GPU as the active iGPU on a multi-GPU host.
-        guard Set(keys.filter { $0 != "TGDD" }.map { Array($0)[2] }).count <= 1 else {
-            throw SupportError.message("Multiple SMC GPUs found; sensor identity needs a reviewed mapping")
-        }
-        reason = keys.isEmpty ? "No GPU temperature keys published by the SMC plugins" : "GPU temperature keys discovered"
+        let amd = providerExists("SMCProcessorAMD")
+        cpuProvider = amd ? "SMCProcessorAMD" : "SMC"
+        gpuProvider = providerExists("SMCRadeonSensors") ? "SMCRadeonSensors" : "SMC"
+        cpuKeys = Self.cpuTemperatureKeys(available: available, amd: amd)
+        if Set(keys.filter { $0 != "TGDD" }.map { Array($0)[2] }).count > 1 {
+            keys = []
+            reason = "Multiple SMC GPUs found; sensor identity needs a reviewed mapping"
+        } else { reason = keys.isEmpty ? "No GPU temperature keys published by the SMC plugins" : "GPU temperature keys discovered" }
+        cpuReason = cpuKeys.isEmpty ? "No CPU temperature keys published by the SMC plugins" : "CPU temperature keys discovered"
+        discovered = true
     }
     func gpuTemperature() -> Reading? {
         do {
-            if keys.isEmpty && Date() >= nextDiscovery {
+            if (!discovered || cpuKeys.isEmpty || keys.isEmpty) && Date() >= nextDiscovery {
                 nextDiscovery = Date().addingTimeInterval(30)
                 try discover()
             }
             for key in keys {
                 let value = try read(key)
                 if let temperature = Self.decodeTemperature(type: value.0, bytes: value.1) {
-                    reason = "Reading \(key) from AppleSMC"
-                    return Reading(celsius: temperature, key: key, source: "AppleSMC / \(key); physical GPU identity unverified")
+                    reason = "Reading \(key) published by \(gpuProvider)"
+                    return Reading(celsius: temperature, key: key, source: "\(gpuProvider) / \(key)")
                 }
             }
             if !keys.isEmpty { reason = "GPU SMC sensor returned zero, an invalid value or an unsupported encoding" }
@@ -589,9 +622,74 @@ final class SMCTemperatureReader {
         }
         return nil
     }
+    func cpuTemperature() -> Reading? {
+        do {
+            if (!discovered || cpuKeys.isEmpty || keys.isEmpty) && Date() >= nextDiscovery {
+                nextDiscovery = Date().addingTimeInterval(30)
+                try discover()
+            }
+            for key in cpuKeys {
+                let value = try read(key)
+                if let temperature = Self.decodeTemperature(type: value.0, bytes: value.1) {
+                    cpuReason = "Reading \(key) published by \(cpuProvider)"
+                    return Reading(celsius: temperature, key: key, source: "\(cpuProvider) / \(key)")
+                }
+            }
+            if !cpuKeys.isEmpty { cpuReason = "CPU SMC sensor returned an invalid value or unsupported encoding" }
+        } catch {
+            cpuReason = error.localizedDescription
+            close(); nextDiscovery = Date().addingTimeInterval(30)
+        }
+        return nil
+    }
     func close() {
         if connection != 0 { IOServiceClose(connection) }
-        connection = 0; keys = []; info = [:]
+        connection = 0; keys = []; cpuKeys = []; info = [:]; discovered = false
     }
     deinit { close() }
+}
+
+struct LiveBatterySnapshot: Equatable {
+    let percent: Int?
+    let externalPower: Bool?
+    let charging: Bool?
+    let milliamps: Int?
+
+    init(properties: [String: Any]) {
+        let rawCurrent = properties["AppleRawCurrentCapacity"] as? NSNumber
+        let rawMaximum = properties["AppleRawMaxCapacity"] as? NSNumber
+        let useRaw = rawCurrent != nil && rawMaximum != nil
+        let current = useRaw ? rawCurrent : properties["CurrentCapacity"] as? NSNumber
+        let maximum = useRaw ? rawMaximum : properties["MaxCapacity"] as? NSNumber
+        if let current = current?.doubleValue, let maximum = maximum?.doubleValue,
+           current.isFinite, maximum.isFinite, current >= 0, maximum > 0 {
+            percent = Int(min(100, max(0, (current / maximum * 100).rounded())))
+        } else { percent = nil }
+        externalPower = properties["ExternalConnected"] as? Bool
+        charging = properties["IsCharging"] as? Bool
+        let currentValue = (properties["InstantAmperage"] as? NSNumber) ?? (properties["Amperage"] as? NSNumber)
+        if let value = currentValue?.int64Value, (-100_000...100_000).contains(value) { milliamps = Int(value) }
+        else { milliamps = nil }
+    }
+
+    var summary: String {
+        var parts: [String] = []
+        if let percent = percent { parts.append("\(percent)%") }
+        if let external = externalPower { parts.append(external ? "AC power" : "Battery power") }
+        if charging == true { parts.append("Charging") }
+        else if let milliamps = milliamps, milliamps < 0 { parts.append("Discharging") }
+        else if charging == false && externalPower == true { parts.append("Not charging") }
+        if let milliamps = milliamps { parts.append("\(milliamps) mA") }
+        return parts.joined(separator: " · ")
+    }
+
+    static func read() -> LiveBatterySnapshot? {
+        let service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("AppleSmartBattery"))
+        guard service != 0 else { return nil }
+        defer { IOObjectRelease(service) }
+        var values: Unmanaged<CFMutableDictionary>?
+        guard IORegistryEntryCreateCFProperties(service, &values, kCFAllocatorDefault, 0) == kIOReturnSuccess,
+              let properties = values?.takeRetainedValue() as NSDictionary? as? [String: Any] else { return nil }
+        return LiveBatterySnapshot(properties: properties)
+    }
 }

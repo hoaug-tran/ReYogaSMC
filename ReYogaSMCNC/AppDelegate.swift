@@ -15,7 +15,7 @@ import ServiceManagement
 import SwiftUI
 
 @NSApplicationMain
-class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDelegate {
     let defaults = UserDefaults(suiteName: "org.reyoga.ReYogaSMC")!
     var conf = SharedConfig()
     var IOClass = "ReYogaSMC"
@@ -355,7 +355,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc func toggleGamingPopover(_ sender: AnyObject?) {
         guard let popover = gamingPopover else { return }
-        if popover.isShown { popover.performClose(sender) }
+        if popover.isShown { ReYogaColorPanel.shared.dismiss(); popover.performClose(sender) }
         else { showControlsWhenAnchored() }
     }
 
@@ -385,6 +385,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let size = NSSize(width: 420, height: 640)
         let pop = NSPopover()
         pop.behavior = .transient
+        pop.delegate = self
         pop.animates = false
         let controller = NSHostingController(rootView: GamingPopoverView(manager: GamingManager.shared))
         if #available(macOS 13.0, *) { controller.sizingOptions = [] }
@@ -405,9 +406,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    func popoverDidClose(_ notification: Notification) {
+        ReYogaColorPanel.shared.dismiss()
+    }
+
     @available(macOS 11.0, *)
     func showSettings(tab: Int = 0) {
-        NSColorPanel.shared.orderOut(nil)
+        ReYogaColorPanel.shared.dismiss()
         gamingPopover?.performClose(nil)
         ReYogaPreferences.shared.selectedTab = tab
         ReYogaPreferences.shared.refreshLoginStatus()

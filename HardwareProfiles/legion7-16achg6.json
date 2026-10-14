@@ -41,7 +41,8 @@
   "sources": [
     "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
     "https://psref.lenovo.com/syspool/Sys/PDF/Legion/Legion_7_16ACHg6/Legion_7_16ACHg6_Spec.pdf",
-    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Features/BatteryFeature.cs"
   ],
   "reviewed_dsdt_hashes": [
     "40f0b447b8ab6e4948f827b36d7a3de9184a802841ce8ce1d5a0eb389c863afb",
@@ -60,12 +61,13 @@
   "fan_fullspeed_on": "0x70",
   "fan_fullspeed_off": "0x76",
   "lighting_owner_field": "LCON",
-  "battery_conservation_mask": 4,
-  "battery_rapidcharge_mask": 32,
-  "battery_conservation_on": 7,
-  "battery_conservation_off": 8,
-  "battery_rapidcharge_on": 3,
-  "battery_rapidcharge_off": 5,
-  "battery_conservation_capability_mask": 131072,
-  "battery_rapidcharge_capability_mask": 0
+  "battery_conservation_mask": 32,
+  "battery_rapidcharge_mask": 4,
+  "battery_conservation_on": 3,
+  "battery_conservation_off": 5,
+  "battery_rapidcharge_on": 7,
+  "battery_rapidcharge_off": 8,
+  "battery_conservation_capability_mask": 0,
+  "battery_rapidcharge_capability_mask": 131072,
+  "battery_mapping_version": 4
 }

@@ -1,5 +1,11 @@
 # Releases
 
+## 2.1.1
+
+- Keep the color panel beside the controls without dismissing the popover.
+- Read CPU and GPU temperatures from installed SMC sensor providers.
+- Identify Storage and Quick Charge correctly and show live battery status.
+
 ## 2.1.0
 
 - Use ReYogaSMC source, service and bundle names, with preference migration.

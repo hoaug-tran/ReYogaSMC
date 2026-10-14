@@ -38,6 +38,10 @@ public final class GamingManager: ObservableObject {
     public enum DriverState: Equatable { case checking, ready, missing, unavailable }
     @Published public var driverState: DriverState = .checking
     @Published public var driverMessage = "Checking the hardware driver…"
+    private var cpuUsesSMC = false
+    private var gpuUsesSMC = false
+    @Published public var cpuTemperatureSource = "Firmware CPU sensor"
+    @Published public var cpuTemperatureReason = "Waiting for sensors"
     @Published public var gpuTemperatureSource = "No GPU temperature source"
     @Published public var gpuTemperatureReason = "Waiting for sensors"
     @Published public var cpuPowerModified = false
@@ -130,6 +134,7 @@ public final class GamingManager: ObservableObject {
     @Published public var applyingControl: String?
     private var queuedControls: [(String, Int, Bool, String, Bool)] = []
     @Published public var telemetryStatus = "Waiting for driver"
+    @Published public var batterySummary = ""
     @Published public var featureStatus: [String: HardwareFeatureStatus] = [:]
     @Published public var cpuBoostWatts = 0
     @Published public var cpuSustainedWatts = 0
@@ -190,14 +195,26 @@ public final class GamingManager: ObservableObject {
         hardwareQueue.async {
             if full { _ = sendBoolean("Update", true, handle) }
             let snapshot = getProperties(handle)
-            let firmwareGPU = snapshot?["GPUTemp"] as? Int ?? -1
-            let smcGPU = (1..<125).contains(firmwareGPU) ? nil : self.smcTemperatures.gpuTemperature()
-            let smcReason = (1..<125).contains(firmwareGPU) ? "Reading the firmware GPU sensor" : self.smcTemperatures.reason
+            let battery = LiveBatterySnapshot.read()
+            let smcCPU = self.smcTemperatures.cpuTemperature()
+            let smcGPU = self.smcTemperatures.gpuTemperature()
+            let cpuReason = self.smcTemperatures.cpuReason
+            let smcReason = self.smcTemperatures.reason
             IOObjectRelease(handle)
             DispatchQueue.main.async {
                 self.refreshInFlight = false
                 guard handle == self.service else { return }
                 if let snapshot = snapshot {
+                    let batteryStatus = battery?.summary ?? ""
+                    if self.batterySummary != batteryStatus {
+                        self.publish(\.batterySummary, batteryStatus)
+                        ReYogaDiagnostics.shared.record("battery_status", ["state": batteryStatus])
+                    }
+                    self.cpuUsesSMC = smcCPU != nil
+                    self.gpuUsesSMC = smcGPU != nil
+                    self.publish(\.cpuTemp, smcCPU.map { Int($0.celsius.rounded()) } ?? (snapshot["CPUTemp"] as? Int ?? -1))
+                    self.publish(\.cpuTemperatureSource, smcCPU?.source ?? "Firmware CPU sensor")
+                    self.publish(\.cpuTemperatureReason, cpuReason)
                     if let reading = smcGPU {
                         self.publish(\.gpuTemp, Int(reading.celsius.rounded()))
                         self.publish(\.gpuTemperatureSource, reading.source)
@@ -263,16 +280,21 @@ public final class GamingManager: ObservableObject {
             availability["YLogoStatus"] = HardwareFeatureStatus(available: true,
                 reason: "USB transmission only; the device does not report the physical LED state", backend: "USB HID")
         }
-        if let profile = HardwareProfiles.all().first(where: { $0["id"] as? String == props["HardwareProfile"] as? String }),
-           let conservationMask = profile["battery_conservation_mask"] as? Int,
-           let rapidMask = profile["battery_rapidcharge_mask"] as? Int,
-           (props["BatteryStateSchemaVersion"] as? Int ?? 0) < 3 {
+        let batteryProfile = HardwareProfiles.all().first { $0["id"] as? String == props["HardwareProfile"] as? String }
+        let conservationMask = batteryProfile?["battery_conservation_mask"] as? Int
+        let rapidMask = batteryProfile?["battery_rapidcharge_mask"] as? Int
+        if let conservationMask = conservationMask, let rapidMask = rapidMask {
             if let raw = props["BatteryModeRaw"] as? Int {
                 publish(\.isConservationOn, raw & conservationMask != 0)
                 publish(\.isRapidChargeOn, raw & rapidMask != 0)
             }
-            for key in ["ConservationMode", "RapidChargeMode"] {
-                availability[key] = HardwareFeatureStatus(available: false, reason: "Boot the updated kext and SSDT to use the corrected battery state and command mapping", backend: "ACPI profile")
+            let mappingMatches = (props["BatteryStateSchemaVersion"] as? Int ?? 0) >= 4 &&
+                props["ConservationStateMask"] as? Int == conservationMask && props["RapidChargeStateMask"] as? Int == rapidMask
+            if !mappingMatches {
+                for key in ["ConservationMode", "RapidChargeMode"] {
+                    availability[key] = HardwareFeatureStatus(available: false,
+                        reason: "Boot the updated kext and SSDT to use the Storage/Quick charge mapping", backend: "ACPI profile")
+                }
             }
         }
         if availability != featureStatus {
@@ -293,8 +315,8 @@ public final class GamingManager: ObservableObject {
         publish(\.hasDualFan, number("Fan number") >= 2 || props["Fan2RPM"] != nil)
         publish(\.fan1RPM, number("Fan1RPM"))
         publish(\.fan2RPM, number("Fan2RPM"))
-        publish(\.cpuTemp, number("CPUTemp"))
-        if !gpuTemperatureSource.hasPrefix("AppleSMC") {
+        if !cpuUsesSMC { publish(\.cpuTemp, number("CPUTemp")) }
+        if !gpuUsesSMC {
             publish(\.gpuTemp, number("GPUTemp"))
             publish(\.gpuTemperatureSource, number("GPUTemp") > 0 ? "Firmware GPU sensor" : "No GPU temperature source")
         }
@@ -310,7 +332,7 @@ public final class GamingManager: ObservableObject {
                 showOSDRaw(message, duration: 4000)
             }
         }
-        if (props["BatteryStateSchemaVersion"] as? Int ?? 0) >= 2 || HardwareProfiles.all().first(where: { $0["id"] as? String == props["HardwareProfile"] as? String })?["battery_conservation_mask"] == nil {
+        if conservationMask == nil || rapidMask == nil {
             publish(\.isConservationOn, boolean("ConservationMode"))
             publish(\.isRapidChargeOn, boolean("RapidChargeMode"))
         }
@@ -339,6 +361,7 @@ public final class GamingManager: ObservableObject {
             if detailedLogging {
                 ReYogaDiagnostics.shared.record("telemetry", ["sequence": sequence, "fan1RPM": fan1RPM,
                     "fan2RPM": fan2RPM, "cpuC": cpuTemp, "gpuC": gpuTemp,
+                    "cpuSource": cpuTemperatureSource, "cpuReason": cpuTemperatureReason,
                     "gpuSource": gpuTemperatureSource, "gpuReason": gpuTemperatureReason,
                     "sensorStatus": props["SensorStatus"] ?? [:]])
             }
@@ -347,7 +370,7 @@ public final class GamingManager: ObservableObject {
             Date().timeIntervalSince(lastSampleDate) > 2 ? "Telemetry stale — check driver log" : "Live • \(props["TelemetryIntervalMS"] ?? 500) ms"
         if sequence >= 0 && Date().timeIntervalSince(lastSampleDate) > 2 {
             publish(\.fan1RPM, -1); publish(\.fan2RPM, -1); publish(\.cpuTemp, -1)
-            if !gpuTemperatureSource.hasPrefix("AppleSMC") { publish(\.gpuTemp, -1) }
+            if !gpuUsesSMC { publish(\.gpuTemp, -1) }
         }
         if status != telemetryStatus {
             telemetryStatus = status
@@ -563,7 +586,7 @@ public final class GamingManager: ObservableObject {
             "appVersion": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "unknown",
             "bundleID": Bundle.main.bundleIdentifier ?? "unknown", "installationPath": Bundle.main.bundlePath,
             "accessibility": AXIsProcessTrusted(), "inputMonitoring": CGPreflightListenEventAccess(),
-            "rgbReason": rgbStatus.reason, "hotkeyProfile": hotkeyProfileID, "telemetry": telemetryStatus]
+            "rgbReason": rgbStatus.reason, "hotkeyProfile": hotkeyProfileID, "telemetry": telemetryStatus, "battery": batterySummary]
         let handle = service
         if handle != 0 { IOObjectRetain(handle) }
         hardwareQueue.async {
@@ -647,7 +670,9 @@ public final class GamingManager: ObservableObject {
     func loadReadOnlyPreview(_ handle: io_service_t) {
         if let props = getProperties(handle) {
             isConnected = true; driverState = .ready; accept(props)
-            if let reading = smcTemperatures.gpuTemperature() { gpuTemp = Int(reading.celsius.rounded()); gpuTemperatureSource = reading.source }
+            if let reading = smcTemperatures.cpuTemperature() { cpuUsesSMC = true; cpuTemp = Int(reading.celsius.rounded()); cpuTemperatureSource = reading.source }
+            if let reading = smcTemperatures.gpuTemperature() { gpuUsesSMC = true; gpuTemp = Int(reading.celsius.rounded()); gpuTemperatureSource = reading.source }
+            batterySummary = LiveBatterySnapshot.read()?.summary ?? ""
         }
     }
     public func setHotkeysEnabled(_ enabled: Bool) {

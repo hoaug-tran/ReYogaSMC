@@ -45,6 +45,7 @@ DefinitionBlock ("", "SSDT", 2, "REYOGA", "RYLG", 0x00000001)
             Return ({{fan_command_method}} ({{fan_fullspeed_command}}, {{fan_fullspeed_off}}))
         }
         Method (RYLO, 0, Serialized) { Return ({{lighting_owner_field}}) }
+        Method (RYBV, 0, Serialized) { Return ({{battery_mapping_version}}) }
         Method (RYCM, 0, Serialized) { Return ({{battery_conservation_mask}}) }
         Method (RYRM, 0, Serialized) { Return ({{battery_rapidcharge_mask}}) }
         Method (RYQC, 0, Serialized) { Return ({{battery_conservation_capability_mask}}) }

@@ -221,7 +221,7 @@ public struct GamingPopoverView: View {
                 if manager.hasDualFan { FanReadout(title: manager.fanLabels[1], rpm: manager.fan2RPM, accentColor: ControlDesign.gpu) }
             }
             HStack(spacing: 8) {
-                temperature("CPU", value: manager.cpuTemp, source: "Firmware CPU sensor")
+                temperature("CPU", value: manager.cpuTemp, source: manager.cpuTemperatureSource)
                 temperature("GPU", value: manager.gpuTemp, source: manager.gpuTemperatureSource)
             }
         }
@@ -251,6 +251,10 @@ public struct GamingPopoverView: View {
             profile
             ControlSection("Battery & Device") {
                 row("Conservation", "ConservationMode", "battery.75", manager.isConservationOn, manager.hasConservation) { manager.toggleConservation() }
+                if !manager.batterySummary.isEmpty {
+                    Text(manager.batterySummary).font(.system(size: 10)).foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true).padding(.leading, 36).padding(.top, 4)
+                }
                 Divider().padding(.vertical, 4)
                 row("Rapid Charge", "RapidChargeMode", "bolt.fill", manager.isRapidChargeOn, manager.hasRapidCharge) { manager.toggleRapidCharge() }
                 Divider().padding(.vertical, 4)
@@ -561,13 +565,7 @@ private struct PersistentColorWell: NSViewRepresentable {
     @Binding var hex: String
     final class Well: NSColorWell {
         override func mouseDown(with event: NSEvent) {
-            NSApp.activate(ignoringOtherApps: true)
-            activate(true)
-            let panel = NSColorPanel.shared
-            panel.showsAlpha = false
-            panel.isContinuous = true
-            panel.level = NSWindow.Level(rawValue: max(NSWindow.Level.floating.rawValue, (window?.level.rawValue ?? 0)+1))
-            panel.makeKeyAndOrderFront(nil)
+            ReYogaColorPanel.shared.present(from: self)
         }
     }
     final class Coordinator: NSObject {
@@ -586,5 +584,67 @@ private struct PersistentColorWell: NSViewRepresentable {
         context.coordinator.binding = $hex
         if SavedRGBSettings.hex(view.color) != hex { view.color = SavedRGBSettings.color(hex) }
     }
-    static func dismantleNSView(_ view: Well, coordinator: Coordinator) { view.deactivate() }
+    static func dismantleNSView(_ view: Well, coordinator: Coordinator) {
+        ReYogaColorPanel.shared.dismiss(ifEditing: view)
+        view.deactivate()
+    }
+}
+
+@available(macOS 11.0, *)
+final class ReYogaColorPanel: NSObject, NSWindowDelegate {
+    static let shared = ReYogaColorPanel()
+    private weak var activeWell: NSColorWell?
+    private weak var owner: NSPopover?
+    private var previousBehavior: NSPopover.Behavior = .transient
+    private var isDismissing = false
+
+    private override init() {
+        super.init()
+        NotificationCenter.default.addObserver(self, selector: #selector(applicationResigned),
+                                               name: NSApplication.didResignActiveNotification, object: nil)
+    }
+
+    func present(from well: NSColorWell) {
+        guard let window = well.window, let screen = window.screen else { return }
+        let popover = (NSApp.delegate as? AppDelegate)?.gamingPopover
+        if owner == nil {
+            owner = popover
+            previousBehavior = popover?.behavior ?? .transient
+        }
+        // Keep the controls open while the native panel owns keyboard focus.
+        popover?.behavior = .applicationDefined
+        activeWell = well
+        NSApp.activate(ignoringOtherApps: true)
+        let panel = NSColorPanel.shared
+        panel.delegate = self
+        panel.showsAlpha = false
+        panel.isContinuous = true
+        panel.level = NSWindow.Level(rawValue: max(NSWindow.Level.floating.rawValue, window.level.rawValue + 1))
+        well.activate(true)
+        let anchor = window.convertToScreen(well.convert(well.bounds, to: nil))
+        panel.setFrameOrigin(ColorPanelPlacement.origin(panelSize: panel.frame.size, anchor: anchor,
+                                                       owner: window.frame, visible: screen.visibleFrame))
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    func dismiss(ifEditing well: NSColorWell) {
+        if activeWell === well { dismiss() }
+    }
+
+    func dismiss(closeControls: Bool = false) {
+        guard !isDismissing else { return }
+        isDismissing = true
+        let popover = owner
+        activeWell?.deactivate()
+        activeWell = nil
+        NSColorPanel.shared.orderOut(nil)
+        if closeControls { popover?.performClose(nil) }
+        else if popover?.isShown == true { popover?.contentViewController?.view.window?.makeKey() }
+        popover?.behavior = previousBehavior
+        owner = nil
+        isDismissing = false
+    }
+
+    func windowWillClose(_ notification: Notification) { dismiss() }
+    @objc private func applicationResigned() { dismiss(closeControls: true) }
 }

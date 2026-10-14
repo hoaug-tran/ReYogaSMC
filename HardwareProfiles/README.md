@@ -42,3 +42,5 @@ Do not add a write-enabled profile from a guessed register map. Follow CONTRIBUT
 
 Battery profiles include separate read masks and SBMC on/off commands for each charge mode. Supply all four command values from the reviewed firmware; masks alone do not define setter behavior.
 Capability masks are independent for each mode; zero means the reviewed setter has no capability-bit gate.
+
+Battery bridge version 4 identifies Storage (BTSM) and Quick Charge (QCHO) semantics. State masks and commands must agree with the documented operating mode, not just with each other.

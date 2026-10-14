@@ -17,8 +17,8 @@ SPEC.loader.exec_module(support)
 class HardwareSupportTests(unittest.TestCase):
     def test_reviewed_legion_battery_mapping_does_not_swap_charge_modes(self):
         profile = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text())
-        # GBMD samples: BTSM=1 is rapid charge; QCHO=1 is conservation.
-        samples = [(0x10060020, False, True), (0x10060204, True, False), (0x10060000, False, False)]
+        # Lenovo Storage uses BTSM/bit 5; Quick uses QCHO/bit 2.
+        samples = [(0x10060020, True, False), (0x10060204, False, True), (0x10060000, False, False)]
         for raw, conservation, rapid in samples:
             self.assertEqual(bool(raw & profile['battery_conservation_mask']), conservation)
             self.assertEqual(bool(raw & profile['battery_rapidcharge_mask']), rapid)
@@ -26,7 +26,7 @@ class HardwareSupportTests(unittest.TestCase):
 
     def test_battery_commands_change_the_same_state_that_is_read(self):
         profile = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text())
-        # SBMC semantics from reviewed GKCN DSDT. Enabling conservation clears BTSM.
+        # SBMC writes from the DSDT; Storage/Quick semantics from Toolkit and LenovoLegionLinux.
         def sbmc(command, qcho, btsm):
             if command == 3: btsm = True
             elif command == 5: btsm = False
@@ -34,14 +34,17 @@ class HardwareSupportTests(unittest.TestCase):
             elif command == 8: qcho = False
             else: self.fail('Unreviewed battery command')
             return (4 if qcho else 0) | (32 if btsm else 0)
-        for mode, mask, initial in [('conservation', 4, (False, True)), ('rapidcharge', 32, (False, False))]:
+        for mode, mask, initial in [('conservation', 32, (False, False)), ('rapidcharge', 4, (False, True))]:
             enabled = sbmc(profile[f'battery_{mode}_on'], *initial)
             self.assertTrue(enabled & mask)
             disabled = sbmc(profile[f'battery_{mode}_off'], bool(enabled & 4), bool(enabled & 32))
             self.assertFalse(disabled & mask)
-        self.assertFalse(sbmc(profile['battery_conservation_on'], False, True) & 32)
-        self.assertEqual(profile['battery_conservation_capability_mask'], 1 << 17)
-        self.assertEqual(profile['battery_rapidcharge_capability_mask'], 0)
+        self.assertFalse(sbmc(profile['battery_rapidcharge_on'], False, True) & 32)
+        self.assertEqual((profile['battery_conservation_on'], profile['battery_conservation_off']), (3, 5))
+        self.assertEqual((profile['battery_rapidcharge_on'], profile['battery_rapidcharge_off']), (7, 8))
+        self.assertEqual(profile['battery_conservation_capability_mask'], 0)
+        self.assertEqual(profile['battery_rapidcharge_capability_mask'], 1 << 17)
+        self.assertEqual(profile['battery_mapping_version'], 4)
         bridge = support.render(profile)
         for method, key in [('RYCO', 'conservation_on'), ('RYCF', 'conservation_off'), ('RYRO', 'rapidcharge_on'), ('RYRF', 'rapidcharge_off')]:
             self.assertIn(f'Method ({method}, 0, Serialized) {{ Return ({profile["battery_" + key]}) }}', bridge)

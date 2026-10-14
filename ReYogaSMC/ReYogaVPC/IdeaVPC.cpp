@@ -609,7 +609,9 @@ bool IdeaVPC::updateBattery(bool update) {
     if (mapped) { conservationMask = mappedConservation; rapidMask = mappedRapid; }
     UInt32 commands[4] = {};
     const char *commandMethods[] = {"RYCO", "RYCF", "RYRO", "RYRF"};
-    bool mappedCommands = mapped;
+    UInt32 mappingVersion = 0;
+    bool mappedCommands = mapped && ec->validateObject("RYBV") == kIOReturnSuccess &&
+        ec->evaluateInteger("RYBV", &mappingVersion) == kIOReturnSuccess && mappingVersion == 4;
     for (unsigned i = 0; i < 4 && mappedCommands; ++i) {
         mappedCommands = ec->validateObject(commandMethods[i]) == kIOReturnSuccess &&
             ec->evaluateInteger(commandMethods[i], &commands[i]) == kIOReturnSuccess &&
@@ -625,7 +627,7 @@ bool IdeaVPC::updateBattery(bool update) {
     const bool conservationCap = !mappedCommands || !conservationCapMask || (state & conservationCapMask) != 0;
     setProperty("ConservationCapability", conservationCap);
     setProperty("RapidChargeCapability", rapidChargeCap);
-    setProperty("BatteryStateSchemaVersion", mappedCommands ? 3 : (mapped ? 2 : 1), 32);
+    setProperty("BatteryStateSchemaVersion", mappedCommands ? 4 : (mapped ? 2 : 1), 32);
     setProperty("ConservationStateMask", conservationMask, 32);
     setProperty("RapidChargeStateMask", rapidMask, 32);
     conservationMode = (conservationMask & state) != 0;
@@ -738,7 +740,7 @@ bool IdeaVPC::toggleConservation() {
     UInt32 command = conservationMode ? BMCMD0_CONSERVATION_OFF : BMCMD0_CONSERVATION_ON;
     auto schema = OSDynamicCast(OSNumber, getProperty("BatteryStateSchemaVersion"));
     if (schema && schema->unsigned32BitValue() >= 2) {
-        if (schema->unsigned32BitValue() < 3 || !ec ||
+        if (schema->unsigned32BitValue() < 4 || !ec ||
             ec->evaluateInteger(conservationMode ? "RYCF" : "RYCO", &command) != kIOReturnSuccess) return false;
     }
     setProperty("BatteryCommand", command, 32);
@@ -769,7 +771,7 @@ bool IdeaVPC::toggleRapidCharge() {
     UInt32 command = rapidChargeMode ? BMCMD0_RAPIDCHARGE_OFF : BMCMD0_RAPIDCHARGE_ON;
     auto schema = OSDynamicCast(OSNumber, getProperty("BatteryStateSchemaVersion"));
     if (schema && schema->unsigned32BitValue() >= 2) {
-        if (schema->unsigned32BitValue() < 3 || !ec ||
+        if (schema->unsigned32BitValue() < 4 || !ec ||
             ec->evaluateInteger(rapidChargeMode ? "RYRF" : "RYRO", &command) != kIOReturnSuccess) return false;
     }
     setProperty("BatteryCommand", command, 32);
