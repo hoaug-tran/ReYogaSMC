@@ -400,29 +400,39 @@ bool IdeaWMIGameZone::getFanFullSpeed(bool *enabled) {
     return (ret == kIOReturnSuccess);
 }
 
-bool IdeaWMIGameZone::getLightingStatus(UInt32 *result) {
-    if (!hasLightingMethod)
+bool IdeaWMIGameZone::supportsStateLighting(UInt8 component) {
+    const char *reasonKey = component == 3 ? "LogoLightingReason" : "PortLightingReason";
+    const UInt8 count = YWMI->getInstanceCount(LENOVO_LIGHTING_DATA);
+    if (!count || count > 32) {
+        setProperty(reasonKey, !count ? "LENOVO_LIGHTING_DATA provider unavailable" : "Invalid lighting capability count");
         return false;
-    IOReturn ret;
-    ret = YWMI->evaluateInteger(LENOVO_LIGHTING_METHOD, 0, 1, result, nullptr, true);
-    return (ret == kIOReturnSuccess);
-}
-
-bool IdeaWMIGameZone::setLightingStatus(UInt32 value) {
-    if (!hasLightingMethod)
-        return false;
-    IOReturn ret;
-    UInt32 dummy = 0;
-    OSNumber *in = OSNumber::withNumber(static_cast<uint64_t>(value), 32);
-    ret = YWMI->evaluateInteger(LENOVO_LIGHTING_METHOD, 0, 2, &dummy, in, true);
-    OSSafeReleaseNULL(in);
-    return (ret == kIOReturnSuccess);
+    }
+    for (UInt32 instance = 0; instance < count; ++instance) {
+        OSObject *result = nullptr;
+        IOReturn status = YWMI->queryBlock(LENOVO_LIGHTING_DATA, instance, &result, true);
+        auto data = OSDynamicCast(OSData, result);
+        if (status == kIOReturnSuccess && data && data->getLength() == 7) {
+            const auto bytes = static_cast<const UInt8 *>(data->getBytesNoCopy());
+            if (bytes[0] == component) {
+                setProperty(component == 3 ? "LogoLightingCapability" : "PortLightingCapability", data);
+                const bool supported = bytes[1] == 1 && bytes[2] == 0 && bytes[3] >= 2;
+                setProperty(reasonKey, supported ? "State-control interface advertised" :
+                    bytes[1] != 1 ? "Firmware assigns this light to another control interface; USB RGB may provide it" :
+                    bytes[2] != 0 ? "Firmware does not advertise an on/off lighting type" : "Firmware does not advertise two lighting states");
+                result->release();
+                return supported;
+            }
+        }
+        OSSafeReleaseNULL(result);
+    }
+    setProperty(reasonKey, "Lighting capability record missing or query failed");
+    return false;
 }
 
 bool IdeaWMIGameZone::getYLogoStatus(bool *enabled) {
     removeProperty("YLogoRawState");
     removeProperty("YLogoRawBrightness");
-    if (!hasLightingMethod)
+    if (!hasLightingMethod || !supportsStateLighting(3))
         return false;
     if (!enabled) return false;
     const UInt8 component = 3;
@@ -445,6 +455,7 @@ bool IdeaWMIGameZone::getYLogoStatus(bool *enabled) {
         }
         result->release();
     }
+    setProperty("LogoLightingReason", "WMI lighting state read failed or returned an invalid record");
     return false;
 }
 
@@ -455,7 +466,7 @@ bool IdeaWMIGameZone::setYLogoStatus(bool enable) {
 bool IdeaWMIGameZone::getPortLightingStatus(bool *enabled) {
     removeProperty("PortLightingRawState");
     removeProperty("PortLightingRawBrightness");
-    if (!hasLightingMethod)
+    if (!hasLightingMethod || !supportsStateLighting(5))
         return false;
     if (!enabled) return false;
     const UInt8 component = 5;
@@ -478,6 +489,7 @@ bool IdeaWMIGameZone::getPortLightingStatus(bool *enabled) {
         }
         result->release();
     }
+    setProperty("PortLightingReason", "WMI lighting state read failed or returned an invalid record");
     return false;
 }
 
@@ -488,6 +500,13 @@ bool IdeaWMIGameZone::setPortLightingStatus(bool enable) {
 bool IdeaWMIGameZone::setComponentLighting(UInt8 component, bool enable) {
     if (!hasLightingMethod) return false;
     if (component != 3 && component != 5) return false;
+    if (!supportsStateLighting(component)) return false;
+    // Acquire the firmware's software-lighting owner before applying a state.
+    if (!setGameZoneData(GAME_ZONE_WMI_SET_LIGHT_CTL, 1)) {
+        setProperty("LightingCommandStage", "ownership");
+        return false;
+    }
+    setProperty("LightingCommandStage", "state");
     auto input = OSData::withBytes(&component, sizeof(component));
     if (!input) return false;
     OSObject *result = nullptr;

@@ -116,6 +116,8 @@ def compiler(offline=False):
 
 
 def windows_tables(directory):
+    import windows_support
+    registry = windows_support.registry_tables(directory)
     # GetSystemFirmwareTable reads firmware through Windows; no physical-memory driver.
     kernel = ctypes.WinDLL('kernel32', use_last_error=True)
     enum = kernel.EnumSystemFirmwareTables
@@ -126,12 +128,15 @@ def windows_tables(directory):
     provider = int.from_bytes(b'ACPI', 'big')
     size = enum(provider, None, 0)
     if not size or size > 1024 * 1024 or size % 4:
+        if registry:
+            return registry
         raise OSError('Windows could not enumerate ACPI tables: ' + str(ctypes.get_last_error()))
     buffer = ctypes.create_string_buffer(size)
     if enum(provider, buffer, size) != size:
         raise OSError('ACPI table inventory changed; retry')
-    files = []
+    files = list(registry)
     seen = set()
+    hashes = {hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
     for offset in range(0, size, 4):
         identifier = int.from_bytes(buffer.raw[offset:offset + 4], 'little')
         if identifier in seen:
@@ -146,28 +151,21 @@ def windows_tables(directory):
         signature = table.raw[:4].decode('ascii', errors='replace')
         if signature not in ('DSDT', 'SSDT'):
             continue
+        digest = hashlib.sha256(table.raw).hexdigest()
+        if digest in hashes:
+            continue
+        hashes.add(digest)
         path = directory / f'{signature}-{len(files):02d}.aml'
         path.write_bytes(table.raw)
         files.append(path)
     return files
 
 
-def inventory():
+def inventory(windows_live=False):
     report = {'platform': platform.system(), 'release': platform.release(), 'probes': {}, 'services': []}
     if platform.system() == 'Windows':
-        script = """[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); $ErrorActionPreference='Stop'; $r=@{};
-try {$r.computer=Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer,Model} catch {$r.computerError=$_.Exception.Message};
-try {$r.bios=Get-CimInstance Win32_BIOS | Select-Object SMBIOSBIOSVersion,ReleaseDate} catch {$r.biosError=$_.Exception.Message};
-try {$r.devices=@(Get-CimInstance Win32_PnPEntity | Where-Object {$_.PNPDeviceID -match '^(ACPI|USB)'} | Select-Object Name,PNPDeviceID)} catch {$r.devicesError=$_.Exception.Message};
-try {$r.wmiClasses=@(Get-CimClass -Namespace root/wmi | Where-Object {$_.CimClassName -match 'Lenovo|Legion|GameZone|Lighting|Fan'} | ForEach-Object {
-$c=$_; [pscustomobject]@{name=$c.CimClassName; qualifiers=@($c.CimClassQualifiers | Select-Object Name,Value);
-properties=@($c.CimClassProperties | Select-Object Name,CimType);
-methods=@($c.CimClassMethods | ForEach-Object {[pscustomobject]@{name=$_.Name; returnType=$_.ReturnType; qualifiers=@($_.Qualifiers | Select-Object Name,Value); parameters=@($_.Parameters | Select-Object Name,CimType)}})}})} catch {$r.wmiError=$_.Exception.Message};
-$r | ConvertTo-Json -Depth 9"""
-        result = run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script])
-        report['probes']['windows_inventory'] = result
-        if result['status'] == 0:
-            report['windows'] = json.loads(result['stdout'].lstrip('\ufeff'))
+        import windows_support
+        report['windows'] = windows_support.inventory(live=windows_live)
     elif platform.system() == 'Darwin':
         report['probes']['os'] = run(['sw_vers'])
         for name in ['IdeaVPC', 'ThinkVPC', 'YogaHIDD', 'DYVPC', 'IOHIDDevice']:
@@ -301,6 +299,8 @@ def main():
     parser.add_argument('--offline', action='store_true', help='Disable dependency downloads')
     parser.add_argument('--iasl', type=pathlib.Path, help='Use a specific iasl executable')
     parser.add_argument('--ec-read', action='store_true', help='Collect a live unbanked EC snapshot on Windows/Linux')
+    parser.add_argument('--windows-live', action='store_true', help='Run reviewed Windows getter probes; no setters')
+    parser.add_argument('--windows-report', type=pathlib.Path, help='Attach a previously collected Windows JSON report')
     args = parser.parse_args()
     if not (args.acpi or args.dsdt) and platform.system() == 'Darwin' and sys.stdin.isatty():
         path = input('ACPI dump directory or DSDT path (blank for runtime report only): ').strip().strip('"\'')
@@ -314,9 +314,17 @@ def main():
     tables = output / 'tables'; tables.mkdir()
     report = {'schema_version': 1, 'tool': 'ReYoga', 'errors': [], 'excluded_tables': [], 'acpi': [], 'generation': {'status': 'unmatched'}}
     try:
-        report['inventory'] = inventory()
+        report['inventory'] = inventory(args.windows_live)
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         report['errors'].append({'stage': 'inventory', 'reason': str(error)})
+    if args.windows_report:
+        try:
+            imported = json.loads(args.windows_report.read_text(encoding='utf-8-sig'))
+            report['windows_evidence'] = {'source_sha256': hashlib.sha256(args.windows_report.read_bytes()).hexdigest(),
+                'data': imported, 'live_wmi_present': bool(imported.get('live_wmi_results') or imported.get('probes')),
+                'live_ec_present': bool(imported.get('live_ec_dump'))}
+        except (OSError, ValueError) as error:
+            report['errors'].append({'stage': 'windows_report', 'reason': str(error)})
     inputs = []
     input_path = args.acpi or args.dsdt
     if input_path:
@@ -337,7 +345,7 @@ def main():
     elif platform.system() == 'Windows':
         try:
             inputs = windows_tables(tables)
-            report['windows_acpi_limit'] = 'Windows may return only the first table for duplicate SSDT signatures. Supply a complete dump for cross-table resolution.'
+            report['windows_acpi_limit'] = 'Registry tables supplement the firmware API, which returns only the first table for duplicate SSDT signatures. A complete dump is still needed if tables are missing.'
         except OSError as error:
             report['errors'].append({'stage': 'firmware_dump', 'reason': str(error)})
     elif platform.system() == 'Linux':
@@ -357,7 +365,11 @@ def main():
                 result = run([iasl, '-da', *binaries], cwd=tables)
                 report['disassembly'] = result
                 if result['status']:
-                    report['errors'].append({'stage': 'disassembly', 'reason': 'iasl failed; inspect its log and provide all companion SSDTs'})
+                    fallback = [run([iasl, '-d', path], cwd=tables) for path in binaries]
+                    report['disassembly']['individual_tables'] = fallback
+                    report['disassembly']['cross_table_resolution'] = 'failed; individual disassembly does not resolve every external reference'
+                    if any(item['status'] for item in fallback):
+                        report['errors'].append({'stage': 'disassembly', 'reason': 'Some tables failed individual disassembly; inspect the retained compiler results'})
         except (OSError, ValueError, subprocess.SubprocessError) as error:
             report['errors'].append({'stage': 'compiler', 'reason': str(error)})
     aml_hashes = []
@@ -402,11 +414,13 @@ def main():
             if result['status']:
                 report['errors'].append({'stage': 'compile', 'reason': 'Compilation failed; do not install the AML'})
     report['ec'] = ec_reader.collect(output, combined, args.ec_read, args.offline)
+    if args.ec_read and report['ec']['status'] in ('unavailable', 'partial'):
+        report['errors'].append({'stage': 'ec', 'reason': report['ec'].get('reason', 'Snapshot stopped after an EC transaction failure; inspect the per-byte failures')})
     report['coverage'] = {
         'table_count': len(inputs), 'source_count': len(sources),
         'profile_matched': profile is not None,
         'compiler_available': iasl is not None,
-        'collected': ['ACPI source declarations', 'table fingerprints', 'OS inventory', 'available runtime capabilities'],
+        'collected': ['ACPI source declarations', 'table fingerprints', 'OS inventory', 'available runtime capabilities', 'requested Windows getter results and EC snapshot status'],
         'requires_review': ['EC field meaning and units', 'WMI method payloads', 'USB HID protocol', 'hotkey mapping', 'fan-write safety'],
         'reason': 'ACPI does not describe every firmware interface. No register writes or firmware-method calls are performed. EC snapshots cover only the declared standard address space.'}
     (output / 'report.json').write_text(json.dumps(report, indent=2, default=str) + '\n')

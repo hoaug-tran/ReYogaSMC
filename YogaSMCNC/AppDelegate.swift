@@ -250,9 +250,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             for dark in [false, true] {
+                for (name, prompt, symbol) in [("balanced", "Power profile: Balanced", "speedometer"),
+                    ("lighting", "Logo LED: Off", "lightbulb"), ("error", "Maximum fan speed: The EC command did not confirm the requested state", "wind")] {
+                    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 64), styleMask: [.borderless], backing: .buffered, defer: false)
+                    window.isOpaque = false; window.backgroundColor = .clear
+                    window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                    let view = HUDContentView(frame: window.contentLayoutRect)
+                    window.contentView = view
+                    let size = view.configure(prompt: prompt, image: NSImage(systemSymbolName: symbol, accessibilityDescription: prompt))
+                    window.setContentSize(size); view.layoutSubtreeIfNeeded()
+                    if let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        if let data = bitmap.representation(using: .png, properties: [:]) {
+                            try? data.write(to: directory.appendingPathComponent("hud-\(name)-\(dark ? "dark" : "light").png"))
+                        }
+                    }
+                }
                 for mode in ["device", "cooling", "rgb", "settings", "missing-driver"] {
                     let controller = NSHostingController(rootView: ReYogaReviewView(mode: mode, manager: manager))
-                    let size = mode == "settings" ? NSSize(width: 560, height: 480) : NSSize(width: mode == "rgb" ? 420 : 360, height: mode == "rgb" ? 360 : 500)
+                    let size = mode == "settings" ? NSSize(width: 560, height: 480) : NSSize(width: 420, height: mode == "rgb" ? 360 : 640)
                     let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)
                     window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
                     window.contentViewController = controller
@@ -343,7 +359,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @available(macOS 11.0, *)
     func setupGamingPopover() {
         let pop = NSPopover()
-        pop.contentSize = NSSize(width: 360, height: 500)
+        pop.contentSize = NSSize(width: 420, height: 640)
         pop.behavior = .transient
         pop.animates = false
         let controller = NSHostingController(rootView: GamingPopoverView(manager: GamingManager.shared))

@@ -34,6 +34,7 @@
 #define LENOVO_FAN_METHOD           "92549549-4bde-4f06-ac04-ce8bf898dbaa"
 #define LENOVO_CPU_METHOD           "14afd777-106f-4c9b-b334-d388dc7809be"
 #define LENOVO_GPU_METHOD           "da7547f1-824d-405f-be79-d9903e29ced7"
+#define LENOVO_LIGHTING_DATA        "4dd5bd84-15a9-47e2-ad65-cc61a5c62fd0"
 #define LENOVO_LIGHTING_METHOD      "8c5b9127-ecd4-4657-980f-851019f99ca5"
 #define GAME_ZONE_SMART_FAN_EVENT   "d320289e-8fea-41e0-86f9-611d83151b5f"
 #define GAME_ZONE_THERMAL_EVENT     "d320289e-8fea-41e0-86f9-911d83151b5f"
@@ -227,14 +228,13 @@ public:
     bool getFanSpeed(UInt32 fanId, UInt32 *result);
     bool getSensorTemperature(UInt32 sensorId, UInt32 *result);
     bool setComponentLighting(UInt8 component, bool enable);
+    bool supportsStateLighting(UInt8 component);
     bool getPowerLimit(UInt32 query, UInt32 range[4]);
     bool setPowerLimit(UInt32 query, UInt32 watts);
     bool getCPUTemperature(UInt32 *result);
     bool getGPUTemperature(UInt32 *result);
     bool setFanFullSpeed(bool enable);
     bool getFanFullSpeed(bool *enabled);
-    bool getLightingStatus(UInt32 *result);
-    bool setLightingStatus(UInt32 value);
     bool getYLogoStatus(bool *enabled);
     bool setYLogoStatus(bool enable);
     bool getPortLightingStatus(bool *enabled);

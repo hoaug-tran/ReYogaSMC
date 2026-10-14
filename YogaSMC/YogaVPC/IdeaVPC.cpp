@@ -1135,15 +1135,21 @@ void IdeaVPC::updateFeatureStatus() {
     add(fullFanPrompt, ok, ok ? "" : "Fan full-speed getter failed or interface missing", "WMI Fan");
     if (ok) setProperty(fullFanPrompt, state);
     else removeProperty(fullFanPrompt);
-    UInt32 lightingSupported = 1;
-    if (legionBridge && ec && ec->validateObject("RYLW") == kIOReturnSuccess)
-        ec->evaluateInteger("RYLW", &lightingSupported);
-    ok = lightingSupported && wmig && wmig->getYLogoStatus(&state);
-    add(yLogoPrompt, ok, ok ? "" : lightingSupported ? "Logo lighting interface is unavailable" : "This firmware ignores WMI lighting; use a supported USB RGB mode", "WMI Lighting");
+    UInt32 lightingOwner = 0;
+    if (legionBridge && ec && ec->validateObject("RYLO") == kIOReturnSuccess &&
+        ec->evaluateInteger("RYLO", &lightingOwner) == kIOReturnSuccess)
+        setProperty("LightingControlOwner", lightingOwner, 32);
+    else removeProperty("LightingControlOwner");
+    auto lightReason = [&](const char *key) -> const char * {
+        auto text = wmig ? OSDynamicCast(OSString, wmig->getProperty(key)) : nullptr;
+        return text ? text->getCStringNoCopy() : "WMI lighting provider unavailable";
+    };
+    ok = wmig && wmig->getYLogoStatus(&state);
+    add(yLogoPrompt, ok, ok ? "" : lightReason("LogoLightingReason"), "WMI Lighting");
     if (ok) setProperty(yLogoPrompt, state);
     else removeProperty(yLogoPrompt);
-    ok = lightingSupported && wmig && wmig->getPortLightingStatus(&state);
-    add(portLightingPrompt, ok, ok ? "" : "Rear port lighting interface is unavailable", "WMI Lighting");
+    ok = wmig && wmig->getPortLightingStatus(&state);
+    add(portLightingPrompt, ok, ok ? "" : lightReason("PortLightingReason"), "WMI Lighting");
     if (ok) setProperty(portLightingPrompt, state);
     else removeProperty(portLightingPrompt);
     UInt32 verifiedWrites = 0;
@@ -1153,7 +1159,7 @@ void IdeaVPC::updateFeatureStatus() {
     add("FanControlMode", legionBridgeVersion >= 2, legionBridgeVersion >= 2 ? "" : "Install the reviewed ACPI bridge v2 for fan control; v1 lacks EC curve recomputation", "ACPI profile");
     add("Fan1TargetRPM", fanWrites, fanWrites ? "" : "Fan writes disabled: this bridge has no hardware-validated write profile", "ACPI profile");
     add("Fan2TargetRPM", fanWrites, fanWrites ? "" : "Fan writes disabled: this bridge has no hardware-validated write profile", "ACPI profile");
-    const char *rawKeys[] = {"YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw"};
+    const char *rawKeys[] = {"YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage"};
     for (const char *raw : rawKeys) {
         auto value = wmig ? wmig->getProperty(raw) : nullptr;
         if (value) setProperty(raw, value);
@@ -1407,6 +1413,21 @@ void IdeaVPC::controlRequest(OSDictionary *request) {
         auto flags = OSDynamicCast(OSDictionary, getProperty("FeatureStatus"));
         auto feature = flags ? OSDynamicCast(OSDictionary, flags->getObject(key->getCStringNoCopy())) : nullptr;
         if (feature && feature->getObject("Reason")) result->setObject("Reason", feature->getObject("Reason"));
+    }
+    if (!strcmp(key->getCStringNoCopy(), yLogoPrompt) || !strcmp(key->getCStringNoCopy(), portLightingPrompt)) {
+        if (auto owner = OSDynamicCast(OSNumber, getProperty("LightingControlOwner"))) {
+            result->setObject("LightingOwner", owner);
+            if (commandStatus == kIOReturnSuccess && owner->unsigned32BitValue() != 1) {
+                ret = kIOReturnIOError;
+                setPropertyNumber(result, "Status", ret, 32);
+                setPropertyString(result, "Code", "lighting_owner_mismatch");
+                setPropertyString(result, "Stage", "ownership_readback");
+                setPropertyString(result, "Reason", "Firmware did not retain software lighting ownership");
+            }
+        }
+        if (wmig) {
+            if (auto stage = wmig->getProperty("LightingCommandStage")) result->setObject("LightingStage", stage);
+        }
     }
     setProperty("LastControlResult", result);
     result->release();

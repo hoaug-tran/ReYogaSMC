@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "sources": [
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/tree/master/LenovoLegionToolkit.Lib/System/Management"
+  ],
+  "probes": [
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetSmartFanMode",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetThermalMode",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetFanCount",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetFan1Speed",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetFan2Speed",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetFanMaxSpeed",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetCPUTemp",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetGPUTemp",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetPowerChargeMode",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "IsSupportOD",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetODStatus",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "IsSupportLightingFeature",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "IsSupportSmartFan",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "IsSupportFanCooling",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetVersion",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "IsSupportDisableTP",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetTPStatus",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "IsSupportCpuOC",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "IsSupportGpuOC",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_FAN_METHOD",
+      "method": "Fan_Get_FullSpeed",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_FAN_METHOD",
+      "method": "Fan_GetCurrentFanSpeed",
+      "arguments": {
+        "FanID": 0
+      }
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_FAN_METHOD",
+      "method": "Fan_GetCurrentFanSpeed",
+      "arguments": {
+        "FanID": 1
+      }
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_FAN_METHOD",
+      "method": "Fan_GetCurrentSensorTemperature",
+      "arguments": {
+        "SensorID": 3
+      }
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_FAN_METHOD",
+      "method": "Fan_GetCurrentSensorTemperature",
+      "arguments": {
+        "SensorID": 4
+      }
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_LIGHTING_METHOD",
+      "method": "Get_Lighting_Current_Status",
+      "arguments": {
+        "Lighting_ID": 0
+      }
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_LIGHTING_METHOD",
+      "method": "Get_Lighting_Current_Status",
+      "arguments": {
+        "Lighting_ID": 3
+      }
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_LIGHTING_METHOD",
+      "method": "Get_Lighting_Current_Status",
+      "arguments": {
+        "Lighting_ID": 5
+      }
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_CPU_METHOD",
+      "method": "CPU_Get_ShortTerm_PowerLimit",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_CPU_METHOD",
+      "method": "CPU_Get_LongTerm_PowerLimit",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_OTHER_METHOD",
+      "method": "GetDeviceType",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_OTHER_METHOD",
+      "method": "GetSupportThermalMode",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_OTHER_METHOD",
+      "method": "GetCustomModeAbility",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_OTHER_METHOD",
+      "method": "Get_Legion_Device_Support_Feature",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_OTHER_METHOD",
+      "method": "Get_Device_Current_Support_Feature",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_OTHER_METHOD",
+      "method": "Get_Support_LegionZone_Version",
+      "arguments": {}
+    }
+  ]
+}

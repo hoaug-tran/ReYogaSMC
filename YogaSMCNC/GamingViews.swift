@@ -4,8 +4,8 @@ import SwiftUI
 // explicit switch state. Hardware availability is supplied by the manager.
 @available(macOS 11.0, *)
 private enum ControlDesign {
-    static let width: CGFloat = 360
-    static let height: CGFloat = 500
+    static let width: CGFloat = 420
+    static let height: CGFloat = 640
     static let accent = adaptive(light: (0.78, 0.29, 0.16), dark: (0.96, 0.56, 0.36))
     static let surface = Color(NSColor.controlBackgroundColor)
     static let cpu = adaptive(light: (0.08, 0.55, 0.65), dark: (0.30, 0.76, 0.86))
@@ -67,7 +67,7 @@ private struct ProfileSelector: View {
                     HStack(spacing: 5) {
                         Image(systemName: mode.2).font(.system(size: 11, weight: .semibold))
                         Text(mode.1).font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                    }.frame(maxWidth: .infinity).frame(height: 36)
+                    }.padding(.horizontal, 8).frame(maxWidth: .infinity).frame(height: 36)
                         .foregroundColor(manager.powerProfile == mode.0 ? .white : .primary)
                         .background(background(mode.0))
                         .contentShape(RoundedRectangle(cornerRadius: 8))

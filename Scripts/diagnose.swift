@@ -11,6 +11,7 @@ let keys = [
     "FanFullSpeedECResult", "FanFullSpeedCommandBackend",
     "CPUTemp", "GPUTemp", "CPUBoostPower", "CPUSustainedPower", "CPUPowerModified",
     "PowerLimitRanges", "SmartFanMode", "YLogoStatus", "YLogoRawState", "YLogoRawBrightness",
+    "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage",
     "PortLighting", "PortLightingRawState", "PortLightingRawBrightness"
 ]
 let arguments = Array(CommandLine.arguments.dropFirst())

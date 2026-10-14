@@ -8,6 +8,7 @@ DefinitionBlock ("", "SSDT", 2, "REYOGA", "RYLG", 0x00000001)
 {
     External ({{ec_path}}, DeviceObj)
     External ({{ec_path}}.{{power_mode_field}}, FieldUnitObj)
+    External ({{ec_path}}.{{lighting_owner_field}}, FieldUnitObj)
     External ({{ec_path}}.{{fan_command_method}}, MethodObj)
     Scope ({{ec_path}})
     {
@@ -43,7 +44,7 @@ DefinitionBlock ("", "SSDT", 2, "REYOGA", "RYLG", 0x00000001)
             }
             Return ({{fan_command_method}} ({{fan_fullspeed_command}}, {{fan_fullspeed_off}}))
         }
-        Method (RYLW, 0, Serialized) { Return ({{wmi_lighting_supported}}) }
+        Method (RYLO, 0, Serialized) { Return ({{lighting_owner_field}}) }
         Method (RYVW, 0, Serialized) { Return ({{verified_writes}}) }
         Method (RYID, 0, Serialized) { Return (0x52590102) }
         Method (RYPN, 0, Serialized) { Return ("{{id}}") }

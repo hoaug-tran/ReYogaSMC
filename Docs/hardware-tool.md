@@ -4,7 +4,7 @@ The tool exports evidence for firmware support and compiles an SSDT when a revie
 
 ## Run
 
-Install Python 3.9 or newer. On Windows, open `ReYoga.cmd`. On macOS, open `ReYoga.command`; you can enter the path to an ACPI dump or leave it blank for a runtime report. Command-line use works on Windows, macOS and Linux:
+Install Python 3.9 or newer. On Windows, open `ReYoga.cmd`; it requests reviewed live getter probes and an EC snapshot. An unavailable backend is recorded as a collection error. On macOS, open `ReYoga.command`; you can enter the path to an ACPI dump or leave it blank for a runtime report. Command-line use works on Windows, macOS and Linux:
 
 ```sh
 python3 Scripts/hardware_support.py --acpi /path/to/tables --model My-Laptop
@@ -19,6 +19,8 @@ python3 Scripts/hardware_support.py --acpi /path/to/tables --model My-Laptop
 | `--iasl PATH` | Use your compiler |
 | `--offline` | Disable downloads |
 | `--source-only` | Export the reviewed SSDT without compiling it |
+| `--windows-live` | Collect reviewed Windows getter results, including output parameters and provider errors |
+| `--windows-report PATH` | Attach an existing Windows JSON report for offline review |
 | `--ec-read` | Capture the standard 256-byte EC space on Windows/Linux |
 | `--compile` | Request compiler setup for source input as well |
 
@@ -28,11 +30,13 @@ With no compiler on PATH, Windows downloads the pinned ACPICA iasl executable. O
 
 The dated directory and ZIP contain `report.json`, `device-support.md`, copied DSDT/SSDT input and available disassembly. Unrelated tables, including licensing tables, are excluded. Matching firmware also gets `SSDT-ReYoga-<model>.dsl` and compiled AML. The tool never generates a control profile for unmatched firmware.
 
+Windows inventory also preserves instance data and method parameter directions. Getter results include every returned output field, with failures recorded individually. The collector never invokes methods merely because they have no input parameters.
+
 The report contains table hashes, checksum status, method declarations, literal operation regions, static field/bit offsets and decoded WMI GUID records. Windows adds model/BIOS, ACPI/USB devices and available WMI class qualifiers, method IDs and parameter metadata. macOS adds driver capabilities, sensor status, raw lighting/fan-boost states and the last correlated command result.
 
 Literal field offsets identify declarations. They do not establish units, writable semantics or safe values. Dynamic expressions, aliases, banked/indexed fields and incomplete table dumps need review. Unknown firmware still gets an export, with generation marked unmatched.
 
-Windows' firmware API cannot retrieve every repeated SSDT by signature. The automatic collection skips duplicates and records that limitation. Supply a complete dump when companion SSDTs are required. On Linux, table access can require permission. On macOS, provide the dump or use the app's supported DSDT export.
+Windows registry ACPI tables supplement the firmware API, including multiple SSDTs when present. Tables are checked for length and checksum and deduplicated by content. The firmware API cannot retrieve every repeated SSDT by signature. Supply a complete dump when companion SSDTs are required. On Linux, table access can require permission. On macOS, provide the dump or use the app's supported DSDT export.
 
 ## Live EC values
 

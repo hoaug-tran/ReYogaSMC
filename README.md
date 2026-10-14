@@ -70,8 +70,8 @@ The original bundle IDs and IOService class names are retained for existing driv
 Use Python 3.9 or newer. No third-party Python packages are required. Double-click `ReYoga.cmd` on Windows or `ReYoga.command` on macOS to start with the default options. Each run gets a dated export directory.
 
 ```sh
-# Windows: firmware tables and system inventory are read automatically.
-python Scripts/hardware_support.py
+# Windows: tables, inventory and reviewed getter probes.
+python Scripts/hardware_support.py --windows-live --ec-read
 
 # Any supported host: supply the complete ACPI dump, including companion SSDTs.
 python3 Scripts/hardware_support.py --acpi /path/to/tables --compile
@@ -84,7 +84,7 @@ The tool exports `report.json`, a device-support issue draft, copied/disassemble
 
 When needed, Windows downloads a pinned iasl binary. macOS and Linux download verified ACPICA source and build iasl using the system C tools. Downloads have SHA-256 checks and are cached outside the repository. Use `--iasl /path/to/iasl` for an existing compiler or `--offline` to disable downloads. Build and disassembly failures remain in the report.
 
-Windows' firmware API can expose only the first table for repeated SSDT signatures. For complete cross-table resolution, supply a full firmware dump. Linux can read tables from `/sys/firmware/acpi/tables` when permitted. On macOS, supply a dump or use the app's live DSDT export where the driver supports it.
+On Windows, registry tables supplement the firmware API and preserve multiple SSDTs when available. The API itself exposes only the first repeated signature. For complete cross-table resolution, supply a full firmware dump. Linux can read tables from `/sys/firmware/acpi/tables` when permitted. On macOS, supply a dump or use the app's live DSDT export where the driver supports it.
 
 > [!NOTE]
 > ACPI alone cannot reveal every EC register's meaning, WMI payload or USB lighting protocol. The report distinguishes collected declarations from interfaces that still need review. Discovery does not scan physical memory, write EC registers or call arbitrary firmware methods.

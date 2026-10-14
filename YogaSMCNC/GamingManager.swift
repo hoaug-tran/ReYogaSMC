@@ -261,14 +261,6 @@ public final class GamingManager: ObservableObject {
                     backend: "ACPI profile")
             }
         }
-        if let profile = HardwareProfiles.all().first(where: { $0["id"] as? String == props["HardwareProfile"] as? String }),
-           profile["wmi_lighting_supported"] as? Int == 0 {
-            for key in ["YLogoStatus", "PortLighting"] {
-                availability[key] = HardwareFeatureStatus(available: false,
-                    reason: key == "YLogoStatus" ? "Use a USB RGB mode to control the logo on this device" : "This firmware does not apply WMI rear-port lighting commands",
-                    backend: "Firmware lighting unsupported")
-            }
-        }
         if rgbStatus.available && rgbMode != "Factory" {
             availability["YLogoStatus"] = HardwareFeatureStatus(available: true,
                 reason: "USB transmission only; the device does not report the physical LED state", backend: "USB HID")
@@ -328,7 +320,7 @@ public final class GamingManager: ObservableObject {
         let mode = number("SmartFanMode")
         if (1...3).contains(mode) && mode != powerProfile {
             publish(\.powerProfile, mode)
-            if initialized && !isApplying { showOSDRaw("Power Profile: \(["Quiet", "Balanced", "Performance"][mode - 1])") }
+            if initialized && !isApplying { showOSDRaw("Power Profile: \(["Quiet", "Balanced", "Performance"][mode - 1])", symbol: ReYogaBrand.controlSymbol("SmartFanMode", value: mode)) }
         }
         let sequence = number("SensorSampleSequence")
         if sequence != lastSampleSequence && sequence >= 0 {
@@ -412,7 +404,7 @@ public final class GamingManager: ObservableObject {
         if !restoring { restoringControls.removeAll() }
         guard service != 0, featureStatus[key]?.available == true else {
             let reason = featureStatus[key]?.reason ?? "Driver unavailable"
-            showOSDRaw("\(title): \(reason)", duration: 3000)
+            showOSDRaw("\(title): \(reason)", duration: 3000, symbol: ReYogaBrand.controlSymbol(key, value: target))
             ReYogaDiagnostics.shared.record("control_unavailable", ["property": key, "reason": reason])
             return
         }
@@ -462,7 +454,7 @@ public final class GamingManager: ObservableObject {
                 let valueLabel = key == "SmartFanMode" ? ["Quiet", "Balanced", "Performance"][target - 1] :
                     key == "AlwaysOnUSBState" ? ["Off", "AC power", "AC + battery"][target] :
                     key == "CPUPowerReset" ? "Restored" : key.contains("TargetRPM") ? "\(target) RPM minimum" : key == "CPUBoostPower" || key == "CPUSustainedPower" ? "\(target) W" : target == 0 ? "Off" : "On"
-                if !restoring || !confirmed { showOSDRaw(confirmed ? "\(title): \(valueLabel)" : "\(title): \(reason)", duration: confirmed ? 1500 : 3000, symbol: confirmed ? "checkmark.circle" : "exclamationmark.triangle") }
+                if !restoring || !confirmed { showOSDRaw(confirmed ? "\(title): \(valueLabel)" : "\(title): \(reason)", duration: confirmed ? 1500 : 3000, symbol: ReYogaBrand.controlSymbol(key, value: target)) }
             }
         }
     }
@@ -558,7 +550,7 @@ public final class GamingManager: ObservableObject {
         hardwareQueue.async {
             defer { if handle != 0 { IOObjectRelease(handle) } }
             let keys = ["VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
-                        "ACPIBridgeVersion", "FanWritesValidated", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "FanFullSpeedECResult", "FanFullSpeedCommandBackend", "SensorSampleSequence", "SensorSampleTimeMS",
+                        "ACPIBridgeVersion", "FanWritesValidated", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "FanFullSpeedECResult", "FanFullSpeedCommandBackend", "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage", "SensorSampleSequence", "SensorSampleTimeMS",
                         "Fan1RPM", "Fan2RPM", "Fan1TargetRPM", "Fan2TargetRPM", "FanControlMode", "CPUTemp", "GPUTemp"]
             let snapshot: NSDictionary = handle != 0 ? getProperties(handle) ?? [:] : [:]
             var driver: [String: Any] = [:]
@@ -789,7 +781,7 @@ public final class GamingManager: ObservableObject {
             ReYogaDiagnostics.shared.record("rgb_result", ["action": title, "error": errorText ?? "none", "acknowledgement": "USB report transport only"])
             DispatchQueue.main.async {
                 self.rgbApplying = false
-                showOSDRaw(errorText.map { "\(title): \($0)" } ?? "\(title): sent to controller", duration: errorText == nil ? 1500 : 3000)
+                showOSDRaw(errorText.map { "\(title): \($0)" } ?? "\(title): sent to controller", duration: errorText == nil ? 1500 : 3000, symbol: "lightbulb")
             }
         }
     }

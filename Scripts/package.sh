@@ -19,7 +19,7 @@ cp "$package_root/LICENSE" "$package_root/README.md" "$package_stage/kexts/"
 cp "$package_root/LICENSE" "$package_root/README.md" "$package_stage/apps/"
 cp "$package_root/LICENSE" "$package_root/ReYoga.command" "$package_root/ReYoga.cmd" "$package_stage/tool/"
 cp "$package_root/Docs/hardware-tool.md" "$package_stage/tool/README.md"
-cp "$package_root/Scripts/hardware_support.py" "$package_root/Scripts/acpica.json" "$package_root/Scripts/ec_reader.py" "$package_root/Scripts/pawnio.json" "$package_stage/tool/Scripts/"
+cp "$package_root/Scripts/hardware_support.py" "$package_root/Scripts/acpica.json" "$package_root/Scripts/ec_reader.py" "$package_root/Scripts/pawnio.json" "$package_root/Scripts/windows_support.py" "$package_root/Scripts/windows_inventory.ps1" "$package_root/Scripts/windows_probes.json" "$package_stage/tool/Scripts/"
 cp "$package_root/HardwareProfiles/"*.json "$package_root/HardwareProfiles/"*.dsl "$package_root/HardwareProfiles/README.md" "$package_stage/tool/HardwareProfiles/"
 ln -s /Applications "$package_stage/apps/Applications"
 for package_kind in kexts apps tool; do

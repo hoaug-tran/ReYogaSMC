@@ -1,5 +1,12 @@
 # ReYogaSMC changes
 
+## 2.0.3
+
+* Restore the main popover width and keep spacing inside each power-mode button.
+* Rebuild status messages with function icons, balanced text and an effect mask; use native glass on macOS 26.
+* Resolve lighting capability records per component and acquire software ownership before state changes.
+* Export Windows registry tables, instance data, reviewed getter outputs and collection failures.
+
 ## 2.0.2
 
 * Reduce popover and status-message sizes, clip the outer content and use a distinct menu bar glyph.
