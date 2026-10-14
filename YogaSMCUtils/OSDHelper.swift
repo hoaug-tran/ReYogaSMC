@@ -100,19 +100,21 @@ final class HUDContentView: NSView {
     func configure(prompt: String, image: NSImage?) -> NSSize {
         let pieces = prompt.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         let twoLines = pieces.count == 2 && pieces[0].count <= 40
-        title.stringValue = twoLines ? pieces[0] : prompt
-        detail.stringValue = twoLines ? pieces[1] : ""
-        detail.isHidden = !twoLines
+        let longMessage = !twoLines && prompt.count > 42
+        let hasDetail = twoLines || longMessage
+        title.stringValue = twoLines ? pieces[0] : longMessage ? "ReYogaSMC" : prompt
+        detail.stringValue = twoLines ? pieces[1] : longMessage ? prompt : ""
+        detail.isHidden = !hasDetail
         icon.image = image
         icon.isHidden = image == nil
         let leading: CGFloat = image == nil ? 16 : 56
         let preferred = max(title.attributedStringValue.size().width, detail.attributedStringValue.size().width)
         let width = min(360, max(240, preferred + leading + 20))
         let textWidth = width-leading-16
-        let secondaryHeight = twoLines ? min(76, ceil((detail.stringValue as NSString).boundingRect(
+        let secondaryHeight = hasDetail ? min(76, ceil((detail.stringValue as NSString).boundingRect(
             with: NSSize(width: textWidth, height: 1000), options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: detail.font!]).height)) : 0
-        let textHeight: CGFloat = 18 + (twoLines ? secondaryHeight+3 : 0)
+        let textHeight: CGFloat = 18 + (hasDetail ? secondaryHeight+3 : 0)
         let size = NSSize(width: width, height: max(56, textHeight+28))
         frame.size = size; surface.frame = bounds
         let y = (size.height-textHeight)/2

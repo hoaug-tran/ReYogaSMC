@@ -36,17 +36,17 @@ if ($Live) {
             $class=Get-CimClass -Namespace $probe.namespace -ClassName $probe.class -OperationTimeoutSec 5
             $method=$class.CimClassMethods[$probe.method]
             if (-not $method) { throw 'Method is not advertised' }
-            $args=@{}
-            foreach ($p in $probe.arguments.PSObject.Properties) { $args[$p.Name]=$p.Value }
+            $callArguments=@{}
+            foreach ($p in $probe.arguments.PSObject.Properties) { $callArguments[$p.Name]=$p.Value }
             # Only explicitly reviewed read calls are in the manifest. Output
             # parameters do not count as input parameters.
             foreach ($p in $method.Parameters) {
                 $inputQualifier=$p.Qualifiers['In']
-                if ($inputQualifier -and $inputQualifier.Value -and -not $args.ContainsKey($p.Name)) { throw "Required input $($p.Name) is missing" }
+                if ($inputQualifier -and $inputQualifier.Value -and -not $callArguments.ContainsKey($p.Name)) { throw "Required input $($p.Name) is missing" }
             }
             $instance=Get-CimInstance -Namespace $probe.namespace -ClassName $probe.class -OperationTimeoutSec 5 | Select-Object -First 1
             if (-not $instance) { throw 'No method provider instance' }
-            $result=Invoke-CimMethod -InputObject $instance -MethodName $probe.method -Arguments $args -OperationTimeoutSec 5
+            $result=Invoke-CimMethod -InputObject $instance -MethodName $probe.method -Arguments $callArguments -OperationTimeoutSec 5
             $values=@{}
             foreach ($p in $result.PSObject.Properties) {
                 if ($p.Name -notmatch '^PS|^Cim') { $values[$p.Name]=$p.Value }
