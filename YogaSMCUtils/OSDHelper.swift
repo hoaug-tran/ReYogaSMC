@@ -160,8 +160,12 @@ private final class StatusHUD {
         let bundled = resource?.path.hasPrefix(Bundle.main.resourceURL?.path ?? "\u{0}") == true
         let semantic = symbol ?? (bundled ? ReYogaBrand.eventSymbol(resource!.deletingPathExtension().lastPathComponent) : nil)
         var image: NSImage?
-        if let semantic = semantic { image = NSImage(systemSymbolName: semantic, accessibilityDescription: prompt) }
-        if image == nil, let resource = resource { image = NSImage(contentsOf: resource) }
+        if let symbol = symbol { image = NSImage(systemSymbolName: symbol, accessibilityDescription: prompt) }
+        if image == nil, let resource = resource {
+            image = NSImage(contentsOf: resource)
+            if bundled { image?.isTemplate = true }
+        }
+        if image == nil, let semantic = semantic { image = NSImage(systemSymbolName: semantic, accessibilityDescription: prompt) }
         if image == nil { image = ReYogaBrand.menuImage(size: 28) }
         let size = content.configure(prompt: prompt, image: image)
         window.setContentSize(size)
