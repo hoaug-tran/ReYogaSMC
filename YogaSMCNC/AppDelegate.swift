@@ -251,7 +251,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             for dark in [false, true] {
                 for (name, prompt, symbol) in [("balanced", "Power profile: Balanced", "speedometer"),
-                    ("lighting", "Logo LED: Off", "lightbulb"), ("error", "Maximum fan speed: The EC command did not confirm the requested state", "wind")] {
+                    ("lighting", "Logo LED: Off", "lightbulb"), ("error", "Conservation: Firmware did not confirm the requested state", "battery.75")] {
                     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 64), styleMask: [.borderless], backing: .buffered, defer: false)
                     window.isOpaque = false; window.backgroundColor = .clear
                     window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)

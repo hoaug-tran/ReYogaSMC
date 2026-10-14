@@ -16,7 +16,6 @@ public final class GamingManager: ObservableObject {
     @Published public var hasPowerProfiles: Bool = false
     @Published public var hasConservation: Bool = false
     @Published public var hasRapidCharge: Bool = false
-    @Published public var hasFullFan: Bool = false
     @Published public var hasOverDrive: Bool = false
     @Published public var hasTouchpadLock: Bool = false
     @Published public var hasYLogo: Bool = false
@@ -31,7 +30,6 @@ public final class GamingManager: ObservableObject {
     @Published public var alwaysOnUSBState: Int = 0
     @Published public var isConservationOn: Bool = false
     @Published public var isRapidChargeOn: Bool = false
-    @Published public var isFullFanOn: Bool = false
     @Published public var isOverDriveOn: Bool = false
     @Published public var isTouchpadLocked: Bool = false
     @Published public var isYLogoOn: Bool = false
@@ -289,7 +287,6 @@ public final class GamingManager: ObservableObject {
         publish(\.hasPowerProfiles, supported("SmartFanMode"))
         publish(\.hasOverDrive, supported("DisplayOverDrive"))
         publish(\.hasTouchpadLock, supported("TouchpadLock"))
-        publish(\.hasFullFan, supported("FanFullSpeed"))
         publish(\.hasYLogo, supported("YLogoStatus"))
         publish(\.hasPortLighting, supported("PortLighting"))
         publish(\.hasDualFan, number("Fan number") >= 2 || props["Fan2RPM"] != nil)
@@ -316,7 +313,6 @@ public final class GamingManager: ObservableObject {
             publish(\.isConservationOn, boolean("ConservationMode"))
             publish(\.isRapidChargeOn, boolean("RapidChargeMode"))
         }
-        publish(\.isFullFanOn, boolean("FanFullSpeed"))
         publish(\.isOverDriveOn, number("DisplayOverDrive") == 1)
         publish(\.isTouchpadLocked, number("TouchpadLock") == 1)
         if rgbMode == "Factory" { publish(\.isYLogoOn, boolean("YLogoStatus")) }
@@ -367,7 +363,7 @@ public final class GamingManager: ObservableObject {
                 hardwareQueue.async { _ = sendBoolean("DetailedTelemetry", self.detailedLogging, handle); IOObjectRelease(handle) }
             }
             let saved = loadHardwareSettings()
-            let order = ["SmartFanMode", "ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "Fan1TargetRPM", "Fan2TargetRPM", "FanFullSpeed"]
+            let order = ["SmartFanMode", "ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "Fan1TargetRPM", "Fan2TargetRPM"]
             restoringControls = order.compactMap { key in saved.values[key].map { (key, $0) } }
             DispatchQueue.main.async { self.restoreNextControl() }
         }
@@ -517,7 +513,6 @@ public final class GamingManager: ObservableObject {
         apply("FanControlMode", 0, title: "Manual Fan Minimum") }
     public func toggleConservation() { apply("ConservationMode", isConservationOn ? 0 : 1, boolean: true, title: "Conservation") }
     public func toggleRapidCharge() { apply("RapidChargeMode", isRapidChargeOn ? 0 : 1, boolean: true, title: "Rapid Charge") }
-    public func toggleFullFan() { apply("FanFullSpeed", isFullFanOn ? 0 : 1, boolean: true, title: "Maximum fan speed") }
     public func toggleOverDrive() { apply("DisplayOverDrive", isOverDriveOn ? 0 : 1, title: "Display Overdrive") }
     public func toggleTouchpad() { apply("TouchpadLock", isTouchpadLocked ? 0 : 1, title: "Touchpad Lock") }
     public func toggleYLogo() {
@@ -879,7 +874,7 @@ public struct HardwareFeatureStatus: Equatable {
     public let backend: String
     public static let catalog: [String: String] = [
         "SmartFanMode": "Power Profile", "ConservationMode": "Conservation", "RapidChargeMode": "Rapid Charge",
-        "DisplayOverDrive": "Display Overdrive", "FanFullSpeed": "Maximum fan speed", "TouchpadLock": "Touchpad Lock",
+        "DisplayOverDrive": "Display Overdrive", "TouchpadLock": "Touchpad Lock",
         "AlwaysOnUSBState": "Always-On USB", "FnlockMode": "Fn Lock", "BacklightLevel": "Keyboard Backlight",
         "YLogoStatus": "Logo Lighting", "PortLighting": "Port Lighting", "FanControlMode": "Manual Fan Control",
         "Fan1TargetRPM": "Fan 1 Minimum", "Fan2TargetRPM": "Fan 2 Minimum",

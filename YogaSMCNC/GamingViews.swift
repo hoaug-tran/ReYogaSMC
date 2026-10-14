@@ -61,26 +61,28 @@ private struct ProfileSelector: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let modes = [(1, "Quiet", "leaf.fill"), (2, "Balanced", "speedometer"), (3, "Performance", "flame.fill")]
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 8) {
             ForEach(modes, id: \.0) { mode in
                 Button(action: { manager.setPowerProfile(mode.0) }) {
-                    HStack(spacing: 5) {
-                        Image(systemName: mode.2).font(.system(size: 11, weight: .semibold))
-                        Text(mode.1).font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                    }.padding(.horizontal, 8).frame(maxWidth: .infinity).frame(height: 36)
+                    VStack(spacing: 6) {
+                        Image(systemName: mode.2).font(.system(size: 14, weight: .semibold))
+                        Text(mode.1).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                    }.padding(.horizontal, 6).frame(maxWidth: .infinity).frame(height: 56)
                         .foregroundColor(manager.powerProfile == mode.0 ? .white : .primary)
                         .background(background(mode.0))
-                        .contentShape(RoundedRectangle(cornerRadius: 8))
+                        .contentShape(RoundedRectangle(cornerRadius: 10))
                 }.buttonStyle(GentlePressStyle())
                     .accessibilityLabel(mode.1)
                     .accessibilityValue(manager.powerProfile == mode.0 ? "Selected" : "Not selected")
             }
-        }.padding(4).background(Color.primary.opacity(0.035)).cornerRadius(12)
+        }
             .disabled(!manager.hasPowerProfiles || manager.applyingControl == "SmartFanMode")
     }
     private func background(_ mode: Int) -> some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(manager.powerProfile == mode ? ControlDesign.profile(mode) : Color.clear)
+        RoundedRectangle(cornerRadius: 10)
+            .fill(manager.powerProfile == mode ? ControlDesign.profile(mode) : Color.primary.opacity(0.035))
+            .overlay(RoundedRectangle(cornerRadius: 10)
+                .stroke(manager.powerProfile == mode ? ControlDesign.profile(mode) : Color.primary.opacity(0.12), lineWidth: 1))
             .modifier(StateAnimation(value: manager.powerProfile == mode))
     }
 }
@@ -271,9 +273,6 @@ public struct GamingPopoverView: View {
         Group {
             sensors
             profile
-            ControlSection("Cooling") {
-                row("Maximum fan speed", "FanFullSpeed", "wind", manager.isFullFanOn, manager.hasFullFan) { manager.toggleFullFan() }
-            }
             if manager.featureStatus["Fan1TargetRPM"]?.available == true || manager.featureStatus["Fan2TargetRPM"]?.available == true {
                 ManualFanControls(manager: manager)
             }
