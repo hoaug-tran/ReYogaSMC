@@ -15,6 +15,15 @@ SPEC.loader.exec_module(support)
 
 
 class HardwareSupportTests(unittest.TestCase):
+    def test_reviewed_legion_battery_mapping_does_not_swap_charge_modes(self):
+        profile = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text())
+        # GBMD samples: BTSM=1 is rapid charge; QCHO=1 is conservation.
+        samples = [(0x10060020, False, True), (0x10060204, True, False), (0x10060000, False, False)]
+        for raw, conservation, rapid in samples:
+            self.assertEqual(bool(raw & profile['battery_conservation_mask']), conservation)
+            self.assertEqual(bool(raw & profile['battery_rapidcharge_mask']), rapid)
+        self.assertEqual(profile['battery_conservation_mask'] & profile['battery_rapidcharge_mask'], 0)
+
     def test_unrelated_firmware_table_is_not_exported(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = pathlib.Path(tmp) / 'MSDM.aml'
