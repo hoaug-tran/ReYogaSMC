@@ -49,6 +49,7 @@ class WMI
     OSDictionary* mData = {nullptr};
     OSDictionary* mEvent = {nullptr};
     const char* iname;
+    bool firmwareTrace {false};
 
 public:
     // Constructor

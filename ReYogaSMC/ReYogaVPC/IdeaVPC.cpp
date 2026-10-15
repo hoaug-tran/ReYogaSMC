@@ -14,9 +14,13 @@ OSDefineMetaClassAndStructors(IdeaVPC, ReYogaVPC);
 
 void IdeaVPC::updateAll() {
     if (safeMode) return;
+    if (firmwareTrace) AlwaysLog("Firmware begin: battery state");
     updateBattery();
+    if (firmwareTrace) AlwaysLog("Firmware end: battery state; begin: keyboard state");
     updateKeyboard();
+    if (firmwareTrace) AlwaysLog("Firmware end: keyboard state; begin: VPC event handshake");
     updateVPC();
+    if (firmwareTrace) AlwaysLog("Firmware end: VPC event handshake");
     if (wmig) {
         UInt32 val = 0;
         if (wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &val))
@@ -40,8 +44,11 @@ void IdeaVPC::updateAll() {
             }
         }
     }
+    if (firmwareTrace) AlwaysLog("Firmware begin: feature status");
     updateFeatureStatus();
+    if (firmwareTrace) AlwaysLog("Firmware end: feature status; begin: base VPC refresh");
     super::updateAll();
+    if (firmwareTrace) AlwaysLog("Firmware end: base VPC refresh");
 }
 
 bool IdeaVPC::initVPC() {
@@ -53,11 +60,15 @@ bool IdeaVPC::initVPC() {
         return true;
     }
 
+    setProperty("FirmwareTraceEnabled", firmwareTrace);
+    setProperty("WMIProbeDisabled", !vendorWMISupport);
+    setProperty("ACPIBridgeDisabled", bridgeDisabled);
+    AlwaysLog("Boot stage: checking EC readiness");
     if (!initEC())
         return false;
-
+    AlwaysLog("Boot stage: EC ready; initializing base VPC");
     super::initVPC();
-
+    AlwaysLog("Boot stage: base VPC initialized; reading _CFG");
     UInt32 config;
     if (vpc->evaluateInteger(getVPCConfig, &config) != kIOReturnSuccess) {
         AlwaysLog(initFailure, getVPCConfig);
@@ -107,10 +118,13 @@ bool IdeaVPC::initVPC() {
     setProperty("Capability", capabilities);
     capabilities->release();
 
+    AlwaysLog("Boot stage: _CFG read; reading keyboard capabilities");
     updateKeyboardCapability();
+    AlwaysLog("Boot stage: keyboard capabilities read; reading battery capabilities");
     updateBatteryCapability();
-
+    AlwaysLog("Boot stage: battery capabilities read; reading adapter state");
     isPowerChanged();
+    AlwaysLog("Boot stage: adapter state read");
 
     int val[16];
     if (PE_parse_boot_argn("-ideabr", val, sizeof(val))) {
@@ -1102,7 +1116,7 @@ bool IdeaVPC::examineWMI(IOService *provider) {
         setProperty("Game Zone", provider);
         if (wmig) {
             UInt32 bridgeID = 0;
-            legionBridge = ec->evaluateInteger("RYID", &bridgeID) == kIOReturnSuccess && (bridgeID == 0x52590101 || bridgeID == 0x52590102);
+            legionBridge = !bridgeDisabled && ec->evaluateInteger("RYID", &bridgeID) == kIOReturnSuccess && (bridgeID == 0x52590101 || bridgeID == 0x52590102);
             legionBridgeVersion = legionBridge ? bridgeID & 0xff : 0;
             setProperty("ACPIBridgeVersion", legionBridgeVersion, 32);
             if (legionBridge) {
@@ -1243,11 +1257,17 @@ void IdeaVPC::updateFeatureStatus() {
         else removeProperty(raw);
     }
     auto ranges = OSDictionary::withCapacity(2);
+    bool powerSupported[2] = {false, false};
+    const bool powerAccess = wmig && wmig->cpuPowerAccessEnabled;
+    setProperty("CPUPowerAccessEnabled", powerAccess);
     const char *powerKeys[] = {"CPUBoostPower", "CPUSustainedPower"};
     for (unsigned i = 0; i < 2; ++i) {
         UInt32 range[4] = {};
-        bool supported = wmig && wmig->getPowerLimit(i == 0 ? 3 : 5, range);
-        add(powerKeys[i], supported, supported ? "" : "CPU WMI power-limit range unavailable", "WMI CPU");
+        bool supported = powerAccess && wmig->getPowerLimit(i == 0 ? 3 : 5, range);
+        powerSupported[i] = supported;
+        add(powerKeys[i], supported, supported ? "" : !powerAccess ?
+            "CPU power access is opt-in (-reycpupower): firmware getters may write SystemMemory" :
+            "CPU WMI power-limit range unavailable", "WMI CPU");
         if (supported && ranges) {
             auto item = OSDictionary::withCapacity(3);
             if (item) {
@@ -1260,9 +1280,10 @@ void IdeaVPC::updateFeatureStatus() {
             setProperty(powerKeys[i], range[0], 32);
         } else removeProperty(powerKeys[i]);
     }
-    UInt32 resetRange[4] = {};
-    const bool resetAvailable = wmig && wmig->getPowerLimit(3, resetRange) && wmig->getPowerLimit(5, resetRange);
-    add("CPUPowerReset", resetAvailable, resetAvailable ? "" : "CPU profile reset interface unavailable", "WMI CPU");
+    // Reuse this refresh's validated ranges; do not execute firmware getters twice.
+    const bool resetAvailable = powerSupported[0] && powerSupported[1];
+    add("CPUPowerReset", resetAvailable, resetAvailable ? "" : !powerAccess ?
+        "CPU power access is opt-in (-reycpupower)" : "CPU profile reset interface unavailable", "WMI CPU");
     setProperty("CPUPowerModified", powerLimitsSaved);
     setProperty("CPUPowerReset", static_cast<UInt64>(0), 32);
     add("GPUPowerLimit", false, "Requires an active supported graphics driver; firmware NPF notifications alone do not apply the limit", "Graphics driver required");
@@ -1276,6 +1297,7 @@ void IdeaVPC::updateFeatureStatus() {
 
 void IdeaVPC::updateTelemetry() {
     if (!wmig || !telemetryAwake) return;
+    if (firmwareTrace) AlwaysLog("Firmware begin: telemetry source=%s", legionBridge ? "ACPI bridge" : "WMI");
     auto status = OSDictionary::withCapacity(4);
     const char *keys[] = {"Fan1RPM", "Fan2RPM", cpuTempPrompt, gpuTempPrompt};
     const char *methods[] = {"RYF0", "RYF1", "RYT0", "RYT1"};
@@ -1323,6 +1345,7 @@ void IdeaVPC::updateTelemetry() {
     if (detailedTelemetry || sampleSequence == 1 || sampleSequence % 20 == 0)
         DebugLog("sample=%llu source=%s timeMS=%llu", sampleSequence,
                  legionBridge ? "ACPI-profile" : "WMI", ns / 1000000);
+    if (firmwareTrace) AlwaysLog("Firmware end: telemetry");
 }
 
 IOReturn IdeaVPC::setBridgeFan(UInt32 fan, UInt32 rpm) {

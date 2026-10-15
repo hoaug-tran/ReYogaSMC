@@ -2,7 +2,7 @@
 
 | Candidate | Evidence and prediction | Cheapest separating check | Status |
 |---|---|---|---|
-| Early ACPI/EC/WMI access | `IdeaVPC::start` reaches virtual `updateAll`; WMI examination triggers another full update and starts 500 ms telemetry. If causal, `-reysafe` boots. | Boot once with `-reysafe` | leading, unverified |
+| Early ACPI/EC/WMI access | `IdeaVPC::start` reaches virtual `updateAll`; WMI examination triggers another full update and starts 500 ms telemetry. User's macOS log now confirms safe-mode initialization and `VPC service published (safe=1)`, and the user reached the desktop. | Split legacy ACPI, WMI and bridge paths with diagnostic flags | leading group narrowed; exact failing call unverified |
 | Kext/dependency or personality failure | If causal, safe mode still fails before/while the service attaches. | Compare verbose/panic logs with kext disabled and with `-reysafe` | rival, unverified |
 | SSDT bridge namespace or SystemMemory mapping | If causal, removing only SSDT-ReYoga while retaining the safe kext changes the outcome, or panic names ACPI/bridge methods. | A/B SSDT with safe mode and inspect panic | rival, unverified |
 
@@ -30,3 +30,13 @@ Host: LENOVO 82N6, BIOS GKCN65WW, EC 1.65. DSDT SHA-256 is `2aee605fef946088d900
 DSDT confirms battery masks 0x20 / 0x04 and SBMC command pairs 3/5 and 7/8. No change to those values is justified. It also confirms WMB3 power-limit getters initialize CPP1/CPP2 in SystemMemory when zero, and recalculate CPP4 before dispatch; these getters are not side-effect-free. This strengthens the early-firmware-access hypothesis but does not identify the actual macOS panic site.
 
 The pasted CI log identifies a separate, confirmed compiler failure: `checkKernelArgument` is undeclared in the Alter target. Use `PE_parse_boot_argn` with its explicit pexpert header. Safe mode must also reject the sensor plugin, standalone WMI and DYVPC matching, and acknowledge PM callbacks without restarting hardware access.
+
+## Safe-boot evidence and next patch
+
+[verified — supplied macOS boot log] At 3.907054 s IdeaVPC skips ACPI/EC initialization; at 3.907071 s it publishes with safe=1. Matching and the passive service work in this configuration. This does not validate firmware methods or exclude a parser defect reached only outside safe mode. The same log has XHCS namespace lookup failures in USB `_STA`; attribution to this boot-loop is unproven.
+
+[verified — code and reviewed DSDT] `updateFeatureStatus` previously queried the two CPU power ranges, then queried them again to advertise reset. Firmware getters can initialize SystemMemory fields, so automatic capability refresh was not passive. CPU power access now requires explicit `-reycpupower`, enforced by both low-level getter/setter and feature availability; reset reuses the two range results. This removes a confirmed unsafe implicit-probing design, not a proven exclusive cause of the boot-loop.
+
+Added model-independent `-reynowmi` across IdeaVPC, standalone WMI and DYVPC; `-reynobridge` skips IdeaVPC RYxx discovery and dependent paths. `-reytrace` brackets WMI calls and VPC refresh/telemetry groups. Initialization logs bracket EC readiness, base VPC, _CFG, capabilities, EC sensor validation and BMF parsing. These are diagnostics, not a timeout: a firmware call can still hang inside Apple's ACPI evaluator.
+
+Local validation: 24 Python tests (including five source-level safety regressions), syntax checks of six affected C++ translation units in both main and Alter variants, and whitespace validation pass. These checks do not prove macOS runtime safety.

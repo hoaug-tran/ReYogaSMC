@@ -190,6 +190,8 @@ private:
     IOTimerEventSource *telemetryPoller {nullptr};
     bool telemetryAwake {true};
     bool safeMode {false};
+    bool firmwareTrace {false};
+    bool bridgeDisabled {false};
     bool detailedTelemetry {false};
     UInt64 sampleSequence {0};
     UInt32 telemetryIntervalMS {500};
@@ -276,7 +278,9 @@ private:
     inline bool probeVPC(IOService *provider) APPLE_KEXT_OVERRIDE {
         int bootArgument = 0;
         safeMode = PE_parse_boot_argn("-reysafe", &bootArgument, sizeof(bootArgument));
-        vendorWMISupport = !safeMode;
+        firmwareTrace = PE_parse_boot_argn("-reytrace", &bootArgument, sizeof(bootArgument));
+        bridgeDisabled = PE_parse_boot_argn("-reynobridge", &bootArgument, sizeof(bootArgument));
+        vendorWMISupport = !safeMode && !PE_parse_boot_argn("-reynowmi", &bootArgument, sizeof(bootArgument));
         return true;
     };
 

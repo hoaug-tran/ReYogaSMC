@@ -224,6 +224,7 @@ public:
     bool hasFanMethod {false};
     UInt32 fanCount {0};
     bool hasLightingMethod {false};
+    bool cpuPowerAccessEnabled {false};
 
     bool getGamzeZoneData(UInt32 query, UInt32 *result);
     bool setGameZoneData(UInt32 query, UInt32 value);

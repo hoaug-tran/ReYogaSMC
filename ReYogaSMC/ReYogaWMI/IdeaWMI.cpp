@@ -8,6 +8,7 @@
 //
 
 #include "IdeaWMI.hpp"
+#include <pexpert/pexpert.h>
 
 ReYogaWMI* ReYogaWMI::withIdeaWMI(WMI *provider) {
     ReYogaWMI* dev = nullptr;
@@ -529,6 +530,9 @@ bool IdeaWMIGameZone::setComponentLighting(UInt8 component, bool enable) {
 }
 
 void IdeaWMIGameZone::processWMI() {
+    int bootArgument = 0;
+    cpuPowerAccessEnabled = PE_parse_boot_argn("-reycpupower", &bootArgument, sizeof(bootArgument));
+    setProperty("CPUPowerAccessEnabled", cpuPowerAccessEnabled);
     setProperty("Feature", feature);
 
     hasFanMethod = YWMI->hasMethod(LENOVO_FAN_METHOD);
@@ -625,6 +629,8 @@ const char* IdeaWMIGameZone::registerEvent(OSString *guid, UInt32 id) {
 
 // Firmware supplies current/step/min/max as four little-endian dwords.
 bool IdeaWMIGameZone::getPowerLimit(UInt32 query, UInt32 range[4]) {
+    // Firmware getters may initialize SystemMemory fields; never probe implicitly.
+    if (!cpuPowerAccessEnabled || (query != 3 && query != 5) || !range) return false;
     if (!YWMI->hasMethod(LENOVO_CPU_METHOD)) return false;
     OSObject *result = nullptr;
     auto input = OSNumber::withNumber(0ULL, 32);
@@ -645,6 +651,7 @@ bool IdeaWMIGameZone::getPowerLimit(UInt32 query, UInt32 range[4]) {
 }
 
 bool IdeaWMIGameZone::setPowerLimit(UInt32 query, UInt32 watts) {
+    if (!cpuPowerAccessEnabled || (query != 4 && query != 6)) return false;
     OSObject *result = nullptr;
     auto input = OSNumber::withNumber(watts, 32);
     if (input == nullptr) return false;

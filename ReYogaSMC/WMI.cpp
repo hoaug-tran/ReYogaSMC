@@ -24,6 +24,7 @@
 
 #include "WMI.h"
 #include <uuid/uuid.h>
+#include <pexpert/pexpert.h>
 
 #define kWMIMethod      "_WDG"
 
@@ -104,6 +105,8 @@ bool WMI::initialize()
         return false;
 
     iname = mDevice->getName();
+    int bootArgument = 0;
+    firmwareTrace = PE_parse_boot_argn("-reytrace", &bootArgument, sizeof(bootArgument));
     mData = OSDictionary::withCapacity(1);
     mEvent = OSDictionary::withCapacity(1);
 
@@ -127,7 +130,10 @@ bool WMI::extractData()
     OSObject *wdg = nullptr;
     OSData *data;
 
-    if (mDevice->evaluateObject(kWMIMethod, &wdg) != kIOReturnSuccess) {
+    if (firmwareTrace) AlwaysLog("Firmware begin: ACPI=%s", kWMIMethod);
+    const IOReturn status = mDevice->evaluateObject(kWMIMethod, &wdg);
+    if (firmwareTrace) AlwaysLog("Firmware end: ACPI=%s status=0x%x", kWMIMethod, status);
+    if (status != kIOReturnSuccess) {
         AlwaysLog("Failed to evaluate ACPI object %s", kWMIMethod);
         return false;
     }
@@ -269,7 +275,10 @@ bool WMI::executeMethod(const char * guid, OSObject ** result, OSObject * params
 
     if (!mute)
         DebugLog("Calling method %s", methodName);
-    if (mDevice->evaluateObject(methodName, result, params, paramCount) != kIOReturnSuccess)
+    if (firmwareTrace) AlwaysLog("Firmware begin: ACPI=%s guid=%s", methodName, guid);
+    const IOReturn status = mDevice->evaluateObject(methodName, result, params, paramCount);
+    if (firmwareTrace) AlwaysLog("Firmware end: ACPI=%s guid=%s status=0x%x", methodName, guid, status);
+    if (status != kIOReturnSuccess)
         return false;
 
     return true;
@@ -330,7 +339,9 @@ UInt8 WMI::getInstanceCount(const char *guid)
 
 void WMI::start()
 {
+    AlwaysLog("Boot stage: parsing WMI BMF");
     parseBMF();
+    AlwaysLog("Boot stage: WMI BMF parsing finished");
     mDevice->setProperty("WDG", mData);
 }
 
@@ -422,7 +433,9 @@ IOReturn WMI::evaluateMethod(const char *guid, UInt8 instance, UInt32 methodId, 
     };
 
     if (!params[0] || !params[1]) { OSSafeReleaseNULL(params[0]); OSSafeReleaseNULL(params[1]); return kIOReturnNoMemory; }
+    if (firmwareTrace) AlwaysLog("Firmware begin: ACPI=%s guid=%s method=%u instance=%u", methodName, guid, methodId, instance);
     ret = mDevice->evaluateObject(methodName, result, params, input ? 3 : 2);
+    if (firmwareTrace) AlwaysLog("Firmware end: ACPI=%s guid=%s method=%u instance=%u status=0x%x", methodName, guid, methodId, instance, ret);
     if (ret != kIOReturnSuccess)
         AlwaysLog("WMI guid=%s method=%u instance=%u ACPI=%s status=0x%x", guid, methodId, instance, methodName, ret);
     params[0]->release();
@@ -473,7 +486,10 @@ IOReturn WMI::queryBlock(const char *guid, UInt8 instance, OSObject ** result, b
         OSNumber::withNumber(instance, 8),
     };
 
+    if (!params[0]) return kIOReturnNoMemory;
+    if (firmwareTrace) AlwaysLog("Firmware begin: ACPI=%s guid=%s instance=%u", methodName, guid, instance);
     ret = mDevice->evaluateObject(methodName, result, params, 1);
+    if (firmwareTrace) AlwaysLog("Firmware end: ACPI=%s guid=%s instance=%u status=0x%x", methodName, guid, instance, ret);
     params[0]->release();
 
     return ret;

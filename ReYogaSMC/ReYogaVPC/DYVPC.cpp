@@ -13,7 +13,8 @@ OSDefineMetaClassAndStructors(DYVPC, ReYogaVPC);
 
 bool DYVPC::probeVPC(IOService *provider) {
     int bootArgument = 0;
-    if (PE_parse_boot_argn("-reysafe", &bootArgument, sizeof(bootArgument)))
+    if (PE_parse_boot_argn("-reysafe", &bootArgument, sizeof(bootArgument)) ||
+        PE_parse_boot_argn("-reynowmi", &bootArgument, sizeof(bootArgument)))
         return false;
     YWMI = new WMI(provider);
     if (!YWMI->initialize())

@@ -64,6 +64,7 @@ void ReYogaVPC::probeWMI() {
             WMI *candidate = new WMI(dev);
             AlwaysLog("Boot stage: reading WMI descriptors from %s", dev->getName());
             candidate->initialize();
+            AlwaysLog("Boot stage: WMI descriptors read from %s", dev->getName());
             if (candidate->hasMethod(TBT_WMI_GUID)) {
                 DebugLog("Skip Thunderbolt interface");
                 delete candidate;
@@ -104,8 +105,11 @@ bool ReYogaVPC::start(IOService *provider) {
     AlwaysLog("Boot stage: VPC initialized");
 
     const bool safeMode = getProperty("SafeMode") == kOSBooleanTrue;
-    if (!safeMode)
+    if (!safeMode) {
+        AlwaysLog("Boot stage: validating EC sensor access");
         validateEC();
+        AlwaysLog("Boot stage: EC sensor access validated");
+    }
     setProperty("ACPIExportVersion", 1, 32);
 
     if (!safeMode) {
