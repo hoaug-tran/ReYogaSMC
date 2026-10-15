@@ -8,11 +8,16 @@
 //
 
 #include "ReYogaWMI.hpp"
+#include <pexpert/pexpert.h>
 
 OSDefineMetaClassAndStructors(ReYogaWMI, ReYogaBaseService)
 
 IOService *ReYogaWMI::probe(IOService *provider, SInt32 *score)
 {
+    // Standalone WMI matching otherwise bypasses IdeaVPC's isolation switch.
+    int bootArgument = 0;
+    if (PE_parse_boot_argn("-reysafe", &bootArgument, sizeof(bootArgument)))
+        return nullptr;
     if (!super::probe(provider, score))
         return nullptr;
 

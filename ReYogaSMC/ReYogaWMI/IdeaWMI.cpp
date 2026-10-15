@@ -546,15 +546,21 @@ void IdeaWMIGameZone::processWMI() {
     else
         AlwaysLog("Failed to get version");
 
-    if (hasFanMethod) {
-        setProperty("Fan number", 2, 32);
+    // Newer firmware can advertise the legacy Game Zone fan getter but fail
+    // when it is called. The table block supplies its actual instance count.
+    fanCount = hasFanMethod ? YWMI->getInstanceCount(LENOVO_FAN_TABLE_DATA) : 0;
+    if (!fanCount && getGamzeZoneData(GAME_ZONE_WMI_GET_FAN_NUM, &result))
+        fanCount = result;
+    if (fanCount > 16) fanCount = 0;
+    if (fanCount) setProperty("Fan number", fanCount, 32);
+    else removeProperty("Fan number");
+
+    if (hasFanMethod && fanCount) {
         if (getFanSpeed(0, &result))
             setProperty("Fan1Speed", result, 32);
-        if (getFanSpeed(1, &result))
+        if (fanCount > 1 && getFanSpeed(1, &result))
             setProperty("Fan2Speed", result, 32);
-    } else if (getGamzeZoneData(GAME_ZONE_WMI_GET_FAN_NUM, &result)) {
-        setProperty("Fan number", result, 32);
-    } else {
+    } else if (!fanCount) {
         AlwaysLog("Failed to get fan number");
     }
 

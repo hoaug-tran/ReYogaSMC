@@ -127,6 +127,9 @@ bool ReYogaSMC::vsmcNotificationHandler(void *sensors, void *refCon, IOService *
 }
 
 IOService* ReYogaSMC::probe(IOService *provider, SInt32 *score) {
+    // The sensor personality must not reactivate EC reads in VPC safe mode.
+    if (provider->getProperty("SafeMode") == kOSBooleanTrue)
+        return nullptr;
     ec = OSDynamicCast(IOACPIPlatformDevice, provider->getProperty("ECDevice"));
     if (!ec) {
         DebugLog("EC not found");

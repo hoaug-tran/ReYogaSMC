@@ -1201,11 +1201,15 @@ void IdeaVPC::updateFeatureStatus() {
     wmi(touchpadLockPrompt, GAME_ZONE_WMI_CAP_TOUCHPAD, GAME_ZONE_WMI_GET_TOUCHPAD);
     bool state = false;
     UInt32 coolingCapability = 0;
-    if (wmig && wmig->getGamzeZoneData(GAME_ZONE_WMI_CAP_FAN_COOLING, &coolingCapability))
+    const bool coolingCapabilityRead = wmig && wmig->getGamzeZoneData(GAME_ZONE_WMI_CAP_FAN_COOLING, &coolingCapability);
+    if (coolingCapabilityRead)
         setProperty("FanCoolingCapability", coolingCapability, 32);
     else removeProperty("FanCoolingCapability");
     bool ok = wmig && wmig->getFanFullSpeed(&state);
-    add(fullFanPrompt, ok, ok ? "" : "Fan full-speed getter failed or interface missing", "WMI Fan");
+    const bool coolingSupported = coolingCapabilityRead && coolingCapability != 0;
+    add(fullFanPrompt, ok && coolingSupported,
+        !coolingSupported ? "Firmware does not advertise fan cooling control" :
+        ok ? "" : "Fan full-speed getter failed or interface missing", "WMI Fan");
     if (ok) setProperty(fullFanPrompt, state);
     else removeProperty(fullFanPrompt);
     UInt32 lightingOwner = 0;
@@ -1519,6 +1523,7 @@ void IdeaVPC::controlRequest(OSDictionary *request) {
 }
 
 IOReturn IdeaVPC::setPowerState(unsigned long state, IOService *device) {
+    if (safeMode) return kIOPMAckImplied;
     if (!commandGate) return kIOPMAckImplied;
     return commandGate->runAction([](OSObject *owner, void *ordinal, void *device, void *, void *) -> IOReturn {
         return static_cast<IdeaVPC *>(owner)->setPowerStateGated(*static_cast<unsigned long *>(ordinal), static_cast<IOService *>(device));

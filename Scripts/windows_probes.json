@@ -109,6 +109,24 @@
     {
       "namespace": "root/wmi",
       "class": "LENOVO_GAMEZONE_DATA",
+      "method": "IsSupportDisableWinKey",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetWinKeyStatus",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
+      "method": "GetSmartFanSetting",
+      "arguments": {}
+    },
+    {
+      "namespace": "root/wmi",
+      "class": "LENOVO_GAMEZONE_DATA",
       "method": "IsSupportCpuOC",
       "arguments": {}
     },

@@ -19,6 +19,6 @@ A compiler deployment target establishes API compatibility, not a successful har
 
 ## Emergency safe mode
 
-Add `-reysafe` to OpenCore `boot-args` when a Lenovo Idea-family machine stops before the login window after enabling ReYogaSMC. In this mode the `IdeaVPC` service may attach for diagnostics, but it does not enumerate vendor WMI providers, evaluate Lenovo ACPI methods, access the EC, start telemetry, or accept hardware-control requests. The switch is model-independent and intended to separate driver matching/loading failures from firmware-transport failures.
+Add `-reysafe` to OpenCore `boot-args` when a Lenovo Idea-family machine stops before the login window after enabling ReYogaSMC. In this mode the `IdeaVPC` service may attach for diagnostics, but it does not enumerate vendor WMI providers, evaluate Lenovo ACPI methods, access the EC, start telemetry, or accept hardware-control requests. Its sensor plugin, standalone WMI matching and DYVPC matching are disabled as well. The switch is model-independent and intended to separate driver matching/loading failures from firmware-transport failures; ThinkVPC and ReYogaHIDD are outside this isolation mode.
 
 If `-reysafe` boots successfully, collect the panic/OpenCore log and an IORegistry export before re-enabling hardware access. If it still fails, disable the kext entry itself: the failure is earlier than Idea-family ACPI/EC activation or belongs to another personality/dependency.

@@ -32,6 +32,7 @@
 #define GAME_ZONE_FAN_WMI_EVENT     "bc72a435-e8c1-4275-b3e2-d8b8074aba59"
 #define GAME_ZONE_KEY_WMI_EVENT     "10afc6d9-ea8b-4590-a2e7-1cd3c84bb4b1"
 #define LENOVO_FAN_METHOD           "92549549-4bde-4f06-ac04-ce8bf898dbaa"
+#define LENOVO_FAN_TABLE_DATA       "87fb2a6d-d802-48e7-9208-4576c5f5c8d8"
 #define LENOVO_CPU_METHOD           "14afd777-106f-4c9b-b334-d388dc7809be"
 #define LENOVO_GPU_METHOD           "da7547f1-824d-405f-be79-d9903e29ced7"
 #define LENOVO_LIGHTING_DATA        "4dd5bd84-15a9-47e2-ad65-cc61a5c62fd0"
@@ -88,8 +89,8 @@ enum {
     GAME_ZONE_WMI_CAP_SMARTFAN      = 0x2B,
     GAME_ZONE_WMI_SET_SMARTFAN_MODE = 0x2C,
     GAME_ZONE_WMI_GET_SMARTFAN_MODE = 0x2D,
-    GAME_ZONE_WMI_GET_SMARTFAN_STA  = 0x2F,
-    GAME_ZONE_WMI_GET_CHARGE_MODE   = 0x30,
+    GAME_ZONE_WMI_GET_SMARTFAN_STA  = 0x2E,
+    GAME_ZONE_WMI_GET_CHARGE_MODE   = 0x2F,
     GAME_ZONE_WMI_CAP_OVER_DRIVE    = 0x31,
     GAME_ZONE_WMI_GET_OVER_DRIVE    = 0x32,
     GAME_ZONE_WMI_SET_OVER_DRIVE    = 0x33,
@@ -221,6 +222,7 @@ class IdeaWMIGameZone : public ReYogaWMI
 
 public:
     bool hasFanMethod {false};
+    UInt32 fanCount {0};
     bool hasLightingMethod {false};
 
     bool getGamzeZoneData(UInt32 query, UInt32 *result);

@@ -21,13 +21,14 @@ void IdeaSMC::addVSMCKey() {
 
     UInt32 value;
     if (wmig->hasFanMethod) {
-        VirtualSMCAPI::addKey(KeyF0Ac(0), vsmcPlugin.data, VirtualSMCAPI::valueWithFp(0, SmcKeyTypeFpe2, new atomicFpKey(&currentSensor[sensorCount])));
-        sensorIndex[sensorCount++] = 0xF0;
-
-        VirtualSMCAPI::addKey(KeyF0Ac(1), vsmcPlugin.data, VirtualSMCAPI::valueWithFp(0, SmcKeyTypeFpe2, new atomicFpKey(&currentSensor[sensorCount])));
-        sensorIndex[sensorCount++] = 0xF1;
-
-        VirtualSMCAPI::addKey(KeyFNum, vsmcPlugin.data, VirtualSMCAPI::valueWithUint8(2, nullptr, SMC_KEY_ATTRIBUTE_CONST | SMC_KEY_ATTRIBUTE_READ));
+        UInt8 exportedFans = 0;
+        for (UInt32 fan = 0; fan < wmig->fanCount && sensorCount < MAX_SENSOR - 2; ++fan) {
+            VirtualSMCAPI::addKey(KeyF0Ac(fan), vsmcPlugin.data, VirtualSMCAPI::valueWithFp(0, SmcKeyTypeFpe2, new atomicFpKey(&currentSensor[sensorCount])));
+            sensorIndex[sensorCount++] = 0xF0 + fan;
+            ++exportedFans;
+        }
+        if (exportedFans)
+            VirtualSMCAPI::addKey(KeyFNum, vsmcPlugin.data, VirtualSMCAPI::valueWithUint8(exportedFans, nullptr, SMC_KEY_ATTRIBUTE_CONST | SMC_KEY_ATTRIBUTE_READ));
 
         VirtualSMCAPI::addKey(KeyTCXC, vsmcPlugin.data, VirtualSMCAPI::valueWithSp(0, SmcKeyTypeSp78, new atomicSpKey(&currentSensor[sensorCount])));
         sensorIndex[sensorCount++] = 0xE0;
@@ -88,11 +89,8 @@ void IdeaSMC::updateECVendor() {
                 continue;
             }
         }
-        if (code == 0xF0) {
-            if (wmig->getFanSpeed(0, &value))
-                atomic_store_explicit(&currentSensor[index], value, memory_order_release);
-        } else if (code == 0xF1) {
-            if (wmig->getFanSpeed(1, &value))
+        if (code >= 0xF0) {
+            if (wmig->getFanSpeed(code - 0xF0, &value))
                 atomic_store_explicit(&currentSensor[index], value, memory_order_release);
         } else if (code == 0xE0) {
             if (wmig->getCPUTemperature(&value))

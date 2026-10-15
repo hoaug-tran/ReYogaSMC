@@ -8,9 +8,13 @@
 
 #include "DYVPC.hpp"
 #include "ReYogaWMI.hpp"
+#include <pexpert/pexpert.h>
 OSDefineMetaClassAndStructors(DYVPC, ReYogaVPC);
 
 bool DYVPC::probeVPC(IOService *provider) {
+    int bootArgument = 0;
+    if (PE_parse_boot_argn("-reysafe", &bootArgument, sizeof(bootArgument)))
+        return false;
     YWMI = new WMI(provider);
     if (!YWMI->initialize())
         return false;

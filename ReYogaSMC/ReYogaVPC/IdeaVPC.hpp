@@ -11,6 +11,7 @@
 #define IdeaVPC_hpp
 
 #include "ReYogaVPC.hpp"
+#include <pexpert/pexpert.h>
 
 #define BR_POLLING_INTERVAL 2000
 
@@ -273,7 +274,8 @@ private:
     bool initEC();
 
     inline bool probeVPC(IOService *provider) APPLE_KEXT_OVERRIDE {
-        safeMode = checkKernelArgument("-reysafe");
+        int bootArgument = 0;
+        safeMode = PE_parse_boot_argn("-reysafe", &bootArgument, sizeof(bootArgument));
         vendorWMISupport = !safeMode;
         return true;
     };

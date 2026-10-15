@@ -62,6 +62,7 @@ void ReYogaVPC::probeWMI() {
             }
 
             WMI *candidate = new WMI(dev);
+            AlwaysLog("Boot stage: reading WMI descriptors from %s", dev->getName());
             candidate->initialize();
             if (candidate->hasMethod(TBT_WMI_GUID)) {
                 DebugLog("Skip Thunderbolt interface");
@@ -97,21 +98,27 @@ bool ReYogaVPC::start(IOService *provider) {
         return false;
     DebugLog("Starting");
 
+    AlwaysLog("Boot stage: initializing VPC");
     if (!initVPC())
         return false;
+    AlwaysLog("Boot stage: VPC initialized");
 
     const bool safeMode = getProperty("SafeMode") == kOSBooleanTrue;
     if (!safeMode)
         validateEC();
     setProperty("ACPIExportVersion", 1, 32);
 
-    if (!safeMode)
+    if (!safeMode) {
+        AlwaysLog("Boot stage: initial firmware state refresh");
         updateAll();
+        AlwaysLog("Boot stage: initial firmware state refreshed");
+    }
 
     if (!safeMode && WMICollection) {
         for (int i=WMICollection->getCount()-1; i >= 0; i--) {
             IOService *wmi = OSDynamicCast(IOService, WMICollection->getObject(i));
             IOService *prov = OSDynamicCast(IOService, WMIProvCollection->getObject(i));
+            AlwaysLog("Boot stage: attaching WMI provider %s", prov->getName());
             if (!wmi->attach(prov)) {
                 AlwaysLog("Failed to attach WMI instance on %s", prov->getName());
                 WMICollection->removeObject(wmi);
@@ -123,11 +130,13 @@ bool ReYogaVPC::start(IOService *provider) {
                 WMIProvCollection->removeObject(prov);
             } else {
                 examineWMI(wmi);
+                AlwaysLog("Boot stage: WMI provider %s ready", prov->getName());
             }
         }
     }
     setProperty(kDeliverNotifications, kOSBooleanTrue);
     registerService();
+    AlwaysLog("Boot stage: VPC service published (safe=%d)", safeMode);
     return true;
 }
 
