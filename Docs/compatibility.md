@@ -16,3 +16,9 @@ Settings and RGB configurations persist in the app's preferences. macOS manages 
 Pinned dependency versions and SHA-256 checksums are in `Scripts/dependencies.json`. The main kext requires Lilu and VirtualSMC. The Alter variant omits VirtualSMC integration and must be loaded separately.
 
 A compiler deployment target establishes API compatibility, not a successful hardware boot on every listed version. Device-support contributions include the model, BIOS and macOS versions used.
+
+## Emergency safe mode
+
+Add `-reysafe` to OpenCore `boot-args` when a Lenovo Idea-family machine stops before the login window after enabling ReYogaSMC. In this mode the `IdeaVPC` service may attach for diagnostics, but it does not enumerate vendor WMI providers, evaluate Lenovo ACPI methods, access the EC, start telemetry, or accept hardware-control requests. The switch is model-independent and intended to separate driver matching/loading failures from firmware-transport failures.
+
+If `-reysafe` boots successfully, collect the panic/OpenCore log and an IORegistry export before re-enabling hardware access. If it still fails, disable the kext entry itself: the failure is earlier than Idea-family ACPI/EC activation or belongs to another personality/dependency.

@@ -100,12 +100,15 @@ bool ReYogaVPC::start(IOService *provider) {
     if (!initVPC())
         return false;
 
-    validateEC();
+    const bool safeMode = getProperty("SafeMode") == kOSBooleanTrue;
+    if (!safeMode)
+        validateEC();
     setProperty("ACPIExportVersion", 1, 32);
 
-    updateAll();
+    if (!safeMode)
+        updateAll();
 
-    if (WMICollection) {
+    if (!safeMode && WMICollection) {
         for (int i=WMICollection->getCount()-1; i >= 0; i--) {
             IOService *wmi = OSDynamicCast(IOService, WMICollection->getObject(i));
             IOService *prov = OSDynamicCast(IOService, WMIProvCollection->getObject(i));

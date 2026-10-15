@@ -13,6 +13,7 @@
 OSDefineMetaClassAndStructors(IdeaVPC, ReYogaVPC);
 
 void IdeaVPC::updateAll() {
+    if (safeMode) return;
     updateBattery();
     updateKeyboard();
     updateVPC();
@@ -44,6 +45,14 @@ void IdeaVPC::updateAll() {
 }
 
 bool IdeaVPC::initVPC() {
+    if (safeMode) {
+        telemetryAwake = false;
+        setProperty("SafeMode", kOSBooleanTrue);
+        setProperty("SafeModeReason", "-reysafe: ACPI, EC and WMI hardware access disabled");
+        AlwaysLog("Safe mode enabled; skipping ACPI/EC initialization");
+        return true;
+    }
+
     if (!initEC())
         return false;
 
@@ -149,6 +158,9 @@ bool IdeaVPC::exitVPC() {
 }
 
 IOReturn IdeaVPC::message(UInt32 type, IOService *provider, void *argument) {
+    if (safeMode)
+        return super::message(type, provider, argument);
+
     switch (type)
     {
         case kSMC_YogaEvent:
@@ -207,6 +219,10 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
     OSDictionary *dict = OSDynamicCast(OSDictionary, props);
     if (!dict)
         return;
+    if (safeMode) {
+        AlwaysLog("Ignoring property request while safe mode is enabled");
+        return;
+    }
     if (auto request = OSDynamicCast(OSDictionary, dict->getObject("ControlRequest"))) {
         controlRequest(request);
         return;

@@ -188,6 +188,7 @@ private:
     class IdeaWMIGameZone *wmig {nullptr};
     IOTimerEventSource *telemetryPoller {nullptr};
     bool telemetryAwake {true};
+    bool safeMode {false};
     bool detailedTelemetry {false};
     UInt64 sampleSequence {0};
     UInt32 telemetryIntervalMS {500};
@@ -272,7 +273,8 @@ private:
     bool initEC();
 
     inline bool probeVPC(IOService *provider) APPLE_KEXT_OVERRIDE {
-        vendorWMISupport = true;
+        safeMode = checkKernelArgument("-reysafe");
+        vendorWMISupport = !safeMode;
         return true;
     };
 
