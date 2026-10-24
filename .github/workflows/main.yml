@@ -75,7 +75,7 @@ jobs:
         run: |
           bash Scripts/package.sh Debug
           bash Scripts/package.sh Release
-          python3 Scripts/release.py verify-assets
+          python3 Scripts/release.py verify-assets --version "$BUILD_VERSION"
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
@@ -114,7 +114,7 @@ jobs:
         run: |
           set -euo pipefail
           tag="v$RELEASE_VERSION"
-          python3 Scripts/release.py verify-assets
+          python3 Scripts/release.py verify-assets --version "$RELEASE_VERSION"
           python3 Scripts/release.py prepare
           git fetch origin main --tags
           if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then

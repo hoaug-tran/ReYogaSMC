@@ -44,23 +44,22 @@ class ReleaseTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             with self.assertRaises(ValueError):
-                release.verify_assets(root)
-            for mode in ('Debug', 'Release'):
-                (root / mode).mkdir()
-                for kind in ('kexts', 'apps', 'tool'):
-                    required = {
-                        'kexts': ['kexts/ReYogaSMC.kext/Contents/MacOS/ReYogaSMC', 'kexts/ReYogaSMCAlter.kext/Contents/MacOS/ReYogaSMCAlter'],
-                        'apps': ['apps/ReYogaSMCNC.app/Contents/MacOS/ReYogaSMCNC', 'apps/ReYogaSMCNC.app/Contents/Library/LoginItems/ReYogaSMCNCHelper.app/Contents/MacOS/ReYogaSMCNCHelper'],
-                        'tool': ['tool/ReYoga.cmd', 'tool/ReYoga.command', 'tool/Scripts/hardware_support.py'],
-                    }[kind]
-                    with zipfile.ZipFile(root / mode / f'ReYogaSMC-{kind}-{mode}.zip', 'w') as archive:
-                        for member in required:
-                            archive.writestr(member, b'content')
-            release.verify_assets(root)
+                release.verify_assets(root, '2.0.0')
+            manifest = release.package_manifest('2.0.0')
+            expected = {f'{mode}/{product}-2.0.0-{mode.upper()}.zip'
+                        for mode in ('Debug', 'Release') for product in ('ReYogaSMC', 'ReYogaSMCAlter', 'ReYogaSMCNC')}
+            self.assertEqual(set(manifest), expected)
+            for name, required in manifest.items():
+                archive_path = root / name
+                archive_path.parent.mkdir(exist_ok=True)
+                with zipfile.ZipFile(archive_path, 'w') as archive:
+                    for member in required:
+                        archive.writestr(member, b'content')
+            release.verify_assets(root, '2.0.0')
             self.assertEqual(len((root / 'SHA256SUMS.txt').read_text().splitlines()), 6)
-            (root / 'extra.zip').write_bytes(b'extra')
+            (root / 'ReYogaSMC-tool-Release.zip').write_bytes(b'extra')
             with self.assertRaises(ValueError):
-                release.verify_assets(root)
+                release.verify_assets(root, '2.0.0')
 
     def test_plan_ignores_docs_and_bumps_source_changes(self):
         with tempfile.TemporaryDirectory() as directory:

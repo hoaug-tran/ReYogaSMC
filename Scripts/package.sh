@@ -1,5 +1,5 @@
 #!/bin/bash
-# Package built products and the hardware tool without including local reports.
+# Package each driver variant and the app separately.
 set -euo pipefail
 export COPYFILE_DISABLE=1
 package_config="${1:-Release}"
@@ -9,20 +9,25 @@ package_products="$package_root/build/$package_config"
 package_output="$package_root/build/packages/$package_config"
 package_stage="$(mktemp -d)"
 trap 'rm -rf "$package_stage"' EXIT
-for package_product in ReYogaSMC.kext ReYogaSMCAlter.kext ReYogaSMCNC.app; do
-    test -d "$package_products/$package_product" || { echo "Missing product: $package_product" >&2; exit 1; }
-done
-mkdir -p "$package_output" "$package_stage/kexts" "$package_stage/apps" "$package_stage/tool/Scripts" "$package_stage/tool/HardwareProfiles"
-cp -R "$package_products/ReYogaSMC.kext" "$package_products/ReYogaSMCAlter.kext" "$package_root/ReYogaSMC/SSDTSample" "$package_stage/kexts/"
-cp -R "$package_products/ReYogaSMCNC.app" "$package_stage/apps/"
-cp "$package_root/LICENSE" "$package_root/README.md" "$package_stage/kexts/"
-cp "$package_root/LICENSE" "$package_root/README.md" "$package_stage/apps/"
-cp "$package_root/LICENSE" "$package_root/ReYoga.command" "$package_root/ReYoga.cmd" "$package_stage/tool/"
-cp "$package_root/Docs/hardware-tool.md" "$package_stage/tool/README.md"
-cp "$package_root/Scripts/hardware_support.py" "$package_root/Scripts/acpica.json" "$package_root/Scripts/ec_reader.py" "$package_root/Scripts/pawnio.json" "$package_root/Scripts/windows_support.py" "$package_root/Scripts/windows_inventory.ps1" "$package_root/Scripts/windows_probes.json" "$package_stage/tool/Scripts/"
-cp "$package_root/HardwareProfiles/"*.json "$package_root/HardwareProfiles/"*.dsl "$package_root/HardwareProfiles/README.md" "$package_stage/tool/HardwareProfiles/"
-ln -s /Applications "$package_stage/apps/Applications"
-for package_kind in kexts apps tool; do
-    ditto --norsrc --noextattr --noacl -c -k --keepParent "$package_stage/$package_kind" "$package_output/ReYogaSMC-$package_kind-$package_config.zip"
+package_label="$(printf '%s' "$package_config" | tr '[:lower:]' '[:upper:]')"
+package_version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$package_products/ReYogaSMC.kext/Contents/Info.plist")"
+if [ -n "${BUILD_VERSION:-}" ] && [ "$package_version" != "$BUILD_VERSION" ]; then echo 'Build version mismatch' >&2; exit 1; fi
+mkdir -p "$package_output"
+for package_name in ReYogaSMC ReYogaSMCAlter ReYogaSMCNC; do
+    package_extension=kext
+    if [ "$package_name" = ReYogaSMCNC ]; then package_extension=app; fi
+    package_product="$package_products/$package_name.$package_extension"
+    test -f "$package_product/Contents/MacOS/$package_name" || { echo "Missing executable: $package_name" >&2; exit 1; }
+    package_product_version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$package_product/Contents/Info.plist")"
+    if [ "$package_product_version" != "$package_version" ]; then echo "Version mismatch: $package_name" >&2; exit 1; fi
+    mkdir -p "$package_stage/$package_name"
+    cp -R "$package_product" "$package_stage/$package_name/"
+    cp "$package_root/LICENSE" "$package_root/README.md" "$package_stage/$package_name/"
+    if [ "$package_extension" = app ]; then
+        ln -s /Applications "$package_stage/$package_name/Applications"
+    else
+        cp -R "$package_root/ReYogaSMC/SSDTSample" "$package_stage/$package_name/"
+    fi
+    ditto --norsrc --noextattr --noacl -c -k --keepParent "$package_stage/$package_name" "$package_output/$package_name-$package_version-$package_label.zip"
 done
 echo "Packages: $package_output"

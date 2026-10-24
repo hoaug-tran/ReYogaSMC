@@ -92,25 +92,31 @@ def plan():
     return {'version': version, 'publish': changed or at_tag, 'revision': revision, 'messages': messages}
 
 
-def verify_assets(folder):
+def package_manifest(version):
+    version_tuple(version)
+    executables = {
+        'ReYogaSMC': ['ReYogaSMC/ReYogaSMC.kext/Contents/MacOS/ReYogaSMC'],
+        'ReYogaSMCAlter': ['ReYogaSMCAlter/ReYogaSMCAlter.kext/Contents/MacOS/ReYogaSMCAlter'],
+        'ReYogaSMCNC': ['ReYogaSMCNC/ReYogaSMCNC.app/Contents/MacOS/ReYogaSMCNC',
+                        'ReYogaSMCNC/ReYogaSMCNC.app/Contents/Library/LoginItems/ReYogaSMCNCHelper.app/Contents/MacOS/ReYogaSMCNCHelper'],
+    }
+    return {f'{mode}/{product}-{version}-{mode.upper()}.zip': members
+            for mode in ('Debug', 'Release') for product, members in executables.items()}
+
+
+def verify_assets(folder, version=None):
     folder = pathlib.Path(folder)
-    expected = {f'{mode}/ReYogaSMC-{kind}-{mode}.zip' for mode in ('Debug', 'Release') for kind in ('kexts', 'apps', 'tool')}
+    version = version or os.environ.get('BUILD_VERSION') or project_version((ROOT / PROJECT).read_text(encoding='utf-8'))
+    manifest = package_manifest(version)
+    expected = set(manifest)
     actual = {path.relative_to(folder).as_posix() for path in folder.rglob('*.zip')}
     if actual != expected:
         raise ValueError(f'Package mismatch; missing={sorted(expected - actual)}, extra={sorted(actual - expected)}')
     lines = []
-    for name in sorted(expected):
+    for name, required in sorted(manifest.items()):
         path = folder / name
         if path.stat().st_size == 0:
             raise ValueError('Empty package: ' + name)
-        kind = name.split('/')[1].split('-')[1]
-        required = {
-            'kexts': ['kexts/ReYogaSMC.kext/Contents/MacOS/ReYogaSMC',
-                      'kexts/ReYogaSMCAlter.kext/Contents/MacOS/ReYogaSMCAlter'],
-            'apps': ['apps/ReYogaSMCNC.app/Contents/MacOS/ReYogaSMCNC',
-                     'apps/ReYogaSMCNC.app/Contents/Library/LoginItems/ReYogaSMCNCHelper.app/Contents/MacOS/ReYogaSMCNCHelper'],
-            'tool': ['tool/ReYoga.cmd', 'tool/ReYoga.command', 'tool/Scripts/hardware_support.py'],
-        }[kind]
         with zipfile.ZipFile(path) as archive:
             for member in required:
                 if member not in archive.namelist() or archive.getinfo(member).file_size == 0:
@@ -126,6 +132,7 @@ def main():
     parser.add_argument('command', choices=('plan', 'prepare', 'verify-assets', 'verify-tag'))
     parser.add_argument('--plan', default='build/release-plan.json')
     parser.add_argument('--assets', default='build/packages')
+    parser.add_argument('--version')
     args = parser.parse_args()
     if args.command == 'plan':
         result = plan()
@@ -137,7 +144,7 @@ def main():
                 output.write(f"version={result['version']}\npublish={str(result['publish']).lower()}\n")
         print(json.dumps({key: result[key] for key in ('version', 'publish', 'revision')}))
     elif args.command == 'verify-assets':
-        verify_assets(ROOT / args.assets)
+        verify_assets(ROOT / args.assets, args.version)
     else:
         result = json.loads((ROOT / args.plan).read_text(encoding='utf-8'))
         version = result['version']
