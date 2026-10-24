@@ -11,6 +11,7 @@ import Foundation
 import os.log
 
 class ThinkFanHelper {
+    let item = NSMenuItem()
     let menu: NSMenu
     let connect: io_connect_t
     let main: Bool
@@ -37,7 +38,7 @@ class ThinkFanHelper {
         self.main = main
         self.single = single
 
-        enable = menu.items[2].title.hasSuffix("ThinkVPC")
+        enable = connect != 0
         fanPrompt = NSLocalizedString(main ? "Main: %d rpm" : "Alt: %d rpm", comment: "")
 
         slider.maxValue = 7
@@ -73,10 +74,11 @@ class ThinkFanHelper {
         view.addSubview(autoMode)
         view.addSubview(fullMode)
 
-        let item = NSMenuItem()
         item.view = view
         menu.insertItem(item, at: 4)
     }
+
+    deinit { menu.removeItem(item) }
 
     @objc func buttonChanged(_ sender: NSButton) {
         if sender == autoMode {
@@ -115,6 +117,11 @@ class ThinkFanHelper {
             savedLevel = level
         }
 
+        guard (1...7).contains(savedLevel) || savedLevel == 0x47 || savedLevel == 0x80 || savedLevel == 0x84 ||
+              (savedLevel == 0 && defaults.bool(forKey: "AllowFanStop")) else {
+            showOSDRaw("Fan level is invalid; use Auto or a supported level")
+            return
+        }
         guard enable, switchFan(main) else { return }
 
         var input = [savedLevel]

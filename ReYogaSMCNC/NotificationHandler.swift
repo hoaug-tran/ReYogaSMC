@@ -209,15 +209,13 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
         _ = scriptHelper(sleepAS, desc.name)
     case .search:
         _ = scriptHelper(searchAS, desc.name)
-    case .siri:
-        _ = scriptHelper(siriAS, desc.name)
     case .spotlight:
         _ = scriptHelper(spotlightAS, desc.name)
     case .controls:
         (NSApp.delegate as? AppDelegate)?.toggleGamingPopover(nil)
         showOSD(desc.name)
-    case .calculator, .screenshot:
-        let bundle = desc.action == .calculator ? "com.apple.calculator" : "com.apple.Screenshot"
+    case .calculator, .screenshot, .siri:
+        let bundle = desc.action == .siri ? "com.apple.Siri" : desc.action == .calculator ? "com.apple.calculator" : "com.apple.Screenshot"
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) {
             NSWorkspace.shared.openApplication(at: url, configuration: .init()) { _, error in
                 if let error = error { ReYogaDiagnostics.shared.record("hotkey_launch_failed", ["bundle": bundle, "error": error.localizedDescription]) }
@@ -228,7 +226,7 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.displays") { NSWorkspace.shared.open(url) }
         showOSDRaw("Display Settings")
     case .thermal:
-        if #available(macOS 11.0, *) { GamingManager.shared.refreshAll() }
+        if #available(macOS 11.0, *) { HardwareManager.shared.refreshAll() }
         showOSD(desc.name, desc.image)
         if #available(macOS 10.12, *) {
             os_log("%s: thermal event", type: .info, desc.name)

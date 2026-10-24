@@ -1,0 +1,22 @@
+{
+  "IOClass": "IdeaVPC",
+  "HardwareProfileName": "Hardware controls",
+  "ControlProtocolVersion": 1,
+  "Fan number": 2,
+  "Fan1RPM": 2400,
+  "Fan2RPM": 2200,
+  "CPUTemp": 48,
+  "GPUTemp": 42,
+  "SmartFanMode": 2,
+  "ConservationMode": true,
+  "RapidChargeMode": false,
+  "BacklightLevel": 1,
+  "FnlockMode": false,
+  "FeatureStatus": {
+    "SmartFanMode": {"Available": true, "Backend": "ACPI", "Reason": ""},
+    "ConservationMode": {"Available": true, "Backend": "ACPI", "Reason": ""},
+    "RapidChargeMode": {"Available": true, "Backend": "ACPI", "Reason": ""},
+    "BacklightLevel": {"Available": true, "Backend": "ACPI", "Reason": ""},
+    "FnlockMode": {"Available": true, "Backend": "ACPI", "Reason": ""}
+  }
+}

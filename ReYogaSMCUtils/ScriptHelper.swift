@@ -8,20 +8,12 @@
 
 import AppKit
 import Foundation
-import ScriptingBridge
 import os.log
 
 let sleepAS = "tell application \"System Events\" to sleep"
 
 let searchAS = "tell application \"System Events\" to keystroke space using {command down, option down}"
 let spotlightAS = "tell application \"System Events\" to keystroke space using command down"
-let siriAS = """
-                tell application "System Events" to tell the front menu bar of process "SystemUIServer"
-                  tell (first menu bar item whose description is "Siri")
-                     perform action "AXPress"
-                  end tell
-                end tell
-             """
 let reloadAS = """
                   tell application id "org.reyoga.ReYogaSMCNC" to quit
                   tell application id "org.reyoga.ReYogaSMCNC" to activate

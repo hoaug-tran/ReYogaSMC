@@ -1,7 +1,5 @@
 import SwiftUI
 
-// Functional macOS utility: semantic colors, an 8-point spacing grid, and
-// explicit switch state. Hardware availability is supplied by the manager.
 @available(macOS 11.0, *)
 private enum ControlDesign {
     static let width: CGFloat = 420
@@ -39,7 +37,7 @@ private struct StateAnimation<Value: Equatable>: ViewModifier {
         if #available(macOS 12.0, *) {
             content.animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: value)
         } else {
-            content.animation(reduceMotion ? nil : .easeInOut(duration: 0.18))
+            content
         }
     }
 }
@@ -57,7 +55,7 @@ private struct GentlePressStyle: ButtonStyle {
 
 @available(macOS 11.0, *)
 private struct ProfileSelector: View {
-    @ObservedObject var manager: GamingManager
+    @ObservedObject var manager: HardwareManager
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let modes = [(1, "Quiet", "leaf.fill"), (2, "Balanced", "speedometer"), (3, "Performance", "flame.fill")]
     var body: some View {
@@ -96,7 +94,7 @@ private struct ControlSection<Content: View>: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.system(size: 12, weight: .semibold)).foregroundColor(.secondary)
+            Text(title).font(.system(size: 12, weight: .semibold)).foregroundColor(.secondary).accessibilityAddTraits(.isHeader)
             VStack(alignment: .leading, spacing: 0) { content }
                 .padding(12).background(ControlDesign.surface)
                 .cornerRadius(12)
@@ -119,10 +117,14 @@ private struct FanReadout: View {
             }
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(rpm >= 0 ? String(rpm) : "—")
-                    .font(.system(size: 26, weight: .semibold, design: .rounded))
+                    .font(.system(size: 26, weight: .semibold, design: .rounded)).monospacedDigit()
                 Text("RPM").font(.caption).foregroundColor(.secondary)
             }
         }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .transaction { $0.animation = nil }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(title)
+            .accessibilityValue(rpm >= 0 ? "\(rpm) revolutions per minute" : "Unavailable")
             .background(ControlDesign.surface)
             .overlay(RoundedRectangle(cornerRadius: 12).fill(accentColor.opacity(0.045)).allowsHitTesting(false))
             .cornerRadius(12)
@@ -157,16 +159,17 @@ private struct FeatureRow: View {
                 .background(isOn && available ? color.opacity(0.10) : Color.clear).cornerRadius(5)
             Toggle(title, isOn: Binding(get: { isOn }, set: { _ in action() }))
                 .labelsHidden().toggleStyle(SwitchToggleStyle()).accentColor(color).disabled(!available)
-        }.frame(minHeight: 36).modifier(StateAnimation(value: isOn))
+                .accessibilityLabel(title).accessibilityHint(available ? "" : reason)
+        }.frame(minHeight: 36)
     }
 }
 
 @available(macOS 11.0, *)
-public struct GamingPopoverView: View {
-    @ObservedObject var manager: GamingManager
+public struct HardwareControlsView: View {
+    @ObservedObject var manager: HardwareManager
     @AppStorage("ControlsPage") private var page = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    public init(manager: GamingManager, page: Int = 0) { self.manager = manager; if CommandLine.arguments.contains("--render-ui") { self.page = page } }
+    public init(manager: HardwareManager, page: Int = 0) { self.manager = manager; if CommandLine.arguments.contains("--render-ui") { self.page = page } }
     public var body: some View {
         Group {
             if manager.driverState == .ready {
@@ -187,7 +190,7 @@ public struct GamingPopoverView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     if page == 0 { deviceControls } else { coolingControls }
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            }.transaction { $0.animation = nil }
+            }.modifier(StateAnimation(value: page))
             Divider()
             HStack(spacing: 12) {
                 Button(action: { (NSApp.delegate as? AppDelegate)?.showSettings() }) {
@@ -234,6 +237,9 @@ public struct GamingPopoverView: View {
             Text(value > 0 ? "\(value)°C" : "—").font(.system(size: 12, weight: .semibold, design: .monospaced))
                 .foregroundColor(value >= 80 ? .orange : .primary)
         }.padding(8).frame(maxWidth: .infinity).background(ControlDesign.surface).cornerRadius(8).help(source)
+            .transaction { $0.animation = nil }
+            .accessibilityElement(children: .ignore).accessibilityLabel(title)
+            .accessibilityValue(value > 0 ? "\(value) degrees Celsius" : "Unavailable").accessibilityHint(source)
     }
     private var profile: some View {
         ControlSection("Power Profile") {
@@ -249,6 +255,16 @@ public struct GamingPopoverView: View {
         Group {
             sensors
             profile
+            if manager.featureStatus["FnlockMode"]?.available == true || manager.featureStatus["BacklightLevel"]?.available == true {
+                ControlSection("Keyboard") {
+                    row("Fn Lock", "FnlockMode", "fn", manager.isFnLocked, manager.featureStatus["FnlockMode"]?.available == true) { manager.toggleFnLock() }
+                    Picker("Backlight", selection: Binding(get: { manager.keyboardBacklight }, set: { manager.setKeyboardBacklight($0) })) {
+                        if manager.keyboardBacklight < 0 { Text("Unavailable").tag(-1) }
+                        Text("Off").tag(0); Text("Low").tag(1); Text("High").tag(2)
+                    }.disabled(manager.featureStatus["BacklightLevel"]?.available != true || manager.isApplying)
+                }
+            }
+            if manager.providerClass == "ThinkVPC" { ThinkPadBatteryControls(manager: manager) }
             ControlSection("Battery & Device") {
                 row("Conservation", "ConservationMode", "battery.75", manager.isConservationOn, manager.hasConservation) { manager.toggleConservation() }
                 if !manager.batterySummary.isEmpty {
@@ -281,13 +297,55 @@ public struct GamingPopoverView: View {
                 ManualFanControls(manager: manager)
             }
             CPUPowerControls(manager: manager)
+            if manager.providerClass == "ThinkVPC" {
+                Button("ThinkPad Fan Controls…") { (NSApp.delegate as? AppDelegate)?.showLegacyControls() }
+                    .help("Uses the existing ThinkPad EC interface when the driver advertises read/write access.")
+            }
         }
     }
 }
 
 @available(macOS 11.0, *)
+private struct ThinkPadBatteryControls: View {
+    @ObservedObject var manager: HardwareManager
+    @State private var start = ""
+    @State private var stop = ""
+    var body: some View {
+        ControlSection("Charge Thresholds") {
+            if manager.batteryIndividualAddressing {
+                Picker("Battery", selection: Binding(get: { manager.batteryIndex }, set: { manager.selectBattery($0) })) {
+                    Text("Primary").tag(1); Text("Secondary").tag(2)
+                }.disabled(manager.isApplying)
+            }
+            threshold("Start", key: "ChargeStartThreshold", text: $start, actual: manager.chargeStartThreshold)
+            threshold("Stop", key: "ChargeStopThreshold", text: $stop, actual: manager.chargeStopThreshold)
+        }
+    }
+    private func threshold(_ title: String, key: String, text: Binding<String>, actual: Int) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(actual >= 0 ? "\(actual)%" : "—").foregroundColor(.secondary)
+                TextField("%", text: text).frame(width: 48)
+                Button("Apply") { if let value = Int(text.wrappedValue) { manager.setChargeThreshold(key, percent: value) } }
+                    .disabled(manager.isApplying || manager.featureStatus[key]?.available != true || !valid(key, text.wrappedValue))
+            }
+            if let status = manager.featureStatus[key], !status.available {
+                Text(status.reason).font(.system(size: 10)).foregroundColor(.secondary)
+            }
+        }
+    }
+    private func valid(_ key: String, _ text: String) -> Bool {
+        guard !text.isEmpty, text.utf8.allSatisfy({ (48...57).contains($0) }), let value = Int(text) else { return false }
+        return key == "ChargeStartThreshold" ? (0...99).contains(value) && value <= manager.chargeStopThreshold :
+            (1...100).contains(value) && manager.chargeStartThreshold >= 0 && value >= manager.chargeStartThreshold
+    }
+}
+
+@available(macOS 11.0, *)
 private struct DriverUnavailableView: View {
-    @ObservedObject var manager: GamingManager
+    @ObservedObject var manager: HardwareManager
     var previewMissing = false
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -319,7 +377,7 @@ private struct DriverUnavailableView: View {
 
 @available(macOS 11.0, *)
 private struct ManualFanControls: View {
-    @ObservedObject var manager: GamingManager
+    @ObservedObject var manager: HardwareManager
     @AppStorage("FanDraft1") private var fan1Floor: Double = 0
     @AppStorage("FanDraft2") private var fan2Floor: Double = 0
     var body: some View {
@@ -391,7 +449,7 @@ private struct PowerLimitRow: View {
 
 @available(macOS 11.0, *)
 private struct CPUPowerControls: View {
-    @ObservedObject var manager: GamingManager
+    @ObservedObject var manager: HardwareManager
     var body: some View {
         ControlSection("CPU Power Limits") {
             HStack {
@@ -416,7 +474,7 @@ private struct CPUPowerControls: View {
 
 @available(macOS 11.0, *)
 private struct RGBControls: View {
-    @ObservedObject var manager: GamingManager
+    @ObservedObject var manager: HardwareManager
     @AppStorage("RGBDraftKeyboard") private var keyboard = "#E82E38"
     @AppStorage("RGBDraftLogo") private var logo = "#E82E38"
     @AppStorage("RGBDraftVents") private var vents = "#E82E38"
@@ -468,7 +526,7 @@ private struct RGBControls: View {
 
 @available(macOS 11.0, *)
 struct ReYogaSettingsView: View {
-    @ObservedObject var manager: GamingManager
+    @ObservedObject var manager: HardwareManager
     @ObservedObject var preferences: ReYogaPreferences
     var body: some View {
         VStack(spacing: 12) {
@@ -502,7 +560,7 @@ struct ReYogaSettingsView: View {
             }
             Text(preferences.updateStatus).font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
             Spacer()
-            Text("Original ReYogaSMC by Zhen · ReYogaSMC maintained by Hoaug").font(.caption).foregroundColor(.secondary)
+            Text("Based on YogaSMC · GPL v2").font(.caption).foregroundColor(.secondary)
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
     }
     private var keyboard: some View {
@@ -547,18 +605,21 @@ struct ReYogaSettingsView: View {
     }
 }
 
-// Offscreen review uses the production views and read-only registry snapshots.
+// Interface snapshots use the production views.
+#if DEBUG
 @available(macOS 11.0, *)
 struct ReYogaReviewView: View {
     let mode: String
-    @ObservedObject var manager: GamingManager
+    @ObservedObject var manager: HardwareManager
     var body: some View {
         if mode == "missing-driver" { DriverUnavailableView(manager: manager, previewMissing: true) }
         else if mode == "rgb" { RGBControls(manager: manager).padding(16).frame(width: 420, height: 360, alignment: .top).background(Color(NSColor.windowBackgroundColor)) }
         else if mode == "settings" { ReYogaSettingsView(manager: manager, preferences: ReYogaPreferences.shared) }
-        else { GamingPopoverView(manager: manager, page: mode == "cooling" ? 1 : 0) }
+        else { HardwareControlsView(manager: manager, page: mode == "cooling" ? 1 : 0) }
     }
 }
+
+#endif
 
 @available(macOS 11.0, *)
 private struct PersistentColorWell: NSViewRepresentable {
@@ -606,7 +667,7 @@ final class ReYogaColorPanel: NSObject, NSWindowDelegate {
 
     func present(from well: NSColorWell) {
         guard let window = well.window, let screen = window.screen else { return }
-        let popover = (NSApp.delegate as? AppDelegate)?.gamingPopover
+        let popover = (NSApp.delegate as? AppDelegate)?.controlsPopover
         if owner == nil {
             owner = popover
             previousBehavior = popover?.behavior ?? .transient

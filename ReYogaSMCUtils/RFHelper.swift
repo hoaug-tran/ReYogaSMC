@@ -78,7 +78,7 @@ func airplaneModeHelper(_ name: String, _ display: Bool) {
         }
         return
     }
-    let status = (IOBluetoothPreferenceGetDiscoverableState() == 0 && !iface.powerOn())
+    let status = (IOBluetoothPreferenceGetControllerPowerState() == 0 && !iface.powerOn())
     do {
         try iface.setPower(status)
         IOBluetoothPreferenceSetControllerPowerState(status ? 1 : 0)

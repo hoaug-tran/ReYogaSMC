@@ -6,8 +6,8 @@ import ApplicationServices
 import os.log
 
 @available(macOS 11.0, *)
-public final class GamingManager: ObservableObject {
-    public static let shared = GamingManager()
+public final class HardwareManager: ObservableObject {
+    public static let shared = HardwareManager()
 
     @Published public var modelName: String = ""
     @Published public var cpuBrand: String = ""
@@ -34,6 +34,13 @@ public final class GamingManager: ObservableObject {
     @Published public var isTouchpadLocked: Bool = false
     @Published public var isYLogoOn: Bool = false
     @Published public var isPortLightingOn: Bool = false
+    @Published public var providerClass = ""
+    @Published public var isFnLocked = false
+    @Published public var keyboardBacklight = -1
+    @Published public var chargeStartThreshold = -1
+    @Published public var chargeStopThreshold = -1
+    @Published public var batteryIndex = 1
+    @Published public var batteryIndividualAddressing = false
     @Published public var isConnected: Bool = false
     public enum DriverState: Equatable { case checking, ready, missing, unavailable }
     @Published public var driverState: DriverState = .checking
@@ -52,8 +59,12 @@ public final class GamingManager: ObservableObject {
         ReYogaDiagnostics.shared.record("driver_state", ["state": String(describing: state), "message": message])
     }
 
+    private var connectionGeneration: UInt64 = 0
     public var service: io_service_t = 0 {
         didSet {
+            connectionGeneration &+= 1
+            refreshInFlight = false
+            isApplying = false; applyingControl = nil
             isConnected = service != 0
             if isConnected {
                 detectHardwareInfo()
@@ -61,6 +72,10 @@ public final class GamingManager: ObservableObject {
                 startMonitoring()
             } else {
                 stopMonitoring()
+                queuedControls.removeAll(); pendingFanChecks.removeAll()
+                lastSampleSequence = -1; lastSampleDate = .distantPast
+                powerProfile = 0; powerRanges = [:]; cpuPowerModified = false
+                hotkeysRestoreAttempted = false; hotkeyProfileID = ""
                 fan1RPM = -1; fan2RPM = -1; cpuTemp = -1; gpuTemp = -1
                 hotkeys.stop(); hotkeysEnabled = false
                 hardwareQueue.async { self.stopRGBEffect(); self.rgbRestoredProfile = nil; try? self.rgbController.restoreHardwareMode(); self.smcTemperatures.close() }
@@ -168,7 +183,7 @@ public final class GamingManager: ObservableObject {
         let poll = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             let delegate = NSApp.delegate as? AppDelegate
-            let visible = delegate?.gamingPopover?.isShown == true || delegate?.settingsWindow?.isVisible == true
+            let visible = delegate?.controlsPopover?.isShown == true || delegate?.settingsWindow?.isVisible == true
             if visible || !self.pendingFanChecks.isEmpty || Date().timeIntervalSince(self.lastBackgroundRefresh) >= 2 {
                 self.lastBackgroundRefresh = Date()
                 self.refreshSnapshot(full: false)
@@ -191,9 +206,11 @@ public final class GamingManager: ObservableObject {
         guard service != 0, !refreshInFlight else { return }
         refreshInFlight = true
         let handle = service
+        let generation = connectionGeneration
         IOObjectRetain(handle)
+        let refreshFirmware = full || providerClass == "ThinkVPC"
         hardwareQueue.async {
-            if full { _ = sendBoolean("Update", true, handle) }
+            if refreshFirmware { _ = sendBoolean("Update", true, handle) }
             let snapshot = getProperties(handle)
             let battery = LiveBatterySnapshot.read()
             let smcCPU = self.smcTemperatures.cpuTemperature()
@@ -202,8 +219,8 @@ public final class GamingManager: ObservableObject {
             let smcReason = self.smcTemperatures.reason
             IOObjectRelease(handle)
             DispatchQueue.main.async {
+                guard generation == self.connectionGeneration, handle == self.service else { return }
                 self.refreshInFlight = false
-                guard handle == self.service else { return }
                 if let snapshot = snapshot {
                     let batteryStatus = battery?.summary ?? ""
                     if self.batterySummary != batteryStatus {
@@ -213,7 +230,7 @@ public final class GamingManager: ObservableObject {
                     self.cpuUsesSMC = smcCPU != nil
                     self.gpuUsesSMC = smcGPU != nil
                     self.publish(\.cpuTemp, smcCPU.map { Int($0.celsius.rounded()) } ?? (snapshot["CPUTemp"] as? Int ?? -1))
-                    self.publish(\.cpuTemperatureSource, smcCPU?.source ?? "Firmware CPU sensor")
+                    self.publish(\.cpuTemperatureSource, smcCPU?.source ?? (snapshot["SensorSources"] as? [String: String])?["CPUTemp"] ?? "Firmware CPU sensor")
                     self.publish(\.cpuTemperatureReason, cpuReason)
                     if let reading = smcGPU {
                         self.publish(\.gpuTemp, Int(reading.celsius.rounded()))
@@ -221,7 +238,7 @@ public final class GamingManager: ObservableObject {
                     }
                     if smcGPU == nil {
                         self.publish(\.gpuTemp, snapshot["GPUTemp"] as? Int ?? -1)
-                        self.publish(\.gpuTemperatureSource, self.gpuTemp > 0 ? "Firmware GPU sensor" : "No GPU temperature source")
+                        self.publish(\.gpuTemperatureSource, self.gpuTemp > 0 ? (snapshot["SensorSources"] as? [String: String])?["GPUTemp"] ?? "Firmware GPU sensor" : "No GPU temperature source")
                     }
                     self.publish(\.gpuTemperatureReason, smcReason)
                     self.accept(snapshot)
@@ -237,11 +254,18 @@ public final class GamingManager: ObservableObject {
         }
     }
 
-    private func publish<Value: Equatable>(_ path: ReferenceWritableKeyPath<GamingManager, Value>, _ value: Value) {
+    private func publish<Value: Equatable>(_ path: ReferenceWritableKeyPath<HardwareManager, Value>, _ value: Value) {
         if self[keyPath: path] != value { self[keyPath: path] = value }
     }
 
     private func accept(_ props: NSDictionary) {
+        publish(\.providerClass, props["IOClass"] as? String ?? "")
+        publish(\.isFnLocked, props["FnlockMode"] as? Bool ?? false)
+        publish(\.keyboardBacklight, props["BacklightLevel"] as? Int ?? -1)
+        publish(\.chargeStartThreshold, props["ChargeStartThreshold"] as? Int ?? -1)
+        publish(\.chargeStopThreshold, props["ChargeStopThreshold"] as? Int ?? -1)
+        publish(\.batteryIndex, props["BatteryIndex"] as? Int ?? 1)
+        publish(\.batteryIndividualAddressing, props["BatteryIndividualAddressing"] as? Bool ?? false)
         publish(\.cpuPowerModified, props["CPUPowerModified"] as? Bool ?? false)
         if let profileID = props["HardwareProfile"] as? String,
            let labels = HardwareProfiles.all().first(where: { $0["id"] as? String == profileID })?["fan_labels"] as? [String], labels.count == 2 {
@@ -284,16 +308,18 @@ public final class GamingManager: ObservableObject {
         let conservationMask = batteryProfile?["battery_conservation_mask"] as? Int
         let rapidMask = batteryProfile?["battery_rapidcharge_mask"] as? Int
         if let conservationMask = conservationMask, let rapidMask = rapidMask {
-            if let raw = props["BatteryModeRaw"] as? Int {
-                publish(\.isConservationOn, raw & conservationMask != 0)
-                publish(\.isRapidChargeOn, raw & rapidMask != 0)
-            }
-            let mappingMatches = (props["BatteryStateSchemaVersion"] as? Int ?? 0) >= 4 &&
+            let mappingMatches = [1, 4].contains(props["BatteryStateSchemaVersion"] as? Int ?? 0) &&
                 props["ConservationStateMask"] as? Int == conservationMask && props["RapidChargeStateMask"] as? Int == rapidMask
+            if mappingMatches {
+                if let raw = props["BatteryModeRaw"] as? Int {
+                    publish(\.isConservationOn, raw & conservationMask != 0)
+                    publish(\.isRapidChargeOn, raw & rapidMask != 0)
+                }
+            }
             if !mappingMatches {
                 for key in ["ConservationMode", "RapidChargeMode"] {
                     availability[key] = HardwareFeatureStatus(available: false,
-                        reason: "Boot the updated kext and SSDT to use the Storage/Quick charge mapping", backend: "ACPI profile")
+                        reason: "The driver battery-state masks do not match the reviewed firmware profile", backend: "ACPI profile")
                 }
             }
         }
@@ -318,7 +344,7 @@ public final class GamingManager: ObservableObject {
         if !cpuUsesSMC { publish(\.cpuTemp, number("CPUTemp")) }
         if !gpuUsesSMC {
             publish(\.gpuTemp, number("GPUTemp"))
-            publish(\.gpuTemperatureSource, number("GPUTemp") > 0 ? "Firmware GPU sensor" : "No GPU temperature source")
+            publish(\.gpuTemperatureSource, number("GPUTemp") > 0 ? (props["SensorSources"] as? [String: String])?["GPUTemp"] ?? "Firmware GPU sensor" : "No GPU temperature source")
         }
         for (fan, check) in pendingFanChecks {
             let rpm = fan == 0 ? fan1RPM : fan2RPM
@@ -366,10 +392,11 @@ public final class GamingManager: ObservableObject {
                     "sensorStatus": props["SensorStatus"] ?? [:]])
             }
         }
-        let status = sequence < 0 ? "Driver update required" :
+        let status = sequence < 0 ? (protocolVersion == 1 ? "ACPI state refreshed" : "Driver update required") :
             Date().timeIntervalSince(lastSampleDate) > 2 ? "Telemetry stale — check driver log" : "Live • \(props["TelemetryIntervalMS"] ?? 500) ms"
         if sequence >= 0 && Date().timeIntervalSince(lastSampleDate) > 2 {
-            publish(\.fan1RPM, -1); publish(\.fan2RPM, -1); publish(\.cpuTemp, -1)
+            publish(\.fan1RPM, -1); publish(\.fan2RPM, -1)
+            if !cpuUsesSMC { publish(\.cpuTemp, -1) }
             if !gpuUsesSMC { publish(\.gpuTemp, -1) }
         }
         if status != telemetryStatus {
@@ -400,7 +427,7 @@ public final class GamingManager: ObservableObject {
         return SavedHardwareSettings(identity: preferenceIdentity)
     }
     private func saveHardwareSetting(_ key: String, target: Int, boolean: Bool) {
-        guard !preferenceIdentity.isEmpty else { return }
+        guard !preferenceIdentity.isEmpty, key != "BatteryIndex", !key.hasPrefix("Charge") else { return }
         var saved = loadHardwareSettings()
         saved.record(key, value: SavedControlValue(value: target, boolean: boolean,
             powerProfile: key == "CPUBoostPower" || key == "CPUSustainedPower" || key.contains("TargetRPM") ? powerProfile : nil))
@@ -448,6 +475,7 @@ public final class GamingManager: ObservableObject {
         isApplying = true
         applyingControl = key
         let handle = service
+        let generation = connectionGeneration
         IOObjectRetain(handle)
         let requestID = UUID().uuidString
         let targetValue: Any = boolean ? (target != 0) : target
@@ -480,7 +508,7 @@ public final class GamingManager: ObservableObject {
                 "status": confirmed ? 0 : status, "initialStatus": status, "confirmed": confirmed, "reason": confirmed ? "Firmware readback matched" : reason, "requested": targetValue, "actual": snapshot?[key] ?? NSNull(), "code": result["Code"] ?? "unknown", "stage": result["Stage"] ?? "unknown", "initialCommandStatus": result["CommandStatus"] ?? NSNull()])
             IOObjectRelease(handle)
             DispatchQueue.main.async {
-                guard handle == self.service else { self.isApplying = false; self.applyingControl = nil; self.queuedControls.removeAll(); return }
+                guard generation == self.connectionGeneration, handle == self.service else { return }
                 if let snapshot = snapshot { self.accept(snapshot) }
                 self.isApplying = false
                 self.applyingControl = nil
@@ -494,14 +522,29 @@ public final class GamingManager: ObservableObject {
                     let fan = key == "Fan1TargetRPM" ? 0 : 1
                     self.pendingFanChecks[fan] = (target, Date().addingTimeInterval(12))
                 }
-                let valueLabel = key == "SmartFanMode" ? ["Quiet", "Balanced", "Performance"][target - 1] :
-                    key == "AlwaysOnUSBState" ? ["Off", "AC power", "AC + battery"][target] :
-                    key == "CPUPowerReset" ? "Restored" : key.contains("TargetRPM") ? "\(target) RPM minimum" : key == "CPUBoostPower" || key == "CPUSustainedPower" ? "\(target) W" : target == 0 ? "Off" : "On"
+                let valueLabel = key == "SmartFanMode" ? ([1: "Quiet", 2: "Balanced", 3: "Performance"][target] ?? "Unknown (\(target))") :
+                    key == "AlwaysOnUSBState" ? ([0: "Off", 1: "AC power", 2: "AC + battery"][target] ?? "Unknown (\(target))") :
+                    key.hasPrefix("Charge") ? "\(target)%" : key == "BatteryIndex" ? (target == 1 ? "Primary" : "Secondary") :
+                    key == "BacklightLevel" ? String(target) : key == "CPUPowerReset" ? "Restored" : key.contains("TargetRPM") ? "\(target) RPM minimum" : key == "CPUBoostPower" || key == "CPUSustainedPower" ? "\(target) W" : target == 0 ? "Off" : "On"
                 if !restoring || !confirmed { showOSDRaw(confirmed ? "\(title): \(valueLabel)" : "\(title): \(reason)", duration: confirmed ? 1500 : 3000, symbol: ReYogaBrand.controlSymbol(key, value: target)) }
             }
         }
     }
 
+    public func toggleFnLock() { apply("FnlockMode", isFnLocked ? 0 : 1, boolean: true, title: "Fn Lock") }
+    public func setKeyboardBacklight(_ level: Int) {
+        guard (0...2).contains(level) else { return }
+        apply("BacklightLevel", level, title: "Keyboard Backlight")
+    }
+    public func selectBattery(_ index: Int) {
+        guard index == 1 || (index == 2 && batteryIndividualAddressing) else { return }
+        apply("BatteryIndex", index, title: "Battery")
+    }
+    public func setChargeThreshold(_ key: String, percent: Int) {
+        guard (key == "ChargeStartThreshold" && (0...99).contains(percent)) ||
+              (key == "ChargeStopThreshold" && (1...100).contains(percent)) else { return }
+        apply(key, percent, title: key == "ChargeStartThreshold" ? "Charge Start" : "Charge Stop")
+    }
     public func setPowerProfile(_ mode: Int) {
         guard (1...3).contains(mode) else { return }
         apply("SmartFanMode", mode, title: "Power Profile")
@@ -511,6 +554,7 @@ public final class GamingManager: ObservableObject {
         apply("AlwaysOnUSBState", state, title: "USB Charging")
     }
     public func setFanMinimum(_ fan: Int, rpm: Int) {
+        guard fanLabels.indices.contains(fan), rpm >= 0 else { return }
         guard (0...1).contains(fan), rpm >= 0 else { return }
         guard confirmControlRisk("Change fan minimum?", message: "This raises the minimum over the factory cooling curve; it does not set an unrestricted fixed speed. Higher minima increase fan noise and power use. Restore Auto returns control to the factory curve.", preference: "AcknowledgedFanMinimumRisk") else { return }
         apply(fan == 0 ? "Fan1TargetRPM" : "Fan2TargetRPM", rpm, title: fanLabels[fan])
@@ -591,7 +635,7 @@ public final class GamingManager: ObservableObject {
         if handle != 0 { IOObjectRetain(handle) }
         hardwareQueue.async {
             defer { if handle != 0 { IOObjectRelease(handle) } }
-            let keys = ["BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask", "VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
+            let keys = ["IOClass", "SafeMode", "NativeTelemetryProfile", "NativeTelemetryReason", "FirmwareDSDTSHA256", "SensorSources", "BatteryIndex", "ChargeStartThreshold", "ChargeStopThreshold", "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask", "VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
                         "ACPIBridgeVersion", "FanWritesValidated", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "FanFullSpeedECResult", "FanFullSpeedCommandBackend", "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage", "SensorSampleSequence", "SensorSampleTimeMS",
                         "Fan1RPM", "Fan2RPM", "Fan1TargetRPM", "Fan2TargetRPM", "FanControlMode", "CPUTemp", "GPUTemp"]
             let snapshot: NSDictionary = handle != 0 ? getProperties(handle) ?? [:] : [:]
@@ -599,6 +643,17 @@ public final class GamingManager: ObservableObject {
             for key in keys { if let value = snapshot[key] { driver[key] = value } }
             var report = metadata
             report["driver"] = driver
+            if handle != 0, snapshot["ACPIExportVersion"] as? Int == 1 {
+                let status = IORegistryEntrySetCFProperty(handle, "ExportDSDT" as CFString, kCFBooleanTrue)
+                let table = IORegistryEntryCreateCFProperty(handle, "ExportedDSDT" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Data
+                _ = IORegistryEntrySetCFProperty(handle, "ExportDSDT" as CFString, kCFBooleanFalse)
+                if status == kIOReturnSuccess, let table = table, table.count >= 36, table.count <= 1024 * 1024,
+                   table.prefix(4) == Data("DSDT".utf8) {
+                    report["DSDT"] = table
+                } else {
+                    report["ACPIExportError"] = String(format: "DSDT unavailable (0x%08x)", status)
+                }
+            }
             ReYogaDiagnostics.shared.export(report, to: output)
         }
     }
@@ -667,6 +722,13 @@ public final class GamingManager: ObservableObject {
             }
         }
     }
+    #if DEBUG
+    func loadUIFixture(_ props: NSDictionary) {
+        controlsRestoreAttempted = true
+        isConnected = true
+        driverState = .ready
+        accept(props)
+    }
     func loadReadOnlyPreview(_ handle: io_service_t) {
         if let props = getProperties(handle) {
             isConnected = true; driverState = .ready; accept(props)
@@ -675,6 +737,8 @@ public final class GamingManager: ObservableObject {
             batterySummary = LiveBatterySnapshot.read()?.summary ?? ""
         }
     }
+    #endif
+
     public func setHotkeysEnabled(_ enabled: Bool) {
         guard !enabled || driverState == .ready else {
             hotkeyStatus = "Connect a compatible hardware driver before enabling keyboard mapping."
@@ -899,6 +963,7 @@ public struct HardwareFeatureStatus: Equatable {
     public let reason: String
     public let backend: String
     public static let catalog: [String: String] = [
+        "ChargeStartThreshold": "Charge Start", "ChargeStopThreshold": "Charge Stop", "BatteryIndex": "Battery",
         "SmartFanMode": "Power Profile", "ConservationMode": "Conservation", "RapidChargeMode": "Rapid Charge",
         "DisplayOverDrive": "Display Overdrive", "TouchpadLock": "Touchpad Lock",
         "AlwaysOnUSBState": "Always-On USB", "FnlockMode": "Fn Lock", "BacklightLevel": "Keyboard Backlight",
@@ -920,7 +985,11 @@ final class ReYogaDiagnostics {
             defer { try? FileManager.default.removeItem(at: folder) }
             do {
                 try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-                let data = try PropertyListSerialization.data(fromPropertyList: report, format: .xml, options: 0)
+                var metadata = report
+                if let table = metadata.removeValue(forKey: "DSDT") as? Data {
+                    try table.write(to: folder.appendingPathComponent("DSDT.aml"))
+                }
+                let data = try PropertyListSerialization.data(fromPropertyList: metadata, format: .xml, options: 0)
                 try data.write(to: folder.appendingPathComponent("report.plist"))
                 // Include only our bounded logs; no system-wide log collection.
                 for name in ["events.jsonl", "events.1.jsonl", "events.2.jsonl", "events.3.jsonl"] {

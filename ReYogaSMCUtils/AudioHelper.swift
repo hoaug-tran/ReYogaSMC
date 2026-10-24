@@ -99,7 +99,7 @@ struct AudioProperty<T: AudioScalar> {
 
         var settable: DarwinBoolean = false
         var error = AudioObjectIsPropertySettable(device, &addr, &settable)
-        if error != noErr {
+        if error != noErr || !settable.boolValue {
             return .failure(.propertyNotSettable)
         }
 
@@ -126,9 +126,9 @@ class AudioHelper {
     let inputMute: AudioProperty<UInt32>
     let outputMute: AudioProperty<UInt32>
 
-    var muteLEDStatus = false
+    private static var muteLEDStatus = false
 
-    static let shared = AudioHelper()
+    static var shared: AudioHelper? { AudioHelper() }
 
     init?() {
         do {
@@ -205,11 +205,11 @@ class AudioHelper {
     func muteLEDHelper(_ service: io_service_t, _ wake: Bool) {
         do {
             let mute = try outputMute.get().get() != 0
-            if !wake, mute == muteLEDStatus { return }
+            if !wake, mute == Self.muteLEDStatus { return }
             guard sendBoolean("MuteLED", mute, service) else {
                 throw AudioPropertyError.noProperty
             }
-            muteLEDStatus = mute
+            Self.muteLEDStatus = mute
             if #available(macOS 10.12, *) {
                 os_log("Mute LED updated", type: .info)
             }
@@ -249,8 +249,9 @@ class VolumeObserver: NSApplication {
 }
 
 func micMuteLEDHelper(_ service: io_service_t) {
-    if AudioHelper.shared != nil {
-        AudioHelper.shared?.micMuteLEDHelper(service)
+    if let audio = AudioHelper.shared {
+        audio.micMuteLEDHelper(service)
+        return
     }
 
     guard let current = scriptHelper(getMicVolumeAS, "MicMute") else { return }
@@ -260,8 +261,8 @@ func micMuteLEDHelper(_ service: io_service_t) {
 var muteLEDStatus = false
 
 func muteLEDHelper(_ service: io_service_t, _ wake: Bool = true) {
-    if AudioHelper.shared != nil {
-        AudioHelper.shared?.muteLEDHelper(service, wake)
+    if let audio = AudioHelper.shared {
+        audio.muteLEDHelper(service, wake)
         return
     }
 
@@ -282,8 +283,8 @@ func muteLEDHelper(_ service: io_service_t, _ wake: Bool = true) {
 var muteVolume: Int32 = 50
 
 func micMuteHelper(_ service: io_service_t, _ name: String) {
-    if AudioHelper.shared != nil {
-        AudioHelper.shared?.micMuteHelper(service, name)
+    if let audio = AudioHelper.shared {
+        audio.micMuteHelper(service, name)
         return
     }
 
@@ -296,7 +297,6 @@ func micMuteHelper(_ service: io_service_t, _ name: String) {
         }
     } else {
         if scriptHelper(String(format: setMicVolumeAS, muteVolume), "MicMute") != nil {
-            muteVolume = current.int32Value
             _ = sendNumber("MicMuteLED", 0, service)
             showOSDRes(name, "Unmute", .kMic)
         }

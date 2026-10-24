@@ -21,11 +21,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
     var IOClass = "ReYogaSMC"
 
     var statusItem: NSStatusItem?
-    var gamingPopover: NSPopover?
+    var controlsPopover: NSPopover?
     var settingsWindow: NSWindow?
     private var flagsMonitor: Any?
     private var driverPort: IONotificationPortRef?
     private var driverInterest: io_object_t = 0
+    private var thinkWakeObserver: NSObjectProtocol?
     @IBOutlet weak var appMenu: NSMenu!
     var hide = false
 
@@ -91,7 +92,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
         statusItem?.button?.image = ReYogaBrand.menuImage()
         statusItem?.button?.title = ""
         statusItem?.button?.toolTip = "ReYogaSMC"
-        GamingManager.shared.restoreAfterWake()
+        HardwareManager.shared.restoreAfterWake()
     }
 
     @objc func update () {
@@ -107,23 +108,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
 
     func menuWillOpen(_ menu: NSMenu) {
         update()
-        DispatchQueue.global(qos: .default).async {
-            self.fanTimer = Timer.scheduledTimer(
-                timeInterval: 1,
-                target: self,
-                selector: #selector(self.update),
-                userInfo: nil,
-                repeats: true
-            )
+        fanTimer?.invalidate()
+        fanTimer = Timer(timeInterval: 1, target: self, selector: #selector(update), userInfo: nil, repeats: true)
 
-            if self.fanTimer == nil {
-                return
-            }
-            self.fanTimer?.tolerance = 0.2
-            let currentRunLoop = RunLoop.current
-            currentRunLoop.add(self.fanTimer!, forMode: .common)
-            currentRunLoop.run()
-        }
+        fanTimer?.tolerance = 0.2
+        if let timer = fanTimer { RunLoop.main.add(timer, forMode: .common) }
     }
 
     func menuDidClose(_ menu: NSMenu) {
@@ -133,13 +122,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
     // MARK: - Application
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        if CommandLine.arguments.contains("--render-ui") { renderUIReview(); return }
         #if DEBUG
+        if CommandLine.arguments.contains("--render-ui") { renderUIReview(); return }
         if CommandLine.arguments.contains("--check-missing-driver") {
-            GamingManager.shared.setDriverState(.missing, message: "ReYogaSMC.kext is required. Install a compatible driver and restart macOS.")
-            initMenu("Driver required"); setupGamingPopover()
+            HardwareManager.shared.setDriverState(.missing, message: "ReYogaSMC.kext is required. Install a compatible driver and restart macOS.")
+            initMenu("Driver required"); setupControlsPopover()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                let clean = self.conf.service == 0 && self.conf.connect == 0 && GamingManager.shared.driverState == .missing
+                let clean = self.conf.service == 0 && self.conf.connect == 0 && HardwareManager.shared.driverState == .missing
                 print(clean ? "PASS missing driver: no client, no device dashboard; recovery screen active" : "FAIL missing-driver startup")
                 NSApp.terminate(nil)
             }
@@ -152,7 +141,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
         }
         ReYogaPreferences.shared.begin()
         initMenu("ReYogaSMC")
-        setupGamingPopover()
+        setupControlsPopover()
         attemptDriverConnection()
         if CommandLine.arguments.contains("--show-controls") {
             DispatchQueue.main.async { self.toggleGamingPopover(nil) }
@@ -168,7 +157,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
     @available(macOS 11.0, *)
     func attemptDriverConnection() {
         guard conf.connect == 0 else { return }
-        let manager = GamingManager.shared
+        let manager = HardwareManager.shared
         manager.setDriverState(.checking, message: "Checking the hardware driver…")
         var iterator: io_iterator_t = 0
         let matching = IOServiceMatching("IOService")! as NSMutableDictionary
@@ -202,6 +191,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
                     IOServiceClose(connection); IOObjectRelease(service); continue
                 }
                 conf.service = service; conf.connect = connection; IOClass = provider
+                appMenu.item(at: 2)?.title = NSLocalizedString("ClassVar", comment: "Class: ") + provider
                 manager.setDriverState(.ready, message: "Hardware driver ready")
                 watchDriverTermination(service)
                 loadConfig()
@@ -210,7 +200,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
             }
         } else { error = String(format: "IOKit driver discovery failed (0x%08x).", result) }
         manager.setDriverState(found ? .unavailable : .missing, message: error)
-        setupGamingPopover()
+        setupControlsPopover()
     }
 
     private func watchDriverTermination(_ service: io_service_t) {
@@ -223,9 +213,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
             guard message == ReYogaServiceTerminatedMessage(), let context = context else { return }
             let delegate = Unmanaged<AppDelegate>.fromOpaque(context).takeUnretainedValue()
             DispatchQueue.main.async {
-                GamingManager.shared.service = 0
+                HardwareManager.shared.service = 0
                 delegate.closeDriverConnection()
-                GamingManager.shared.setDriverState(.unavailable, message: "The hardware driver disconnected. Retry the connection or restart with the matching kext.")
+                HardwareManager.shared.setDriverState(.unavailable, message: "The hardware driver disconnected. Retry the connection or restart with the matching kext.")
             }
         }, Unmanaged.passUnretained(self).toOpaque(), &driverInterest)
         if status != kIOReturnSuccess { IONotificationPortDestroy(port); driverPort = nil }
@@ -237,6 +227,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
         if let source = conf.notificationSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         if let port = conf.notificationPort { CFMachPortInvalidate(port) }
         conf.notificationSource = nil; conf.notificationPort = nil
+        fanTimer?.invalidate(); fanTimer = nil
+        fanHelper = nil; fanHelper2 = nil
+        if let observer = thinkWakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        thinkWakeObserver = nil
+        NotificationCenter.default.removeObserver(self, name: VolumeObserver.volumeChanged, object: nil)
+        DistributedNotificationCenter.default.removeObserver(self, name: NSNotification.Name("com.apple.sound.settingsChangedNotification"), object: nil)
         if conf.connect != 0 {
             _ = IOConnectCallScalarMethod(conf.connect, UInt32(kRYSMCUCClose), nil, 0, nil, nil)
             IOServiceClose(conf.connect); conf.connect = 0
@@ -246,14 +242,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
 
     func applicationDidBecomeActive(_ notification: Notification) {
         if CommandLine.arguments.contains("--render-ui") { return }
-        if #available(macOS 11.0, *) { GamingManager.shared.refreshPermissions() }
+        if #available(macOS 11.0, *) { HardwareManager.shared.refreshPermissions() }
     }
 
+    #if DEBUG
     @available(macOS 11.0, *)
     private func renderUIReview() {
-        let manager = GamingManager.shared
-        let service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IdeaVPC"))
-        if service != 0 { manager.loadReadOnlyPreview(service); IOObjectRelease(service) }
+        let manager = HardwareManager.shared
+        if let path = ProcessInfo.processInfo.environment["REYOGA_UI_FIXTURE"],
+           let data = FileManager.default.contents(atPath: path),
+           let fixture = (try? JSONSerialization.jsonObject(with: data)) as? NSDictionary {
+            manager.loadUIFixture(fixture)
+        } else {
+            let service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IdeaVPC"))
+            if service != 0 { manager.loadReadOnlyPreview(service); IOObjectRelease(service) }
+        }
         let directory = URL(fileURLWithPath: ProcessInfo.processInfo.environment["REYOGA_UI_REVIEW_DIR"] ?? NSTemporaryDirectory()).appendingPathComponent("ReYogaUIReview")
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
@@ -294,11 +297,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
         }
     }
 
+    #endif
+
     func applicationWillTerminate(_ aNotification: Notification) {
         if CommandLine.arguments.contains("--render-ui") { return }
-        if #available(macOS 11.0, *) { GamingManager.shared.shutdown() }
+        if #available(macOS 11.0, *) { HardwareManager.shared.shutdown() }
         saveConfig()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
+        NotificationCenter.default.removeObserver(self)
+        DistributedNotificationCenter.default.removeObserver(self)
         if let monitor = flagsMonitor { NSEvent.removeMonitor(monitor); flagsMonitor = nil }
         closeDriverConnection()
     }
@@ -353,18 +360,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
         appMenu.insertItem(pref, at: 7)
     }
 
+    func showLegacyControls() { appMenu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil) }
+
     @objc func toggleGamingPopover(_ sender: AnyObject?) {
-        guard let popover = gamingPopover else { return }
+        guard let popover = controlsPopover else { return }
         if popover.isShown { ReYogaColorPanel.shared.dismiss(); popover.performClose(sender) }
         else { showControlsWhenAnchored() }
     }
 
     private func showControlsWhenAnchored(attempt: Int = 0) {
-        guard let button = statusItem?.button, let popover = gamingPopover else { return }
+        guard let button = statusItem?.button, let popover = controlsPopover else { return }
         if let window = button.window, let screen = window.screen, window.isVisible {
             let anchor = window.convertToScreen(button.convert(button.bounds, to: nil))
             if screen.frame.intersects(anchor), anchor.midY > screen.frame.maxY - NSStatusBar.system.thickness * 2 {
-                if #available(macOS 11.0, *) { GamingManager.shared.refreshAll() }
+                if #available(macOS 11.0, *) { HardwareManager.shared.refreshAll() }
                 ReYogaDiagnostics.shared.record("popover_shown", ["anchor": NSStringFromRect(anchor), "screen": NSStringFromRect(screen.frame)])
                 NSApp.activate(ignoringOtherApps: true)
                 popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -380,14 +389,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
     }
 
     @available(macOS 11.0, *)
-    func setupGamingPopover() {
-        guard gamingPopover == nil else { return }
+    func setupControlsPopover() {
+        guard controlsPopover == nil else { return }
         let size = NSSize(width: 420, height: 640)
         let pop = NSPopover()
         pop.behavior = .transient
         pop.delegate = self
         pop.animates = false
-        let controller = NSHostingController(rootView: GamingPopoverView(manager: GamingManager.shared))
+        let controller = NSHostingController(rootView: HardwareControlsView(manager: HardwareManager.shared))
         if #available(macOS 13.0, *) { controller.sizingOptions = [] }
         controller.preferredContentSize = size
         controller.view.frame = NSRect(origin: .zero, size: size)
@@ -397,7 +406,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
         controller.view.layer?.masksToBounds = true
         pop.contentViewController = controller
         pop.contentSize = size
-        self.gamingPopover = pop
+        self.controlsPopover = pop
 
         if let button = statusItem?.button {
             button.target = self
@@ -413,7 +422,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
     @available(macOS 11.0, *)
     func showSettings(tab: Int = 0) {
         ReYogaColorPanel.shared.dismiss()
-        gamingPopover?.performClose(nil)
+        controlsPopover?.performClose(nil)
         ReYogaPreferences.shared.selectedTab = tab
         ReYogaPreferences.shared.refreshLoginStatus()
         if settingsWindow == nil {
@@ -421,7 +430,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
                                   styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
             window.title = "ReYogaSMC Settings"
             window.isReleasedWhenClosed = false
-            window.contentViewController = NSHostingController(rootView: ReYogaSettingsView(manager: GamingManager.shared, preferences: ReYogaPreferences.shared))
+            window.contentViewController = NSHostingController(rootView: ReYogaSettingsView(manager: HardwareManager.shared, preferences: ReYogaPreferences.shared))
             window.center()
             settingsWindow = window
         }
@@ -437,14 +446,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
     }
 
     func initNotification(_ ECCap: String?) {
+        HardwareManager.shared.service = conf.service
         var isOpen = false
         switch IOClass {
         case "IdeaVPC":
             conf.events = ideaEvents
             isOpen = registerNotification(&conf)
             if #available(macOS 11.0, *) {
-                GamingManager.shared.service = conf.service
-                setupGamingPopover()
+                setupControlsPopover()
             }
         case "ThinkVPC":
             conf.events = thinkEvents
@@ -471,12 +480,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
                 }
             }
 
-            NSWorkspace.shared.notificationCenter.addObserver(
-                self,
-                selector: #selector(thinkWakeup),
-                name: NSWorkspace.didWakeNotification,
-                object: nil
-            )
+            thinkWakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.thinkWakeup() }
 
             if defaults.bool(forKey: "ThinkMuteLEDFixup") {
                 NotificationCenter.default.addObserver(
@@ -495,7 +499,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
             }
         case "ReYogaHIDD":
             conf.events = HIDDEvents
-            _ = registerNotification(&conf)
+            isOpen = registerNotification(&conf)
             if #available(macOS 10.12, *) {
                 os_log("Skip loadEvents", type: .info)
             }
@@ -504,14 +508,16 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSPopoverDel
                 os_log("Unknown class", type: .error)
             }
             if getNumber("ControlProtocolVersion", conf.service) == 1 {
-                GamingManager.shared.service = conf.service
-                setupGamingPopover()
+                setupControlsPopover()
             } else {
-                GamingManager.shared.setDriverState(.unavailable, message: "This driver provider has no compatible control protocol.")
-                setupGamingPopover()
+                HardwareManager.shared.setDriverState(.unavailable, message: "This driver provider has no compatible control protocol.")
+                setupControlsPopover()
             }
         }
-        if isOpen { loadEvents(&conf) }
+        if isOpen && IOClass != "ReYogaHIDD" { loadEvents(&conf) }
+        else if IOClass != "DYVPC" {
+            ReYogaDiagnostics.shared.record("hotkey_unavailable", ["provider": IOClass, "reason": "Notification registration failed"])
+        }
     }
 
     func flagsCallBack(event: NSEvent) {
