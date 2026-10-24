@@ -4,14 +4,11 @@ import SwiftUI
 private enum ControlDesign {
     static let width: CGFloat = 420
     static let height: CGFloat = 640
-    static let accent = adaptive(light: (0.67, 0.20, 0.10), dark: (0.96, 0.56, 0.36))
-    static let surface = Color(NSColor(name: nil) { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .controlBackgroundColor : .windowBackgroundColor
-    })
-    static let border = adaptive(light: (0.48, 0.45, 0.42), dark: (0.72, 0.69, 0.66))
-    static let cpu = adaptive(light: (0.00, 0.42, 0.52), dark: (0.30, 0.76, 0.86))
-    static let gpu = adaptive(light: (0.72, 0.26, 0.08), dark: (0.97, 0.63, 0.40))
-    static let connected = adaptive(light: (0.00, 0.42, 0.22), dark: (0.30, 0.78, 0.52))
+    static let accent = adaptive(light: (0.78, 0.29, 0.16), dark: (0.96, 0.56, 0.36))
+    static let surface = Color(NSColor.controlBackgroundColor)
+    static let cpu = adaptive(light: (0.08, 0.55, 0.65), dark: (0.30, 0.76, 0.86))
+    static let gpu = adaptive(light: (0.83, 0.38, 0.18), dark: (0.97, 0.63, 0.40))
+    static let connected = adaptive(light: (0.10, 0.55, 0.33), dark: (0.30, 0.78, 0.52))
     private static func adaptive(light: (CGFloat, CGFloat, CGFloat), dark: (CGFloat, CGFloat, CGFloat)) -> Color {
         Color(NSColor(name: nil) { appearance in
             let rgb = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
@@ -20,9 +17,9 @@ private enum ControlDesign {
     }
     static func profile(_ mode: Int) -> Color {
         switch mode {
-        case 1: return adaptive(light: (0.00, 0.36, 0.31), dark: (0.10, 0.56, 0.48))
-        case 2: return adaptive(light: (0.16, 0.30, 0.63), dark: (0.32, 0.50, 0.88))
-        default: return adaptive(light: (0.66, 0.16, 0.10), dark: (0.92, 0.32, 0.22))
+        case 1: return Color(red: 0.06, green: 0.46, blue: 0.42)
+        case 2: return Color(red: 0.24, green: 0.38, blue: 0.72)
+        default: return Color(red: 0.79, green: 0.20, blue: 0.18)
         }
     }
     static func feature(_ icon: String) -> Color {
@@ -101,7 +98,7 @@ private struct ControlSection<Content: View>: View {
             VStack(alignment: .leading, spacing: 0) { content }
                 .padding(12).background(ControlDesign.surface)
                 .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(ControlDesign.border.opacity(0.24), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.045), lineWidth: 1))
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -190,21 +187,10 @@ public struct HardwareControlsView: View {
             }.labelsHidden().pickerStyle(SegmentedPickerStyle()).padding(.horizontal, 16).padding(.bottom, 12)
             Divider()
             ScrollView {
-                ZStack {
-                    if page == 0 {
-                        deviceControls
-                            .id(0)
-                            .transition(.opacity.combined(with: .move(edge: .leading)))
-                    } else {
-                        coolingControls
-                            .id(1)
-                            .transition(.opacity.combined(with: .move(edge: .trailing)))
-                    }
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .modifier(StateAnimation(value: page))
+                VStack(alignment: .leading, spacing: 12) {
+                    if page == 0 { deviceControls } else { coolingControls }
+                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            }.modifier(StateAnimation(value: page))
             Divider()
             HStack(spacing: 12) {
                 Button(action: { (NSApp.delegate as? AppDelegate)?.showSettings() }) {
@@ -268,49 +254,37 @@ public struct HardwareControlsView: View {
     private var deviceControls: some View {
         Group {
             sensors
-            if manager.hasPowerProfiles { profile }
+            profile
             if manager.featureStatus["FnlockMode"]?.available == true || manager.featureStatus["BacklightLevel"]?.available == true {
                 ControlSection("Keyboard") {
-                    if manager.featureStatus["FnlockMode"]?.available == true {
-                        row("Fn Lock", "FnlockMode", "fn", manager.isFnLocked, true) { manager.toggleFnLock() }
-                    }
-                    if manager.featureStatus["BacklightLevel"]?.available == true {
-                        Picker("Keyboard backlight", selection: Binding(get: { manager.keyboardBacklight }, set: { manager.setKeyboardBacklight($0) })) {
-                            Text("Off").tag(0); Text("Low").tag(1); Text("High").tag(2)
-                        }.disabled(manager.isApplying)
-                    }
+                    row("Fn Lock", "FnlockMode", "fn", manager.isFnLocked, manager.featureStatus["FnlockMode"]?.available == true) { manager.toggleFnLock() }
+                    Picker("Backlight", selection: Binding(get: { manager.keyboardBacklight }, set: { manager.setKeyboardBacklight($0) })) {
+                        if manager.keyboardBacklight < 0 { Text("Unavailable").tag(-1) }
+                        Text("Off").tag(0); Text("Low").tag(1); Text("High").tag(2)
+                    }.disabled(manager.featureStatus["BacklightLevel"]?.available != true || manager.isApplying)
                 }
             }
             if manager.providerClass == "ThinkVPC" { ThinkPadBatteryControls(manager: manager) }
-            if manager.hasConservation || manager.hasRapidCharge || manager.hasOverDrive || manager.hasTouchpadLock {
-                ControlSection("Battery & Device") {
-                    if manager.hasConservation {
-                        row("Conservation", "ConservationMode", "battery.75", manager.isConservationOn, true) { manager.toggleConservation() }
-                        if !manager.batterySummary.isEmpty {
-                            Text(manager.batterySummary).font(.system(size: 10)).foregroundColor(.secondary)
-                                .fixedSize(horizontal: false, vertical: true).padding(.leading, 36).padding(.top, 4)
-                        }
-                    }
-                    if manager.hasRapidCharge {
-                        if manager.hasConservation { Divider().padding(.vertical, 4) }
-                        row("Rapid Charge", "RapidChargeMode", "bolt.fill", manager.isRapidChargeOn, true) { manager.toggleRapidCharge() }
-                    }
-                    if manager.hasOverDrive { row("Display Overdrive", "DisplayOverDrive", "display", manager.isOverDriveOn, true) { manager.toggleOverDrive() } }
-                    if manager.hasTouchpadLock { row("Touchpad Lock", "TouchpadLock", "hand.point.up", manager.isTouchpadLocked, true) { manager.toggleTouchpad() } }
+            ControlSection("Battery & Device") {
+                row("Conservation", "ConservationMode", "battery.75", manager.isConservationOn, manager.hasConservation) { manager.toggleConservation() }
+                if !manager.batterySummary.isEmpty {
+                    Text(manager.batterySummary).font(.system(size: 10)).foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true).padding(.leading, 36).padding(.top, 4)
                 }
+                Divider().padding(.vertical, 4)
+                row("Rapid Charge", "RapidChargeMode", "bolt.fill", manager.isRapidChargeOn, manager.hasRapidCharge) { manager.toggleRapidCharge() }
+                Divider().padding(.vertical, 4)
+                row("Display Overdrive", "DisplayOverDrive", "display", manager.isOverDriveOn, manager.hasOverDrive) { manager.toggleOverDrive() }
+                row("Touchpad Lock", "TouchpadLock", "hand.point.up", manager.isTouchpadLocked, manager.hasTouchpadLock) { manager.toggleTouchpad() }
             }
-            if manager.hasYLogo || manager.hasPortLighting || manager.hasAlwaysOnUSB {
-                ControlSection("Lighting & Ports") {
-                    if manager.hasYLogo { row("Logo LED", "YLogoStatus", "lightbulb", manager.isYLogoOn, true) { manager.toggleYLogo() } }
-                    if manager.hasPortLighting { row("Rear Port Icons", "PortLighting", "powerplug", manager.isPortLightingOn, true) { manager.togglePortLighting() } }
-                    if manager.hasAlwaysOnUSB {
-                        if manager.hasYLogo || manager.hasPortLighting { Divider().padding(.vertical, 8) }
-                        Text("Always-On USB Charging").font(.system(size: 12, weight: .medium)).padding(.bottom, 8)
-                        Picker("Always-On USB Charging", selection: Binding(get: { manager.alwaysOnUSBState }, set: { manager.setAlwaysOnUSBState($0) })) {
-                            Text("Off").tag(0); Text("AC power").tag(1); Text("AC + battery").tag(2)
-                        }.labelsHidden().pickerStyle(SegmentedPickerStyle()).disabled(manager.applyingControl == "AlwaysOnUSBState")
-                    }
-                }
+            ControlSection("Aesthetics & Ports") {
+                row("Logo LED", "YLogoStatus", "lightbulb", manager.isYLogoOn, manager.hasYLogo) { manager.toggleYLogo() }
+                row("Rear Port Icons", "PortLighting", "powerplug", manager.isPortLightingOn, manager.hasPortLighting) { manager.togglePortLighting() }
+                Divider().padding(.vertical, 8)
+                Text("Always-On USB Charging").font(.system(size: 12, weight: .medium)).padding(.bottom, 8)
+                Picker("Always-On USB Charging", selection: Binding(get: { manager.alwaysOnUSBState }, set: { manager.setAlwaysOnUSBState($0) })) {
+                    Text("Off").tag(0); Text("AC power").tag(1); Text("AC + battery").tag(2)
+                }.labelsHidden().pickerStyle(SegmentedPickerStyle()).disabled(!manager.hasAlwaysOnUSB || manager.applyingControl == "AlwaysOnUSBState")
             }
             RGBControls(manager: manager)
         }
