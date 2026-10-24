@@ -1,61 +1,44 @@
-# Firmware profiles
+# Hardware profiles
 
-Profiles describe reviewed firmware and device layouts. They do not make similarly named laptops interchangeable.
+Profiles describe firmware or a shared device protocol. Matching a product name does not establish a compatible EC layout.
 
-## ACPI profiles
+## Common metadata
+
+Every profile uses `schema_version: 1` and the following fields, in order:
 
 | Field | Meaning |
 | :--- | :--- |
-| `id`, `name`, `kind` | Stable profile identity, display name and adapter family |
-| `machine_type`, `bios_family` | Documented model and firmware scope |
-| `reviewed_aml_hashes` | SHA-256 of complete, reviewed binary DSDTs |
-| `reviewed_dsdt_hashes` | SHA-256 of reviewed source after the tool's normalization |
-| `required_patterns` | Additional interface checks; patterns alone never authorize generation |
-| `ec_path`, `ec_base`, `ec_size` | Reviewed namespace path and operation region |
-| `offsets` | Adapter-specific field locations, with source evidence |
-| `rpm_scale`, `curve_points_max` | Proven units and layout bounds |
-| `verified_writes` | Zero until manual curve writes and restoration have been reviewed on hardware |
-| `fan_command_method`, `fan_fullspeed_*` | Reviewed vendor full-speed method and arguments from the matched DSDT |
-| `validation`, `sources` | What was checked, what remains unverified, and supporting references |
-| `battery_conservation_mask`, `battery_rapidcharge_mask` | Reviewed GBMD state masks; distinct single bits supplied through the bridge |
-| `fan_labels` | Optional physical fan labels; omit when the cooling identity is unknown |
+| `schema_version` | File format version |
+| `kind` | `acpi` for firmware or `rgb` for a USB lighting adapter |
+| `id` | Stable identifier used by the app and saved settings |
+| `name` | Display name |
+| `sources` | References for the protocol, field layout and units |
 
-A binary hash match still needs the required source interfaces. The app's live binary path uses the reviewed binary identity; the command-line tool disassembles tables for additional inspection. Include the BIOS version and original table fingerprint in the review evidence.
+Adapter-specific fields retain the names expected by their readers. Do not change an existing ID when reorganizing a file.
 
-`RYVW` and `FanWritesValidated` gate manual fan-curve writes in both the bridge and driver. Zero keeps the control read-only.
+## Firmware
 
-`RYFF` preserves the return value of the vendor full-speed command. It uses the same method and arguments as the firmware WMI dispatcher, with profile data supplying them. An EC error is exported separately from ACPI transport success and state readback. This path does not enable manual curve writes.
+An ACPI profile includes `machine_type`, `bios_family`, `reviewed_aml_hashes`, `reviewed_dsdt_hashes` and `required_patterns`. Binary hashes cover the complete DSDT; source hashes use the collection tool's normalization. Patterns alone do not authorize a match.
 
-Lighting availability comes from each firmware `LENOVO_LIGHTING_DATA` record, including control interface and lighting type. A model name alone does not enable or disable lighting.
+`ec_path`, `ec_base`, `ec_size` and `offsets` describe the reviewed namespace and operation region. Battery masks, commands and capability bits are recorded separately. `verified_writes` stays zero until write/readback and restoration have been checked on the target firmware.
 
-## USB and hotkey profiles
+Optional `hotkeys` belong to the firmware profile. The nested mapping keeps its own stable `id`, keycodes, consumer usages and `matchProfiles`. That list may include a shared RGB adapter ID, so keyboard discovery does not require an ACPI bridge. Unknown IDs do not inherit the mapping.
 
-USB layouts must match VID, PID, usage page, report length and supported device layout. Document report IDs, instruction bytes, zone banks and LED indices. USB transport success does not confirm a visible color.
+## RGB adapters
 
-Hotkey mappings require a known matching profile, physical Fn identity where applicable, and repeat behavior. Ordinary media/function keys must remain usable when the mapper is off or permissions are denied.
+USB profiles contain VID/PID, usage page, report size, command values and bank/LED maps. Keep shared controllers such as ITE c968 separate from a machine's firmware profile. Do not duplicate their wire protocol across model files.
 
-## Adding a model
+## Native telemetry
 
-Attach the tool export to a device-support issue first. The report includes static fields and bit offsets, literal operation-region addresses, WMI GUIDs and Windows class/method metadata where available. These are declarations, not proof that writing a field is safe. Dynamic expressions, namespace aliases, banked/indexed fields and firmware-controlled units require manual review.
+`native_telemetry` lists four existing fields in order: fan 1, fan 2, CPU temperature, GPU temperature. Each entry contains `field` and an integer `scale` converting it into RPM or Celsius. The generator combines each name with the profile's absolute `ec_path`.
 
-Do not add a write-enabled profile from a guessed register map. Follow CONTRIBUTING.md for the required hardware evidence and test matrix.
-
-Battery profiles include separate read masks and SBMC on/off commands for each charge mode. Supply all four command values from the reviewed firmware; masks alone do not define setter behavior.
-Capability masks are independent for each mode; zero means the reviewed setter has no capability-bit gate.
-
-Battery bridge version 4 identifies Storage (BTSM) and Quick Charge (QCHO) semantics. State masks and commands must agree with the documented operating mode, not just with each other.
-
-## Native kext telemetry
-
-`native_telemetry` lists four existing EC namespace fields in this order: fan 1, fan 2, CPU temperature, GPU temperature. Each entry provides a four-character `field` and integer `scale` converting its value into RPM or Celsius. These are read-only descriptors; they never authorize register writes or infer a physical memory region.
-
-After reviewing a complete binary DSDT and the units of each field, add its SHA-256 to `reviewed_aml_hashes` and run:
+After reviewing the complete binary DSDT and field units, add its SHA-256 to `reviewed_aml_hashes` and run:
 
 ```sh
 python3 Scripts/generate_firmware_profiles.py
 python3 Scripts/generate_firmware_profiles.py --check
 ```
 
-The generated `ReYogaSMC/ReYogaFirmwareProfiles.hpp` is committed so Xcode requires no Python build step. Regression tests reject stale generated data. At runtime the kext verifies the DSDT signature, length, checksum, exact SHA-256 and all field names before enabling these reads. Bootloader-patched or unknown tables do not inherit a nearby machine's profile; standard ACPI/WMI interfaces remain available. `-reynobridge` also disables native profile discovery for isolation.
+Commit the generated `ReYogaSMC/ReYogaFirmwareProfiles.hpp`; Xcode requires no Python generation step. The kext checks the DSDT signature, length, checksum, SHA-256 and declared fields before reading them. These descriptors do not authorize physical-memory access or register writes.
 
-For the reviewed Legion 7 firmware, AML fan method 7 reads `FANS`/`FA2S` and multiplies by 100; temperature method 8 reads `CPUT`/`GPUT` directly. Native readings therefore have the same coarse fan resolution, not the optional bridge's precise RPM. Manual fan writes and CPU power-limit access keep their separate validation gates.
+The Legion 7 profile reads FANS/FA2S at 100 RPM per unit and CPUT/GPUT in Celsius. A firmware update or bootloader patch that changes the DSDT requires a new review.

@@ -708,7 +708,7 @@ public final class HardwareManager: ObservableObject {
     public func refreshPermissions() {
         let accessibility = AXIsProcessTrusted()
         let input = CGPreflightListenEventAccess()
-        permissionStatus = "Accessibility: \(accessibility ? "Granted" : "Required") · Input Monitoring: \(input ? "Granted" : "Required")"
+        permissionStatus = "Accessibility: \(accessibility ? "Granted" : "Required") - Input Monitoring: \(input ? "Granted" : "Required")"
         if hotkeysEnabled && (!accessibility || !input) {
             hotkeys.stop(); hotkeysEnabled = false
             hotkeyStatus = "Hotkey privacy access is missing. Check Accessibility and Input Monitoring, then enable the mapper again."

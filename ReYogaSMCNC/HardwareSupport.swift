@@ -65,7 +65,14 @@ struct HardwareProfiles {
               let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return [] }
         return files.filter { $0.pathExtension == "json" }.compactMap {
             guard let data = try? Data(contentsOf: $0) else { return nil }
-            return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            guard let profile = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  profile["schema_version"] as? Int == 1 else { return nil }
+            return profile
+        }
+    }
+    static func hotkeys(for profileID: String) -> [String: Any]? {
+        all().compactMap { $0["hotkeys"] as? [String: Any] }.first {
+            ($0["matchProfiles"] as? [String])?.contains(profileID) == true
         }
     }
     static func matchingDSDT(_ source: String) throws -> [String: Any] {
@@ -404,7 +411,7 @@ final class LegionHotkeys {
             _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
             throw SupportError.message("Enable Accessibility for ReYogaSMCNC to map Fn hotkeys")
         }
-        guard let profile = HardwareProfiles.all().first(where: { $0["kind"] as? String == "hotkeys" && ($0["matchProfiles"] as? [String])?.contains(profileID) == true }) else { throw SupportError.message("No hotkey profile available") }
+        guard let profile = HardwareProfiles.hotkeys(for: profileID) else { throw SupportError.message("No hotkey profile available") }
         mapping = profile["keycodes"] as? [String: String] ?? [:]
         consumer = profile["consumerUsages"] as? [String: String] ?? [:]
         printKeys = profile["printScreenKeycodes"] as? [Int] ?? []
@@ -680,7 +687,7 @@ struct LiveBatterySnapshot: Equatable {
         else if let milliamps = milliamps, milliamps < 0 { parts.append("Discharging") }
         else if charging == false && externalPower == true { parts.append("Not charging") }
         if let milliamps = milliamps { parts.append("\(milliamps) mA") }
-        return parts.joined(separator: " · ")
+        return parts.joined(separator: " - ")
     }
 
     static func read() -> LiveBatterySnapshot? {

@@ -15,6 +15,12 @@ func rejects(_ name: String, _ action: () throws -> Void) {
 }
 let profiles = HardwareProfiles.all()
 require(!profiles.isEmpty, "Bundled profiles missing")
+require(profiles.allSatisfy { $0["schema_version"] as? Int == 1 }, "Unsupported profile schema")
+let modelHotkeys = HardwareProfiles.hotkeys(for: "legion7-16achg6-gkcn")
+let usbHotkeys = HardwareProfiles.hotkeys(for: "ite-c968-gen6")
+require(modelHotkeys?["id"] as? String == "legion7-gen6-hotkeys", "Embedded hotkeys missing for ACPI profile")
+require(usbHotkeys?["id"] as? String == modelHotkeys?["id"] as? String, "RGB hotkey association changed")
+require(HardwareProfiles.hotkeys(for: "unknown-device") == nil, "Unknown device inherited hotkeys")
 let rgb = profiles.first { $0["kind"] as? String == "rgb" }!
 let colors: [(Int, UInt8, UInt8, UInt8)] = (1...48).map { ($0, 10, 20, 30) }
 let packets = try LegionRGBController.reports(profile: rgb, bank: 1, colors: colors)

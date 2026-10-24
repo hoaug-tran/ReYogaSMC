@@ -1,6 +1,14 @@
 {
+  "schema_version": 1,
+  "kind": "acpi",
   "id": "legion7-16achg6-gkcn",
   "name": "Lenovo Legion 7 2021 16ACHg6",
+  "sources": [
+    "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
+    "https://psref.lenovo.com/syspool/Sys/PDF/Legion/Legion_7_16ACHg6/Legion_7_16ACHg6_Spec.pdf",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Features/BatteryFeature.cs"
+  ],
   "machine_type": "82N6",
   "bios_family": "GKCN",
   "validation": "ACPI telemetry and battery commands; manual fan writes disabled",
@@ -38,17 +46,10 @@
     "FA2S,\\s+8",
     "SPMO,\\s+4"
   ],
-  "sources": [
-    "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
-    "https://psref.lenovo.com/syspool/Sys/PDF/Legion/Legion_7_16ACHg6/Legion_7_16ACHg6_Spec.pdf",
-    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs",
-    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Features/BatteryFeature.cs"
-  ],
   "reviewed_dsdt_hashes": [
     "40f0b447b8ab6e4948f827b36d7a3de9184a802841ce8ce1d5a0eb389c863afb",
     "ae028b3ad6b3993b108b054e75867f34c9ff5e93c9f10fe49a8ff9b8388e1170"
   ],
-  "kind": "acpi",
   "power_mode_field": "SPMO",
   "reviewed_aml_hashes": [
     "14562d2904be242b29e46377e4ea2c667f37686ff240f415694ab89610f76d87",
@@ -87,5 +88,45 @@
       "field": "GPUT",
       "scale": 1
     }
-  ]
+  ],
+  "hotkeys": {
+    "id": "legion7-gen6-hotkeys",
+    "keycodes": {
+      "122": "mute",
+      "120": "volumeDown",
+      "99": "volumeUp",
+      "118": "micMute",
+      "96": "brightnessDown",
+      "97": "brightnessUp",
+      "98": "displays",
+      "100": "airplane",
+      "101": "controlCenter",
+      "109": "touchpad",
+      "103": "mission",
+      "111": "calculator"
+    },
+    "requiresFnFlag": true,
+    "consumerUsages": {
+      "402": "calculator",
+      "101": "screenshot"
+    },
+    "printScreenKeycodes": [
+      105
+    ],
+    "notes": "Normal F1-F12 are preserved. Raw Fn fallback requires an observed physical Fn flagsChanged event; the generic function-key modifier is never treated as evidence that Fn is held. Firmware-handled keys use consumer/ACPI paths.",
+    "matchProfiles": [
+      "ite-c968-gen6",
+      "legion7-16achg6-gkcn"
+    ],
+    "physicalFnKeycode": 63,
+    "repeatableActions": [
+      "volumeDown",
+      "volumeUp",
+      "brightnessDown",
+      "brightnessUp"
+    ],
+    "sources": [
+      "https://download.lenovo.com/pccbbs/pubs/legion_7_16_6/html_en/EN/SHARED_feature_intro_hotkeys_legion_7_16.html"
+    ]
+  }
 }

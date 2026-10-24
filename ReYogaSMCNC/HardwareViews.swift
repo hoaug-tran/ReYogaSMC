@@ -440,7 +440,7 @@ private struct PowerLimitRow: View {
                 Text("W").font(.caption).foregroundColor(.secondary)
                 Button("Apply") { if valid, let watts = Int(text) { apply(watts) } }.disabled(busy || !valid || Int(text) == current)
             }
-            Text("Current \(current) W · Range \(range["Min"] ?? 0)–\(range["Max"] ?? 0) W · Step \(range["Step"] ?? 0) W")
+            Text("Current \(current) W - Range \(range["Min"] ?? 0)–\(range["Max"] ?? 0) W - Step \(range["Step"] ?? 0) W")
                 .font(.system(size: 11)).foregroundColor(.secondary)
             if !text.isEmpty && !valid { Text("Enter a value within this range and step.").font(.system(size: 11)).foregroundColor(.red) }
         }.onAppear { if text.isEmpty { text = String(current) } }
@@ -560,7 +560,7 @@ struct ReYogaSettingsView: View {
             }
             Text(preferences.updateStatus).font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
             Spacer()
-            Text("Based on YogaSMC · GPL v2").font(.caption).foregroundColor(.secondary)
+            Text("Based on YogaSMC - GPL v2").font(.caption).foregroundColor(.secondary)
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
     }
     private var keyboard: some View {
@@ -582,7 +582,7 @@ struct ReYogaSettingsView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Compatibility & Diagnostics").font(.title2).fontWeight(.semibold)
                 Text("Sensor status: \(manager.telemetryStatus)").font(.caption).foregroundColor(.secondary)
-                Text("GPU source: \(manager.gpuTemperatureSource) · \(manager.gpuTemperatureReason)").font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text("GPU source: \(manager.gpuTemperatureSource) - \(manager.gpuTemperatureReason)").font(.caption).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
                 Toggle("Detailed logging", isOn: Binding(get: { manager.detailedLogging }, set: { manager.setDetailedLogging($0) }))
                 HStack { Button("Export Report…") { manager.exportDiagnostics() }; Button("Open Logs") { manager.openDiagnostics() }; Button("Generate ACPI Bridge…") { manager.generateACPIBridge() } }
                 Text("An SSDT is optional for native ACPI/WMI features. This Legion profile uses one for precise fan readings and fan minimums. Other devices need a reviewed profile only when their firmware lacks the required interface. Never reuse another model’s SSDT.")

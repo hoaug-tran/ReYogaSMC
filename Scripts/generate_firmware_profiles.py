@@ -12,7 +12,7 @@ def render(profiles):
         sensors = profile.get("native_telemetry")
         if sensors is None:
             continue
-        if profile.get("kind") != "acpi" or not isinstance(sensors, list) or len(sensors) != 4:
+        if profile.get("schema_version") != 1 or profile.get("kind") != "acpi" or not isinstance(sensors, list) or len(sensors) != 4:
             raise ValueError("Native telemetry requires four reviewed ACPI fields")
         if not all(isinstance(profile.get(key), str) for key in ("id", "name")):
             raise ValueError("Native profile identity must be text")

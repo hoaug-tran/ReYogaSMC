@@ -1,7 +1,12 @@
 {
+  "schema_version": 1,
   "kind": "rgb",
   "id": "ite-c968-gen6",
   "name": "Legion 7 Gen 6 RGB",
+  "sources": [
+    "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/LenovoControllers/LenovoUSBController/LenovoUSBController.cpp",
+    "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/LenovoControllers/LenovoDevices.h"
+  ],
   "vendorID": 1165,
   "productID": 51560,
   "usagePage": 65417,
@@ -2664,9 +2669,5 @@
       ]
     }
   },
-  "sources": [
-    "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/LenovoControllers/LenovoUSBController/LenovoUSBController.cpp",
-    "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/LenovoControllers/LenovoDevices.h"
-  ],
   "credits": "OpenRGB, Cooper Hall (geobot19), GPL-2.0-or-later"
 }

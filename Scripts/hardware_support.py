@@ -23,7 +23,7 @@ CACHE = pathlib.Path.home() / '.cache' / 'reyoga' / 'acpica'
 
 def profiles():
     return [item for p in sorted((ROOT / 'HardwareProfiles').glob('*.json'))
-            if 'required_patterns' in (item := json.loads(p.read_text()))]
+            if 'required_patterns' in (item := json.loads(p.read_text(encoding='utf-8'))) and item.get('schema_version') == 1]
 
 
 def normalized_hash(source):
