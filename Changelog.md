@@ -26,8 +26,8 @@ First ReYogaSMC release, based on YogaSMC 1.5.3.
 
 ### Distribution
 
-- Include Windows/macOS hardware-collection launchers and firmware profiles.
-- Build Debug and Release kext, app and support-tool ZIPs in GitHub Actions.
+- Provide Windows/macOS hardware-collection scripts in the source repository.
+- Build separate DEBUG and RELEASE ZIPs for the main kext, Alter kext and app.
 - Publish release notes from this changelog and include SHA-256 checksums.
 
 Packages are unsigned.

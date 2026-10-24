@@ -9,9 +9,9 @@
 [![Release](https://img.shields.io/github/v/release/hoaug-tran/ReYogaSMC)](https://github.com/hoaug-tran/ReYogaSMC/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL--2.0-blue)](LICENSE)
 
-Lenovo hardware controls for macOS.
+A fork of [YogaSMC 1.5.3](https://github.com/zhen-zen/YogaSMC), with Lenovo hardware controls for macOS.
 
-[Download](https://github.com/hoaug-tran/ReYogaSMC/releases/latest) · [Actions builds](https://github.com/hoaug-tran/ReYogaSMC/actions/workflows/main.yml) · [Device information](#device-information)
+[Download](https://github.com/hoaug-tran/ReYogaSMC/releases/latest) - [Actions builds](https://github.com/hoaug-tran/ReYogaSMC/actions/workflows/main.yml) - [Device information](#device-information)
 
 </div>
 
@@ -31,13 +31,15 @@ The app shows each control's availability and its firmware response. Sensor acce
 
 ## Download and install
 
-[GitHub Releases](https://github.com/hoaug-tran/ReYogaSMC/releases) contains Release and Debug ZIPs for the kexts, app and support tool. Use Release for installation. Actions builds are available under a successful run's **Artifacts** section; downloading artifacts requires a GitHub account.
+[GitHub Releases](https://github.com/hoaug-tran/ReYogaSMC/releases) contains separate DEBUG and RELEASE ZIPs for each kext variant and the app. Use Release for installation. Actions builds are available under a successful run's **Artifacts** section; downloading artifacts requires a GitHub account.
 
 | Package | Contents |
 | :--- | :--- |
-| `ReYogaSMC-kexts-*` | Main and Alter kexts, optional SSDT examples |
-| `ReYogaSMC-apps-*` | Menu bar app with embedded login helper |
-| `ReYogaSMC-tool-*` | Windows/macOS launchers, collection scripts and firmware profiles |
+| `ReYogaSMC-*-DEBUG.zip` / `ReYogaSMC-*-RELEASE.zip` | Main kext and optional SSDT examples |
+| `ReYogaSMCAlter-*-DEBUG.zip` / `ReYogaSMCAlter-*-RELEASE.zip` | Standalone Alter kext and optional SSDT examples |
+| `ReYogaSMCNC-*-DEBUG.zip` / `ReYogaSMCNC-*-RELEASE.zip` | App with embedded login helper |
+
+The version appears in each filename. SHA256SUMS.txt covers all six ZIPs. Collection scripts are available in the source repository.
 
 1. Load [Lilu](https://github.com/acidanthera/Lilu/releases) and [VirtualSMC](https://github.com/acidanthera/VirtualSMC/releases) before `ReYogaSMC.kext` in OpenCore.
 2. Replace the old driver and update its `BundlePath` and `ExecutablePath`. Load one primary or Alter variant.
@@ -64,7 +66,7 @@ Settings includes login, release updates, shortcut mapping and device informatio
 > [!NOTE]
 > Exports stay local until you share them. Review them first: firmware tables and device identifiers may contain identifying information.
 
-On Windows, run `ReYoga.cmd` from the support-tool package. On macOS, run `ReYoga.command`. Python 3.9 or newer is required. Options and export contents are listed in the [hardware tool guide](Docs/hardware-tool.md).
+On Windows, run `ReYoga.cmd` from a source checkout. On macOS, run `ReYoga.command`. Python 3.9 or newer is required. Options and export contents are listed in the [hardware tool guide](Docs/hardware-tool.md).
 
 ## Build
 
@@ -91,6 +93,6 @@ Signing does not notarize the app. Keep the same identity and installation path 
 
 ## Credits and license
 
-ReYogaSMC 2.0.0 is based on [YogaSMC 1.5.3 by Zhen](https://github.com/zhen-zen/YogaSMC/releases/tag/1.5.3). Distributed under [GPL v2](LICENSE); original copyright and license notices are retained.
+Original YogaSMC by Zhen. Distributed under [GPL v2](LICENSE); original copyright and license notices are retained.
 
 Protocol references include Linux [thinkpad-acpi](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/lenovo/thinkpad_acpi.c) and [ideapad-laptop](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/lenovo/ideapad-laptop.c), [LenovoLegionLinux](https://github.com/johnfanv2/LenovoLegionLinux), [LenovoLegionToolkit](https://github.com/BartoszCichecki/LenovoLegionToolkit) and [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB). Dependencies are maintained by [Acidanthera](https://github.com/acidanthera). The support tool uses [ACPICA](https://github.com/open-acpica/acpica).
