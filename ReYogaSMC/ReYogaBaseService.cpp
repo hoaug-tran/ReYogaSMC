@@ -6,6 +6,7 @@
 //  Copyright © 2020 Zhen. All rights reserved.
 //
 
+#include "ControlValidation.hpp"
 #include "ReYogaBaseService.hpp"
 
 OSDefineMetaClassAndStructors(ReYogaBaseService, IOService)
@@ -237,25 +238,41 @@ IOReturn ReYogaBaseService::method_re1b(UInt32 offset, UInt8 *result) {
     if (!ec || !(ECAccessCap & ECReadCap))
         return kIOReturnUnsupported;
 
-    if (!result) return kIOReturnBadArgument;
+    if (!result || offset >= 0x100) return kIOReturnBadArgument;
     UInt32 raw = 0;
     OSObject* params[1] = {
         OSNumber::withNumber(offset, 32)
     };
 
+    if (!params[0]) return kIOReturnNoMemory;
     IOReturn ret = ec->evaluateInteger(readECOneByte, &raw, params, 1);
     params[0]->release();
 
     if (ret != kIOReturnSuccess)
         AlwaysLog("read 0x%02x failed", offset);
 
+    if (ret == kIOReturnSuccess && raw > 0xff) return kIOReturnBadArgument;
     *result = raw;
     return ret;
 }
 
 IOReturn ReYogaBaseService::method_recb(UInt32 offset, UInt32 size, OSData **data) {
-    if (!ec || !(ECAccessCap & BIT(0)))
+    if (!ec || !(ECAccessCap & ECReadCap))
         return kIOReturnUnsupported;
+
+    if (!data || !ReYogaControl::validECSpan(offset, size))
+        return kIOReturnBadArgument;
+    *data = nullptr;
+
+    if (ec->validateObject(readECBytes) != kIOReturnSuccess) {
+        UInt8 bytes[0x100];
+        for (UInt32 i = 0; i < size; ++i) {
+            IOReturn status = method_re1b(offset + i, &bytes[i]);
+            if (status != kIOReturnSuccess) return status;
+        }
+        *data = OSData::withBytes(bytes, size);
+        return *data ? kIOReturnSuccess : kIOReturnNoMemory;
+    }
 
     // Arg0 - offset in bytes from zero-based EC
     // Arg1 - size of buffer in bits
@@ -263,24 +280,31 @@ IOReturn ReYogaBaseService::method_recb(UInt32 offset, UInt32 size, OSData **dat
         OSNumber::withNumber(offset, 32),
         OSNumber::withNumber(size * 8, 32)
     };
+    if (!params[0] || !params[1]) {
+        OSSafeReleaseNULL(params[0]);
+        OSSafeReleaseNULL(params[1]);
+        return kIOReturnNoMemory;
+    }
     OSObject *result = nullptr;
 
     IOReturn ret = ec->evaluateObject(readECBytes, &result, params, 2);
     params[0]->release();
     params[1]->release();
 
-    if (ret != kIOReturnSuccess || !(*data = OSDynamicCast(OSData, result))) {
+    auto buffer = OSDynamicCast(OSData, result);
+    if (ret != kIOReturnSuccess || !buffer) {
         AlwaysLog("read %d bytes @ 0x%02x failed", size, offset);
         OSSafeReleaseNULL(result);
         return kIOReturnInvalid;
     }
 
-    if ((*data)->getLength() != size) {
-        AlwaysLog("read %d bytes @ 0x%02x, got %d bytes", size, offset, (*data)->getLength());
+    if (buffer->getLength() != size) {
+        AlwaysLog("read %d bytes @ 0x%02x, got %d bytes", size, offset, buffer->getLength());
         OSSafeReleaseNULL(result);
         return kIOReturnNoBandwidth;
     }
 
+    *data = buffer;
     return ret;
 }
 
@@ -288,10 +312,16 @@ IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value) {
     if (!ec || !(ECAccessCap & ECWriteCap))
         return kIOReturnUnsupported;
 
+    if (offset >= 0x100) return kIOReturnBadArgument;
     OSObject* params[2] = {
         OSNumber::withNumber(offset, 32),
         OSNumber::withNumber(value, 8)
     };
+    if (!params[0] || !params[1]) {
+        OSSafeReleaseNULL(params[0]);
+        OSSafeReleaseNULL(params[1]);
+        return kIOReturnNoMemory;
+    }
 
     IOReturn ret = ec->evaluateObject(writeECOneByte, nullptr, params, 2);
     params[0]->release();
@@ -307,8 +337,8 @@ IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value) {
 void ReYogaBaseService::validateEC() {
     if (!ec)
         return;
-    if (ec->validateObject(readECOneByte) != kIOReturnSuccess ||
-        ec->validateObject(readECBytes) != kIOReturnSuccess) {
+    ECAccessCap = 0;
+    if (ec->validateObject(readECOneByte) != kIOReturnSuccess) {
         setProperty("EC Capability", "Basic");
         return;
     }

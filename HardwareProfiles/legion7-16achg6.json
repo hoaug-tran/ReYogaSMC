@@ -69,5 +69,23 @@
   "battery_rapidcharge_off": 8,
   "battery_conservation_capability_mask": 0,
   "battery_rapidcharge_capability_mask": 131072,
-  "battery_mapping_version": 4
+  "battery_mapping_version": 4,
+  "native_telemetry": [
+    {
+      "field": "FANS",
+      "scale": 100
+    },
+    {
+      "field": "FA2S",
+      "scale": 100
+    },
+    {
+      "field": "CPUT",
+      "scale": 1
+    },
+    {
+      "field": "GPUT",
+      "scale": 1
+    }
+  ]
 }

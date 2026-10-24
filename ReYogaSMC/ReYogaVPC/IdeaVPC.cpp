@@ -8,6 +8,7 @@
 //
 
 #include "IdeaVPC.hpp"
+#include <libkern/crypto/sha2.h>
 #include "ReYogaWMI.hpp"
 #include "../ReYogaWMI/IdeaWMI.hpp"
 OSDefineMetaClassAndStructors(IdeaVPC, ReYogaVPC);
@@ -49,6 +50,26 @@ void IdeaVPC::updateAll() {
     if (firmwareTrace) AlwaysLog("Firmware end: feature status; begin: base VPC refresh");
     super::updateAll();
     if (firmwareTrace) AlwaysLog("Firmware end: base VPC refresh");
+}
+
+bool IdeaVPC::start(IOService *provider) {
+    if (!super::start(provider)) return false;
+    if (safeMode) return true;
+    if (!telemetryPoller) {
+        telemetryPoller = IOTimerEventSource::timerEventSource(this, [](OSObject *owner, IOTimerEventSource *timer) {
+            auto self = OSDynamicCast(IdeaVPC, owner);
+            if (self && self->telemetryAwake) {
+                self->updateTelemetry();
+                timer->setTimeoutMS(self->telemetryIntervalMS);
+            }
+        });
+        if (telemetryPoller && workLoop->addEventSource(telemetryPoller) == kIOReturnSuccess) {
+            telemetryPoller->enable();
+            telemetryPoller->setTimeoutMS(telemetryIntervalMS);
+        } else
+            OSSafeReleaseNULL(telemetryPoller);
+    }
+    return true;
 }
 
 bool IdeaVPC::initVPC() {
@@ -126,7 +147,7 @@ bool IdeaVPC::initVPC() {
     isPowerChanged();
     AlwaysLog("Boot stage: adapter state read");
 
-    int val[16];
+    int val[16] = {};
     if (PE_parse_boot_argn("-ideabr", val, sizeof(val))) {
         brightnessPoller = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &IdeaVPC::brightnessAction));
         if (!brightnessPoller ||
@@ -139,6 +160,10 @@ bool IdeaVPC::initVPC() {
             AlwaysLog("BrightnessPoller enabled");
         }
     }
+    initNativeProfile();
+    setProperty("ControlProtocolVersion", 1, 32);
+    setProperty("TelemetryIntervalMS", telemetryIntervalMS, 32);
+
     return true;
 }
 
@@ -1108,6 +1133,38 @@ bool IdeaVPC::method_vpcw(UInt32 cmd, UInt32 data) {
     return (ret == kIOReturnSuccess);
 }
 
+void IdeaVPC::initNativeProfile() {
+    setProperty("NativeTelemetryReason", bridgeDisabled ? "ACPI profile discovery disabled by -reynobridge" : "No reviewed DSDT fingerprint matched; WMI remains available");
+    if (bridgeDisabled || !ec) return;
+    const OSData *table = vpc->getACPITableData("DSDT", 0);
+    if (!table || table->getLength() < 36 || table->getLength() > 1024 * 1024) return;
+    const auto bytes = static_cast<const UInt8 *>(table->getBytesNoCopy());
+    const UInt32 length = UInt32(bytes[4]) | UInt32(bytes[5]) << 8 | UInt32(bytes[6]) << 16 | UInt32(bytes[7]) << 24;
+    if (memcmp(bytes, "DSDT", 4) || length != table->getLength()) return;
+    UInt8 checksum = 0;
+    for (UInt32 i = 0; i < length; ++i) checksum += bytes[i];
+    if (checksum) return;
+    SHA256_CTX context;
+    UInt8 digest[SHA256_DIGEST_LENGTH];
+    SHA256_Init(&context);
+    SHA256_Update(&context, bytes, length);
+    SHA256_Final(digest, &context);
+    char hex[SHA256_DIGEST_STRING_LENGTH];
+    for (unsigned i = 0; i < sizeof(digest); ++i) snprintf(hex + i * 2, 3, "%02x", digest[i]);
+    setProperty("FirmwareDSDTSHA256", hex);
+    for (const auto &profile : ReYogaNativeProfiles) {
+        if (strcmp(hex, profile.digest)) continue;
+        for (const char *field : profile.fields)
+            if (ec->validateObject(field) != kIOReturnSuccess) return;
+        nativeProfile = &profile;
+        setProperty("HardwareProfile", profile.id);
+        setProperty("HardwareProfileName", profile.name);
+        setProperty("NativeTelemetryProfile", true);
+        setProperty("NativeTelemetryReason", "Reviewed DSDT and all native ACPI fields matched");
+        return;
+    }
+}
+
 bool IdeaVPC::examineWMI(IOService *provider) {
     OSString *feature;
     if ((feature = OSDynamicCast(OSString, provider->getProperty("Feature"))) &&
@@ -1135,20 +1192,7 @@ bool IdeaVPC::examineWMI(IOService *provider) {
             OSObject *fans = provider->getProperty("Fan number");
             if (fans) setProperty("Fan number", fans);
             updateAll();
-            if (!telemetryPoller) {
-                telemetryPoller = IOTimerEventSource::timerEventSource(this, [](OSObject *owner, IOTimerEventSource *timer) {
-                    auto self = OSDynamicCast(IdeaVPC, owner);
-                    if (self && self->telemetryAwake) {
-                        self->updateTelemetry();
-                        timer->setTimeoutMS(self->telemetryIntervalMS);
-                    }
-                });
-                if (telemetryPoller && workLoop->addEventSource(telemetryPoller) == kIOReturnSuccess) {
-                    telemetryPoller->enable();
-                    telemetryPoller->setTimeoutMS(telemetryIntervalMS);
-                } else
-                    OSSafeReleaseNULL(telemetryPoller);
-            }
+
         }
     }
     return true;
@@ -1296,27 +1340,40 @@ void IdeaVPC::updateFeatureStatus() {
 }
 
 void IdeaVPC::updateTelemetry() {
-    if (!wmig || !telemetryAwake) return;
-    if (firmwareTrace) AlwaysLog("Firmware begin: telemetry source=%s", legionBridge ? "ACPI bridge" : "WMI");
+    if (!telemetryAwake) return;
+    if (firmwareTrace) AlwaysLog("Firmware begin: telemetry source=%s", legionBridge ? "ACPI bridge" : nativeProfile ? "Native ACPI" : "WMI");
     auto status = OSDictionary::withCapacity(4);
+    auto sources = OSDictionary::withCapacity(4);
     const char *keys[] = {"Fan1RPM", "Fan2RPM", cpuTempPrompt, gpuTempPrompt};
     const char *methods[] = {"RYF0", "RYF1", "RYT0", "RYT1"};
     for (unsigned i = 0; i < 4; ++i) {
         UInt32 value = 0;
         bool ok = false;
         if (legionBridge) ok = ec->evaluateInteger(methods[i], &value) == kIOReturnSuccess;
-        else if (i < 2) ok = wmig->hasFanMethod ? wmig->getFanSpeed(i, &value) :
-            wmig->getGamzeZoneData(i == 0 ? GAME_ZONE_WMI_GET_FAN_ONE : GAME_ZONE_WMI_GET_FAN_TWO, &value);
-        else ok = i == 2 ? wmig->getCPUTemperature(&value) : wmig->getGPUTemperature(&value);
-        if (i >= 2 && (value == 0 || value >= 125)) ok = false;
-        if (i < 2 && (value == 0xFFFFFFFF || value == 0xFFFF)) ok = false;
+        else if (nativeProfile) {
+            ok = ec->evaluateInteger(nativeProfile->fields[i], &value) == kIOReturnSuccess;
+            if (ok && value <= 0xFFFF / nativeProfile->scales[i]) value *= nativeProfile->scales[i];
+            else ok = false;
+        }
+        const char *source = legionBridge ? "ACPI bridge" : nativeProfile ? "Native ACPI" : "WMI";
+        auto valid = [i](UInt32 sample) { return i < 2 ? sample < 0xFFFF : sample > 0 && sample < 125; };
+        ok = ok && valid(value);
+        if (!ok && wmig) {
+            source = "WMI";
+            if (i < 2) ok = wmig->hasFanMethod ? wmig->getFanSpeed(i, &value) :
+                wmig->getGamzeZoneData(i == 0 ? GAME_ZONE_WMI_GET_FAN_ONE : GAME_ZONE_WMI_GET_FAN_TWO, &value);
+            else ok = i == 2 ? wmig->getCPUTemperature(&value) : wmig->getGPUTemperature(&value);
+            ok = ok && valid(value);
+        }
+        if (sources) setPropertyString(sources, keys[i], ok ? source : "Unavailable");
         if (ok) setProperty(keys[i], value, 32);
         else removeProperty(keys[i]);
         if (status) setPropertyString(status, keys[i], ok ? "ok" :
             (i >= 2 && value == 0 ? "firmware returned zero; sensor may be powered off" : "ACPI/WMI read failed or value invalid"));
     }
     if (status) { setProperty("SensorStatus", status); status->release(); }
-    setProperty("TelemetrySource", legionBridge ? "ACPI profile / precise EC RPM" : "WMI / firmware RPM resolution");
+    if (sources) { setProperty("SensorSources", sources); sources->release(); }
+    setProperty("TelemetrySource", legionBridge ? "ACPI bridge / precise EC RPM" : nativeProfile ? "Native ACPI / reviewed field units" : "WMI / firmware RPM resolution");
     if (legionBridge) {
         UInt32 value = 0;
         if (ec->evaluateInteger("RYFM", &value) == kIOReturnSuccess) setProperty("FanControlMode", value, 32);
@@ -1326,7 +1383,7 @@ void IdeaVPC::updateTelemetry() {
         if (ec->evaluateInteger("RYM1", &value) == kIOReturnSuccess) setProperty("Fan2MaxRPM", value, 32);
     }
     UInt32 profile = 0;
-    if (wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &profile) && profile >= 1 && profile <= 3) {
+    if (wmig && wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &profile) && profile >= 1 && profile <= 3) {
         if (powerLimitsSaved && profile != powerLimitsProfile) powerLimitsSaved = false;
         setProperty(smartFanPrompt, profile, 32);
     }

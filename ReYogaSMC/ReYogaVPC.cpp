@@ -53,6 +53,13 @@ void ReYogaVPC::probeWMI() {
     IOACPIPlatformDevice *dev;
     WMICollection = OSOrderedSet::withCapacity(1);
     WMIProvCollection = OSOrderedSet::withCapacity(1);
+    if (!pnp || !WMICollection || !WMIProvCollection) {
+        OSSafeReleaseNULL(pnp);
+        OSSafeReleaseNULL(WMICollection);
+        OSSafeReleaseNULL(WMIProvCollection);
+        iterator->release();
+        return;
+    }
 
     while (auto entry = iterator->getNextObject()) {
         if (entry->compareName(pnp) && (dev = OSDynamicCast(IOACPIPlatformDevice, entry))) {
@@ -63,7 +70,10 @@ void ReYogaVPC::probeWMI() {
 
             WMI *candidate = new WMI(dev);
             AlwaysLog("Boot stage: reading WMI descriptors from %s", dev->getName());
-            candidate->initialize();
+            if (!candidate || !candidate->initialize()) {
+                delete candidate;
+                continue;
+            }
             AlwaysLog("Boot stage: WMI descriptors read from %s", dev->getName());
             if (candidate->hasMethod(TBT_WMI_GUID)) {
                 DebugLog("Skip Thunderbolt interface");
@@ -715,7 +725,7 @@ bool ReYogaVPC::dumpECOffset(UInt32 value) {
             if (method_recb(offset, size, &result) == kIOReturnSuccess) {
                 const UInt8* data = reinterpret_cast<const UInt8 *>(result->getBytesNoCopy());
                 int len = 0x10;
-                char *buf = new char[len*3];
+                char *buf = new char[len*3 + 1];
                 if (size > 8) {
                     AlwaysLog("%d bytes @ 0x%02x", size, offset);
                     for (int i = 0; i < size; i += len) {

@@ -167,7 +167,7 @@ private:
 
     bool LEDSupport {false};
 
-    UInt32 batnum {BAT_ANY};
+    UInt32 batnum {BAT_PRIMARY};
 
     bool ConservationMode {false};
 
@@ -198,6 +198,8 @@ private:
     bool initVPC() APPLE_KEXT_OVERRIDE;
     void setPropertiesGated(OSObject* props) APPLE_KEXT_OVERRIDE;
     void updateAll() APPLE_KEXT_OVERRIDE;
+    void updateControlStatus();
+    void controlRequest(OSDictionary *request);
 
     UInt32 validModes {0};
 
@@ -242,7 +244,7 @@ private:
      *
      *  @return true if success
      */
-    bool setConservation(const char* method, UInt8 value);
+    bool setConservation(const char* method, UInt64 value);
 
     bool updateAdaptiveKBD(int arg);
 

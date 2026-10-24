@@ -7,6 +7,7 @@
 //  Copyright © 2020 Zhen. All rights reserved.
 //
 
+#include "ControlValidation.hpp"
 #include "ThinkEvents.h"
 #include "ThinkVPC.hpp"
 
@@ -22,11 +23,13 @@ void ThinkVPC::updateAll() {
         OSSafeReleaseNULL(result);
     } else {
         OSDictionary *KBDPresent = OSDictionary::withCapacity(3);
-        getNotificationMask(1, KBDPresent);
-        getNotificationMask(2, KBDPresent);
-        getNotificationMask(3, KBDPresent);
-        setProperty("HKEY Setting", KBDPresent);
-        KBDPresent->release();
+        if (KBDPresent) {
+            getNotificationMask(1, KBDPresent);
+            getNotificationMask(2, KBDPresent);
+            getNotificationMask(3, KBDPresent);
+            setProperty("HKEY Setting", KBDPresent);
+            KBDPresent->release();
+        }
     }
     updateBattery(BAT_ANY);
     updateFnLock();
@@ -37,11 +40,12 @@ void ThinkVPC::updateAll() {
     updateVPC();
     updateYogaMode();
     super::updateAll();
+    updateControlStatus();
 }
 
 bool ThinkVPC::updateConservation(const char * method, OSDictionary *bat, bool update) {
     UInt32 result;
-    if (evaluateIntegerParam(method, &result, batnum) != kIOReturnSuccess) {
+    if (evaluateIntegerParam(method, &result, batnum) != kIOReturnSuccess || (result & BIT(31))) {
         AlwaysLog(updateFailure, method);
         return false;
     }
@@ -55,9 +59,27 @@ bool ThinkVPC::updateConservation(const char * method, OSDictionary *bat, bool u
     return true;
 }
 
-bool ThinkVPC::setConservation(const char * method, UInt8 value) {
+bool ThinkVPC::setConservation(const char * method, UInt64 value) {
+    if (value > 0xff || vpc->validateObject(method) != kIOReturnSuccess) return false;
+    UInt32 parameter = (batnum << 8) | static_cast<UInt32>(value);
+    const bool start = !strcmp(method, setCMstart);
+    const bool stop = !strcmp(method, setCMstop);
+    if (start || stop) {
+        UInt32 own = 0, other = 0;
+        if (evaluateIntegerParam(start ? getCMstart : getCMstop, &own, batnum) != kIOReturnSuccess ||
+            evaluateIntegerParam(start ? getCMstop : getCMstart, &other, batnum) != kIOReturnSuccess ||
+            !ReYogaControl::validThresholdState(own, stop) || !ReYogaControl::validThresholdState(other, start) ||
+            !ReYogaControl::validThresholdTarget(ReYogaControl::thresholdPercent(value, stop), start,
+                ReYogaControl::thresholdPercent(other, start))) return false;
+    } else if (!strcmp(method, setCMInhibitCharge) || !strcmp(method, setCMForceDischarge)) {
+        const bool inhibit = !strcmp(method, setCMInhibitCharge);
+        UInt32 capability = 0;
+        if (value > 1 || evaluateIntegerParam(inhibit ? getCMInhibitCharge : getCMForceDischarge, &capability, batnum) != kIOReturnSuccess ||
+            (capability & BIT(31)) || !(capability & BIT(inhibit ? 5 : 8))) return false;
+        if (inhibit) parameter = (batnum << 4) | 0x00ffff00U | static_cast<UInt32>(value);
+    }
     UInt32 result;
-    if (evaluateIntegerParam(method, &result, (batnum << 8) + value) != kIOReturnSuccess) {
+    if (evaluateIntegerParam(method, &result, parameter) != kIOReturnSuccess || (result & BIT(31))) {
         AlwaysLog(updateFailure, method);
         return false;
     }
@@ -155,6 +177,7 @@ bool ThinkVPC::initVPC() {
 
     OSObject *value;
     KBDProperty = OSDictionary::withCapacity(1);
+    if (!KBDProperty) return false;
     DebugLog("HKEY interface version %x", version);
     setPropertyNumber(KBDProperty, "Version", version, 32);
     switch (version >> 8) {
@@ -203,6 +226,7 @@ bool ThinkVPC::initVPC() {
     yogaModeSupport = (vpc->validateObject(getMultiModeState) == kIOReturnSuccess);
 
     setMicMuteLEDStatus(0);
+    setProperty("ControlProtocolVersion", 1, 32);
     return true;
 }
 
@@ -268,14 +292,14 @@ void ThinkVPC::updateBattery(bool update) {
     }
 
     OSDictionary *bat = OSDictionary::withCapacity(5);
-    if (updateConservation(getCMstart, bat) &&
-        updateConservation(getCMstop, bat) &&
-        updateConservation(getCMInhibitCharge, bat) &&
-        updateConservation(getCMForceDischarge, bat) &&
-        updateConservation(getCMPeakShiftState, bat))
-        DebugLog(updateSuccess, batteryPrompt, batnum);
-    else
-        AlwaysLog(updateFailure, batteryPrompt);
+    if (!bat) return;
+    bool complete = true;
+    const char *methods[] = {getCMstart, getCMstop, getCMInhibitCharge, getCMForceDischarge, getCMPeakShiftState};
+    for (const char *method : methods) {
+        if (vpc->validateObject(method) == kIOReturnSuccess)
+            complete = updateConservation(method, bat) && complete;
+    }
+    if (!complete) AlwaysLog(updateFailure, batteryPrompt);
 
     switch (batnum) {
         case BAT_ANY:
@@ -293,10 +317,117 @@ void ThinkVPC::updateBattery(bool update) {
     bat->release();
 }
 
+void ThinkVPC::updateControlStatus() {
+    auto features = OSDictionary::withCapacity(6);
+    if (!features) return;
+    auto add = [&](const char *key, bool available, const char *reason) {
+        auto feature = OSDictionary::withCapacity(3);
+        if (!feature) return;
+        feature->setObject("Available", available ? kOSBooleanTrue : kOSBooleanFalse);
+        setPropertyString(feature, "Reason", available ? "" : reason);
+        setPropertyString(feature, "Backend", "ThinkPad ACPI");
+        features->setObject(key, feature);
+        feature->release();
+    };
+    add(FnKeyPrompt, getProperty(FnKeyPrompt) && vpc->validateObject(setMediaKeyStatus) == kIOReturnSuccess, "Fn Lock getter/setter unavailable");
+    add(backlightPrompt, backlightCap && vpc->validateObject(setKBDBacklightLevel) == kIOReturnSuccess, "Keyboard backlight not advertised");
+    const char *batteryKeys[] = {"BAT_ANY", "BAT_PRIMARY", "BAT_SECONDARY"};
+    auto battery = OSDynamicCast(OSDictionary, getProperty(batteryKeys[batnum]));
+    const char *keys[] = {"ChargeStartThreshold", "ChargeStopThreshold"};
+    const char *getters[] = {getCMstart, getCMstop};
+    const char *setters[] = {setCMstart, setCMstop};
+    for (unsigned i = 0; i < 2; ++i) {
+        auto raw = battery ? OSDynamicCast(OSNumber, battery->getObject(getters[i])) : nullptr;
+        UInt32 value = raw ? raw->unsigned32BitValue() : 0;
+        bool supported = raw && ReYogaControl::validThresholdState(value, i == 1) && vpc->validateObject(setters[i]) == kIOReturnSuccess;
+        value = ReYogaControl::thresholdPercent(value, i == 1);
+        if (supported) setProperty(keys[i], value, 32);
+        else removeProperty(keys[i]);
+        auto counterpart = battery ? OSDynamicCast(OSNumber, battery->getObject(getters[1 - i])) : nullptr;
+        const bool orderingKnown = counterpart && ReYogaControl::validThresholdState(counterpart->unsigned32BitValue(), i == 0);
+        add(keys[i], supported && orderingKnown, "Battery threshold capability, setter or paired threshold unavailable");
+    }
+    auto startRaw = battery ? OSDynamicCast(OSNumber, battery->getObject(getCMstart)) : nullptr;
+    const bool individual = startRaw && (startRaw->unsigned32BitValue() & BIT(9));
+    setProperty("BatteryIndividualAddressing", individual);
+    add("BatteryIndex", true, "");
+    setProperty("BatteryIndex", batnum, 32);
+    auto thermal = OSDynamicCast(OSDictionary, getProperty("DYTC"));
+    auto mode = thermal ? OSDynamicCast(OSString, thermal->getObject("PerfMode")) : nullptr;
+    UInt32 profile = mode && mode->isEqualTo("Quiet") ? 1 : mode && mode->isEqualTo("Balance") ? 2 :
+        mode && (!strncmp(mode->getCStringNoCopy(), "Performance", 11)) ? 3 : 0;
+    const bool thermalSupported = supportsThermalProfiles() && profile != 0;
+    add("SmartFanMode", thermalSupported, "DYTC desk thermal profiles unavailable");
+    if (thermalSupported) setProperty("SmartFanMode", profile, 32);
+    else removeProperty("SmartFanMode");
+    setProperty("FeatureStatus", features);
+    features->release();
+}
+
+void ThinkVPC::controlRequest(OSDictionary *request) {
+    auto key = OSDynamicCast(OSString, request->getObject("Property"));
+    auto id = OSDynamicCast(OSString, request->getObject("RequestID"));
+    auto number = OSDynamicCast(OSNumber, request->getObject("Value"));
+    auto boolean = OSDynamicCast(OSBoolean, request->getObject("Value"));
+    if (!key || !id || key->getLength() > 64 || id->getLength() > 64) return;
+    updateAll();
+    auto features = OSDynamicCast(OSDictionary, getProperty("FeatureStatus"));
+    auto feature = features ? OSDynamicCast(OSDictionary, features->getObject(key)) : nullptr;
+    IOReturn status = kIOReturnUnsupported;
+    const char *name = key->getCStringNoCopy();
+    if (feature && feature->getObject("Available") == kOSBooleanTrue) {
+        status = kIOReturnBadArgument;
+        if (key->isEqualTo(FnKeyPrompt) && boolean) {
+            status = setFnLock(boolean->getValue()) ? kIOReturnSuccess : kIOReturnIOError;
+        } else if (number && number->unsigned64BitValue() <= 100) {
+            UInt32 target = number->unsigned32BitValue();
+            if (key->isEqualTo("BatteryIndex") && (target == BAT_PRIMARY ||
+                (target == BAT_SECONDARY && getProperty("BatteryIndividualAddressing") == kOSBooleanTrue))) {
+                batnum = target;
+                status = kIOReturnSuccess;
+            } else if (key->isEqualTo("SmartFanMode") && target >= 1 && target <= 3) {
+                const int mode = target == 1 ? DYTC_MODE_QUIET : target == 2 ? DYTC_MODE_BALANCE : DYTC_MODE_PERFORM;
+                status = setDYTC(DYTC_FUNCTION_MMC, mode) ? kIOReturnSuccess : kIOReturnIOError;
+            } else if (key->isEqualTo(backlightPrompt) && target <= 2)
+                status = setBacklight(target) ? kIOReturnSuccess : kIOReturnIOError;
+            else if (key->isEqualTo("ChargeStartThreshold") || key->isEqualTo("ChargeStopThreshold")) {
+                const bool start = key->isEqualTo("ChargeStartThreshold");
+                auto other = OSDynamicCast(OSNumber, getProperty(start ? "ChargeStopThreshold" : "ChargeStartThreshold"));
+                if (other && ReYogaControl::validThresholdTarget(target, start, other->unsigned32BitValue())) {
+                    const UInt8 encoded = !start && target == 100 ? 0 : target;
+                    status = setConservation(start ? setCMstart : setCMstop, encoded) ? kIOReturnSuccess : kIOReturnIOError;
+                }
+            }
+        }
+    }
+    const IOReturn commandStatus = status;
+    if (status == kIOReturnSuccess) updateAll();
+    OSObject *actual = getProperty(name);
+    OSObject *requested = request->getObject("Value");
+    if (status == kIOReturnSuccess && (!actual || !actual->isEqualTo(requested))) status = kIOReturnIOError;
+    auto result = OSDictionary::withCapacity(9);
+    if (!result) return;
+    result->setObject("RequestID", id);
+    result->setObject("Property", key);
+    if (requested) result->setObject("Requested", requested);
+    if (actual) result->setObject("Actual", actual);
+    setPropertyNumber(result, "Status", status, 32);
+    setPropertyNumber(result, "CommandStatus", commandStatus, 32);
+    result->setObject("ReadbackPending", commandStatus == kIOReturnSuccess && status != kIOReturnSuccess ? kOSBooleanTrue : kOSBooleanFalse);
+    setPropertyString(result, "Reason", status == kIOReturnSuccess ? "Firmware readback matched" : status == kIOReturnBadArgument ? "Invalid type, threshold ordering or value" : status == kIOReturnUnsupported ? "Feature unavailable; inspect FeatureStatus" : "Firmware call failed or readback did not match");
+    setProperty("LastControlResult", result);
+    result->release();
+}
+
 void ThinkVPC::setPropertiesGated(OSObject *props) {
     OSDictionary *dict = OSDynamicCast(OSDictionary, props);
     if (!dict)
         return;
+
+    if (auto request = OSDynamicCast(OSDictionary, dict->getObject("ControlRequest"))) {
+        controlRequest(request);
+        return;
+    }
 
     //    AlwaysLog("%d objects in properties", dict->getCount());
     OSCollectionIterator* i = OSCollectionIterator::withCollection(dict);
@@ -307,28 +438,29 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
             if (key->isEqualTo(batteryPrompt)) {
                 OSNumber *value;
                 getPropertyNumber(batteryPrompt);
-                batnum = value->unsigned8BitValue();
-                updateBattery(value->unsigned8BitValue());
+                if (value->unsigned64BitValue() > BAT_SECONDARY) continue;
+                batnum = value->unsigned32BitValue();
+                updateBattery();
             } else if (key->isEqualTo("setCMstart")) {
                 OSNumber *value;
                 getPropertyNumber("setCMstart");
-                setConservation(setCMstart, value->unsigned8BitValue());
+                setConservation(setCMstart, value->unsigned64BitValue());
             } else if (key->isEqualTo("setCMstop")) {
                 OSNumber *value;
                 getPropertyNumber("setCMstop");
-                setConservation(setCMstop, value->unsigned8BitValue());
+                setConservation(setCMstop, value->unsigned64BitValue());
             } else if (key->isEqualTo("setCMInhibitCharge")) {
                 OSNumber *value;
                 getPropertyNumber("setCMInhibitCharge");
-                setConservation(setCMInhibitCharge, value->unsigned8BitValue());
+                setConservation(setCMInhibitCharge, value->unsigned64BitValue());
             } else if (key->isEqualTo("setCMForceDischarge")) {
                 OSNumber *value;
                 getPropertyNumber("setCMForceDischarge");
-                setConservation(setCMForceDischarge, value->unsigned8BitValue());
+                setConservation(setCMForceDischarge, value->unsigned64BitValue());
             } else if (key->isEqualTo("setCMPeakShiftState")) {
                 OSNumber *value;
                 getPropertyNumber("setCMPeakShiftState");
-                setConservation(setCMPeakShiftState, value->unsigned8BitValue());
+                setConservation(setCMPeakShiftState, value->unsigned64BitValue());
             } else if (key->isEqualTo("GHSL")) {
                 UInt32 result;
                 if (evaluateIntegerParam("GHKL", &result, 0) == kIOReturnSuccess)
@@ -425,6 +557,7 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
                 updateAll();
             } else {
                 OSDictionary *entry = OSDictionary::withCapacity(1);
+                if (!entry) continue;
                 entry->setObject(key, dict->getObject(key));
                 super::setPropertiesGated(entry);
                 entry->release();
@@ -900,6 +1033,7 @@ bool ThinkVPC::updateFnLock(bool update) {
     UInt32 result;
     if (vpc->evaluateInteger(getMediaKeyStatus, &result) != kIOReturnSuccess) {
         AlwaysLog(updateFailure, FnKeyPrompt);
+        removeProperty(FnKeyPrompt);
         return false;
     }
 
@@ -944,6 +1078,7 @@ bool ThinkVPC::updateBacklight(bool update) {
     UInt32 state;
     if (evaluateIntegerParam(getKBDBacklightLevel, &state, 0) != kIOReturnSuccess) {
         AlwaysLog(updateFailure, backlightPrompt);
+        removeProperty(backlightPrompt);
         return false;
     }
 
@@ -957,8 +1092,8 @@ bool ThinkVPC::updateBacklight(bool update) {
 }
 
 bool ThinkVPC::setBacklight(UInt32 level) {
-    if (!backlightCap)
-        return true;
+    if (level > 2 || !backlightCap)
+        return false;
 
     UInt32 result;
     IOReturn ret;

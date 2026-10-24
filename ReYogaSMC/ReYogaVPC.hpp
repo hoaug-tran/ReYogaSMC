@@ -109,6 +109,7 @@ private:
     void probeWMI();
 
 protected:
+    bool supportsThermalProfiles() const { return (DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0; }
 
     /**
      *  VPC device

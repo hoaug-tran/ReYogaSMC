@@ -6,6 +6,7 @@
 //  Copyright © 2020 Zhen. All rights reserved.
 //
 
+#include "ControlValidation.hpp"
 #include <IOKit/IOLib.h>
 #include "ReYogaSMCUserClientPrivate.hpp"
 
@@ -82,7 +83,7 @@ IOReturn ReYogaSMCUserClient::readEC(UInt64 offset, UInt8* output, IOByteCount *
         return kIOReturnBadArgument;
     }
 
-    if (offset >= 0x100 || *outputSizeP == 0 || *outputSizeP > 0x100 - offset) {
+    if (!ReYogaControl::validECSpan(offset, *outputSizeP)) {
         AlwaysLog("%s invalid range", __FUNCTION__);
         return kIOReturnBadArgument;
     }

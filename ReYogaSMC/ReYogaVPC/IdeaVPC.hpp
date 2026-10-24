@@ -11,6 +11,7 @@
 #define IdeaVPC_hpp
 
 #include "ReYogaVPC.hpp"
+#include "../ReYogaFirmwareProfiles.hpp"
 #include <pexpert/pexpert.h>
 
 #define BR_POLLING_INTERVAL 2000
@@ -203,6 +204,8 @@ private:
     IOReturn setPowerStateGated(unsigned long state, IOService *device);
     bool restorePowerLimits();
     void updateTelemetry();
+    void initNativeProfile();
+    const ReYogaNativeProfile *nativeProfile {nullptr};
     void updateFeatureStatus();
     void controlRequest(OSDictionary *request);
     IOReturn setControl(const char *key, OSObject *value);
@@ -469,6 +472,7 @@ private:
     bool isPowerChanged();
 
 public:
+    bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
     IOReturn message(UInt32 type, IOService *provider, void *argument) APPLE_KEXT_OVERRIDE;
 };
 
