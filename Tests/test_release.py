@@ -14,10 +14,10 @@ spec.loader.exec_module(release)
 
 class ReleaseTests(unittest.TestCase):
     def test_semantic_bump_precedence(self):
-        self.assertEqual(release.bump('2.1.1', ['fix(driver): bound EC reads']), '2.1.2')
-        self.assertEqual(release.bump('2.1.1', ['fix: bounds', 'feat(app): keyboard controls']), '2.2.0')
-        self.assertEqual(release.bump('2.1.1', ['feat: controls', 'refactor(driver)!: change protocol']), '3.0.0')
-        self.assertEqual(release.bump('2.1.1', ['fix: protocol\n\nBREAKING CHANGE: new selectors']), '3.0.0')
+        self.assertEqual(release.bump('2.0.0', ['fix(driver): bound EC reads']), '2.0.1')
+        self.assertEqual(release.bump('2.0.0', ['fix: bounds', 'feat(app): keyboard controls']), '2.1.0')
+        self.assertEqual(release.bump('2.0.0', ['feat: controls', 'refactor(driver)!: change protocol']), '3.0.0')
+        self.assertEqual(release.bump('2.0.0', ['fix: protocol\n\nBREAKING CHANGE: new selectors']), '3.0.0')
 
     def test_shipped_changes_only(self):
         for path in ['ReYogaSMC/WMI.cpp', 'ReYogaSMCNC/HardwareViews.swift', 'Scripts/dependencies.json']:
@@ -26,15 +26,15 @@ class ReleaseTests(unittest.TestCase):
             self.assertFalse(release.shipped(path), path)
 
     def test_changelog_body_is_release_body(self):
-        source = '# Releases\n\n## Unreleased\n\n- Add controls.\n\n## 2.1.1\n\n- Older change.\n'
-        changed, notes = release.prepare(source, '2.2.0', [])
+        source = '# Releases\n\n## Unreleased\n\n- Add controls.\n\n## 1.5.3\n\n- Upstream release.\n'
+        changed, notes = release.prepare(source, '2.0.0', [])
         self.assertEqual(notes, '- Add controls.\n')
-        self.assertEqual(release.section(changed, '2.2.0'), notes.strip())
-        self.assertEqual(release.prepare(changed, '2.2.0', []), (changed, notes))
+        self.assertEqual(release.section(changed, '2.0.0'), notes.strip())
+        self.assertEqual(release.prepare(changed, '2.0.0', []), (changed, notes))
 
     def test_empty_notes_are_rejected(self):
         with self.assertRaises(ValueError):
-            release.prepare('# Releases\n', '2.2.0', [])
+            release.prepare('# Releases\n', '2.1.0', [])
 
     def test_project_versions_must_agree(self):
         with self.assertRaises(ValueError):
@@ -71,20 +71,26 @@ class ReleaseTests(unittest.TestCase):
             git('config', 'user.name', 'Test')
             git('config', 'user.email', 'test@example.invalid')
             (root / release.PROJECT).parent.mkdir(parents=True)
-            (root / release.PROJECT).write_text('CURRENT_PROJECT_VERSION = 2.1.1;')
+            (root / release.PROJECT).write_text('CURRENT_PROJECT_VERSION = 1.5.3;')
             source = root / 'ReYogaSMC/driver.cpp'
             source.parent.mkdir()
             source.write_text('int value = 1;')
             git('add', release.PROJECT.as_posix(), 'ReYogaSMC/driver.cpp')
             git('commit', '-m', 'fix(driver): initial state')
-            git('tag', 'v2.1.1')
+            git('tag', 'v1.5.3')
+            (root / release.PROJECT).write_text('CURRENT_PROJECT_VERSION = 2.0.0;')
+            source.write_text('int value = 2;')
+            git('add', release.PROJECT.as_posix(), 'ReYogaSMC/driver.cpp')
+            git('commit', '-m', 'feat(driver): start ReYogaSMC')
             with patch.object(release, 'ROOT', root):
+                self.assertEqual(release.plan()['version'], '2.0.0')
+                git('tag', 'v2.0.0')
                 self.assertTrue(release.plan()['publish'])
                 (root / 'README.md').write_text('Documentation')
                 git('add', 'README.md')
                 git('commit', '-m', 'docs: installation')
                 self.assertFalse(release.plan()['publish'])
-                source.write_text('int value = 2;')
+                source.write_text('int value = 3;')
                 git('add', 'ReYogaSMC/driver.cpp')
                 git('commit', '-m', 'feat(driver): add control')
-                self.assertEqual(release.plan()['version'], '2.2.0')
+                self.assertEqual(release.plan()['version'], '2.1.0')

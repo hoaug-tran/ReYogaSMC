@@ -1,44 +1,38 @@
 # Releases
 
-## Unreleased
+## 2.0.0
 
-- Connect ThinkPad dashboards and add keyboard, battery threshold and DYTC controls.
-- Launch Siri without SystemUIServer UI scripting; preserve notification, fan menu and audio state across reconnects and device changes.
-- Publish IdeaPad/Yoga controls independently of Game Zone and read reviewed native ACPI telemetry without a custom SSDT.
-- Validate EC spans, battery firmware errors and threshold ordering; fix the EC debug-dump buffer overrun.
-- Generate native sensor profiles from the shared firmware data.
-- Keep sensor layout stable during updates and improve keyboard and VoiceOver access.
-- Publish Debug and Release kext, app and tool packages with SHA-256 checksums.
+First ReYogaSMC release, based on YogaSMC 1.5.3.
+
+### Driver
+
+- Use ReYogaSMC service and bundle names while preserving the public user-client selectors.
+- Add capability checks and command readback for ThinkPad keyboard, battery thresholds and DYTC power profiles.
+- Expose IdeaPad/Yoga ACPI controls without requiring Game Zone WMI.
+- Read native ACPI fan and temperature fields for matching firmware profiles without a custom SSDT.
+- Keep sensor units, battery command mappings and writable-control validation in firmware profiles.
+- Check EC ranges, firmware error bits, allocation failures and charge-threshold ordering.
+
+### App
+
+- Replace the preference pane with Device, Cooling & Power and Settings views.
+- Connect ThinkPad services to the dashboard and launch Siri through Workspace.
+- Add profile-based USB RGB controls and persistent hardware settings.
+- Read CPU/GPU temperatures from available firmware and SMC providers.
+- Preserve color-panel focus and control drafts across view updates.
+- Use the current default audio devices after hotplug.
+- Add local device information export, including DSDT when provided by the driver.
+- Support keyboard navigation, VoiceOver and Reduce Motion in the controls.
+
+### Distribution
+
+- Include Windows/macOS hardware-collection launchers and firmware profiles.
+- Build Debug and Release kext, app and support-tool ZIPs in GitHub Actions.
+- Publish release notes from this changelog and include SHA-256 checksums.
 
 Packages are unsigned.
 
-## 2.1.1
+## 1.5.3 — YogaSMC
 
-- Keep the color panel beside the controls without dismissing the popover.
-- Read CPU and GPU temperatures from installed SMC sensor providers.
-- Identify Storage and Quick Charge correctly and show live battery status.
-
-## 2.1.0
-
-- Use ReYogaSMC source, service and bundle names, with preference migration.
-- Include the L and dot icon at every app icon size.
-- Keep the controls popover at a fixed size during startup and driver connection.
-- Prefer firmware GPU temperatures when available.
-
-## 2.0.6
-
-- Separate power profiles into individual buttons.
-- Remove maximum fan speed from app controls and preference restoration.
-
-## 2.0.5
-
-- Load battery state masks, setter commands and capability gates from firmware profiles.
-- Include binary registry data in diagnostic exports.
-
-## 2.0.0
-
-- Add firmware profiles, a cross-platform hardware tool and local diagnostic export.
-- Add USB RGB controls and persistent settings.
-- Replace the preference pane with app settings.
-
-Earlier upstream changes remain in the [original releases](https://github.com/zhen-zen/YogaSMC/releases).
+Upstream release: [YogaSMC 1.5.3](https://github.com/zhen-zen/YogaSMC/releases/tag/1.5.3).
+Earlier changes are listed in the [upstream releases](https://github.com/zhen-zen/YogaSMC/releases).

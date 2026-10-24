@@ -91,6 +91,6 @@ Signing does not notarize the app. Keep the same identity and installation path 
 
 ## Credits and license
 
-Based on [YogaSMC by Zhen](https://github.com/zhen-zen/YogaSMC). Distributed under [GPL v2](LICENSE); original copyright and license notices are retained.
+ReYogaSMC 2.0.0 is based on [YogaSMC 1.5.3 by Zhen](https://github.com/zhen-zen/YogaSMC/releases/tag/1.5.3). Distributed under [GPL v2](LICENSE); original copyright and license notices are retained.
 
 Protocol references include Linux [thinkpad-acpi](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/lenovo/thinkpad_acpi.c) and [ideapad-laptop](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/lenovo/ideapad-laptop.c), [LenovoLegionLinux](https://github.com/johnfanv2/LenovoLegionLinux), [LenovoLegionToolkit](https://github.com/BartoszCichecki/LenovoLegionToolkit) and [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB). Dependencies are maintained by [Acidanthera](https://github.com/acidanthera). The support tool uses [ACPICA](https://github.com/open-acpica/acpica).
