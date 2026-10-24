@@ -14,3 +14,6 @@ build/
 /ReYoga-report*.zip
 **/__pycache__/
 /.tools/
+
+# Local task notes
+/_problem/

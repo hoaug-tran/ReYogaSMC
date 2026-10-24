@@ -1,6 +1,6 @@
 # Contributing to ReYogaSMC
 
-A useful contribution makes a hardware claim reviewable. Explain the machine, firmware and behavior that led to the change.
+Include the affected model, firmware version, observed behavior and validation results.
 
 ## Device support
 
@@ -29,3 +29,11 @@ Source control should contain source, profiles, useful documentation and maintai
 ## Working together
 
 Discuss the behavior and evidence. Respect contributors, explain disagreements and avoid personal attacks. Report security issues through the process in SECURITY.md.
+
+## Commits and releases
+
+Use Conventional Commits: `fix(driver): ...`, `feat(app): ...`, `docs: ...`, `test: ...` or `ci: ...`. Add release notes under `## Unreleased` in Changelog.md.
+
+A successful main build releases changes to shipped driver, app, profiles or tools. Breaking changes (`!` or a `BREAKING CHANGE:` footer) bump the major version; `feat` bumps minor; other shipped changes bump patch. Documentation, tests and CI changes alone do not create a release. A manually increased project version takes precedence.
+
+The workflow builds and tests both configurations before publishing. It commits only the version/changelog metadata, tags that commit and uses the changelog section as the GitHub Release description. Release assets are the same six ZIPs produced by CI, plus SHA256SUMS.txt. Existing tags must match the built source and expected metadata before a rerun can update assets.

@@ -2,169 +2,95 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="Assets/Brand/readme-dark.svg">
-  <img src="Assets/Brand/readme-light.svg" alt="ReYogaSMC. Your hardware. Your controls." width="900">
+  <img src="Assets/Brand/readme-light.svg" alt="ReYogaSMC" width="720">
 </picture>
 
-# ReYogaSMC
+[![Build](https://github.com/hoaug-tran/ReYogaSMC/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/hoaug-tran/ReYogaSMC/actions/workflows/main.yml)
+[![Release](https://img.shields.io/github/v/release/hoaug-tran/ReYogaSMC)](https://github.com/hoaug-tran/ReYogaSMC/releases/latest)
+[![License](https://img.shields.io/badge/license-GPL--2.0-blue)](LICENSE)
 
-**Lenovo hardware controls, with firmware-aware support.**
+Lenovo hardware controls for macOS.
 
-A community macOS driver, menu bar app and ACPI support tool.
-
-[Getting started](#getting-started) · [Hardware support](#hardware-support) · [Device reports](#device-reports) · [Contributing](CONTRIBUTING.md)
+[Download](https://github.com/hoaug-tran/ReYogaSMC/releases/latest) · [Actions builds](https://github.com/hoaug-tran/ReYogaSMC/actions/workflows/main.yml) · [Device information](#device-information)
 
 </div>
 
-## What this project does
+## Features
 
-ReYogaSMC connects supported laptop firmware to macOS. The kext handles ACPI, WMI, hardware events and VirtualSMC sensors. The companion app shows what the loaded driver can actually use, with a reason when a feature is unavailable.
+ReYogaSMC includes a kernel extension, menu bar app and hardware support tool. Controls depend on the interfaces exposed by the machine's firmware.
 
-ReYogaSMC is maintained by Tran Kinh Hoang and builds on [YogaSMC by Zhen](https://github.com/zhen-zen/YogaSMC). Original copyright notices and the GPL v2 license are preserved.
-
-## Hardware support
-
-| Family / interface | Driver path | What to expect |
-| :--- | :--- | :--- |
-| Lenovo ThinkPad | ThinkVPC / ThinkSMC | Firmware events, supported battery and keyboard controls, configured EC sensors |
-| Lenovo IdeaPad / Yoga | IdeaVPC / IdeaSMC | Battery conservation, rapid charge, keyboard and USB controls when advertised by ACPI |
-| Lenovo Legion Game Zone | IdeaVPC / IdeaWMI | Firmware power modes, available temperatures, fan telemetry and model-dependent controls |
-| Legion 7 16ACHg6, GKCN | Reviewed ACPI identity | Sensor bridge; manual fan control unavailable |
-| ITE c968 USB RGB | Profile-backed HID adapter | Keyboard and lighting zones for the matching device/layout; transport acknowledgement only |
-| Generic Intel HID / HP | ReYogaHIDD / DYVPC | Experimental; requires compatible firmware and a vanilla EC |
-| Unknown firmware | ReYoga support tool | Export evidence for review; no guessed EC addresses or generated control profile |
-
-| Feature | Source | How support is established |
-| :--- | :--- | :--- |
-| Battery conservation / rapid charge | ACPI | Methods, capability flags and state readback |
-| Power mode / display overdrive / touchpad | WMI | Capability query and getter |
-| Fan RPM / temperatures | WMI, reviewed ACPI or AppleSMC | Source and sample validity are reported separately |
-| CPU power limits | WMI | Firmware-provided range and step; edits save the previous values for reset |
-| Logo / rear port lighting | WMI or USB HID | Firmware readback or a USB transport result; physical light output is not measured |
-| Fn hotkeys | Firmware events / reviewed mappings | Native firmware events where possible; app mappings require macOS privacy permission |
-
-Model data belongs in [HardwareProfiles](HardwareProfiles). Protocol constants stay in the adapters. Similar product names do not establish compatible registers, payloads or field units.
-
-## Getting started
-
-1. Build the project or use an appropriate published package.
-2. Load Lilu and VirtualSMC before `ReYogaSMC.kext` in OpenCore. Use current compatible dependencies.
-3. Replace the previously installed kext. Update `BundlePath` and `ExecutablePath` for the new product name. Load only one primary or Alter variant.
-4. Install `ReYogaSMCNC.app` in `/Applications` and open it. Check the driver connection and feature status before changing settings.
-5. Add an optional SSDT only when its firmware profile matches your machine. Keep a bootable recovery configuration before changing EFI.
-
-The driver, app, helper and shared service classes use ReYogaSMC names. The app imports preferences from earlier installations on its first launch.
-
-### Packages
-
-| Product | Purpose |
+| Interface | Features |
 | :--- | :--- |
-| `ReYogaSMC.kext` | Main driver with VirtualSMC integration; requires Lilu and VirtualSMC |
-| `ReYogaSMCAlter.kext` | Diagnostic variant without SMC keys or those two dependencies; load separately |
-| `ReYogaSMCNC.app` | Menu bar controls, hardware status, hotkeys and diagnostic export |
-| `ReYogaSMCNCHelper.app` | Embedded login helper |
-| `Scripts/hardware_support.py` | Local ACPI discovery, reviewed bridge generation and report export |
+| ThinkPad ACPI | Fn hotkeys, Fn Lock, keyboard backlight, battery charge thresholds, DYTC power profiles and available EC sensors |
+| IdeaPad / Yoga ACPI | Conservation mode, rapid charge, keyboard backlight, Fn Lock and Always-On USB |
+| Legion WMI | Power profiles, temperatures, fan telemetry, display overdrive and supported lighting controls |
+| ITE c968 USB RGB | Profile-specific keyboard and lighting zones |
+| Intel HID / HP | Experimental event and sensor support |
 
-## Device reports
+The app shows each control's availability and its firmware response. Sensor access does not enable manual fan writes. Native ACPI telemetry uses exact firmware fingerprints from [HardwareProfiles](HardwareProfiles); unknown firmware does not inherit another machine's EC layout.
 
-Use Python 3.9 or newer. No third-party Python packages are required. Double-click `ReYoga.cmd` on Windows or `ReYoga.command` on macOS to start with the default options. Each run gets a dated export directory.
+## Download and install
 
-```sh
-# Windows: tables, inventory and reviewed getter probes.
-python Scripts/hardware_support.py --windows-live --ec-read
+[GitHub Releases](https://github.com/hoaug-tran/ReYogaSMC/releases) contains Release and Debug ZIPs for the kexts, app and support tool. Use Release for installation. Actions builds are available under a successful run's **Artifacts** section; downloading artifacts requires a GitHub account.
 
-# Any supported host: supply the complete ACPI dump, including companion SSDTs.
-python3 Scripts/hardware_support.py --acpi /path/to/tables --compile
+| Package | Contents |
+| :--- | :--- |
+| `ReYogaSMC-kexts-*` | Main and Alter kexts, optional SSDT examples |
+| `ReYogaSMC-apps-*` | Menu bar app with embedded login helper |
+| `ReYogaSMC-tool-*` | Windows/macOS launchers, collection scripts and firmware profiles |
 
-# Optional model label and export destination.
-python3 Scripts/hardware_support.py --dsdt DSDT.dsl --model Legion-7 --output ReYoga-my-device
-```
+1. Load [Lilu](https://github.com/acidanthera/Lilu/releases) and [VirtualSMC](https://github.com/acidanthera/VirtualSMC/releases) before `ReYogaSMC.kext` in OpenCore.
+2. Replace the old driver and update its `BundlePath` and `ExecutablePath`. Load one primary or Alter variant.
+3. Copy `ReYogaSMCNC.app` to `/Applications`, restart macOS and open the app.
+4. Check the driver connection and available controls before changing settings.
 
-The tool exports `report.json`, a device-support issue draft, copied/disassembled tables and a ZIP. Matching firmware gets a short `SSDT-ReYoga-<model>.dsl` name. A matched bridge is compiled automatically; `--source-only` exports just its source. Output goes into a new directory so an earlier report cannot be overwritten.
+> [!IMPORTANT]
+> CI packages are unsigned. Keep a bootable recovery configuration when replacing a kext. `ReYogaSMCAlter.kext` omits VirtualSMC integration and does not require Lilu or VirtualSMC.
 
-When needed, Windows downloads a pinned iasl binary. macOS and Linux download verified ACPICA source and build iasl using the system C tools. Downloads have SHA-256 checks and are cached outside the repository. Use `--iasl /path/to/iasl` for an existing compiler or `--offline` to disable downloads. Build and disassembly failures remain in the report.
+A custom SSDT is optional. Standard ACPI/WMI interfaces and matching native sensor profiles work without one. Add a generated bridge only for its matching firmware.
 
-On Windows, registry tables supplement the firmware API and preserve multiple SSDTs when available. The API itself exposes only the first repeated signature. For complete cross-table resolution, supply a full firmware dump. Linux can read tables from `/sys/firmware/acpi/tables` when permitted. On macOS, supply a dump or use the app's live DSDT export where the driver supports it.
+## App
+
+**Device** contains sensors, keyboard, battery, lighting and USB controls. **Cooling & Power** contains power profiles and the available fan/CPU controls. A control remains unavailable when its backend or required validation is missing.
+
+Settings includes login, release updates, shortcut mapping and device information export. Updates are downloaded and installed manually. Hotkey mapping requires Accessibility and Input Monitoring; sensor display does not. Preferences from YogaSMC are imported on first launch.
+
+## Device information
+
+1. Open **Settings → Diagnostics** in the ReYogaSMC app.
+2. Click **Export Report…** to save hardware state, driver capabilities, recent app logs and `DSDT.aml` when the driver supports ACPI export. Firmware does not need a matching profile for this export.
+3. Attach the ZIP to a [device-support issue](https://github.com/hoaug-tran/ReYogaSMC/issues/new/choose), with the model, BIOS version, macOS version and affected feature.
 
 > [!NOTE]
-> ACPI alone cannot reveal every EC register's meaning, WMI payload or USB lighting protocol. The report distinguishes collected declarations from interfaces that still need review. Discovery does not scan physical memory, write EC registers or call arbitrary firmware methods.
+> Exports stay local until you share them. Review them first: firmware tables and device identifiers may contain identifying information.
 
-Add `--ec-read` on Windows/Linux to include a live standard EC snapshot. Windows uses PawnIO; Linux uses `ec_sys`.
+On Windows, run `ReYoga.cmd` from the support-tool package. On macOS, run `ReYoga.command`. Python 3.9 or newer is required. Options and export contents are listed in the [hardware tool guide](Docs/hardware-tool.md).
 
-See the [tool reference](Docs/hardware-tool.md) for export contents and options.
+## Build
 
-For a new model, open a device-support issue with the report and observed behavior. A profile PR also needs evidence for addresses, units, ranges and firmware identity. See [Contributing](CONTRIBUTING.md). Review the export before publishing it: firmware tables and Windows device IDs may contain identifying information.
-
-## Saved preferences
-
-Color pickers, effect selection, numeric drafts and navigation survive closing the popover or changing tabs. Clicking Apply saves the successfully applied RGB configuration, including per-key imports, under the matching device profile. The app restores it after relaunch or rediscovery. Closing the app releases software RGB control; it does not erase the saved configuration.
-
-Confirmed firmware settings are saved separately and restored after a compatible driver connects. Capability checks and current power ranges still apply. CPU/fan edits belong to the power profile where they were set. Reset Changes removes saved CPU edits; Restore Auto removes saved fan overrides.
-
-Permissions, login registration and update preferences use macOS and persistent preferences. No setting needs a popover to stay focused in order to be saved.
-
-## Diagnostics and recovery
-
-The app records correlated requests, transport status, firmware command status, requested/actual values, capabilities and sensor sources. Logs rotate under `~/Library/Logs/ReYogaSMC`. Settings provides local report export and opens the issue draft for you to review. Nothing is submitted automatically.
-
-A successful transport result means the request reached the driver. The app reports confirmation only when its readable state matches. A mismatch should include the feature, firmware version, requested state, readback and reproduction steps. USB RGB has no color readback, so its result is explicitly a transport acknowledgement.
-
-For kernel output:
-
-```sh
-log stream --predicate 'senderImagePath contains "ReYogaSMC"'
-swift Scripts/diagnose.swift
-```
-
-The second command refreshes and samples driver properties without changing feature settings. Enable detailed telemetry only while reproducing a problem. Attach relevant logs rather than an entire unrelated system log.
-
-### Privacy permissions
-
-Hotkey mapping needs Accessibility and Input Monitoring. Normal sensor display does not need an event tap. Grant permission to the installed app, then retry discovery or mapping.
-
-macOS tracks privacy access using the app's signing identity. Unsigned builds, incompatible signing requirements, or changing installed copies can cause repeated prompts. Keep the app in one installation path and sign subsequent builds with the same identity. See [Apple's signing requirements](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements). The app exports its signing details for diagnosis; it cannot grant itself macOS permissions.
-
-## macOS compatibility
-
-The minimum deployment target is macOS 11. The app uses availability checks for newer services. There is no upper-version block for macOS 26.
-
-| Version | Status / checks needed |
-| :--- | :--- |
-| 11–12 | Deployment baseline; verify permission handling, login helper, UI and sleep/wake on hardware |
-| 13–15 | Verify login service registration, permission persistence |
-| 26 | Runtime testing required with its SDK, System Settings and kext-loading environment |
-
-Device reports list the macOS versions and firmware actually used.
-
-## Building
-
-Install Xcode command-line tools and select the intended Xcode installation. Dependency versions and checksums live in `Scripts/dependencies.json`.
+Select Xcode and install its command-line tools:
 
 ```sh
 bash Scripts/bootstrap.sh
 xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Debug CODE_SIGNING_ALLOWED=NO
 xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Release CODE_SIGNING_ALLOWED=NO
-```
-
-Unsigned output is for local development. For a persistent installed app, use your signing identity:
-
-```sh
-bash Scripts/sign-app.sh 'Developer ID Application: your name (TEAM)' build/Release
 bash Scripts/package.sh Release
 ```
 
-Keep the same identity for updates. Signing does not notarize the app. CI builds unsigned packages. See [macOS compatibility](Docs/compatibility.md) for API availability and dependencies.
+Dependency versions and checksums are pinned in `Scripts/dependencies.json`. Products go to `build/Debug` and `build/Release`; ZIPs go to `build/packages`.
+
+The [Actions workflow](https://github.com/hoaug-tran/ReYogaSMC/actions/workflows/main.yml) tests the support tool on Windows, Linux and macOS, builds both configurations and publishes their packages. Versioned releases use the corresponding section of [Changelog.md](Changelog.md). See [Contributing](CONTRIBUTING.md) for the release policy and checks.
+
+For a persistent app signing identity:
+
+```sh
+bash Scripts/sign-app.sh 'Developer ID Application: name (TEAM)' build/Release
+```
+
+Signing does not notarize the app. Keep the same identity and installation path when updating. Platform requirements are listed in [Compatibility](Docs/compatibility.md).
 
 ## Credits and license
 
-ReYogaSMC retains the [GPL v2 license](LICENSE) and original copyright notices. A rename does not remove upstream authorship.
+Based on [YogaSMC by Zhen](https://github.com/zhen-zen/YogaSMC). Distributed under [GPL v2](LICENSE); original copyright and license notices are retained.
 
-* [Zhen and YogaSMC contributors](https://github.com/zhen-zen/YogaSMC) for the original driver and companion apps.
-* [Apple](https://www.apple.com) for macOS and its development tools.
-* Linux contributors for [ideapad-laptop](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/lenovo/ideapad-laptop.c) and [thinkpad-acpi](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/lenovo/thinkpad_acpi.c).
-* [RehabMan](https://github.com/RehabMan) for VoodooPS2Controller, ACPI Debug, ioio and DSDT work.
-* [vit9696 and Acidanthera](https://github.com/acidanthera/VirtualSMC) for VirtualSMC, Lilu and MacKernelSDK.
-* [the-darkvoid](https://github.com/the-darkvoid) for macOS-IOElectrify; [pali](https://github.com/pali) for bmfdec.
-* [LenovoLegionLinux](https://github.com/johnfanv2/LenovoLegionLinux) for published Legion EC research.
-* [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB) and its Lenovo USB controller contributors for protocol research. Adapter attribution is retained in source.
-* [ACPICA](https://github.com/open-acpica/acpica) for iasl. Downloaded tools retain their upstream licensing.
-* benbender, 1Revenger1 and everyone contributing hardware reports and fixes.
+Protocol references include Linux [thinkpad-acpi](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/lenovo/thinkpad_acpi.c) and [ideapad-laptop](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/lenovo/ideapad-laptop.c), [LenovoLegionLinux](https://github.com/johnfanv2/LenovoLegionLinux), [LenovoLegionToolkit](https://github.com/BartoszCichecki/LenovoLegionToolkit) and [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB). Dependencies are maintained by [Acidanthera](https://github.com/acidanthera). The support tool uses [ACPICA](https://github.com/open-acpica/acpica).

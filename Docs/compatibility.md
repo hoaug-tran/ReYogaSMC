@@ -1,39 +1,30 @@
-# macOS compatibility
+# Compatibility
 
-The app targets macOS 11 and has no upper-version restriction. Hardware support depends on the firmware interfaces and loaded drivers.
+## Requirements
 
-| Component | macOS 11–12 | macOS 13–15 | macOS 26 |
-| :--- | :--- | :--- | :--- |
-| Controls | SwiftUI and AppKit popover | Fixed hosting-controller size | Same controls, native glass for status messages when available |
-| Start at login | Embedded helper | ServiceManagement app registration | ServiceManagement app registration |
-| Hotkey mapping | Accessibility and Input Monitoring | Accessibility and Input Monitoring | Accessibility and Input Monitoring |
-| Kext | OpenCore with compatible dependencies | OpenCore with compatible dependencies | OpenCore with compatible dependencies |
+- macOS 11 or newer; controls depend on firmware and macOS API availability.
+- OpenCore with the main kext and its Lilu/VirtualSMC dependencies, or the standalone Alter variant.
+- Matching app and driver versions for the control protocol.
+- Xcode with command-line tools for local builds.
 
-Settings and RGB configurations persist in the app's preferences. macOS manages privacy permissions separately; changing the bundle or signing identity can require permission to be granted again.
+The minimum deployment target is macOS 11. Availability checks select newer login and interface APIs where supported; there is no upper-version block. Runtime support still requires testing on the target macOS release.
 
-## Dependencies
+## Firmware interfaces
 
-Pinned dependency versions and SHA-256 checksums are in `Scripts/dependencies.json`. The main kext requires Lilu and VirtualSMC. The Alter variant omits VirtualSMC integration and must be loaded separately.
+ThinkPad charge thresholds use firmware capability/error bits and battery addressing. Start is 0–99%; stop is 1–100%. The driver checks their order and reads back accepted requests. The app offers Primary and Secondary selections when individual addressing is supported.
 
-A compiler deployment target establishes API compatibility, not a successful hardware boot on every listed version. Device-support contributions include the model, BIOS and macOS versions used.
+IdeaPad/Yoga battery controls use `GBMD`/`SBMC`. Keyboard and USB controls use their advertised ACPI interfaces. Game Zone WMI is not required for those controls.
 
-## Emergency safe mode
+Native sensor profiles require the DSDT signature, length, checksum and SHA-256 to match, plus the declared ACPI fields. Firmware updates or bootloader patches can invalidate a profile. WMI remains a separate backend. On the reviewed Legion 7 profile, native fan readings have 100-RPM resolution.
 
-Add `-reysafe` to OpenCore `boot-args` when a Lenovo Idea-family machine stops before the login window after enabling ReYogaSMC. In this mode the `IdeaVPC` service may attach for diagnostics, but it does not enumerate vendor WMI providers, evaluate Lenovo ACPI methods, access the EC, start telemetry, or accept hardware-control requests. Its sensor plugin, standalone WMI matching and DYVPC matching are disabled as well. The switch is model-independent and intended to separate driver matching/loading failures from firmware-transport failures; ThinkVPC and ReYogaHIDD are outside this isolation mode.
+CPU power-limit access is disabled by default because firmware getters can initialize hardware state. `-reycpupower` enables access; firmware ranges and readback still apply. Manual fan writes require a profile that records validated write support.
 
-If `-reysafe` boots successfully, collect the panic/OpenCore log and an IORegistry export before re-enabling hardware access. If it still fails, disable the kext entry itself: the failure is earlier than Idea-family ACPI/EC activation or belongs to another personality/dependency.
+## Permissions and signing
 
-## Firmware isolation after a successful safe boot
+Shortcut mapping requires Accessibility and Input Monitoring. Grant access to the installed app in System Settings, then retry mapping. If macOS requests a restart, quit and reopen the app.
 
-These flags select code paths, not laptop models. A successful safe boot does not validate the paths it skips.
+macOS associates privacy access with the app's signing identity. Keep the app in `/Applications` and sign subsequent builds with the same identity. CI packages are unsigned. Login registration uses the available macOS login-service API and the embedded helper.
 
-| Boot argument | Effect |
-| :--- | :--- |
-| `-reytrace` | Logs entry/return for WMI calls, VPC refresh groups and telemetry, plus initialization boundaries. Diagnostic only: it can produce substantial output and change timing. A missing return is a lead, not proof of the root cause. |
-| `-reynowmi` | Disables IdeaVPC vendor WMI discovery, standalone ReYogaWMI and DYVPC matching. Legacy VPC ACPI/EC and its sensor plugin remain active; this is not safe mode. |
-| `-reynobridge` | Disables IdeaVPC's optional RYxx ACPI bridge discovery, bridge telemetry and bridge controls. Native WMI/legacy ACPI remain active. Does not unload the SSDT or disable unrelated EC sensor configuration. |
-| `-reycpupower` | Explicitly opts into CPU power-limit queries and controls. Disabled by default because even firmware range getters can initialize SystemMemory fields. Opt-in does not certify hardware safety. |
+## Installation checks
 
-Keep a known-working EFI with `-reysafe` available for recovery. For a diagnostic boot of this revision, remove `-reysafe`, keep `-v keepsyms=1 debug=0x100`, and add `-reytrace -reynowmi -reynobridge`. Do not add `-reycpupower`. If that boots, remove only `-reynowmi` for the next test; if that also boots, remove only `-reynobridge`. Stop on the first failure and retain the last `Boot stage` / `Firmware begin` / `Firmware end` lines or panic report. Do not change other kexts or SSDTs between these tests. If the first test fails, the remaining legacy ACPI/EC path is still suspect; use the recorded boundary rather than enabling more interfaces.
-
-Only treat the ordinary configuration as validated after a boot without isolation flags, plausible sensor values, individual control/readback checks, and sleep/wake. CPU-power access and manual fan writes require separate validation; neither is implied by reaching the desktop.
+Confirm that one driver variant is loaded, the app connects and the required controls are available. Check requested settings against readback, sensors against another source, and sleep/wake on the target machine. A successful build does not establish firmware compatibility.

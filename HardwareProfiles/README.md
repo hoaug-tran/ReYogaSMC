@@ -44,3 +44,18 @@ Battery profiles include separate read masks and SBMC on/off commands for each c
 Capability masks are independent for each mode; zero means the reviewed setter has no capability-bit gate.
 
 Battery bridge version 4 identifies Storage (BTSM) and Quick Charge (QCHO) semantics. State masks and commands must agree with the documented operating mode, not just with each other.
+
+## Native kext telemetry
+
+`native_telemetry` lists four existing EC namespace fields in this order: fan 1, fan 2, CPU temperature, GPU temperature. Each entry provides a four-character `field` and integer `scale` converting its value into RPM or Celsius. These are read-only descriptors; they never authorize register writes or infer a physical memory region.
+
+After reviewing a complete binary DSDT and the units of each field, add its SHA-256 to `reviewed_aml_hashes` and run:
+
+```sh
+python3 Scripts/generate_firmware_profiles.py
+python3 Scripts/generate_firmware_profiles.py --check
+```
+
+The generated `ReYogaSMC/ReYogaFirmwareProfiles.hpp` is committed so Xcode requires no Python build step. Regression tests reject stale generated data. At runtime the kext verifies the DSDT signature, length, checksum, exact SHA-256 and all field names before enabling these reads. Bootloader-patched or unknown tables do not inherit a nearby machine's profile; standard ACPI/WMI interfaces remain available. `-reynobridge` also disables native profile discovery for isolation.
+
+For the reviewed Legion 7 firmware, AML fan method 7 reads `FANS`/`FA2S` and multiplies by 100; temperature method 8 reads `CPUT`/`GPUT` directly. Native readings therefore have the same coarse fan resolution, not the optional bridge's precise RPM. Manual fan writes and CPU power-limit access keep their separate validation gates.
