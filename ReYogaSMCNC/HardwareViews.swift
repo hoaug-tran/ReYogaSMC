@@ -117,7 +117,7 @@ private struct FanReadout: View {
             }
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(rpm >= 0 ? String(rpm) : "—")
-                    .font(.system(size: 26, weight: .semibold, design: .rounded)).monospacedDigit()
+                    .font(Font(NSFont.monospacedDigitSystemFont(ofSize: 26, weight: .semibold)))
                 Text("RPM").font(.caption).foregroundColor(.secondary)
             }
         }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
