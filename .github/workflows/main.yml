@@ -1,26 +1,56 @@
 name: CI
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: version
+        run: python3 Scripts/release.py plan
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-plan
+          path: build/release-plan.json
+          if-no-files-found: error
   support-tool:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Check profile matching and export recovery
-        run: python -m unittest discover -s Tests -p "test_*.py"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - name: Test support tools and release policy
+        run: python -B -m unittest discover -s Tests -p "test_*.py"
   build:
+    needs: plan
     runs-on: macos-latest
+    env:
+      BUILD_VERSION: ${{ needs.plan.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Bootstrap locked dependencies
         run: bash Scripts/bootstrap.sh
       - name: Check support adapters
@@ -29,16 +59,79 @@ jobs:
           cp -R HardwareProfiles build/HardwareProfiles
           swiftc ReYogaSMCNC/HardwareSupport.swift ReYogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
           build/SupportTests
+          clang++ -std=c++14 -fsyntax-only Tests/control_validation.cpp
       - name: Build Debug and Release
         run: |
-          xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Debug CODE_SIGNING_ALLOWED=NO
-          xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Release CODE_SIGNING_ALLOWED=NO
-      - name: Package development builds
+          xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Debug CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO > build/debug.log 2>&1 || { tail -n 100 build/debug.log; exit 1; }
+          xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Release CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO > build/release.log 2>&1 || { tail -n 100 build/release.log; exit 1; }
+      - name: Render interface
+        timeout-minutes: 3
+        run: |
+          export REYOGA_UI_REVIEW_DIR="$PWD/build"
+          export REYOGA_UI_FIXTURE="$PWD/Tests/ui-fixture.json"
+          build/Debug/ReYogaSMCNC.app/Contents/MacOS/ReYogaSMCNC --render-ui
+          test "$(find build/ReYogaUIReview -name '*.png' | wc -l | tr -d ' ')" -eq 16
+      - name: Package
         run: |
           bash Scripts/package.sh Debug
           bash Scripts/package.sh Release
-      - uses: actions/upload-artifact@v4
+          python3 Scripts/release.py verify-assets
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: build-logs-and-ui
+          path: |
+            build/*.log
+            build/ReYogaUIReview/*.png
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ReYogaSMC-development
-          path: build/packages/**/*.zip
+          path: build/packages/
           if-no-files-found: error
+  release:
+    needs: [plan, support-tool, build]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.plan.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-plan
+          path: build/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ReYogaSMC-development
+          path: build/packages/
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v$RELEASE_VERSION"
+          python3 Scripts/release.py verify-assets
+          python3 Scripts/release.py prepare
+          git fetch origin main --tags
+          if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
+            python3 Scripts/release.py verify-tag
+          else
+            test "$(git rev-parse origin/main)" = "$GITHUB_SHA" || { echo 'A newer main revision is waiting for CI.'; exit 1; }
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add ReYogaSMC.xcodeproj/project.pbxproj Changelog.md
+            if ! git diff --cached --quiet; then git commit -m "chore(release): $tag"; fi
+            git tag -a "$tag" -m "$tag"
+            git push --atomic origin HEAD:main "refs/tags/$tag"
+          fi
+          assets=(build/packages/Debug/*.zip build/packages/Release/*.zip build/packages/SHA256SUMS.txt)
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${assets[@]}" --clobber
+            gh release edit "$tag" --notes-file build/release-notes.md
+          else
+            gh release create "$tag" "${assets[@]}" --verify-tag --title "$tag" --notes-file build/release-notes.md --latest
+          fi
