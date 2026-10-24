@@ -49,6 +49,23 @@ class BootSafetyTests(unittest.TestCase):
             self.assertIn('Firmware begin:', before)
             self.assertIn('Firmware end:', after)
 
+    def test_wmi_methods_always_receive_an_input_argument(self):
+        body = source('ReYogaSMC/WMI.cpp').split('IOReturn WMI::evaluateMethod(', 1)[1].split('\n}', 1)[0]
+        self.assertIn('OSData::withCapacity(0)', body)
+        self.assertIn('evaluateObject(methodName, result, params, 3)', body)
+        self.assertNotIn('input ? 3 : 2', body)
+
+    def test_optional_bmf_metadata_does_not_emit_per_item_boot_errors(self):
+        parser = source('ReYogaSMC/bmfparser.cpp')
+        self.assertNotIn('ReYogaBMF::%s', parser)
+        wmi = source('ReYogaSMC/WMI.cpp')
+        self.assertIn('WMI BMF metadata incomplete; continuing with _WDG descriptors', wmi)
+
+    def test_app_preserves_hardware_reported_model_name(self):
+        manager = source('ReYogaSMCNC/HardwareManager.swift')
+        accept = manager.split('private func accept(', 1)[1].split('\n    private func loadHardwareSettings', 1)[0]
+        self.assertNotIn('HardwareProfileName', accept)
+
 
 if __name__ == '__main__':
     unittest.main()

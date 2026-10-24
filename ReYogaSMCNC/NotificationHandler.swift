@@ -161,30 +161,30 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
     case .backlight:
         if !desc.display { return }
         if getNumber("BacklightLevel", conf.service) < 0 && getBoolean("LenovoLightingMethod", conf.service) {
-            showOSDRaw("Lighting changed")
+            showOSDRaw("Keyboard lighting changed")
             return
         }
         if (data & 0x10 != 0) { return }
         switch data & 0x0f {
         case 0:
-            showOSDRes("Backlight", "Off", .kBacklightOff)
+            showOSDRes("Keyboard Backlight", "Off", .kBacklightOff)
         case 1:
-            showOSDRes("Backlight", "Low", .kBacklightLow)
+            showOSDRes("Keyboard Backlight", "Low", .kBacklightLow)
         case 2:
-            showOSDRes("Backlight", "High", .kBacklightHigh)
+            showOSDRes("Keyboard Backlight", "High", .kBacklightHigh)
         default:
-            showOSDRes("Backlight", "\(data)", .kBacklightHigh)
+            showOSDRes("Keyboard Backlight", "\(data)", .kBacklightHigh)
         }
     case .fnlock:
         if !desc.display { return }
         switch data {
         case 0:
-            showOSDRes("FnKey", "Disabled", .kFunctionKeyOff)
+            showOSDRes("Fn Lock", "Media keys", .kFunctionKeyOff)
         case 1:
-            showOSDRes("FnKey", "Enabled", .kFunctionKeyOn)
+            showOSDRes("Fn Lock", "F1–F12 keys", .kFunctionKeyOn)
         default:
-            // reserved for media keyboard
-            showOSDRes("FnKey", "\(data)", .kFunctionKeyOn)
+            // Reserved values belong to firmware-defined media keyboard states.
+            showOSDRes("Fn Lock", "\(data)", .kFunctionKeyOn)
         }
     case .keyboard:
         if !desc.display { return }

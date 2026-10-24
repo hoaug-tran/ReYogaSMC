@@ -401,8 +401,10 @@ bool WMI::parseBMF()
 
     OSObject *result = mof.parse_bmf();
     if (result) mDevice->setProperty("MOF", result);
-    if (!mof.parsed)
+    if (!mof.parsed) {
         mDevice->setProperty("BMF data", data);
+        AlwaysLog("WMI BMF metadata incomplete; continuing with _WDG descriptors");
+    }
     OSSafeReleaseNULL(result);
     OSSafeReleaseNULL(data);
 
@@ -432,12 +434,26 @@ IOReturn WMI::evaluateMethod(const char *guid, UInt8 instance, UInt32 methodId, 
         input
     };
 
-    if (!params[0] || !params[1]) { OSSafeReleaseNULL(params[0]); OSSafeReleaseNULL(params[1]); return kIOReturnNoMemory; }
+    if (!params[0] || !params[1]) {
+        OSSafeReleaseNULL(params[0]);
+        OSSafeReleaseNULL(params[1]);
+        return kIOReturnNoMemory;
+    }
+    OSData *emptyInput = nullptr;
+    if (!input) {
+        emptyInput = OSData::withCapacity(0);
+        if (!emptyInput) { params[0]->release(); params[1]->release(); return kIOReturnNoMemory; }
+        params[2] = emptyInput;
+    }
     if (firmwareTrace) AlwaysLog("Firmware begin: ACPI=%s guid=%s method=%u instance=%u", methodName, guid, methodId, instance);
-    ret = mDevice->evaluateObject(methodName, result, params, input ? 3 : 2);
+    // ACPI WMI WMxx methods take instance, method ID and input buffer. Firmware
+    // may dereference Arg2 even for read operations; use an empty buffer, never
+    // omit the third argument.
+    ret = mDevice->evaluateObject(methodName, result, params, 3);
     if (firmwareTrace) AlwaysLog("Firmware end: ACPI=%s guid=%s method=%u instance=%u status=0x%x", methodName, guid, methodId, instance, ret);
     if (ret != kIOReturnSuccess)
         AlwaysLog("WMI guid=%s method=%u instance=%u ACPI=%s status=0x%x", guid, methodId, instance, methodName, ret);
+    OSSafeReleaseNULL(emptyInput);
     params[0]->release();
     params[1]->release();
 

@@ -273,7 +273,6 @@ public final class HardwareManager: ObservableObject {
         }
         let descriptors = props["FeatureStatus"] as? [String: [String: Any]] ?? [:]
         if let profile = props["HardwareProfile"] as? String { hotkeyProfileID = profile }
-        if let name = props["HardwareProfileName"] as? String { publish(\.modelName, name) }
         let protocolVersion = props["ControlProtocolVersion"] as? Int ?? 0
         var availability: [String: HardwareFeatureStatus] = [:]
         for key in HardwareFeatureStatus.catalog.keys {

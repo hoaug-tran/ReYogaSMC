@@ -11,9 +11,11 @@
 #include "common.h"
 #include <uuid/uuid.h>
 
-#define error(str) do { IOLog("RYSMC - Info: ReYogaBMF::%s %d: error %s at %s:%d\n", wmi_name, indent, str, __func__, __LINE__); OSSafeReleaseNULL(name); parsed = false; return dict;} while (0)
-#define errors(str) do { IOLog("RYSMC - Info: ReYogaBMF::%s %d: error %s at %s:%d\n", wmi_name, indent, str, __func__, __LINE__); parsed = false;} while (0)
-#define warning(str) do { IOLog("RYSMC - Info: ReYogaBMF::%s %d: warning %s at %s:%d\n", wmi_name, indent, str, __func__, __LINE__);} while (0)
+// Firmware BMF metadata is optional. Keep parser failures observable through the
+// final WMI property without dumping every unsupported vendor construct at boot.
+#define error(str) do { OSSafeReleaseNULL(name); parsed = false; return dict;} while (0)
+#define errors(str) do { parsed = false;} while (0)
+#define warning(str) do {} while (0)
 
 OSString *MOF::parse_string(char *buf, uint32_t size) {
   uint16_t *buf2 = reinterpret_cast<uint16_t *>(buf);
