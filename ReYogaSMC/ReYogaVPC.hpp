@@ -319,13 +319,11 @@ public:
     virtual IOReturn message(UInt32 type, IOService *provider, void *argument) APPLE_KEXT_OVERRIDE;
     virtual IOReturn setPowerState(unsigned long powerState, IOService * whatDevice) APPLE_KEXT_OVERRIDE;
 
-    /**
-     *  VPC UserClient
-     */
     ReYogaSMCUserClient *client {nullptr};
     IOReturn accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]);
+    IOReturn readThinkFanRPM(UInt32 fan, UInt32 &rpm);
     void restoreThinkFans();
     virtual void restoreUserControls() { restoreThinkFans(); }
 };
 
-#endif /* ReYogaVPC_hpp */
+#endif

@@ -1,19 +1,10 @@
-//  SPDX-License-Identifier: GPL-2.0-only
-//
-//  ThinkVPC.cpp
-//  ReYogaSMC
-//
-//  Created by Zhen on 7/12/20.
-//  Copyright © 2020 Zhen. All rights reserved.
-//
-
 #include "ControlValidation.hpp"
 #include "ThinkEvents.h"
 #include "ThinkVPC.hpp"
 
 OSDefineMetaClassAndStructors(ThinkVPC, ReYogaVPC);
 
-void ThinkVPC::updateAll() {
+void ThinkVPC::updateNotificationMask() {
     if (hotkey_legacy) {
         OSObject *result = nullptr;
         if (vpc->evaluateObject(getHKEYmask, &result) != kIOReturnSuccess)
@@ -31,6 +22,21 @@ void ThinkVPC::updateAll() {
             KBDPresent->release();
         }
     }
+}
+
+void ThinkVPC::updateFans() {
+    for (unsigned fan = 0; fan < 2; ++fan) {
+        UInt32 rpm = 0;
+        const char *property = fan == 0 ? "Fan1RPM" : "Fan2RPM";
+        if (readThinkFanRPM(fan, rpm) == kIOReturnSuccess)
+            setProperty(property, rpm, 32);
+        else
+            removeProperty(property);
+    }
+}
+
+void ThinkVPC::updateAll() {
+    updateNotificationMask();
     updateBattery(BAT_ANY);
     updateFnLock();
     updateMutestatus();
@@ -39,14 +45,7 @@ void ThinkVPC::updateAll() {
     updateKBDLocale();
     updateVPC();
     updateYogaMode();
-    for (unsigned fan = 0; fan < 2; ++fan) {
-        UInt8 sample[3] = {};
-        if (accessThinkFan(fan, 0x100, sample) == kIOReturnSuccess) {
-            UInt32 rpm = static_cast<UInt32>(sample[0]) | (static_cast<UInt32>(sample[1]) << 8);
-            if (rpm < 0xFFFF)
-                setProperty(fan == 0 ? "Fan1RPM" : "Fan2RPM", rpm, 32);
-        }
-    }
+    updateFans();
     super::updateAll();
     updateControlStatus();
 }

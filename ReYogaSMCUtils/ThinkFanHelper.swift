@@ -1,11 +1,3 @@
-//
-//  ThinkFanHelper.swift
-//  ReYogaSMCApp
-//
-//  Created by Zhen on 11/5/20.
-//  Copyright © 2020 Zhen. All rights reserved.
-//
-
 import AppKit
 import Foundation
 
@@ -20,6 +12,7 @@ class ThinkFanHelper {
     var minimumLevel: Int { defaults.bool(forKey: "AllowFanStop") ? 0 : 1 }
     private static let automaticLevel: UInt8 = 0x84
     private static let fullSpeedLevel: UInt8 = 0x47
+    private static let queryRPMLevel: UInt64 = 0x100
 
     var savedLevel: UInt8 = 0x80
 
@@ -42,7 +35,7 @@ class ThinkFanHelper {
         setFanLevel(UInt8(target))
     }
 
-    private func access(level requested: UInt64 = 0x100) -> [UInt8]? {
+    private func access(level requested: UInt64 = queryRPMLevel) -> [UInt8]? {
         guard enable, connect != 0 else { return nil }
         let input: [UInt64] = [main ? 0 : 1, requested]
         var output = [UInt8](repeating: 0, count: 3)

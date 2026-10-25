@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0-only
 #ifndef ReYogaControlValidation_hpp
 #define ReYogaControlValidation_hpp
 namespace ReYogaControl {
+constexpr unsigned kThinkFanQueryRPM = 0x100;
 constexpr bool validHPSensorStatus(unsigned status) {
     switch (status) {
         case 3: case 4: case 5: case 6: case 7:
@@ -13,7 +13,6 @@ constexpr bool validHPSensorStatus(unsigned status) {
     }
 }
 
-// Temperature output is milli-Celsius; fan output is RPM.
 inline bool decodeHPSensor(unsigned reading, int modifier, unsigned type, unsigned units, unsigned &value) {
     if (modifier < -9 || modifier > 9 ||
         (type == 2 ? units < 2 || units > 4 : type != 12 || units != 19)) return false;
@@ -43,13 +42,13 @@ enum class ThinkFanResult { ok, invalid, transportFailed, restoreFailed, unavail
 
 template <typename Read, typename Write>
 ThinkFanResult transactThinkFan(unsigned fan, unsigned target, unsigned char output[3], Read read, Write write) {
-    if (!output || fan > 1 || (target != 0x100 && !validThinkFanLevel(target))) return ThinkFanResult::invalid;
+    if (!output || fan > 1 || (target != kThinkFanQueryRPM && !validThinkFanLevel(target))) return ThinkFanResult::invalid;
     unsigned char original = 0;
     if (!read(0x31, original)) return ThinkFanResult::transportFailed;
     const unsigned char selected = (original & 0xfe) | fan;
     const bool changed = selected != original;
     bool valid = !changed || write(0x31, selected);
-    if (valid && target != 0x100) valid = write(0x2f, static_cast<unsigned char>(target));
+    if (valid && target != kThinkFanQueryRPM) valid = write(0x2f, static_cast<unsigned char>(target));
     unsigned char sample[3] {};
     if (valid) valid = read(0x84, sample[0]);
     if (valid) valid = read(0x85, sample[1]);
@@ -57,7 +56,7 @@ ThinkFanResult transactThinkFan(unsigned fan, unsigned target, unsigned char out
     if (changed && !write(0x31, original)) return ThinkFanResult::restoreFailed;
     if (!valid) return ThinkFanResult::transportFailed;
     if (sample[0] == 0xff && sample[1] == 0xff) return ThinkFanResult::unavailable;
-    if (target != 0x100) {
+    if (target != kThinkFanQueryRPM) {
         const bool confirmed = target == 0x47 ? (sample[2] & 0x40) != 0 :
             (target == 0x80 || target == 0x84) ? (sample[2] & 0x80) != 0 :
             (sample[2] & 0x07) == (target & 0x07);

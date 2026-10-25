@@ -865,7 +865,7 @@ IOReturn ReYogaVPC::evaluateIntegerParam(const char *objectName, UInt32 *resultI
 }
 
 IOReturn ReYogaVPC::accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]) {
-    if (!output || fan > 1 || (requested != 0x100 && !ReYogaControl::validThinkFanLevel(requested))) return kIOReturnBadArgument;
+    if (!output || fan > 1 || (requested != ReYogaControl::kThinkFanQueryRPM && !ReYogaControl::validThinkFanLevel(requested))) return kIOReturnBadArgument;
     if (!metaCast("ThinkVPC") || getProperty("SafeMode") == kOSBooleanTrue) return kIOReturnUnsupported;
     int bootArgument = 0;
     if (requested == 0 && !PE_parse_boot_argn("-reyfanstop", &bootArgument, sizeof(bootArgument))) return kIOReturnNotPermitted;
@@ -875,7 +875,7 @@ IOReturn ReYogaVPC::accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]
         auto self = static_cast<ReYogaVPC *>(owner);
         auto request = static_cast<Request *>(context);
         if (self->getProperty("ThinkFanAccessFailed") == kOSBooleanTrue) return kIOReturnNotReady;
-        if (request->target != 0x100) self->thinkFanModifiedMask |= 1U << request->fan;
+        if (request->target != ReYogaControl::kThinkFanQueryRPM) self->thinkFanModifiedMask |= 1U << request->fan;
         IOReturn transport = kIOReturnSuccess;
         const auto result = ReYogaControl::transactThinkFan(request->fan, request->target, request->output,
             [&](unsigned offset, UInt8 &value) {
@@ -902,6 +902,14 @@ IOReturn ReYogaVPC::accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]
             default: return transport != kIOReturnSuccess ? transport : kIOReturnIOError;
         }
     }, &request);
+}
+
+IOReturn ReYogaVPC::readThinkFanRPM(UInt32 fan, UInt32 &rpm) {
+    UInt8 sample[3] = {};
+    const IOReturn status = accessThinkFan(fan, ReYogaControl::kThinkFanQueryRPM, sample);
+    if (status != kIOReturnSuccess) return status;
+    rpm = static_cast<UInt32>(sample[0]) | (static_cast<UInt32>(sample[1]) << 8);
+    return rpm < 0xFFFF ? kIOReturnSuccess : kIOReturnUnderrun;
 }
 
 void ReYogaVPC::restoreThinkFans() {
