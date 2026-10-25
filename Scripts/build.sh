@@ -6,14 +6,14 @@ case "$configuration" in Debug|Release) ;; *) echo 'Usage: bash Scripts/build.sh
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ "${EUID:-$(id -u)}" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
-    chown -R "$SUDO_USER" "$root/build" "$root/build-user" 2>/dev/null || true
+    chown -R "$SUDO_USER" "$root/build" 2>/dev/null || true
     exec sudo -u "$SUDO_USER" bash "$0" "$@"
 fi
 
 build_dir="${BUILD_DIR:-$root/build}"
 if [ -e "$build_dir" ] && [ ! -w "$build_dir" ]; then
-    build_dir="$root/build-user"
-    echo "Notice: $root/build is not writable by $(id -un); writing build products to $build_dir" >&2
+    echo "Error: $build_dir is not writable by $(id -un). Run: sudo chown -R $(id -un) \"$build_dir\"" >&2
+    exit 1
 fi
 
 derived_data="${DERIVED_DATA_PATH:-${TMPDIR%/}/ReYogaSMC-DerivedData}"

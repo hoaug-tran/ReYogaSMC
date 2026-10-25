@@ -7,15 +7,14 @@ case "$package_config" in Debug|Release) ;; *) echo 'Use Debug or Release' >&2; 
 package_root="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ "${EUID:-$(id -u)}" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
-    chown -R "$SUDO_USER" "$package_root/build" "$package_root/build-user" 2>/dev/null || true
+    chown -R "$SUDO_USER" "$package_root/build" 2>/dev/null || true
     exec sudo -u "$SUDO_USER" bash "$0" "$@"
 fi
 
 build_dir="${BUILD_DIR:-$package_root/build}"
-if [ ! -d "$build_dir/$package_config" ] && [ -d "$package_root/build-user/$package_config" ]; then
-    build_dir="$package_root/build-user"
-elif [ -e "$build_dir" ] && [ ! -w "$build_dir" ]; then
-    build_dir="$package_root/build-user"
+if [ -e "$build_dir" ] && [ ! -w "$build_dir" ]; then
+    echo "Error: $build_dir is not writable by $(id -un). Run: sudo chown -R $(id -un) \"$build_dir\"" >&2
+    exit 1
 fi
 
 package_products="$build_dir/$package_config"

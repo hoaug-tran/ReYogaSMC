@@ -3,13 +3,15 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 if [ "${EUID:-$(id -u)}" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
-    chown -R "$SUDO_USER" "$root/build" "$root/build-user" 2>/dev/null || true
+    chown -R "$SUDO_USER" "$root/build" 2>/dev/null || true
     exec sudo -u "$SUDO_USER" bash "$0" "$@"
 fi
-for dir in "$root/build" "$root/build-user"; do
-    if [ -e "$dir" ] && [ -w "$dir" ]; then
-        rm -rf "$dir"
+if [ -e "$root/build" ]; then
+    if [ ! -w "$root/build" ]; then
+        echo "Error: $root/build is not writable by $(id -un). Run: sudo chown -R $(id -un) \"$root/build\"" >&2
+        exit 1
     fi
-done
+    rm -rf "$root/build"
+fi
 rm -rf "${TMPDIR%/}/ReYogaSMC-DerivedData" "${TMPDIR%/}/ReYogaSMC-Intermediates" "$root/.verify-derived"*
 echo "Cleaned writable ReYogaSMC build products and intermediates."

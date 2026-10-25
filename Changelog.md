@@ -13,7 +13,7 @@
 
 ### Hardware profiles
 
-- Expand the hardware profile catalog to 21 ACPI profiles (`ReYogaFirmwareProfiles.hpp`) covering IdeaPad Gaming 3 (15ARH05, 15ACH6), Legion 5 (15ARH05, 15IMH05, 15ACH6, 15ARH7), Legion 5 Pro (16ACH6H, 16IAH7H), Legion Pro 5 (16ARX8, 16IRX8, 16IRX9), Legion 7 (15IMH05, 16ITHg6, 16ACHg6, 16ARHA7), Legion Pro 7 (16IRX8H, 16IRX9), LOQ (15APH8, 15IRH8, 15AHP9), and Yoga Slim 7 (14ARE05).
+- Expand the hardware profile catalog to 21 ACPI profiles (`ReYogaFirmwareProfiles.hpp`) covering IdeaPad Gaming 3 (15ARH05, 15ACH6), Legion 5 (15ARH05, 15IMH05, 15ACH6, 15ARH7), Legion 5 Pro (16ACH6H, 16IAH7H), Legion Pro 5 (16ARX8, 16IRX8, 16IRX9), Legion 7 (15IMH05, 16ITHg6, 16ACHg6, 16ARHA7), Legion Pro 7 (16IRX8H, 16IRX9H), LOQ (15APH8, 15IRH8, 15AHP9), and Yoga Slim 7 (14ARE05).
 - Preserve quoted string literals when computing normalized DSL source hashes in `Scripts/hardware_support.py`, and restrict raw-offset SSDT bridge generation to profiles with complete reviewed digests, required patterns, and EC offsets.
 
 ### App
@@ -61,7 +61,7 @@ First ReYogaSMC release, based on YogaSMC 1.5.3.
 
 Packages are unsigned.
 
-## 1.5.3 — YogaSMC
+## 1.5.3 - YogaSMC
 
 Upstream release: [YogaSMC 1.5.3](https://github.com/zhen-zen/YogaSMC/releases/tag/1.5.3).
 Earlier changes are listed in the [upstream releases](https://github.com/zhen-zen/YogaSMC/releases).
