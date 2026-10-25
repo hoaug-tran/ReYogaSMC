@@ -665,3 +665,4 @@
 "PCI subsystem ID and DSDT OEM table matched" = "PCI subsystem ID and DSDT OEM table matched";
 
 "Machine type and DSDT OEM table matched" = "Machine type and DSDT OEM table matched";
+"ThinkPad controls CPU power limits through Power Profiles (DYTC)" = "ThinkPad controls CPU power limits through Power Profiles (DYTC)";

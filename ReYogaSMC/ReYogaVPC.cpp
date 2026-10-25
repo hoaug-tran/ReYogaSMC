@@ -660,7 +660,11 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
 
         case DYTC_FUNCTION_CQL:
             setPropertyString(DYTCStatus, "FuncMode", "Lap");
-            setPropertyString(DYTCStatus, "PerfMode", "Balance");
+            if (result.get.func_sta & BIT(DYTC_FUNCTION_PSC)) {
+                setPropertyString(DYTCStatus, "PerfMode", "Performance (Reduced as lapmode active)");
+            } else {
+                setPropertyString(DYTCStatus, "PerfMode", "Balance");
+            }
             break;
 
         case DYTC_FUNCTION_MMC:
@@ -908,7 +912,9 @@ IOReturn ReYogaVPC::readThinkFanRPM(UInt32 fan, UInt32 &rpm) {
     UInt8 sample[3] = {};
     const IOReturn status = accessThinkFan(fan, ReYogaControl::kThinkFanQueryRPM, sample);
     if (status != kIOReturnSuccess) return status;
-    rpm = static_cast<UInt32>(sample[0]) | (static_cast<UInt32>(sample[1]) << 8);
+    UInt32 le = static_cast<UInt32>(sample[0]) | (static_cast<UInt32>(sample[1]) << 8);
+    UInt32 be = (static_cast<UInt32>(sample[0]) << 8) | static_cast<UInt32>(sample[1]);
+    rpm = (le > 6000 && be < 6000) ? be : le;
     return rpm < 0xFFFF ? kIOReturnSuccess : kIOReturnUnderrun;
 }
 

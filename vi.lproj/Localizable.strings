@@ -667,3 +667,4 @@
 "PCI subsystem ID and DSDT OEM table matched" = "ID subsystem PCI và bảng OEM DSDT khớp";
 
 "Machine type and DSDT OEM table matched" = "Mã máy và bảng OEM DSDT khớp";
+"ThinkPad controls CPU power limits through Power Profiles (DYTC)" = "ThinkPad điều khiển giới hạn công suất CPU qua Cấu hình nguồn (DYTC)";

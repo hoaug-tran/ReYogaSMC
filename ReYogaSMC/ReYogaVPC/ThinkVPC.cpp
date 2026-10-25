@@ -383,6 +383,9 @@ void ThinkVPC::updateControlStatus() {
     } else {
         removeProperty("SmartFanMode");
     }
+    add("CPUBoostPower", false, "ThinkPad controls CPU power limits through Power Profiles (DYTC)");
+    add("CPUSustainedPower", false, "ThinkPad controls CPU power limits through Power Profiles (DYTC)");
+    add("CPUPowerReset", false, "ThinkPad controls CPU power limits through Power Profiles (DYTC)");
     setProperty("FeatureStatus", features);
     features->release();
 }

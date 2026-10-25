@@ -109,10 +109,15 @@ class BootSafetyTests(unittest.TestCase):
         self.assertIn('case DYTC_FUNCTION_PSC:', parse_body)
         self.assertIn('setPropertyString(DYTCStatus, "PerfMode", "Quiet")', parse_body)
         self.assertIn('setPropertyString(DYTCStatus, "PerfMode", "Balance")', parse_body)
+        self.assertIn('result.get.func_sta & BIT(DYTC_FUNCTION_PSC)', parse_body)
+        self.assertIn('setPropertyString(DYTCStatus, "PerfMode", "Performance (Reduced as lapmode active)")', parse_body)
+        fan_body = vpc.split('IOReturn ReYogaVPC::readThinkFanRPM(', 1)[1].split('\nvoid ReYogaVPC::restoreThinkFans(', 1)[0]
+        self.assertIn('rpm = (le > 6000 && be < 6000) ? be : le;', fan_body)
         header = source('ReYogaSMC/ReYogaVPC.hpp')
         self.assertIn('BIT(DYTC_FUNCTION_MMC) | BIT(DYTC_FUNCTION_PSC)', header)
         think = source('ReYogaSMC/ReYogaVPC/ThinkVPC.cpp')
         self.assertIn('useMMC ? DYTC_FUNCTION_MMC : DYTC_FUNCTION_PSC', think)
+        self.assertIn('add("CPUBoostPower", false, "ThinkPad controls CPU power limits through Power Profiles (DYTC)");', think)
 
     def test_psc_mapping_tracks_revision_and_does_not_reset(self):
         header = source('ReYogaSMC/ReYogaVPC.hpp')

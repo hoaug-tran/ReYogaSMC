@@ -976,7 +976,7 @@ private struct ThinkPadBatteryControls: View {
     @State private var stop = ""
     var body: some View {
         ControlSection(loc(.chargeThresholds)) {
-            if manager.batteryIndividualAddressing {
+            if manager.batteryIndividualAddressing && manager.featureStatus["BatteryIndex"]?.available == true {
                 Picker(loc(.sidebarTabBattery), selection: Binding(get: { manager.batteryIndex }, set: { manager.selectBattery($0) })) {
                     Text(loc(.batteryPrimary)).tag(1); Text(loc(.batterySecondary)).tag(2)
                 }.disabled(manager.isApplying)
