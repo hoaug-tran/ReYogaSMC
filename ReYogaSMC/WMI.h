@@ -50,6 +50,8 @@ class WMI
     OSDictionary* mEvent = {nullptr};
     const char* iname;
     bool firmwareTrace {false};
+    volatile UInt32 firmwareTraceCalls {0};
+    bool traceFirmwareCall();
 
 public:
     // Constructor

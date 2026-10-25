@@ -8,6 +8,9 @@
 //
 
 #include "ReYogaVPC.hpp"
+#include "ControlValidation.hpp"
+#include <pexpert/pexpert.h>
+#include <libkern/crypto/sha2.h>
 
 OSDefineMetaClassAndStructors(ReYogaVPC, ReYogaBaseService);
 
@@ -36,8 +39,13 @@ IOService *ReYogaVPC::probe(IOService *provider, SInt32 *score)
     setProperty("ECDevice", ec);
     isPMsupported = true;
 
-    if (vendorWMISupport)
-        probeWMI();
+    int isolationArgument = 0;
+    if (PE_parse_boot_argn("-reysafe", &isolationArgument, sizeof(isolationArgument))) {
+        setProperty("SafeMode", true);
+        setProperty("SafeModeReason", "-reysafe: ACPI, EC and WMI hardware access disabled");
+        vendorWMISupport = false;
+    }
+    if (vendorWMISupport) probeWMI();
 
     return this;
 }
@@ -109,18 +117,32 @@ bool ReYogaVPC::start(IOService *provider) {
         return false;
     DebugLog("Starting");
 
+    const bool safeMode = getProperty("SafeMode") == kOSBooleanTrue;
     AlwaysLog("Boot stage: initializing VPC");
-    if (!initVPC())
-        return false;
+    if (!safeMode && !initVPC()) return false;
+    if (safeMode) setProperty("ControlProtocolVersion", 1, 32);
     AlwaysLog("Boot stage: VPC initialized");
 
-    const bool safeMode = getProperty("SafeMode") == kOSBooleanTrue;
     if (!safeMode) {
         AlwaysLog("Boot stage: validating EC sensor access");
         validateEC();
         AlwaysLog("Boot stage: EC sensor access validated");
     }
     setProperty("ACPIExportVersion", 1, 32);
+    if (!safeMode && !getProperty("FirmwareDSDTSHA256")) {
+        const auto table = vpc->getACPITableData("DSDT", 0);
+        if (table && table->getLength() >= 36 && table->getLength() <= 1024 * 1024) {
+            SHA256_CTX context;
+            UInt8 digest[SHA256_DIGEST_LENGTH];
+            SHA256_Init(&context);
+            SHA256_Update(&context, table->getBytesNoCopy(), table->getLength());
+            SHA256_Final(digest, &context);
+            char hex[SHA256_DIGEST_STRING_LENGTH] = {};
+            for (unsigned i = 0; i < sizeof(digest); ++i)
+                snprintf(hex + i * 2, sizeof(hex) - i * 2, "%02x", digest[i]);
+            setProperty("FirmwareDSDTSHA256", hex);
+        }
+    }
 
     if (!safeMode) {
         AlwaysLog("Boot stage: initial firmware state refresh");
@@ -196,7 +218,10 @@ bool ReYogaVPC::exitVPC() {
 
 void ReYogaVPC::stop(IOService *provider) {
     DebugLog("Stopping");
-    exitVPC();
+    if (getProperty("SafeMode") != kOSBooleanTrue) {
+        restoreThinkFans();
+        exitVPC();
+    }
     if (WMICollection) {
         for (int i= WMICollection->getCount()-1; i >= 0; i--) {
             IOService *wmi = OSDynamicCast(IOService, WMICollection->getObject(i));
@@ -282,7 +307,7 @@ void ReYogaVPC::setPropertiesGated(OSObject* props) {
                 backlightTimeout = value->unsigned32BitValue();
                 backlightLevelSaved = 1;
                 setProperty(backlightTimeoutPrompt, backlightTimeout, 32);
-                if (backlightTimeout == 0)
+                if (backlightTimeout == 0 && backlightPoller)
                     backlightPoller->cancelTimeout();
             } else if (key->isEqualTo(FnKeyPrompt)) {
                 OSBoolean *value;
@@ -387,7 +412,8 @@ void ReYogaVPC::setPropertiesGated(OSObject* props) {
 }
 
 IOReturn ReYogaVPC::setProperties(OSObject *props) {
-    if (!commandGate) return kIOReturnNotReady;
+    if (!commandGate || isInactive()) return kIOReturnNotReady;
+    if (getProperty("SafeMode") == kOSBooleanTrue) return kIOReturnNotPermitted;
     if (!OSDynamicCast(OSDictionary, props)) return kIOReturnBadArgument;
     return commandGate->runAction([](OSObject *owner, void *properties, void *, void *, void *) -> IOReturn {
         static_cast<ReYogaVPC *>(owner)->setPropertiesGated(static_cast<OSObject *>(properties));
@@ -442,6 +468,7 @@ bool ReYogaVPC::notifyBattery() {
 }
 
 IOReturn ReYogaVPC::setPowerState(unsigned long powerStateOrdinal, IOService * whatDevice) {
+    if (getProperty("SafeMode") == kOSBooleanTrue) return kIOPMAckImplied;
     if (super::setPowerState(powerStateOrdinal, whatDevice) != kIOPMAckImplied)
         return kIOReturnInvalid;
 
@@ -451,7 +478,7 @@ IOReturn ReYogaVPC::setPowerState(unsigned long powerStateOrdinal, IOService * w
     if (automaticBacklightMode & BIT(0) || backlightTimeout != 0) {
         updateBacklight();
         if (powerStateOrdinal == 0) {
-            if (backlightTimeout != 0)
+            if (backlightTimeout != 0 && backlightPoller)
                 backlightPoller->cancelTimeout();
             else
                 backlightLevelSaved = backlightLevel;
@@ -460,7 +487,7 @@ IOReturn ReYogaVPC::setPowerState(unsigned long powerStateOrdinal, IOService * w
         } else {
             if (!backlightLevel && backlightLevelSaved)
                 setBacklight(backlightLevelSaved);
-            if (backlightTimeout != 0)
+            if (backlightTimeout != 0 && backlightPoller)
                 backlightPoller->setTimeout(backlightTimeout, kSecondScale);
         }
     }
@@ -537,7 +564,6 @@ void ReYogaVPC::initDYTC() {
     DYTCCap = BIT(DYTC_FUNCTION_STD) | BIT(DYTC_FUNCTION_CQL) | BIT(DYTC_FUNCTION_MMC);
 
     DYTCVersion = OSDictionary::withCapacity(3);
-    OSObject *value;
     setPropertyNumber(DYTCVersion, "Revision", result.query.rev, 4);
     setPropertyNumber(DYTCVersion, "SubRevision", (result.query.subrev_hi << 8) + result.query.subrev_lo, 12);
 
@@ -553,7 +579,6 @@ void ReYogaVPC::initDYTC() {
 
 bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
     OSDictionary *DYTCStatus = OSDictionary::withDictionary(DYTCVersion);
-    OSObject *value;
 
     bool lapmode = false;
 
@@ -757,6 +782,7 @@ bool ReYogaVPC::dumpECOffset(UInt32 value) {
 }
 
 IOReturn ReYogaVPC::message(UInt32 type, IOService *provider, void *argument) {
+    if (getProperty("SafeMode") == kOSBooleanTrue) return kIOReturnUnsupported;
     switch (type)
     {
         case kSMC_setDisableTouchpad:
@@ -798,7 +824,9 @@ IOReturn ReYogaVPC::message(UInt32 type, IOService *provider, void *argument) {
 
 IOReturn ReYogaVPC::evaluateIntegerParam(const char *objectName, UInt32 *resultInt32, UInt32 paramInt32) {
     IOReturn ret;
+    if (!vpc || !objectName) return kIOReturnBadArgument;
     OSObject* params[] = { OSNumber::withNumber(paramInt32, 32) };
+    if (!params[0]) return kIOReturnNoMemory;
     if (resultInt32 != nullptr) {
         ret = vpc->evaluateInteger(objectName, resultInt32, params, 1);
     } else {
@@ -806,4 +834,58 @@ IOReturn ReYogaVPC::evaluateIntegerParam(const char *objectName, UInt32 *resultI
     }
     params[0]->release();
     return ret;
+}
+
+IOReturn ReYogaVPC::accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]) {
+    if (!output || fan > 1 || (requested != 0x100 && !ReYogaControl::validThinkFanLevel(requested))) return kIOReturnBadArgument;
+    if (!metaCast("ThinkVPC") || getProperty("SafeMode") == kOSBooleanTrue) return kIOReturnUnsupported;
+    int bootArgument = 0;
+    if (requested == 0 && !PE_parse_boot_argn("-reyfanstop", &bootArgument, sizeof(bootArgument))) return kIOReturnNotPermitted;
+    if (!commandGate || isInactive()) return kIOReturnNotReady;
+    struct Request { UInt32 fan; UInt32 target; UInt8 *output; } request {fan, requested, output};
+    return commandGate->runAction([](OSObject *owner, void *context, void *, void *, void *) -> IOReturn {
+        auto self = static_cast<ReYogaVPC *>(owner);
+        auto request = static_cast<Request *>(context);
+        if (self->getProperty("ThinkFanAccessFailed") == kOSBooleanTrue) return kIOReturnNotReady;
+        if (request->target != 0x100) self->thinkFanModifiedMask |= 1U << request->fan;
+        IOReturn transport = kIOReturnSuccess;
+        const auto result = ReYogaControl::transactThinkFan(request->fan, request->target, request->output,
+            [&](unsigned offset, UInt8 &value) {
+                transport = self->method_re1b(offset, &value);
+                return transport == kIOReturnSuccess;
+            },
+            [&](unsigned offset, UInt8 value) {
+                const IOReturn status = self->method_we1b(offset, value);
+                if (status != kIOReturnSuccess) transport = status;
+                return status == kIOReturnSuccess;
+            });
+        switch (result) {
+            case ReYogaControl::ThinkFanResult::ok:
+                if (request->target == 0x80 || request->target == 0x84)
+                    self->thinkFanModifiedMask &= ~(1U << request->fan);
+                return kIOReturnSuccess;
+            case ReYogaControl::ThinkFanResult::invalid: return kIOReturnBadArgument;
+            case ReYogaControl::ThinkFanResult::restoreFailed:
+                self->setProperty("ThinkFanStatus", "Fan selector restoration failed; further fan access disabled");
+                self->setProperty("ThinkFanAccessFailed", true);
+                return kIOReturnIOError;
+            case ReYogaControl::ThinkFanResult::unavailable: return kIOReturnNotReady;
+            default: return transport != kIOReturnSuccess ? transport : kIOReturnIOError;
+        }
+    }, &request);
+}
+
+void ReYogaVPC::restoreThinkFans() {
+    if (!metaCast("ThinkVPC") || !commandGate || getProperty("SafeMode") == kOSBooleanTrue) return;
+    commandGate->runAction([](OSObject *owner, void *, void *, void *, void *) -> IOReturn {
+        auto self = static_cast<ReYogaVPC *>(owner);
+        if (!self->thinkFanModifiedMask) return kIOReturnSuccess;
+        for (unsigned fan = 0; fan < 2; ++fan) {
+            if (!(self->thinkFanModifiedMask & (1U << fan))) continue;
+            UInt8 output[3] {};
+            if (self->accessThinkFan(fan, 0x84, output) != kIOReturnSuccess)
+                self->setProperty("ThinkFanStatus", "Automatic fan restoration failed; inspect firmware and restart");
+        }
+        return kIOReturnSuccess;
+    });
 }

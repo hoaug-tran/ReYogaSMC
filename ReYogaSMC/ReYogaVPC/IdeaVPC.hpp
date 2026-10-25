@@ -11,7 +11,7 @@
 #define IdeaVPC_hpp
 
 #include "ReYogaVPC.hpp"
-#include "../ReYogaFirmwareProfiles.hpp"
+#include "../FirmwareIdentity.hpp"
 #include <pexpert/pexpert.h>
 
 #define BR_POLLING_INTERVAL 2000
@@ -192,6 +192,7 @@ private:
     bool telemetryAwake {true};
     bool safeMode {false};
     bool firmwareTrace {false};
+    UInt32 firmwareRefreshTraces {0};
     bool bridgeDisabled {false};
     bool detailedTelemetry {false};
     UInt64 sampleSequence {0};
@@ -203,8 +204,10 @@ private:
     UInt32 powerLimitsProfile {0};
     IOReturn setPowerStateGated(unsigned long state, IOService *device);
     bool restorePowerLimits();
+    void restoreUserControls() APPLE_KEXT_OVERRIDE;
     void updateTelemetry();
     void initNativeProfile();
+    void initBridge();
     const ReYogaNativeProfile *nativeProfile {nullptr};
     void updateFeatureStatus();
     void controlRequest(OSDictionary *request);

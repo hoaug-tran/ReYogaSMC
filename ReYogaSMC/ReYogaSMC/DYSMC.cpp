@@ -74,6 +74,11 @@ void DYSMC::addVSMCKey() {
 
     OSDictionary *enabled = OSDictionary::withCapacity(wmis->sensorRange);
     OSDictionary *disabled = OSDictionary::withCapacity(wmis->sensorRange);
+    if (!enabled || !disabled) {
+        OSSafeReleaseNULL(enabled); OSSafeReleaseNULL(disabled);
+        super::addVSMCKey();
+        return;
+    }
 
     UInt8 fanCount = 0;
 
@@ -106,7 +111,7 @@ void DYSMC::addVSMCKey() {
         }
 
         OSNumber *statesSize = OSDynamicCast(OSNumber, arr->getObject(5));
-        if (statesSize == nullptr) {
+        if (statesSize == nullptr || arr->getCount() < 10 || statesSize->unsigned64BitValue() > arr->getCount() - 10) {
             disabled->setObject(sensorName, arr);
             AlwaysLog("Failed to get statesSize for %s", sensorName->getCStringNoCopy());
             continue;
@@ -181,6 +186,7 @@ void DYSMC::updateECVendor() {
     OSObject *result = nullptr;
 
     for (UInt8 index = 0; index < ECSensorBase; ++index) {
+        atomic_store_explicit(&currentSensor[index], 0, memory_order_release);
         OSSafeReleaseNULL(result);
         if (!wmis->getSensorInfo(sensorIndex[index], &result)) {
             AlwaysLog("Failed to evaluate sensor %d", sensorIndex[index]);
@@ -194,7 +200,7 @@ void DYSMC::updateECVendor() {
         }
 
         OSNumber *statesSize = OSDynamicCast(OSNumber, arr->getObject(5));
-        if (statesSize == nullptr) {
+        if (statesSize == nullptr || arr->getCount() < 10 || statesSize->unsigned64BitValue() > arr->getCount() - 10) {
             AlwaysLog("Failed to get statesSize for Sensor %d", sensorIndex[index]);
             continue;
         }
@@ -211,8 +217,10 @@ void DYSMC::updateECVendor() {
             continue;
         }
 
-        SInt32 value = reading->unsigned32BitValue() + (SInt32)(modifier->unsigned32BitValue());
-        atomic_store_explicit(&currentSensor[index], value, memory_order_release);
+        const SInt64 value = static_cast<SInt64>(reading->unsigned32BitValue()) +
+            static_cast<SInt32>(modifier->unsigned32BitValue());
+        if (value >= 0 && value <= 0xffffffffLL)
+            atomic_store_explicit(&currentSensor[index], static_cast<UInt32>(value), memory_order_release);
     }
     OSSafeReleaseNULL(result);
 }

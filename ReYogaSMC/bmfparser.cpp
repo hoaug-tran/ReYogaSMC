@@ -431,7 +431,6 @@ OSDictionary* MOF::parse_class(uint32_t *buf) {
         return dict;
     }
     uint32_t type = buf[1];
-    OSObject *value;
     OSDictionary *item;
     OSString *name = nullptr;
 
@@ -633,7 +632,6 @@ OSObject* MOF::parse_bmf() {
     if (count > 0xff) { parsed = false; return OSString::withCString("BMF count exceeded"); }
     OSDictionary *dict = OSDictionary::withCapacity(5+count);
     if (!dict) { parsed = false; return nullptr; }
-    OSObject *value;
     OSDictionary *item;
     OSString *name = nullptr;
 

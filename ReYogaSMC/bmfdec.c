@@ -165,7 +165,6 @@ INLINE int dblb_decrep(bits_t *pbits, __u8 **p, void *pout, __u8 *pend,
   if(repoffs==0x113f)
   { 
     int pos=(int)(*p-(__u8*)pout);
-    LOG_DECOMP("DMSDOS: decrb: 0x113f sync found.\n");
     if((pos%512) && !(flg&0x4000))
     { LOG_DECOMP("DMSDOS: decrb: sync at decompressed pos %d ?\n",pos);
       return -2;

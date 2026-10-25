@@ -53,7 +53,6 @@ bool ThinkVPC::updateConservation(const char * method, OSDictionary *bat, bool u
     if (update)
         DebugLog(updateSuccess, method, result);
 
-    OSNumber *value;
     setPropertyNumber(bat, method, result, 32);
 
     return true;
@@ -69,7 +68,7 @@ bool ThinkVPC::setConservation(const char * method, UInt64 value) {
         if (evaluateIntegerParam(start ? getCMstart : getCMstop, &own, batnum) != kIOReturnSuccess ||
             evaluateIntegerParam(start ? getCMstop : getCMstart, &other, batnum) != kIOReturnSuccess ||
             !ReYogaControl::validThresholdState(own, stop) || !ReYogaControl::validThresholdState(other, start) ||
-            !ReYogaControl::validThresholdTarget(ReYogaControl::thresholdPercent(value, stop), start,
+            !ReYogaControl::validThresholdTarget(ReYogaControl::thresholdPercent(static_cast<UInt32>(value), stop), start,
                 ReYogaControl::thresholdPercent(other, start))) return false;
     } else if (!strcmp(method, setCMInhibitCharge) || !strcmp(method, setCMForceDischarge)) {
         const bool inhibit = !strcmp(method, setCMInhibitCharge);
@@ -128,7 +127,6 @@ void ThinkVPC::getNotificationMask(UInt32 index, OSDictionary *KBDPresent) {
         return;
     }
 
-    OSNumber *value;
     switch (index) {
         case 1:
             setPropertyNumber(KBDPresent, "DHKN", result, 32);
@@ -175,7 +173,6 @@ bool ThinkVPC::initVPC() {
         return false;
     }
 
-    OSObject *value;
     KBDProperty = OSDictionary::withCapacity(1);
     if (!KBDProperty) return false;
     DebugLog("HKEY interface version %x", version);
@@ -227,6 +224,7 @@ bool ThinkVPC::initVPC() {
 
     setMicMuteLEDStatus(0);
     setProperty("ControlProtocolVersion", 1, 32);
+    setProperty("ThinkFanProtocolVersion", 1, 32);
     return true;
 }
 
@@ -251,7 +249,6 @@ bool ThinkVPC::updateAdaptiveKBD(int arg) {
     }
 
     AlwaysLog("%s %d %x", __func__, arg, result);
-    OSObject *value;
     switch (arg) {
         case 0:
         case 1:
@@ -338,13 +335,13 @@ void ThinkVPC::updateControlStatus() {
     const char *setters[] = {setCMstart, setCMstop};
     for (unsigned i = 0; i < 2; ++i) {
         auto raw = battery ? OSDynamicCast(OSNumber, battery->getObject(getters[i])) : nullptr;
-        UInt32 value = raw ? raw->unsigned32BitValue() : 0;
-        bool supported = raw && ReYogaControl::validThresholdState(value, i == 1) && vpc->validateObject(setters[i]) == kIOReturnSuccess;
+        UInt32 value = raw != nullptr ? raw->unsigned32BitValue() : 0;
+        bool supported = raw != nullptr && ReYogaControl::validThresholdState(value, i == 1) && vpc->validateObject(setters[i]) == kIOReturnSuccess;
         value = ReYogaControl::thresholdPercent(value, i == 1);
         if (supported) setProperty(keys[i], value, 32);
         else removeProperty(keys[i]);
         auto counterpart = battery ? OSDynamicCast(OSNumber, battery->getObject(getters[1 - i])) : nullptr;
-        const bool orderingKnown = counterpart && ReYogaControl::validThresholdState(counterpart->unsigned32BitValue(), i == 0);
+        const bool orderingKnown = counterpart != nullptr && ReYogaControl::validThresholdState(counterpart->unsigned32BitValue(), i == 0);
         add(keys[i], supported && orderingKnown, "Battery threshold capability, setter or paired threshold unavailable");
     }
     auto startRaw = battery ? OSDynamicCast(OSNumber, battery->getObject(getCMstart)) : nullptr;
@@ -707,6 +704,7 @@ bool ThinkVPC::setMicMuteLEDStatus(UInt32 status) {
 }
 
 IOReturn ThinkVPC::message(UInt32 type, IOService *provider, void *argument) {
+    if (getProperty("SafeMode") == kOSBooleanTrue) return kIOReturnUnsupported;
     switch (type)
     {
         // TODO: determine default value for charge level
@@ -1212,10 +1210,12 @@ bool ThinkVPC::setKBDLocale(UInt32 value) {
 }
 
 IOReturn ThinkVPC::setPowerState(unsigned long powerStateOrdinal, IOService * whatDevice) {
+    if (getProperty("SafeMode") == kOSBooleanTrue) return kIOPMAckImplied;
     if (super::setPowerState(powerStateOrdinal, whatDevice) != kIOPMAckImplied)
         return kIOReturnInvalid;
 
     if (powerStateOrdinal == 0) {
+        restoreThinkFans();
         if (automaticBacklightMode & BIT(2))
             setSSTStatus(3);
         if ((automaticBacklightMode & BIT(3))) {

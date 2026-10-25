@@ -35,11 +35,31 @@ IOReturn ReYogaSMCUserClient::externalMethod(uint32_t selector, IOExternalMethod
         { [](OSObject *object, void *, IOExternalMethodArguments *args) -> IOReturn {
             return static_cast<ReYogaSMCUserClient *>(object)->readECName(static_cast<const char *>(args->structureInput),
                 static_cast<UInt8 *>(args->structureOutput));
-        }, 0, 4, 0, 1 }
+        }, 0, 4, 0, 1 },
+        { [](OSObject *object, void *, IOExternalMethodArguments *args) -> IOReturn {
+            auto self = static_cast<ReYogaSMCUserClient *>(object);
+            if (!self->fProvider->isOpen(self)) return kIOReturnNotOpen;
+            if (args->scalarInput[0] > 1 || args->scalarInput[1] > 0x100) return kIOReturnBadArgument;
+            return self->fProvider->accessThinkFan(static_cast<UInt32>(args->scalarInput[0]),
+                static_cast<UInt32>(args->scalarInput[1]), static_cast<UInt8 *>(args->structureOutput));
+        }, 2, 0, 0, 3 }
     };
     if (selector >= kRYSMCUCNumMethods || !arguments) return kIOReturnBadArgument;
-    return super::externalMethod(selector, arguments,
-        const_cast<IOExternalMethodDispatch *>(&methods[selector]), this, nullptr);
+    if (!fProvider || isInactive() || !fProvider->commandGate) return kIOReturnNotAttached;
+    struct Call {
+        ReYogaSMCUserClient *client;
+        uint32_t selector;
+        IOExternalMethodArguments *arguments;
+        IOExternalMethodDispatch *dispatch;
+    } call {this, selector, arguments, const_cast<IOExternalMethodDispatch *>(&methods[selector])};
+    return fProvider->commandGate->runAction([](OSObject *, void *context, void *, void *, void *) -> IOReturn {
+        auto call = static_cast<Call *>(context);
+        if (call->client->fProvider->isInactive()) return kIOReturnNotAttached;
+        if (call->client->fProvider->getProperty("SafeMode") == kOSBooleanTrue &&
+            call->selector != kRYSMCUCOpen && call->selector != kRYSMCUCClose) return kIOReturnNotPermitted;
+        return call->client->IOUserClient::externalMethod(call->selector, call->arguments,
+            call->dispatch, call->client, nullptr);
+    }, &call);
 }
 
 IOReturn ReYogaSMCUserClient::userClientOpen(void) {
@@ -55,7 +75,7 @@ IOReturn ReYogaSMCUserClient::userClientOpen(void) {
 }
 
 IOReturn ReYogaSMCUserClient::userClientClose(void) {
-    if (fProvider == NULL || isInactive()) {
+    if (fProvider == nullptr) {
         AlwaysLog("%s kIOReturnNotAttached", __FUNCTION__);
         return kIOReturnNotAttached;
     } else if (!fProvider->isOpen(this)) {
@@ -63,6 +83,7 @@ IOReturn ReYogaSMCUserClient::userClientClose(void) {
         return kIOReturnNotOpen;
     }
 
+    fProvider->restoreUserControls();
     if (fProvider->client == this) {
         fProvider->client = nullptr;
         DebugLog("%s notification unregistered", __FUNCTION__);
@@ -118,32 +139,9 @@ IOReturn ReYogaSMCUserClient::readEC(UInt64 offset, UInt8* output, IOByteCount *
     return kIOReturnSuccess;
 }
 
-IOReturn ReYogaSMCUserClient::writeEC(UInt64 offset, UInt8* input, IOByteCount inputSizeP) {
-    if (!fProvider || !fProvider->isOpen(this))
-        return kIOReturnNotReady;
-
-    if (!input || !inputSizeP) {
-        AlwaysLog("%s invalid arguments", __FUNCTION__);
-        return kIOReturnBadArgument;
-    }
-
-    if (offset > 0x99) {
-        AlwaysLog("%s invalid range", __FUNCTION__);
-        return kIOReturnBadArgument;
-    }
-
-    if (inputSizeP != 1) {
-        AlwaysLog("%s bulk write is not supported yet", __FUNCTION__);
-        return kIOReturnUnsupported;
-    }
-
-    if (fProvider->method_we1b(UInt32(offset), input[0]) != kIOReturnSuccess) {
-        AlwaysLog("%s we1b failed", __FUNCTION__);
-        return kIOReturnIOError;
-    }
-
-    DebugLog("%s @ 0x%02llx", __FUNCTION__, offset);
-    return kIOReturnSuccess;
+IOReturn ReYogaSMCUserClient::writeEC(UInt64, UInt8 *, IOByteCount) {
+    if (!fProvider || !fProvider->isOpen(this)) return kIOReturnNotReady;
+    return kIOReturnUnsupported;
 }
 
 IOReturn ReYogaSMCUserClient::readECName(const char* name, UInt8* output) {
@@ -164,7 +162,8 @@ IOReturn ReYogaSMCUserClient::readECName(const char* name, UInt8* output) {
         return kIOReturnIOError;
     }
 
-    *output = result;
+    if (result > 0xff) return kIOReturnBadArgument;
+    *output = static_cast<UInt8>(result);
 
     DebugLog("%s @ %s", __FUNCTION__, field);
     return kIOReturnSuccess;
@@ -221,6 +220,7 @@ bool ReYogaSMCUserClient::start(IOService *provider) {
 
 void ReYogaSMCUserClient::stop(IOService *provider) {
     DebugLog("%s", __FUNCTION__);
+    userClientClose();
     super::stop(provider);
 }
 

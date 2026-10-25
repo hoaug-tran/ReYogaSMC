@@ -9,19 +9,22 @@
 
 #include "IdeaVPC.hpp"
 #include <libkern/crypto/sha2.h>
+#include <IOKit/IODeviceTreeSupport.h>
 #include "ReYogaWMI.hpp"
 #include "../ReYogaWMI/IdeaWMI.hpp"
 OSDefineMetaClassAndStructors(IdeaVPC, ReYogaVPC);
 
 void IdeaVPC::updateAll() {
     if (safeMode) return;
-    if (firmwareTrace) AlwaysLog("Firmware begin: battery state");
+    const bool trace = firmwareTrace && firmwareRefreshTraces < 4;
+    if (trace) ++firmwareRefreshTraces;
+    if (trace) AlwaysLog("Firmware begin: battery state");
     updateBattery();
-    if (firmwareTrace) AlwaysLog("Firmware end: battery state; begin: keyboard state");
+    if (trace) AlwaysLog("Firmware end: battery state; begin: keyboard state");
     updateKeyboard();
-    if (firmwareTrace) AlwaysLog("Firmware end: keyboard state; begin: VPC event handshake");
+    if (trace) AlwaysLog("Firmware end: keyboard state; begin: VPC event handshake");
     updateVPC();
-    if (firmwareTrace) AlwaysLog("Firmware end: VPC event handshake");
+    if (trace) AlwaysLog("Firmware end: VPC event handshake");
     if (wmig) {
         UInt32 val = 0;
         if (wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &val))
@@ -32,7 +35,6 @@ void IdeaVPC::updateAll() {
             setProperty(winKeyPrompt, val, 32);
         if (wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_TOUCHPAD, &val))
             setProperty(touchpadLockPrompt, val, 32);
-        updateTelemetry();
         if (wmig->hasLightingMethod) {
             bool en = false;
             if (wmig->getYLogoStatus(&en)) {
@@ -45,11 +47,12 @@ void IdeaVPC::updateAll() {
             }
         }
     }
-    if (firmwareTrace) AlwaysLog("Firmware begin: feature status");
+    updateTelemetry();
+    if (trace) AlwaysLog("Firmware begin: feature status");
     updateFeatureStatus();
-    if (firmwareTrace) AlwaysLog("Firmware end: feature status; begin: base VPC refresh");
+    if (trace) AlwaysLog("Firmware end: feature status; begin: base VPC refresh");
     super::updateAll();
-    if (firmwareTrace) AlwaysLog("Firmware end: base VPC refresh");
+    if (trace) AlwaysLog("Firmware end: base VPC refresh");
 }
 
 bool IdeaVPC::start(IOService *provider) {
@@ -82,6 +85,7 @@ bool IdeaVPC::initVPC() {
     }
 
     setProperty("FirmwareTraceEnabled", firmwareTrace);
+    setProperty("FirmwareTraceCallLimit", 128, 32);
     setProperty("WMIProbeDisabled", !vendorWMISupport);
     setProperty("ACPIBridgeDisabled", bridgeDisabled);
     AlwaysLog("Boot stage: checking EC readiness");
@@ -90,17 +94,16 @@ bool IdeaVPC::initVPC() {
     AlwaysLog("Boot stage: EC ready; initializing base VPC");
     super::initVPC();
     AlwaysLog("Boot stage: base VPC initialized; reading _CFG");
-    UInt32 config;
-    if (vpc->evaluateInteger(getVPCConfig, &config) != kIOReturnSuccess) {
-        AlwaysLog(initFailure, getVPCConfig);
-        return false;
-    }
+    UInt32 config = 0;
+    const bool configAvailable = vpc->evaluateInteger(getVPCConfig, &config) == kIOReturnSuccess;
+    setProperty("VPCConfigAvailable", configAvailable);
+    if (!configAvailable) AlwaysLog("_CFG unavailable; discovering individual ACPI/WMI capabilities");
 
     DebugLog(updateSuccess, VPCPrompt, config);
     setProperty(VPCPrompt, config, 32);
 
     OSDictionary *capabilities = OSDictionary::withCapacity(6);
-    OSString *value;
+    if (!capabilities) return false;
 
     setPropertyBoolean(capabilities, "Bluetooth", (config >> CFG_BT_BIT) & 0x1);
     setPropertyBoolean(capabilities, "3G", (config >> CFG_3G_BIT) & 0x1);
@@ -161,8 +164,10 @@ bool IdeaVPC::initVPC() {
         }
     }
     initNativeProfile();
+    initBridge();
     setProperty("ControlProtocolVersion", 1, 32);
     setProperty("TelemetryIntervalMS", telemetryIntervalMS, 32);
+    setProperty("FeaturePollingVersion", 1, 32);
 
     return true;
 }
@@ -229,12 +234,16 @@ IOReturn IdeaVPC::message(UInt32 type, IOService *provider, void *argument) {
             break;
 
         case kSMC_getConservation:
+            if (!argument) return kIOReturnBadArgument;
+            if (!updateBattery(false)) return kIOReturnIOError;
             *(reinterpret_cast<bool *>(argument)) = conservationMode;
 //            conservationModeLock = false;
             DebugLog("message: %s get conservation mode %d", provider->getName(), conservationMode);
             break;
 
         case kSMC_setConservation:
+            if (!argument) return kIOReturnBadArgument;
+            if (!updateBattery(false)) return kIOReturnIOError;
             AlwaysLog("message: %s set conservation mode %d -> %d", provider->getName(), conservationMode, *(reinterpret_cast<bool *>(argument)));
             if (*(reinterpret_cast<bool *>(argument)) != conservationMode &&
                 !conservationModeLock)
@@ -331,20 +340,7 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
                 else
                     AlwaysLog("%s failed 0x%x %d", readECPrompt, value->unsigned32BitValue(), retries);
             } else if (key->isEqualTo(writeECPrompt)) {
-                if (ECLock)
-                    continue;
-                OSNumber *value;
-                getPropertyNumber(writeECPrompt);
-
-                UInt32 command, data;
-                UInt32 retries = 0;
-                command = value->unsigned32BitValue() >> 8;
-                data = value->unsigned32BitValue() & 0xff;
-
-                if (write_ec_data(command, data, &retries))
-                    AlwaysLog("%s 0x%x 0x%x success %d", writeECPrompt, command, data, retries);
-                else
-                    AlwaysLog("%s 0x%x 0x%x failed %d", writeECPrompt, command, data, retries);
+                AlwaysLog("Raw VPC writes are unsupported; use a capability-checked control");
             } else if (key->isEqualTo(batteryPrompt)) {
                 OSBoolean *value;
                 getPropertyBoolean(batteryPrompt);
@@ -397,7 +393,8 @@ bool IdeaVPC::initEC() {
 
     // fallback to battery mode since some laptop don't have available keyboard mode
     do {
-        if (vpc->evaluateInteger(getBatteryMode, &state) == kIOReturnSuccess) {
+        if (vpc->evaluateInteger(getBatteryMode, &state) == kIOReturnSuccess ||
+            vpc->evaluateInteger(getKeyboardMode, &state) == kIOReturnSuccess) {
             setProperty("EC Access Retries", attempts, 8);
             return true;
         }
@@ -645,6 +642,10 @@ bool IdeaVPC::updateBattery(bool update) {
 
     if (vpc->evaluateInteger(getBatteryMode, &state) != kIOReturnSuccess) {
         AlwaysLog(updateFailure, batteryPrompt);
+        rapidChargeCap = false;
+        removeProperty("BatteryModeRaw");
+        removeProperty(conservationPrompt);
+        removeProperty(rapidChargePrompt);
         return false;
     }
 
@@ -657,7 +658,7 @@ bool IdeaVPC::updateBattery(bool update) {
 
     UInt32 conservationMask = BIT(BM0_CONSERVATION_BIT), rapidMask = BIT(BM_RAPIDCHARGE_BIT);
     UInt32 mappedConservation = 0, mappedRapid = 0;
-    const bool mapped = ec && ec->validateObject("RYCM") == kIOReturnSuccess && ec->validateObject("RYRM") == kIOReturnSuccess &&
+    const bool mapped = legionBridge && ec && ec->validateObject("RYCM") == kIOReturnSuccess && ec->validateObject("RYRM") == kIOReturnSuccess &&
         ec->evaluateInteger("RYCM", &mappedConservation) == kIOReturnSuccess &&
         ec->evaluateInteger("RYRM", &mappedRapid) == kIOReturnSuccess && mappedConservation && mappedRapid &&
         !(mappedConservation & (mappedConservation-1)) && !(mappedRapid & (mappedRapid-1)) && !(mappedConservation & mappedRapid);
@@ -687,10 +688,9 @@ bool IdeaVPC::updateBattery(bool update) {
     setProperty("RapidChargeStateMask", rapidMask, 32);
     conservationMode = (conservationMask & state) != 0;
     setProperty(conservationPrompt, conservationMode);
-    if (rapidChargeCap) {
-        rapidChargeMode = (rapidMask & state) != 0;
-        setProperty(rapidChargePrompt, rapidChargeMode);
-    }
+    rapidChargeMode = rapidChargeCap && (rapidMask & state) != 0;
+    if (rapidChargeCap) setProperty(rapidChargePrompt, rapidChargeMode);
+    else removeProperty(rapidChargePrompt);
 
     return true;
 }
@@ -703,6 +703,9 @@ bool IdeaVPC::updateKeyboard(bool update) {
 
     if (vpc->evaluateInteger(getKeyboardMode, &state) != kIOReturnSuccess) {
         AlwaysLog(updateFailure, keyboardPrompt);
+        removeProperty(backlightPrompt);
+        removeProperty(FnKeyPrompt);
+        removeProperty(alwaysOnUSBStatePrompt);
         return false;
     }
 
@@ -883,6 +886,8 @@ bool IdeaVPC::setFnLock(bool enable) {
 }
 
 void IdeaVPC::updateVPC(UInt32 event) {
+    if (vpc->validateObject(readVPCStatus) != kIOReturnSuccess ||
+        vpc->validateObject(writeVPCStatus) != kIOReturnSuccess) return;
     UInt32 vpc1, vpc2, result;
     UInt32 retries = 0;
 
@@ -1126,6 +1131,10 @@ bool IdeaVPC::method_vpcw(UInt32 cmd, UInt32 data) {
         OSNumber::withNumber(data, 32),
     };
 
+    if (!params[0] || !params[1]) {
+        OSSafeReleaseNULL(params[0]); OSSafeReleaseNULL(params[1]);
+        return false;
+    }
     IOReturn ret = vpc->evaluateInteger(writeVPCStatus, &result, params, 2);
     params[0]->release();
     params[1]->release();
@@ -1134,65 +1143,222 @@ bool IdeaVPC::method_vpcw(UInt32 cmd, UInt32 data) {
 }
 
 void IdeaVPC::initNativeProfile() {
+    nativeProfile = nullptr;
+    removeProperty("HardwareProfile");
+    removeProperty("HardwareProfileName");
+    setProperty("NativeTelemetryProfile", false);
+    setProperty("ProfileMatchState", "unmatched");
+    setProperty("ProfileMatchStage", "start");
+    setProperty("ProfileMatchReason", bridgeDisabled ? "ACPI profile discovery disabled by -reynobridge" : "No reviewed DSDT fingerprint matched; WMI remains available");
     setProperty("NativeTelemetryReason", bridgeDisabled ? "ACPI profile discovery disabled by -reynobridge" : "No reviewed DSDT fingerprint matched; WMI remains available");
-    if (bridgeDisabled || !ec) return;
+    if (bridgeDisabled || !ec) {
+        setProperty("ProfileMatchStage", bridgeDisabled ? "disabled_by_boot_argument" : "ec_unavailable");
+        AlwaysLog("Profile match skipped: %s", bridgeDisabled ? "disabled by -reynobridge" : "EC unavailable");
+        return;
+    }
     const OSData *table = vpc->getACPITableData("DSDT", 0);
-    if (!table || table->getLength() < 36 || table->getLength() > 1024 * 1024) return;
+    if (!table || table->getLength() < 36 || table->getLength() > 1024 * 1024) {
+        setProperty("ProfileMatchStage", "dsdt_unavailable");
+        setProperty("ProfileMatchReason", "DSDT unavailable or outside the validated size range");
+        AlwaysLog("Profile match failed: DSDT unavailable or invalid size (%u)", table ? table->getLength() : 0);
+        return;
+    }
     const auto bytes = static_cast<const UInt8 *>(table->getBytesNoCopy());
     const UInt32 length = UInt32(bytes[4]) | UInt32(bytes[5]) << 8 | UInt32(bytes[6]) << 16 | UInt32(bytes[7]) << 24;
-    if (memcmp(bytes, "DSDT", 4) || length != table->getLength()) return;
+    if (memcmp(bytes, "DSDT", 4) || length != table->getLength()) {
+        setProperty("ProfileMatchStage", "dsdt_header_invalid");
+        setProperty("ProfileMatchReason", "DSDT header or length is invalid");
+        AlwaysLog("Profile match failed: DSDT header/length invalid (declared=%u actual=%u)", length, table->getLength());
+        return;
+    }
     UInt8 checksum = 0;
     for (UInt32 i = 0; i < length; ++i) checksum += bytes[i];
-    if (checksum) return;
+    setProperty("FirmwareDSDTLength", length, 32);
+    setProperty("FirmwareDSDTChecksum", checksum, 32);
+    if (checksum) {
+        setProperty("ProfileMatchStage", "dsdt_checksum_invalid");
+        setProperty("ProfileMatchReason", "DSDT checksum is invalid");
+        AlwaysLog("Profile match failed: DSDT checksum invalid (0x%02x)", checksum);
+        return;
+    }
+
     SHA256_CTX context;
     UInt8 digest[SHA256_DIGEST_LENGTH];
     SHA256_Init(&context);
     SHA256_Update(&context, bytes, length);
     SHA256_Final(digest, &context);
-    char hex[SHA256_DIGEST_STRING_LENGTH];
-    for (unsigned i = 0; i < sizeof(digest); ++i) snprintf(hex + i * 2, 3, "%02x", digest[i]);
+    char hex[SHA256_DIGEST_STRING_LENGTH] = {};
+    for (unsigned i = 0; i < sizeof(digest); ++i)
+        snprintf(hex + i * 2, sizeof(hex) - i * 2, "%02x", digest[i]);
     setProperty("FirmwareDSDTSHA256", hex);
-    for (const auto &profile : ReYogaNativeProfiles) {
-        if (strcmp(hex, profile.digest)) continue;
-        for (const char *field : profile.fields)
-            if (ec->validateObject(field) != kIOReturnSuccess) return;
-        nativeProfile = &profile;
-        setProperty("HardwareProfile", profile.id);
-        setProperty("HardwareProfileName", profile.name);
-        setProperty("NativeTelemetryProfile", true);
-        setProperty("NativeTelemetryReason", "Reviewed DSDT and all native ACPI fields matched");
+
+    char oemTableID[9] = {};
+    memcpy(oemTableID, bytes + 16, 8);
+    for (int i = 7; i >= 0 && (oemTableID[i] == ' ' || oemTableID[i] == 0); --i) oemTableID[i] = 0;
+    setProperty("FirmwareDSDTOEMTableID", oemTableID);
+    setProperty("ProfileMatchStage", "identity_collected");
+    AlwaysLog("Profile match evidence: DSDT length=%u checksum=0x%02x sha256=%s oem_table_id=%s", length, checksum, hex, oemTableID);
+
+    ReYogaFirmware::Identity identity;
+    auto readIdentity = [&](IORegistryEntry *entry) {
+        if (!entry) return;
+        const char *productKeys[] = {"OEMProduct", "OEMBoard", "product-name", "board-product", "machine-type"};
+        const char *biosKeys[] = {"OEMBIOS", "OEMBIOSVersion", "bios-version"};
+        auto read = [&](const char *key, bool bios) {
+            auto object = entry->getProperty(key);
+            if (auto text = OSDynamicCast(OSString, object)) identity.add(text->getCStringNoCopy(), text->getLength(), bios);
+            else if (auto data = OSDynamicCast(OSData, object))
+                identity.add(static_cast<const char *>(data->getBytesNoCopy()), data->getLength(), bios);
+        };
+        for (const char *key : productKeys) read(key, false);
+        for (const char *key : biosKeys) read(key, true);
+    };
+    const char *paths[] = {"/", "/efi/platform"};
+    for (const char *path : paths) {
+        auto entry = IORegistryEntry::fromPath(path, gIODTPlane);
+        readIdentity(entry);
+        OSSafeReleaseNULL(entry);
+    }
+    auto iterator = IORegistryIterator::iterateOver(gIOServicePlane, kIORegistryIterateRecursively);
+    if (iterator) {
+        while (auto entry = iterator->getNextObject()) {
+            if (entry->metaCast("IOPlatformExpertDevice")) readIdentity(entry);
+            if (entry->metaCast("IOPCIDevice")) {
+                auto number = [&](const char *key) -> UInt32 {
+                    auto object = entry->getProperty(key);
+                    if (auto value = OSDynamicCast(OSNumber, object)) return value->unsigned32BitValue();
+                    if (auto data = OSDynamicCast(OSData, object)) {
+                        if (data->getLength() == 4) {
+                            const auto raw = static_cast<const UInt8 *>(data->getBytesNoCopy());
+                            return UInt32(raw[0]) | UInt32(raw[1]) << 8 | UInt32(raw[2]) << 16 | UInt32(raw[3]) << 24;
+                        }
+                    }
+                    return 0;
+                };
+                identity.addPCI(number("subsystem-vendor-id"), number("subsystem-id"));
+            }
+            if (entry->metaCast("AppleSMBIOS")) {
+                if (auto data = OSDynamicCast(OSData, entry->getProperty("SMBIOS")))
+                    ReYogaFirmware::readSMBIOS(static_cast<const UInt8 *>(data->getBytesNoCopy()), data->getLength(), identity);
+            }
+        }
+        iterator->release();
+    }
+    // Some bootloaders preserve OEM identity as EFI option properties. Read
+    // only the named values, including GUID-prefixed NVRAM representations.
+    auto options = IORegistryEntry::fromPath("/options", gIODTPlane);
+    if (options) {
+        auto properties = options->dictionaryWithProperties();
+        auto keys = properties ? OSCollectionIterator::withCollection(properties) : nullptr;
+        if (keys) {
+            while (auto key = OSDynamicCast(OSString, keys->getNextObject())) {
+                const char *name = key->getCStringNoCopy();
+                const char *colon = strrchr(name, ':');
+                const char *suffix = colon ? colon + 1 : name;
+                const bool product = !strcmp(suffix, "OEMProduct");
+                const bool bios = !strcmp(suffix, "OEMBIOSVersion");
+                if (!product && !bios) continue;
+                auto object = properties->getObject(key);
+                if (auto text = OSDynamicCast(OSString, object)) identity.add(text->getCStringNoCopy(), text->getLength(), bios);
+                else if (auto data = OSDynamicCast(OSData, object))
+                    identity.add(static_cast<const char *>(data->getBytesNoCopy()), data->getLength(), bios);
+            }
+            keys->release();
+        }
+        OSSafeReleaseNULL(properties);
+        options->release();
+    }
+    setProperty("FirmwareMachineType", identity.machine);
+    setProperty("FirmwareBIOSFamily", identity.bios);
+    setProperty("FirmwareIdentityConflict", identity.conflict);
+    constexpr unsigned checked = sizeof(ReYogaNativeProfiles) / sizeof(ReYogaNativeProfiles[0]);
+    setProperty("ProfileMatchProfilesChecked", checked, 32);
+    if (memcmp(bytes + 10, "LENOVO", 6)) {
+        setProperty("ProfileMatchStage", "vendor_unverified");
+        setProperty("ProfileMatchReason", "DSDT OEM vendor is not LENOVO; generic interfaces remain available");
         return;
+    }
+    const auto match = ReYogaFirmware::select(ReYogaNativeProfiles, checked, identity, oemTableID, hex);
+    setProperty("ProfileMatchOEMMatches", match.oemMatches, 32);
+    const auto candidate = match.profile;
+    if (!candidate) {
+        const char *state = "unmatched";
+        const char *stage = "unsupported_firmware";
+        const char *reason = "No matching machine type, BIOS family and OEM table; unsupported firmware is likely";
+        switch (match.state) {
+            case ReYogaFirmware::MatchState::missingIdentity:
+                stage = "identity_unavailable";
+                reason = "Original machine type or BIOS family unavailable; generic ACPI/WMI interfaces remain available";
+                break;
+            case ReYogaFirmware::MatchState::conflict:
+                state = "conflict"; stage = "identity_conflict";
+                reason = "Firmware identity sources disagree; model-specific access disabled";
+                break;
+            case ReYogaFirmware::MatchState::ambiguous:
+                state = "ambiguous"; stage = "ambiguous";
+                reason = "More than one distinct hardware profile matches; model-specific access disabled";
+                break;
+            default: break;
+        }
+        setProperty("ProfileMatchState", state);
+        setProperty("ProfileMatchStage", stage);
+        setProperty("ProfileMatchReason", reason);
+        setProperty("NativeTelemetryReason", reason);
+        AlwaysLog("Profile not verified: state=%s stage=%s machine=%s bios=%s oem_matches=%u",
+                  state, stage, identity.machine, identity.bios, match.oemMatches);
+        return;
+    }
+    // Identity and telemetry availability are independent: a powered-off GPU
+    // or a missing second fan must not erase an otherwise identified model.
+    nativeProfile = candidate;
+    setProperty("HardwareProfile", candidate->id);
+    setProperty("HardwareProfileName", candidate->name);
+    setProperty("NativeTelemetryProfile", true);
+    setProperty("ProfileMatchState", match.exact ? "exact" : match.pciMatched ? "pci_matched" : "identity_matched");
+    setProperty("ProfileMatchStage", "identified");
+    setProperty("ProfileMatchReason", match.exact ? "Reviewed AML fingerprint matched" : match.pciMatched ? "PCI subsystem ID and DSDT OEM table matched" : "Machine type and DSDT OEM table matched");
+    setProperty("NativeTelemetryReason", "Sensor reads are validated individually; identity does not validate writes");
+    AlwaysLog("Profile identified: id=%s machine=%s bios=%s exact=%d", candidate->id, identity.machine, identity.bios, match.exact);
+}
+
+void IdeaVPC::initBridge() {
+    UInt32 bridgeID = 0;
+    legionBridge = !bridgeDisabled && ec->evaluateInteger("RYID", &bridgeID) == kIOReturnSuccess &&
+        (bridgeID == 0x52590101 || bridgeID == 0x52590102);
+    legionBridgeVersion = legionBridge ? bridgeID & 0xff : 0;
+    setProperty("ACPIBridgeVersion", legionBridgeVersion, 32);
+    if (!legionBridge) return;
+    OSObject *identity = nullptr;
+    if (ec->evaluateObject("RYPN", &identity) == kIOReturnSuccess && OSDynamicCast(OSString, identity))
+        setProperty("ACPIBridgeProfile", identity);
+    OSSafeReleaseNULL(identity);
+    if (ec->evaluateObject("RYNM", &identity) == kIOReturnSuccess && OSDynamicCast(OSString, identity))
+        setProperty("ACPIBridgeProfileName", identity);
+    OSSafeReleaseNULL(identity);
+    // An installed bridge is an explicit interface, but must not contradict
+    // independently collected firmware identity.
+    auto bridgeProfile = OSDynamicCast(OSString, getProperty("ACPIBridgeProfile"));
+    auto conflict = OSDynamicCast(OSBoolean, getProperty("FirmwareIdentityConflict"));
+    auto matchState = OSDynamicCast(OSString, getProperty("ProfileMatchState"));
+    if (!nativeProfile || !bridgeProfile || !matchState || !matchState->isEqualTo("exact") ||
+        (conflict && conflict->getValue()) || !bridgeProfile->isEqualTo(nativeProfile->id)) {
+        legionBridge = false;
+        legionBridgeVersion = 0;
+        setProperty("ACPIBridgeVersion", static_cast<UInt64>(0), 32);
+        setProperty("ACPIBridgeReason", "Bridge requires a reviewed AML fingerprint and matching firmware identity");
     }
 }
 
 bool IdeaVPC::examineWMI(IOService *provider) {
-    OSString *feature;
-    if ((feature = OSDynamicCast(OSString, provider->getProperty("Feature"))) &&
-        feature->isEqualTo("Game Zone")) {
+    auto feature = OSDynamicCast(OSString, provider->getProperty("Feature"));
+    if (feature && feature->isEqualTo("Game Zone")) {
         wmig = OSDynamicCast(IdeaWMIGameZone, provider);
-        setProperty("Game Zone", provider);
         if (wmig) {
-            UInt32 bridgeID = 0;
-            legionBridge = !bridgeDisabled && ec->evaluateInteger("RYID", &bridgeID) == kIOReturnSuccess && (bridgeID == 0x52590101 || bridgeID == 0x52590102);
-            legionBridgeVersion = legionBridge ? bridgeID & 0xff : 0;
-            setProperty("ACPIBridgeVersion", legionBridgeVersion, 32);
-            if (legionBridge) {
-                OSObject *identity = nullptr;
-                if (ec->evaluateObject("RYPN", &identity) == kIOReturnSuccess && OSDynamicCast(OSString, identity))
-                    setProperty("HardwareProfile", identity);
-                OSSafeReleaseNULL(identity);
-                if (ec->evaluateObject("RYNM", &identity) == kIOReturnSuccess && OSDynamicCast(OSString, identity))
-                    setProperty("HardwareProfileName", identity);
-                OSSafeReleaseNULL(identity);
-            }
-            setProperty("ControlProtocolVersion", 1, 32);
-            setProperty("TelemetryIntervalMS", telemetryIntervalMS, 32);
+            setProperty("Game Zone", provider);
             setProperty("LenovoFanMethod", wmig->hasFanMethod);
             setProperty("LenovoLightingMethod", wmig->hasLightingMethod);
-            OSObject *fans = provider->getProperty("Fan number");
-            if (fans) setProperty("Fan number", fans);
+            if (auto fans = provider->getProperty("Fan number")) setProperty("Fan number", fans);
             updateAll();
-
         }
     }
     return true;
@@ -1214,8 +1380,6 @@ bool IdeaVPC::isPowerChanged() {
     return ret;
 }
 
-// Control protocol v1: each request receives a correlated result; transport success
-// is never interpreted as firmware success. Existing property names remain an ABI.
 void IdeaVPC::updateFeatureStatus() {
     auto features = OSDictionary::withCapacity(16);
     if (!features) return;
@@ -1228,18 +1392,19 @@ void IdeaVPC::updateFeatureStatus() {
         features->setObject(key, entry);
         entry->release();
     };
-    const bool battery = vpc->validateObject(getBatteryMode) == kIOReturnSuccess &&
+    const bool battery = getProperty("BatteryModeRaw") && vpc->validateObject(getBatteryMode) == kIOReturnSuccess &&
                          vpc->validateObject(setBatteryMode) == kIOReturnSuccess;
     auto schema = OSDynamicCast(OSNumber, getProperty("BatteryStateSchemaVersion"));
     const bool mappingReady = schema == nullptr || schema->unsigned32BitValue() != 2;
     const bool conservationCap = getProperty("ConservationCapability") != kOSBooleanFalse;
+    const bool keyboardSetter = vpc->validateObject(setKeyboardMode) == kIOReturnSuccess;
     add(conservationPrompt, battery && mappingReady && conservationCap,
         !mappingReady ? "Battery setter mapping requires the updated SSDT" : !conservationCap ? "Firmware conservation capability is clear" : battery ? "" : "ACPI GBMD/SBMC missing", "ACPI");
     add(rapidChargePrompt, battery && mappingReady && rapidChargeCap,
         !mappingReady ? "Battery setter mapping requires the updated SSDT" : rapidChargeCap ? "" : "Battery charge-mode capability is clear in GBMD", "ACPI");
-    add(alwaysOnUSBStatePrompt, alwaysOnUSBCap, alwaysOnUSBCap ? "" : "HALS Always-On USB capability is clear", "ACPI");
-    add(FnKeyPrompt, FnlockCap, FnlockCap ? "" : "HALS Fn Lock capability is clear", "ACPI");
-    add(backlightPrompt, backlightCap, backlightCap ? "" : "ACPI backlight unavailable; RGB may use USB HID", "ACPI");
+    add(alwaysOnUSBStatePrompt, alwaysOnUSBCap && keyboardSetter && getProperty(alwaysOnUSBStatePrompt), alwaysOnUSBCap ? "" : "HALS Always-On USB capability is clear", "ACPI");
+    add(FnKeyPrompt, FnlockCap && keyboardSetter && getProperty(FnKeyPrompt), FnlockCap ? "" : "HALS Fn Lock capability is clear", "ACPI");
+    add(backlightPrompt, backlightCap && keyboardSetter && getProperty(backlightPrompt), backlightCap ? "" : "ACPI backlight unavailable; RGB may use USB HID", "ACPI");
     UInt32 cap = 0, actual = 0;
     auto wmi = [&](const char *key, UInt32 capability, UInt32 getter) {
         cap = actual = 0;
@@ -1291,9 +1456,14 @@ void IdeaVPC::updateFeatureStatus() {
     const bool fanWrites = legionBridgeVersion >= 2 &&
         ec->evaluateInteger("RYVW", &verifiedWrites) == kIOReturnSuccess && verifiedWrites == 1;
     setProperty("FanWritesValidated", fanWrites);
-    add("FanControlMode", legionBridgeVersion >= 2, legionBridgeVersion >= 2 ? "" : "Install the reviewed ACPI bridge v2 for fan control; v1 lacks EC curve recomputation", "ACPI profile");
-    add("Fan1TargetRPM", fanWrites, fanWrites ? "" : "Fan writes disabled: this bridge has no hardware-validated write profile", "ACPI profile");
-    add("Fan2TargetRPM", fanWrites, fanWrites ? "" : "Fan writes disabled: this bridge has no hardware-validated write profile", "ACPI profile");
+    add("FanControlMode", legionBridgeVersion >= 2, legionBridgeVersion >= 2 ? "" : "The active driver has no validated manual fan control for this firmware", "ACPI profile");
+    add("Fan1TargetRPM", fanWrites, fanWrites ? "" : "Manual fan minimums have not been validated for this firmware", "ACPI profile");
+    add("Fan2TargetRPM", fanWrites, fanWrites ? "" : "Manual fan minimums have not been validated for this firmware", "ACPI profile");
+    const char *stepKeys[] = {"Fan1TargetRPMStep", "Fan2TargetRPMStep"};
+    for (unsigned fan = 0; fan < 2; ++fan) {
+        if (legionBridge && nativeProfile) setProperty(stepKeys[fan], nativeProfile->scales[fan], 32);
+        else removeProperty(stepKeys[fan]);
+    }
     const char *rawKeys[] = {"YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage"};
     for (const char *raw : rawKeys) {
         auto value = wmig ? wmig->getProperty(raw) : nullptr;
@@ -1305,11 +1475,15 @@ void IdeaVPC::updateFeatureStatus() {
     const bool powerAccess = wmig && wmig->cpuPowerAccessEnabled;
     setProperty("CPUPowerAccessEnabled", powerAccess);
     const char *powerKeys[] = {"CPUBoostPower", "CPUSustainedPower"};
+    auto activePowerProfile = OSDynamicCast(OSNumber, getProperty(smartFanPrompt));
+    const bool powerProfileMatches = !powerLimitsSaved ||
+        (activePowerProfile != nullptr && activePowerProfile->unsigned32BitValue() == powerLimitsProfile);
     for (unsigned i = 0; i < 2; ++i) {
         UInt32 range[4] = {};
         bool supported = powerAccess && wmig->getPowerLimit(i == 0 ? 3 : 5, range);
         powerSupported[i] = supported;
-        add(powerKeys[i], supported, supported ? "" : !powerAccess ?
+        add(powerKeys[i], supported && powerProfileMatches, !powerProfileMatches ?
+            "Return to the modified power profile and reset its limits before making further edits" : supported ? "" : !powerAccess ?
             "CPU power access is opt-in (-reycpupower): firmware getters may write SystemMemory" :
             "CPU WMI power-limit range unavailable", "WMI CPU");
         if (supported && ranges) {
@@ -1324,11 +1498,13 @@ void IdeaVPC::updateFeatureStatus() {
             setProperty(powerKeys[i], range[0], 32);
         } else removeProperty(powerKeys[i]);
     }
-    // Reuse this refresh's validated ranges; do not execute firmware getters twice.
-    const bool resetAvailable = powerSupported[0] && powerSupported[1];
-    add("CPUPowerReset", resetAvailable, resetAvailable ? "" : !powerAccess ?
+
+    const bool resetAvailable = powerSupported[0] && powerSupported[1] && powerProfileMatches;
+    add("CPUPowerReset", resetAvailable, !powerProfileMatches ? "Return to the modified power profile before resetting its limits" : resetAvailable ? "" : !powerAccess ?
         "CPU power access is opt-in (-reycpupower)" : "CPU profile reset interface unavailable", "WMI CPU");
     setProperty("CPUPowerModified", powerLimitsSaved);
+    if (powerLimitsSaved) setProperty("CPUPowerPendingProfile", powerLimitsProfile, 32);
+    else removeProperty("CPUPowerPendingProfile");
     setProperty("CPUPowerReset", static_cast<UInt64>(0), 32);
     add("GPUPowerLimit", false, "Requires an active supported graphics driver; firmware NPF notifications alone do not apply the limit", "Graphics driver required");
     add("GPUOverclock", false, "No verified macOS graphics overclock backend is available for this firmware", "Graphics driver required");
@@ -1341,7 +1517,8 @@ void IdeaVPC::updateFeatureStatus() {
 
 void IdeaVPC::updateTelemetry() {
     if (!telemetryAwake) return;
-    if (firmwareTrace) AlwaysLog("Firmware begin: telemetry source=%s", legionBridge ? "ACPI bridge" : nativeProfile ? "Native ACPI" : "WMI");
+    const bool trace = firmwareTrace && sampleSequence < 4;
+    if (trace) AlwaysLog("Firmware begin: telemetry source=%s", legionBridge ? "ACPI bridge" : nativeProfile ? "Native ACPI" : "WMI");
     auto status = OSDictionary::withCapacity(4);
     auto sources = OSDictionary::withCapacity(4);
     const char *keys[] = {"Fan1RPM", "Fan2RPM", cpuTempPrompt, gpuTempPrompt};
@@ -1349,11 +1526,16 @@ void IdeaVPC::updateTelemetry() {
     for (unsigned i = 0; i < 4; ++i) {
         UInt32 value = 0;
         bool ok = false;
+        if (i < 2 && wmig && wmig->fanCount > 0 && i >= wmig->fanCount) {
+            removeProperty(keys[i]);
+            if (status) setPropertyString(status, keys[i], "not reported by the firmware fan count");
+            if (sources) setPropertyString(sources, keys[i], "Unavailable");
+            continue;
+        }
         if (legionBridge) ok = ec->evaluateInteger(methods[i], &value) == kIOReturnSuccess;
         else if (nativeProfile) {
             ok = ec->evaluateInteger(nativeProfile->fields[i], &value) == kIOReturnSuccess;
-            if (ok && value <= 0xFFFF / nativeProfile->scales[i]) value *= nativeProfile->scales[i];
-            else ok = false;
+            if (ok) ok = ReYogaFirmware::validSample(i, value, nativeProfile->scales[i], value);
         }
         const char *source = legionBridge ? "ACPI bridge" : nativeProfile ? "Native ACPI" : "WMI";
         auto valid = [i](UInt32 sample) { return i < 2 ? sample < 0xFFFF : sample > 0 && sample < 125; };
@@ -1377,37 +1559,45 @@ void IdeaVPC::updateTelemetry() {
     if (legionBridge) {
         UInt32 value = 0;
         if (ec->evaluateInteger("RYFM", &value) == kIOReturnSuccess) setProperty("FanControlMode", value, 32);
-        if (ec->evaluateInteger("RYG0", &value) == kIOReturnSuccess) setProperty("Fan1TargetRPM", value, 32);
-        if (ec->evaluateInteger("RYG1", &value) == kIOReturnSuccess) setProperty("Fan2TargetRPM", value, 32);
-        if (ec->evaluateInteger("RYM0", &value) == kIOReturnSuccess) setProperty("Fan1MaxRPM", value, 32);
-        if (ec->evaluateInteger("RYM1", &value) == kIOReturnSuccess) setProperty("Fan2MaxRPM", value, 32);
+        else removeProperty("FanControlMode");
+        if (ec->evaluateInteger("RYG0", &value) == kIOReturnSuccess && value < 0xFFFF) setProperty("Fan1TargetRPM", value, 32);
+        else removeProperty("Fan1TargetRPM");
+        if (ec->evaluateInteger("RYG1", &value) == kIOReturnSuccess && value < 0xFFFF) setProperty("Fan2TargetRPM", value, 32);
+        else removeProperty("Fan2TargetRPM");
+        if (ec->evaluateInteger("RYM0", &value) == kIOReturnSuccess && value < 0xFFFF) setProperty("Fan1MaxRPM", value, 32);
+        else removeProperty("Fan1MaxRPM");
+        if (ec->evaluateInteger("RYM1", &value) == kIOReturnSuccess && value < 0xFFFF) setProperty("Fan2MaxRPM", value, 32);
+        else removeProperty("Fan2MaxRPM");
     }
     UInt32 profile = 0;
     if (wmig && wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &profile) && profile >= 1 && profile <= 3) {
-        if (powerLimitsSaved && profile != powerLimitsProfile) powerLimitsSaved = false;
+        auto previous = OSDynamicCast(OSNumber, getProperty(smartFanPrompt));
+        const bool changed = previous == nullptr || previous->unsigned32BitValue() != profile;
         setProperty(smartFanPrompt, profile, 32);
+        if (changed && sampleSequence % 4 != 0) updateFeatureStatus();
     }
     setProperty("CPUPowerModified", powerLimitsSaved);
+    if (powerLimitsSaved) setProperty("CPUPowerPendingProfile", powerLimitsProfile, 32);
+    else removeProperty("CPUPowerPendingProfile");
     if (sampleSequence % 4 == 0) {
-        bool oldCapability = rapidChargeCap;
         updateBattery(false);
         updateKeyboard(false);
-        if (oldCapability != rapidChargeCap) updateFeatureStatus();
+        updateFeatureStatus();
     }
     UInt64 uptime = 0, ns = 0;
     clock_get_uptime(&uptime);
     absolutetime_to_nanoseconds(uptime, &ns);
     setProperty("SensorSampleTimeMS", ns / 1000000, 64);
     setProperty("SensorSampleSequence", ++sampleSequence, 64);
-    if (detailedTelemetry || sampleSequence == 1 || sampleSequence % 20 == 0)
+    if (sampleSequence == 1 || sampleSequence % (detailedTelemetry ? 4 : 20) == 0)
         DebugLog("sample=%llu source=%s timeMS=%llu", sampleSequence,
                  legionBridge ? "ACPI-profile" : "WMI", ns / 1000000);
-    if (firmwareTrace) AlwaysLog("Firmware end: telemetry");
+    if (trace) AlwaysLog("Firmware end: telemetry");
 }
 
 IOReturn IdeaVPC::setBridgeFan(UInt32 fan, UInt32 rpm) {
     UInt32 verified = 0;
-    if (!ec || ec->evaluateInteger("RYVW", &verified) != kIOReturnSuccess || verified != 1)
+    if (!legionBridge || legionBridgeVersion < 2 || !ec || ec->evaluateInteger("RYVW", &verified) != kIOReturnSuccess || verified != 1)
         return kIOReturnUnsupported;
     if (fan > 1) return kIOReturnBadArgument;
     OSObject *args[] = {OSNumber::withNumber(fan, 32), OSNumber::withNumber(rpm, 32)};
@@ -1433,6 +1623,9 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
     }
     if (!strcmp(key, "CPUBoostPower") || !strcmp(key, "CPUSustainedPower")) {
         if (number == nullptr || !wmig) return kIOReturnBadArgument;
+        UInt32 currentProfile = 0;
+        if (!wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &currentProfile)) return kIOReturnIOError;
+        if (powerLimitsSaved && currentProfile != powerLimitsProfile) return kIOReturnNotReady;
         unsigned index = !strcmp(key, "CPUSustainedPower") ? 1 : 0;
         UInt32 range[4] = {};
         if (!wmig->getPowerLimit(index == 0 ? 3 : 5, range)) return kIOReturnIOError;
@@ -1458,8 +1651,17 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
     }
     if (!strcmp(key, smartFanPrompt)) {
         if (number == nullptr || target < 1 || target > 3) return kIOReturnBadArgument;
-        restorePowerLimits();
-        if (legionBridge) { UInt32 result; ec->evaluateInteger("RYFA", &result); }
+        UInt32 currentProfile = 0;
+        if (powerLimitsSaved && wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &currentProfile) && currentProfile != powerLimitsProfile) {
+            if (target != powerLimitsProfile) return kIOReturnNotReady;
+            if (!wmig->setGameZoneData(GAME_ZONE_WMI_SET_SMARTFAN_MODE, target)) return kIOReturnIOError;
+            return restorePowerLimits() ? kIOReturnSuccess : kIOReturnIOError;
+        }
+        if (!restorePowerLimits()) return kIOReturnIOError;
+        if (legionBridge) {
+            UInt32 result = 0;
+            if (ec->evaluateInteger("RYFA", &result) != kIOReturnSuccess || result != 0) return kIOReturnIOError;
+        }
         return wmig->setGameZoneData(GAME_ZONE_WMI_SET_SMARTFAN_MODE, target) ? kIOReturnSuccess : kIOReturnIOError;
     }
     if (!strcmp(key, alwaysOnUSBStatePrompt)) {
@@ -1611,6 +1813,7 @@ IOReturn IdeaVPC::setPowerState(unsigned long state, IOService *device) {
 }
 
 IOReturn IdeaVPC::setPowerStateGated(unsigned long state, IOService *device) {
+    if (device != this) return kIOReturnInvalid;
     if (state == 0) {
         telemetryAwake = false;
         restorePowerLimits();
@@ -1620,6 +1823,8 @@ IOReturn IdeaVPC::setPowerStateGated(unsigned long state, IOService *device) {
     IOReturn ret = super::setPowerState(state, device);
     if (state != 0) {
         telemetryAwake = true;
+        updateFeatureStatus();
+        updateTelemetry();
         if (telemetryPoller) telemetryPoller->setTimeoutMS(telemetryIntervalMS);
     }
     return ret;
@@ -1630,13 +1835,30 @@ bool IdeaVPC::restorePowerLimits() {
     if (!wmig) return false;
     UInt32 profile = 0;
     if (!wmig->getGamzeZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &profile)) return false;
-    if (profile != powerLimitsProfile) { powerLimitsSaved = false; return true; }
+    if (profile != powerLimitsProfile) {
+        setProperty("CPUPowerRestoreReason", "Return to the modified power profile before restoring its saved limits");
+        return false;
+    }
     bool boost = wmig->setPowerLimit(4, originalPowerLimits[0]);
     bool sustained = wmig->setPowerLimit(6, originalPowerLimits[1]);
     UInt32 actualBoost[4] = {}, actualSustained[4] = {};
     bool confirmed = boost && sustained && wmig->getPowerLimit(3, actualBoost) && wmig->getPowerLimit(5, actualSustained) &&
                      actualBoost[0] == originalPowerLimits[0] && actualSustained[0] == originalPowerLimits[1];
-    if (confirmed) powerLimitsSaved = false;
+    if (confirmed) { powerLimitsSaved = false; removeProperty("CPUPowerRestoreReason"); }
     else AlwaysLog("CPU power-limit restoration failed boost=%d sustained=%d confirmed=%d", boost, sustained, confirmed);
     return confirmed;
+}
+
+void IdeaVPC::restoreUserControls() {
+    if (safeMode || !commandGate) return;
+    commandGate->runAction([](OSObject *owner, void *, void *, void *, void *) -> IOReturn {
+        auto self = static_cast<IdeaVPC *>(owner);
+        self->restorePowerLimits();
+        if (self->legionBridge) {
+            UInt32 result = 0;
+            if (self->ec->evaluateInteger("RYFA", &result) != kIOReturnSuccess || result != 0)
+                self->setProperty("FanRestoreReason", "Firmware did not confirm automatic fan restoration");
+        }
+        return kIOReturnSuccess;
+    });
 }

@@ -19,29 +19,23 @@ SMC_RESULT BDVT::update(const SMC_DATA *src) {
     bool *oldValue = reinterpret_cast<bool *>(data);
     DBGLOG("vpckey", "BDVT update %d -> %d", *oldValue, newValue);
     drv->dispatchMessage(kSMC_setConservation, &newValue);
-    *oldValue = newValue;
-    return SmcSuccess;
-}
-
-SMC_RESULT CH0B::writeAccess() {
-    // TODO: determine whether charger control is supported
-    return SmcSuccess;
-}
-
-SMC_RESULT CH0B::update(const SMC_DATA *src) {
-    DBGLOG("vpckey", "CH0B update 0x%x -> 0x%x", data[0], src[0]);
-    lilu_os_memcpy(data, src, 1);
+    bool actual = !newValue;
+    drv->dispatchMessage(kSMC_getConservation, &actual);
+    if (actual != newValue) return SmcError;
+    *oldValue = actual;
     return SmcSuccess;
 }
 
 SMC_RESULT atomicSpKey::readAccess() {
     uint32_t value = atomic_load_explicit(currentSensor, memory_order_acquire);
+    if (!value || value >= 150) return SmcNotReadable;
     *reinterpret_cast<uint16_t *>(data) = VirtualSMCAPI::encodeSp(type, value);
     return SmcSuccess;
 }
 
 SMC_RESULT atomicSpDeciKelvinKey::readAccess() {
     uint32_t value = atomic_load_explicit(currentSensor, memory_order_acquire);
+    if (value <= 2731 || value >= 4231) return SmcNotReadable;
     *reinterpret_cast<uint16_t *>(data) = VirtualSMCAPI::encodeSp(type, ((double)value - 2731)/10);
     return SmcSuccess;
 }
@@ -53,7 +47,8 @@ SMC_RESULT atomicFltKey::readAccess() {
 }
 
 SMC_RESULT atomicFpKey::readAccess() {
-    uint16_t value = atomic_load_explicit(currentSensor, memory_order_acquire);
+    uint32_t value = atomic_load_explicit(currentSensor, memory_order_acquire);
+    if (value >= 0x4000) return SmcNotReadable;
     *reinterpret_cast<uint16_t *>(data) = VirtualSMCAPI::encodeIntFp(type, value);
     return SmcSuccess;
 }

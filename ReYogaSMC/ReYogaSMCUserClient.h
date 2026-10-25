@@ -22,6 +22,7 @@ enum {
     kRYSMCUCReadEC,          // ScalarIStructO
     kRYSMCUCWriteEC,         // ScalarIStructI
     kRYSMCUCReadECName,      // ScalarIScalarO
+    kRYSMCUCThinkFan,         // Two scalar inputs (fan, level or 0x100 to read), 3 output bytes.
     kRYSMCUCNumMethods
 };
 

@@ -24,7 +24,8 @@ bool ReYogaBaseService::init(OSDictionary *dictionary)
 
     _notificationServices = OSSet::withCapacity(1);
 
-    return _notificationServices != nullptr;
+    if (!_notificationServices) { OSSafeReleaseNULL(_deliverNotification); return false; }
+    return true;
 }
 
 IOService *ReYogaBaseService::probe(IOService *provider, SInt32 *score)
@@ -48,6 +49,8 @@ bool ReYogaBaseService::start(IOService *provider)
     commandGate = IOCommandGate::commandGate(this);
     if (!workLoop || !commandGate || (workLoop->addEventSource(commandGate) != kIOReturnSuccess)) {
         AlwaysLog("Failed to add commandGate");
+        OSSafeReleaseNULL(commandGate);
+        OSSafeReleaseNULL(workLoop);
         return false;
     }
 
@@ -218,6 +221,7 @@ IOReturn ReYogaBaseService::setPowerState(unsigned long powerStateOrdinal, IOSer
 
 IOReturn ReYogaBaseService::readECName(const char* name, UInt32 *result) {
     if (!ec) return kIOReturnNoDevice;
+    if (!name || !result) return kIOReturnBadArgument;
     IOReturn ret = ec->evaluateInteger(name, result);
     switch (ret) {
         case kIOReturnSuccess:

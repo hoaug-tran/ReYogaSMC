@@ -11,8 +11,13 @@
 OSDefineMetaClassAndStructors(IdeaSMC, ReYogaSMC);
 
 void IdeaSMC::addVSMCKey() {
-    VirtualSMCAPI::addKey(KeyBDVT, vsmcPlugin.data, VirtualSMCAPI::valueWithFlag(true, new BDVT(this), SMC_KEY_ATTRIBUTE_READ | SMC_KEY_ATTRIBUTE_WRITE));
-    VirtualSMCAPI::addKey(KeyCH0B, vsmcPlugin.data, VirtualSMCAPI::valueWithData(nullptr, 1, SmcKeyTypeHex, new CH0B, SMC_KEY_ATTRIBUTE_READ | SMC_KEY_ATTRIBUTE_WRITE));
+    if (sensorProvider) {
+        auto state = OSDynamicCast(OSBoolean, sensorProvider->getProperty("ConservationMode"));
+        auto features = OSDynamicCast(OSDictionary, sensorProvider->getProperty("FeatureStatus"));
+        auto feature = features ? OSDynamicCast(OSDictionary, features->getObject("ConservationMode")) : nullptr;
+        if (state && feature && feature->getObject("Available") == kOSBooleanTrue)
+            VirtualSMCAPI::addKey(KeyBDVT, vsmcPlugin.data, VirtualSMCAPI::valueWithFlag(state->getValue(), new BDVT(this), SMC_KEY_ATTRIBUTE_READ | SMC_KEY_ATTRIBUTE_WRITE));
+    }
 
     if (!wmig) {
         super::addVSMCKey();
@@ -77,6 +82,7 @@ void IdeaSMC::updateECVendor() {
     UInt32 value;
     for (UInt8 index = 0; index < ECSensorBase; ++index) {
         UInt8 code = sensorIndex[index];
+        atomic_store_explicit(&currentSensor[index], 0, memory_order_release);
         // Reuse the VPC telemetry sample rather than querying the EC twice.
         if (sensorProvider && sensorProvider->getProperty("SensorSampleSequence")) {
             const char *key = (code == 0xF0 || code == GAME_ZONE_WMI_GET_FAN_ONE) ? "Fan1RPM" :

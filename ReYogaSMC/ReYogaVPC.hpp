@@ -128,6 +128,7 @@ protected:
      *  Vendor specific WMI support
      */
     bool vendorWMISupport {false};
+    UInt8 thinkFanModifiedMask {0};
 
     /**
      *  Initialize WMI
@@ -315,6 +316,9 @@ public:
      *  VPC UserClient
      */
     ReYogaSMCUserClient *client {nullptr};
+    IOReturn accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]);
+    void restoreThinkFans();
+    virtual void restoreUserControls() { restoreThinkFans(); }
 };
 
 #endif /* ReYogaVPC_hpp */

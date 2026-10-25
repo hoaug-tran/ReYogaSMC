@@ -15,13 +15,13 @@ bool ReYogaHIDD::initDSM() {
 
     OSObject *result = nullptr;
     if (kIOReturnSuccess != evaluateDSM(0, &result) || !result) {
-        AlwaysLog("Failed to acquire fn mask");
+        AlwaysLog("Failed to acquire FN mask");
         return false;
     }
 
     OSData *data = OSDynamicCast(OSData, result);
     if (!data) {
-        AlwaysLog("Could not get valid return for fn mask");
+        AlwaysLog("Could not get valid return for FN mask");
         OSSafeReleaseNULL(result);
         return false;
     }
@@ -36,7 +36,8 @@ bool ReYogaHIDD::initDSM() {
             fn_mask = *(reinterpret_cast<UInt8 const*>(data->getBytesNoCopy()));
             break;
         case 0:
-            AlwaysLog("Invalid length for fn mask");
+            AlwaysLog("Invalid length for FN mask");
+            result->release();
             return false;
     }
     DebugLog("fn_mask = 0x%llx", fn_mask);
@@ -48,16 +49,16 @@ bool ReYogaHIDD::initVPC() {
     super::initVPC();
 
     if (!initDSM())
-        AlwaysLog("Failed to obtain valid fn mask, evaluating methods directly");
+        AlwaysLog("Failed to obtain valid FN mask, evaluating methods directly");
 
     UInt64 mode = 0;
     if (kIOReturnSuccess != evaluateHIDD(INTEL_HID_DSM_HDMM_FN, &mode)) {
-        AlwaysLog("Failed to read fn mode");
+        AlwaysLog("Failed to read FN mode");
         return false;
     }
     // check simple mode
     if (mode != 0) {
-        AlwaysLog("fn mode %llx not supported", mode);
+        AlwaysLog("FN mode %llx not supported", mode);
         return false;
     }
 
@@ -84,6 +85,7 @@ bool ReYogaHIDD::exitVPC() {
 }
 
 IOReturn ReYogaHIDD::message(UInt32 type, IOService *provider, void *argument) {
+    if (getProperty("SafeMode") == kOSBooleanTrue) return kIOReturnUnsupported;
     if (type != kIOACPIMessageDeviceNotification || !argument)
         return super::message(type, provider, argument);
 
@@ -212,6 +214,7 @@ IOReturn ReYogaHIDD::message(UInt32 type, IOService *provider, void *argument) {
 }
 
 IOReturn ReYogaHIDD::setPowerState(unsigned long powerStateOrdinal, IOService * whatDevice) {
+    if (getProperty("SafeMode") == kOSBooleanTrue) return kIOReturnUnsupported;
     if (super::setPowerState(powerStateOrdinal, whatDevice) != kIOPMAckImplied)
         return kIOReturnInvalid;
 

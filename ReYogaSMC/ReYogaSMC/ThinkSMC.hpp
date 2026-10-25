@@ -12,6 +12,8 @@
 
 #include "ReYogaSMC.hpp"
 
+class ReYogaVPC;
+
 class ThinkSMC : public ReYogaSMC
 {
     typedef ReYogaSMC super;
@@ -22,6 +24,8 @@ private:
     void updateECVendor() APPLE_KEXT_OVERRIDE;
 
     bool dualFan {false};
+    ReYogaVPC *sensorProvider {nullptr};
+    void getWMISensor(IOService *provider) APPLE_KEXT_OVERRIDE;
 
 };
 

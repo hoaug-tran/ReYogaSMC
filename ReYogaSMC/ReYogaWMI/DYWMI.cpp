@@ -24,6 +24,10 @@ ReYogaWMI* ReYogaWMI::withDYWMI(WMI *provider) {
         dev = OSTypeAlloc(ReYogaWMI);
 
     OSDictionary *dictionary = OSDictionary::withCapacity(1);
+    if (!dev || !dictionary) {
+        OSSafeReleaseNULL(dev); OSSafeReleaseNULL(dictionary);
+        return nullptr;
+    }
 
     dev->iname = provider->getName();
     dev->YWMI = provider;

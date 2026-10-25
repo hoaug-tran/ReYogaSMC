@@ -47,6 +47,7 @@ void ReYogaSMC::addVSMCKey() {
     ECSensorBase = sensorCount;
 
     OSDictionary *status = OSDictionary::withCapacity(1);
+    if (!status) return;
     OSString *method;
 
     for (auto &pair : presetTemperatureDeciKelvin)
@@ -97,9 +98,12 @@ void ReYogaSMC::stop(IOService *provider)
 {
     DebugLog("Stopping");
 
-    poller->disable();
-    workLoop->removeEventSource(poller);
-    OSSafeReleaseNULL(poller);
+    if (poller) {
+        poller->cancelTimeout();
+        poller->disable();
+        if (workLoop) workLoop->removeEventSource(poller);
+        OSSafeReleaseNULL(poller);
+    }
 
     terminate();
 
@@ -153,9 +157,10 @@ void ReYogaSMC::updateEC() {
     updateECVendor();
 
     UInt32 result = 0;
-    for (UInt8 i = ECSensorBase; i < sensorCount; i++)
-        if (ec->evaluateInteger(sensorMethods[i], &result) == kIOReturnSuccess && result != 0)
-            atomic_store_explicit(&currentSensor[i], result, memory_order_release);
+    for (UInt8 i = ECSensorBase; i < sensorCount; i++) {
+        const bool valid = ec && ec->evaluateInteger(sensorMethods[i], &result) == kIOReturnSuccess && result != 0;
+        atomic_store_explicit(&currentSensor[i], valid ? result : 0, memory_order_release);
+    }
     poller->setTimeoutMS(POLLING_INTERVAL);
 }
 
@@ -163,6 +168,7 @@ IOReturn ReYogaSMC::setPowerState(unsigned long powerStateOrdinal, IOService * w
     if (super::setPowerState(powerStateOrdinal, whatDevice) != kIOPMAckImplied)
         return kIOReturnInvalid;
 
+    if (!poller) return kIOPMAckImplied;
     if (powerStateOrdinal == 0) {
         if (awake) {
             poller->disable();

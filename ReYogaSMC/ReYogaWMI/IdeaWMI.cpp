@@ -16,7 +16,7 @@ ReYogaWMI* ReYogaWMI::withIdeaWMI(WMI *provider) {
     if ((provider->hasMethod(GSENSOR_WMI_EVENT, ACPI_WMI_EVENT) && provider->hasMethod(GSENSOR_DATA_WMI_METHOD)) ||
         (provider->hasMethod(GSENSOR_WMI_EVENT_EXT, ACPI_WMI_EVENT) && provider->hasMethod(GSENSOR_DATA_WMI_METHOD_EXT))) {
         dev = OSTypeAlloc(IdeaWMIYoga);
-        dev->isPMsupported = true;
+        if (dev) dev->isPMsupported = true;
     } else if (provider->hasMethod(PAPER_LOOKING_WMI_EVENT, ACPI_WMI_EVENT)) {
         dev = OSTypeAlloc(IdeaWMIPaper);
     } else if (provider->hasMethod(SUPER_RES_WMI_EVENT, ACPI_WMI_EVENT)) {
@@ -30,6 +30,10 @@ ReYogaWMI* ReYogaWMI::withIdeaWMI(WMI *provider) {
     }
 
     OSDictionary *dictionary = OSDictionary::withCapacity(1);
+    if (!dev || !dictionary) {
+        OSSafeReleaseNULL(dev); OSSafeReleaseNULL(dictionary);
+        return nullptr;
+    }
 
     dev->iname = provider->getName();
     dev->YWMI = provider;
