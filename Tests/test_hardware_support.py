@@ -16,7 +16,7 @@ SPEC.loader.exec_module(support)
 
 class HardwareSupportTests(unittest.TestCase):
     def test_reviewed_legion_battery_mapping_does_not_swap_charge_modes(self):
-        profile = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text())
+        profile = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text(encoding='utf-8'))
         # Lenovo Storage uses BTSM/bit 5; Quick uses QCHO/bit 2.
         samples = [(0x10060020, True, False), (0x10060204, False, True), (0x10060000, False, False)]
         for raw, conservation, rapid in samples:
@@ -25,7 +25,7 @@ class HardwareSupportTests(unittest.TestCase):
         self.assertEqual(profile['battery_conservation_mask'] & profile['battery_rapidcharge_mask'], 0)
 
     def test_battery_commands_change_the_same_state_that_is_read(self):
-        profile = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text())
+        profile = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text(encoding='utf-8'))
         # SBMC writes from the DSDT; Storage/Quick semantics from Toolkit and LenovoLegionLinux.
         def sbmc(command, qcho, btsm):
             if command == 3: btsm = True
@@ -59,7 +59,7 @@ class HardwareSupportTests(unittest.TestCase):
                                      '--acpi', str(path), '--output', str(output), '--offline'],
                                     capture_output=True, text=True, timeout=60)
             self.assertEqual(result.returncode, 0, result.stderr)
-            report = json.loads((output / 'report.json').read_text())
+            report = json.loads((output / 'report.json').read_text(encoding='utf-8'))
             self.assertTrue(report['excluded_tables'])
             self.assertEqual(list((output / 'tables').iterdir()), [])
 
@@ -129,7 +129,7 @@ class HardwareSupportTests(unittest.TestCase):
                                      '--iasl', str(root / 'missing-iasl'), '--offline'],
                                     capture_output=True, text=True, timeout=60)
             self.assertEqual(result.returncode, 1, result.stderr)
-            report = json.loads((output / 'report.json').read_text())
+            report = json.loads((output / 'report.json').read_text(encoding='utf-8'))
             self.assertEqual(report['generation']['status'], 'unmatched')
             self.assertEqual(report['acpi'][0]['sha256'], hashlib.sha256(table).hexdigest())
             self.assertTrue(report['errors'])

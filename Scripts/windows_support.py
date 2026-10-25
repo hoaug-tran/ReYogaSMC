@@ -47,7 +47,7 @@ def registry_tables(directory):
             walk(key, [])
     except OSError as error:
         errors.append({'key': 'HARDWARE/ACPI', 'reason': str(error)})
-    (directory / 'windows-table-sources.json').write_text(json.dumps({'tables': sources, 'errors': errors}, indent=2))
+    (directory / 'windows-table-sources.json').write_text(json.dumps({'tables': sources, 'errors': errors}, indent=2), encoding='utf-8')
     return files
 
 

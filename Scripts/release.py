@@ -16,7 +16,7 @@ METADATA = (PROJECT.as_posix(), CHANGELOG.as_posix())
 
 
 def git(*args):
-    return subprocess.check_output(['git', *args], cwd=ROOT, text=True).strip()
+    return subprocess.check_output(['git', *args], cwd=ROOT, text=True, encoding='utf-8').strip()
 
 
 def version_tuple(value):

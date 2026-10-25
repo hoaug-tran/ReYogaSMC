@@ -95,7 +95,7 @@ class PawnEC:
 
 
 def module_binary(offline):
-    item = json.loads(pathlib.Path(__file__).with_name('pawnio.json').read_text())
+    item = json.loads(pathlib.Path(__file__).with_name('pawnio.json').read_text(encoding='utf-8'))
     path = pathlib.Path.home() / '.cache' / 'reyoga' / 'pawnio' / (item['sha256'] + '.bin')
     if not path.exists():
         if offline:

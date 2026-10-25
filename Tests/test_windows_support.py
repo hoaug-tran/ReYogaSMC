@@ -31,7 +31,7 @@ class WindowsSupportTests(unittest.TestCase):
             value=module.inventory(True)
         self.assertEqual(value['probes'],report['probes'])
     def test_probe_manifest_contains_no_write_methods(self):
-        data=json.loads((root/'Scripts/windows_probes.json').read_text())
+        data=json.loads((root/'Scripts/windows_probes.json').read_text(encoding='utf-8'))
         for probe in data['probes']:
             self.assertRegex(probe['method'],r'^(Get|Is|Fan_Get|CPU_Get)')
             self.assertEqual(probe['namespace'],'root/wmi')

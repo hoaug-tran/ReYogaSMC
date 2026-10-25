@@ -56,7 +56,7 @@ def match_profile(source, candidates, aml_hashes=()):
 def render(profile):
     values = dict(profile, profile_name=profile['name'], **profile['offsets'])
     values['verified_writes'] = 1 if profile.get('verified_writes') == 1 else 0
-    source = (ROOT / 'HardwareProfiles/SSDT-ReYoga.template.dsl').read_text()
+    source = (ROOT / 'HardwareProfiles/SSDT-ReYoga.template.dsl').read_text(encoding='utf-8')
     for key, value in values.items():
         source = source.replace('{{' + key + '}}', str(value))
     if '{{' in source:
@@ -86,7 +86,7 @@ def compiler(offline=False):
     existing = shutil.which('iasl')
     if existing:
         return pathlib.Path(existing)
-    lock = json.loads((ROOT / 'Scripts/acpica.json').read_text())
+    lock = json.loads((ROOT / 'Scripts/acpica.json').read_text(encoding='utf-8'))
     directory = CACHE / lock['release'] / platform.system()
     directory.mkdir(parents=True, exist_ok=True)
     executable = directory / ('iasl.exe' if platform.system() == 'Windows' else 'iasl')
@@ -119,7 +119,7 @@ def compiler(offline=False):
     if len(sources) != 1:
         raise ValueError('ACPICA source layout changed')
     result = run(['make', 'iasl', '-j2'], cwd=sources[0])
-    (directory / 'build.log').write_text(result['stdout'] + result['stderr'])
+    (directory / 'build.log').write_text(result['stdout'] + result['stderr'], encoding='utf-8')
     if result['status']:
         raise ValueError('ACPICA build failed; see ' + str(directory / 'build.log'))
     shutil.copy2(sources[0] / 'bin/iasl', executable)
@@ -393,9 +393,9 @@ def main():
         report['acpi'].append(item)
     sources = sorted(p for p in tables.iterdir() if p.suffix.lower() == '.dsl')
     for path in sources:
-        source = path.read_text(errors='replace')
+        source = path.read_text(errors='replace', encoding='utf-8')
         report['acpi'].append({'file': path.name, 'normalized_sha256': normalized_hash(source), 'declarations': scan(source)})
-    combined = '\n'.join(p.read_text(errors='replace') for p in sources)
+    combined = '\n'.join(p.read_text(errors='replace', encoding='utf-8') for p in sources)
     try:
         profile = match_profile(combined, profiles(), aml_hashes)
         # Hashes of individual DSL inputs must also work with a full table bundle.
@@ -403,14 +403,14 @@ def main():
         profile = None
         for path in sources:
             try:
-                profile = match_profile(path.read_text(errors='replace'), profiles(), aml_hashes)
+                profile = match_profile(path.read_text(errors='replace', encoding='utf-8'), profiles(), aml_hashes)
                 break
             except ValueError:
                 pass
     if profile:
         label = re.sub(r'[^A-Za-z0-9]+', '-', args.model or profile['id']).strip('-')[:32] or 'device'
         bridge = output / f'SSDT-ReYoga-{label}.dsl'
-        bridge.write_text(render(profile))
+        bridge.write_text(render(profile), encoding='utf-8')
         report['generation'] = {'status': 'generated', 'profile': profile['id'], 'source': bridge.name,
                                 'validation': profile['validation'], 'fan_writes': profile.get('verified_writes') == 1}
         if not args.source_only and not iasl:
@@ -434,13 +434,13 @@ def main():
         'collected': ['ACPI source declarations', 'table fingerprints', 'OS inventory', 'available runtime capabilities', 'requested Windows getter results and EC snapshot status'],
         'requires_review': ['EC field meaning and units', 'WMI method payloads', 'USB HID protocol', 'hotkey mapping', 'fan-write safety'],
         'reason': 'ACPI does not describe every firmware interface. No register writes or firmware-method calls are performed. EC snapshots cover only the declared standard address space.'}
-    (output / 'report.json').write_text(json.dumps(report, indent=2, default=str) + '\n')
+    (output / 'report.json').write_text(json.dumps(report, indent=2, default=str) + '\n', encoding='utf-8')
     summary = '# ReYoga device support\n\n' + \
         'Generation: ' + report['generation']['status'] + '\n\n' + \
         'Attach report.json and the ACPI tables after checking them for private data.\n\n' + \
         '## Observed behavior\n\nModel / BIOS:\nmacOS / bootloader:\nFeature / expected / actual:\nSteps to reproduce:\nSleep and AC/battery behavior:\n\n' + \
         '## Review needed\n\n' + '\n'.join('* ' + x for x in report['coverage']['requires_review']) + '\n'
-    (output / 'device-support.md').write_text(summary)
+    (output / 'device-support.md').write_text(summary, encoding='utf-8')
     shutil.make_archive(str(output), 'zip', root_dir=output)
     print('Report: ' + str(output / 'report.json'))
     print('Export: ' + str(output) + '.zip')
