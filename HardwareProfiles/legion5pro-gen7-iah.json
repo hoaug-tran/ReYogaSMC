@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "kind": "acpi",
+  "id": "legion5pro-gen7-iah",
+  "name": "Lenovo Legion 5 Pro 16IAH7H",
+  "machine_types": [
+    "82RF",
+    "82RG"
+  ],
+  "bios_families": [
+    "J2CN",
+    "KFCN"
+  ],
+  "oem_table_ids": [
+    "CB-01"
+  ],
+  "ec_path": "\\_SB.PC00.LPCB.EC0",
+  "ec_base": "0xFE0B0400",
+  "ec_size": "0x600",
+  "rpm_scale": 100,
+  "battery_conservation_mask": 32,
+  "battery_rapidcharge_mask": 4,
+  "native_telemetry": [
+    {
+      "field": "FANS",
+      "scale": 100
+    },
+    {
+      "field": "FA2S",
+      "scale": 100
+    },
+    {
+      "field": "CPUT",
+      "scale": 1
+    },
+    {
+      "field": "GPUT",
+      "scale": 1
+    }
+  ],
+  "sources": [
+    "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
+  ]
+}

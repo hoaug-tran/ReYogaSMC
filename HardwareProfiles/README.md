@@ -1,44 +1,46 @@
 # Hardware profiles
 
-Profiles describe firmware or a shared device protocol. Matching a product name does not establish a compatible EC layout.
+Hardware profiles declare model identity, firmware interfaces and validation evidence for Lenovo consumer and gaming laptop families (Legion, LOQ, IdeaPad Gaming, Yoga). A source link or identity entry is not proof that every feature has been tested on hardware.
 
-## Common metadata
+> **Architecture Note**: ThinkPad models (e.g. T480, X1 Carbon, P52) communicate through the standard ThinkPad ACPI/SMM interface (`ThinkVPC` handling `HKEY`), which queries the Embedded Controller and CMOS dynamically without requiring per-model JSON profiles.
 
-Every profile uses `schema_version: 1` and the following fields, in order:
+## Profile Schema (`schema_version: 1`)
 
-| Field | Meaning |
-| :--- | :--- |
-| `schema_version` | File format version |
-| `kind` | `acpi` for firmware or `rgb` for a USB lighting adapter |
-| `id` | Stable identifier used by the app and saved settings |
-| `name` | Display name |
-| `sources` | References for the protocol, field layout and units |
+Profiles in `HardwareProfiles/` are consumed by the kernel table generator and app adapters. Firmware fingerprints are required for raw-offset bridges; write validation is independent of identity and read support.
 
-Adapter-specific fields retain the names expected by their readers. Do not change an existing ID when reorganizing a file.
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `schema_version` | integer | Must be `1` |
+| `kind` | string | `acpi` for system firmware or `rgb` for lighting controller |
+| `id` | string | Unique immutable identifier matching driver profile registry |
+| `name` | string | Official commercial model name (e.g., `Lenovo Legion 7 2021 16ACHg6`) |
+| `sources` | array of strings | References to Linux kernel driver (`legion-laptop.c`), PSREF specs, or Lenovo Legion Toolkit |
+| `machine_types` | array of strings | Lenovo 4-character machine type codes (e.g., `82N6`, `82JQ`, `82WK`) |
+| `bios_families` | array of strings | Lenovo 4-character BIOS family prefixes (e.g., `GKCN`, `KWCN`, `J2CN`) |
+| `oem_table_ids` | array of strings | DSDT OEM Table ID identifiers (e.g., `CB-01`) |
+| `ec_path` | string | Absolute ACPI namespace path to Embedded Controller (`\\_SB.PCI0.LPC0.EC0` or `\\_SB.PC00.LPCB.EC0`) |
+| `ec_base` | string | Physical memory-mapped EC base address (optional) |
+| `ec_size` | string | EC memory window size (optional) |
+| `rpm_scale` | integer | Fan telemetry scaling factor (typically `100`) |
+| `battery_conservation_mask` | integer | Bitmask for Conservation Mode in `GBMD`/`SBMC` |
+| `battery_rapidcharge_mask` | integer | Bitmask for Rapid Charge in `GBMD`/`SBMC` |
+| `native_telemetry` | array of objects | List of telemetry sensors (`field` and `scale`) |
 
-## Firmware
+## Header Generation
 
-An ACPI profile includes `machine_type`, `bios_family`, `reviewed_aml_hashes`, `reviewed_dsdt_hashes` and `required_patterns`. Binary hashes cover the complete DSDT; source hashes use the collection tool's normalization. Patterns alone do not authorize a match.
-
-`ec_path`, `ec_base`, `ec_size` and `offsets` describe the reviewed namespace and operation region. Battery masks, commands and capability bits are recorded separately. `verified_writes` stays zero until write/readback and restoration have been checked on the target firmware.
-
-Optional `hotkeys` belong to the firmware profile. The nested mapping keeps its own stable `id`, keycodes, consumer usages and `matchProfiles`. That list may include a shared RGB adapter ID, so keyboard discovery does not require an ACPI bridge. Unknown IDs do not inherit the mapping.
-
-## RGB adapters
-
-USB profiles contain VID/PID, usage page, report size, command values and bank/LED maps. Keep shared controllers such as ITE c968 separate from a machine's firmware profile. Do not duplicate their wire protocol across model files.
-
-## Native telemetry
-
-`native_telemetry` lists four existing fields in order: fan 1, fan 2, CPU temperature, GPU temperature. Each entry contains `field` and an integer `scale` converting it into RPM or Celsius. The generator combines each name with the profile's absolute `ec_path`.
-
-After reviewing the complete binary DSDT and field units, add its SHA-256 to `reviewed_aml_hashes` and run:
+After editing or adding profiles, compile the kernel firmware lookup table:
 
 ```sh
 python3 Scripts/generate_firmware_profiles.py
 python3 Scripts/generate_firmware_profiles.py --check
 ```
 
-Commit the generated `ReYogaSMC/ReYogaFirmwareProfiles.hpp`; Xcode requires no Python generation step. The kext checks the DSDT signature, length, checksum, SHA-256 and declared fields before reading them. These descriptors do not authorize physical-memory access or register writes.
+## Automated Validation
 
-The Legion 7 profile reads FANS/FA2S at 100 RPM per unit and CPUT/GPUT in Celsius. A firmware update or bootloader patch that changes the DSDT requires a new review.
+Verify schema compliance across all profiles:
+
+```sh
+python3 Tests/test_profile_schemas.py
+```
+
+Display identity also accepts optional `pci_subsystem_ids` entries (`"17aa:1234"`, lowercase hexadecimal subsystem vendor/device pairs). Only add IDs verified for that model; shared USB/RGB controller IDs do not identify a laptop. Machine types and PCI subsystem IDs are used for display only and do not grant firmware control eligibility. Ambiguous matches fall back to `Lenovo Laptop`; absent Lenovo evidence falls back to `Unknown Laptop`.

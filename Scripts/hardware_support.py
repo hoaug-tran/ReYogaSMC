@@ -22,12 +22,23 @@ CACHE = pathlib.Path.home() / '.cache' / 'reyoga' / 'acpica'
 
 
 def profiles():
-    return [item for p in sorted((ROOT / 'HardwareProfiles').glob('*.json'))
-            if 'required_patterns' in (item := json.loads(p.read_text(encoding='utf-8'))) and item.get('schema_version') == 1]
+    """Return only profiles with a complete reviewed bridge definition."""
+    result = []
+    for path in sorted((ROOT / 'HardwareProfiles').glob('*.json')):
+        item = json.loads(path.read_text(encoding='utf-8'))
+        if item.get('schema_version') != 1 or item.get('kind') != 'acpi':
+            continue
+        if not item.get('required_patterns') or not (item.get('reviewed_dsdt_hashes') or item.get('reviewed_aml_hashes')) or not item.get('offsets'):
+            continue
+        result.append(item)
+    return result
 
 
 def normalized_hash(source):
-    normalized = re.sub(r'\s+', '', re.sub(r'/\*.*?\*/|//[^\n]*', '', source, flags=re.S))
+    # Preserve quoted AML strings: whitespace and comment markers inside them
+    # are firmware data, and changing them must change the fingerprint.
+    tokens = re.findall(r'"(?:\\.|[^"\\])*"|/\*.*?\*/|//[^\n]*|[^\s]', source, re.S)
+    normalized = ''.join(token for token in tokens if not token.startswith(('/*', '//')))
     return hashlib.sha256(normalized.encode()).hexdigest()
 
 

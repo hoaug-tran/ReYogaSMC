@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "kind": "acpi",
+  "id": "ideapad-gaming3-gen6",
+  "name": "Lenovo IdeaPad Gaming 3 15ACH6",
+  "machine_types": [
+    "82K2",
+    "82K1"
+  ],
+  "bios_families": [
+    "H3CN"
+  ],
+  "oem_table_ids": [
+    "CB-01"
+  ],
+  "ec_path": "\\_SB.PCI0.LPC0.EC0",
+  "ec_base": "0xFE00D400",
+  "ec_size": "0x600",
+  "rpm_scale": 100,
+  "battery_conservation_mask": 32,
+  "battery_rapidcharge_mask": 4,
+  "native_telemetry": [
+    {
+      "field": "FANS",
+      "scale": 100
+    },
+    {
+      "field": "FA2S",
+      "scale": 100
+    },
+    {
+      "field": "CPUT",
+      "scale": 1
+    },
+    {
+      "field": "GPUT",
+      "scale": 1
+    }
+  ],
+  "sources": [
+    "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
+  ]
+}

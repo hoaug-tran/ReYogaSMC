@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "kind": "acpi",
+  "id": "yoga-slim7-gen5",
+  "name": "Lenovo Yoga Slim 7 14ARE05",
+  "machine_types": [
+    "82A2",
+    "82A8"
+  ],
+  "bios_families": [
+    "DMCN",
+    "EMCN"
+  ],
+  "oem_table_ids": [
+    "CB-01"
+  ],
+  "ec_path": "\\_SB.PCI0.LPC0.EC0",
+  "rpm_scale": 100,
+  "battery_conservation_mask": 32,
+  "battery_rapidcharge_mask": 4,
+  "native_telemetry": [
+    {
+      "field": "FANS",
+      "scale": 100
+    },
+    {
+      "field": "FA2S",
+      "scale": 100
+    },
+    {
+      "field": "CPUT",
+      "scale": 1
+    },
+    {
+      "field": "GPUT",
+      "scale": 1
+    }
+  ],
+  "sources": [
+    "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
+  ]
+}
