@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import pathlib
+import plistlib
 import re
 import subprocess
 import zipfile
@@ -95,9 +96,11 @@ def plan():
 def package_manifest(version):
     version_tuple(version)
     executables = {
-        'ReYogaSMC': ['ReYogaSMC.kext/Contents/MacOS/ReYogaSMC'],
+        'ReYogaSMC': ['ReYogaSMC.kext/Contents/MacOS/ReYogaSMC', 'ReYogaSMC.kext/Contents/Info.plist'],
         'ReYogaSMC-App': ['ReYogaSMC.app/Contents/MacOS/ReYogaSMC',
-                        'ReYogaSMC.app/Contents/Library/LoginItems/ReYogaSMCHelper.app/Contents/MacOS/ReYogaSMCHelper'],
+                        'ReYogaSMC.app/Contents/Library/LoginItems/ReYogaSMCHelper.app/Contents/MacOS/ReYogaSMCHelper',
+                        'ReYogaSMC.app/Contents/Info.plist',
+                        'ReYogaSMC.app/Contents/Library/LoginItems/ReYogaSMCHelper.app/Contents/Info.plist'],
     }
     return {f'{mode}/{product}-{version}-{mode.upper()}.zip': members
             for mode in ('Debug', 'Release') for product, members in executables.items()}
@@ -120,6 +123,11 @@ def verify_assets(folder, version=None):
             for member in required:
                 if member not in archive.namelist() or archive.getinfo(member).file_size == 0:
                     raise ValueError('Missing packaged file: ' + member)
+            for member in required:
+                if member.endswith('/Info.plist'):
+                    metadata = plistlib.loads(archive.read(member))
+                    if metadata.get('CFBundleShortVersionString') != version:
+                        raise ValueError('Packaged version mismatch: ' + member)
             if archive.testzip() is not None:
                 raise ValueError('Corrupt ZIP: ' + name)
         lines.append(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + name)

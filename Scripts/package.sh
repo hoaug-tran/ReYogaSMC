@@ -34,8 +34,17 @@ ditto --norsrc --noextattr --noacl -c -k --keepParent "$kext_dir" "$package_outp
 # 2. Package ReYogaSMC.app (App release bundle)
 app_dir="$package_products/ReYogaSMC.app"
 test -f "$app_dir/Contents/MacOS/ReYogaSMC" || { echo "Missing app binary" >&2; exit 1; }
+for bundle in "$app_dir" "$app_dir/Contents/Library/LoginItems/ReYogaSMCHelper.app"; do
+    app_version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$bundle/Contents/Info.plist")"
+    test "$app_version" = "$package_version" || { echo 'App/helper and kext versions differ' >&2; exit 1; }
+done
 mkdir -p "$package_stage/app_pkg"
 cp -R "$app_dir" "$package_stage/app_pkg/"
-ditto --norsrc --noextattr --noacl -c -k --keepParent "$package_stage/app_pkg/ReYogaSMC.app" "$package_output/ReYogaSMC-App-$package_version-$package_label.zip"
+staged_app="$package_stage/app_pkg/ReYogaSMC.app"
+if ! codesign --verify --deep --strict "$staged_app" >/dev/null 2>&1; then
+    bash "$package_root/Scripts/sign-app.sh" - "$package_stage/app_pkg"
+fi
+codesign --verify --deep --strict "$staged_app"
+ditto --norsrc --noextattr --noacl -c -k --keepParent "$staged_app" "$package_output/ReYogaSMC-App-$package_version-$package_label.zip"
 
 echo "Packages: $package_output"

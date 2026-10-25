@@ -32,4 +32,6 @@ xcodebuild -project ReYogaSMC.xcodeproj \
     OBJROOT="$obj_root" \
     build
 
+bash "$root/Scripts/sign-app.sh" - "$build_dir/$configuration"
+
 echo "Built $configuration products in: $build_dir/$configuration"

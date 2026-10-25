@@ -39,6 +39,11 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.11'
+      - name: Install ACPI compiler
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y acpica-tools
       - name: Test support tools and release policy
         run: python -B -m unittest discover -s Tests -p "test_*.py"
   build:
@@ -64,6 +69,10 @@ jobs:
         run: |
           xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Debug CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO > build/debug.log 2>&1 || { tail -n 100 build/debug.log; exit 1; }
           xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Release CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO > build/release.log 2>&1 || { tail -n 100 build/release.log; exit 1; }
+      - name: Sign and verify apps
+        run: |
+          bash Scripts/sign-app.sh - build/Debug
+          bash Scripts/sign-app.sh - build/Release
       - name: Render interface
         timeout-minutes: 3
         run: |

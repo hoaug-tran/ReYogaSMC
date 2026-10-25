@@ -1,5 +1,6 @@
 import importlib.util
 import pathlib
+import plistlib
 import tempfile
 import unittest
 import zipfile
@@ -54,11 +55,25 @@ class ReleaseTests(unittest.TestCase):
                 archive_path.parent.mkdir(exist_ok=True)
                 with zipfile.ZipFile(archive_path, 'w') as archive:
                     for member in required:
-                        archive.writestr(member, b'content')
+                        archive.writestr(member, plistlib.dumps({'CFBundleShortVersionString': '2.0.0'})
+                                         if member.endswith('/Info.plist') else b'content')
             release.verify_assets(root, '2.0.0')
             self.assertEqual(len((root / 'SHA256SUMS.txt').read_text().splitlines()), 4)
             (root / 'ReYogaSMC-tool-Release.zip').write_bytes(b'extra')
             with self.assertRaises(ValueError):
+                release.verify_assets(root, '2.0.0')
+
+    def test_mixed_package_versions_are_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            for name, required in release.package_manifest('2.0.0').items():
+                path = root / name
+                path.parent.mkdir(exist_ok=True)
+                with zipfile.ZipFile(path, 'w') as archive:
+                    for member in required:
+                        archive.writestr(member, plistlib.dumps({'CFBundleShortVersionString': '1.5.3'})
+                                         if member.endswith('/Info.plist') else b'content')
+            with self.assertRaisesRegex(ValueError, 'Packaged version mismatch'):
                 release.verify_assets(root, '2.0.0')
 
     def test_plan_ignores_docs_and_bumps_source_changes(self):
