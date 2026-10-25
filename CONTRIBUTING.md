@@ -6,7 +6,7 @@ Include the affected model, firmware version, observed behavior and validation r
 
 Start with `python3 Scripts/hardware_support.py --acpi /path/to/tables`. Review the report and tables before sharing them. Include the exact model, BIOS version, macOS version, loaded driver version and the feature you want to support.
 
-A profile must include firmware fingerprints, source evidence, addresses and units, capability requirements and validation status. Similar models are not evidence for shared EC layouts. Do not copy another model's offsets or weaken firmware matching to make an unknown device pass.
+A profile must identify its source evidence, interfaces, units, capability requirements and validation status. Raw-offset bridges also require reviewed firmware fingerprints and addresses. Native named-field telemetry does not require a bridge fingerprint. Similar models are not evidence for shared EC layouts. Do not copy another model's offsets or weaken firmware matching to make an unknown device pass.
 
 Keep hardware values in profiles. Keep wire-format constants in their protocol adapter. Separate sensor support from writable control support. `verified_writes` stays zero until a maintainer has reviewed successful hardware validation and restoration behavior. A DSDT hash match alone never validates a write.
 
@@ -18,7 +18,21 @@ Preserve upstream authorship and license notices. Explain the final behavior and
 
 Do not add machine-specific fallbacks to shared code. Avoid optimistic hardware state, silent failed calls and success messages based only on transport acknowledgement. Errors should say which stage failed, what was requested, what was observed and the next useful action.
 
-Build the affected targets and run relevant checks. A firmware change needs a booted hardware result; an unsigned build is not permission-persistence validation. Runtime testing on one macOS version does not establish support for every version.
+Build the affected targets and run relevant checks. A firmware change needs a booted hardware result; an ad-hoc signed build does not validate permission persistence across updates. Runtime testing on one macOS version does not establish support for every version.
+
+Useful checks:
+
+```sh
+python3 -B -m unittest discover -s Tests -v
+python3 Scripts/generate_firmware_profiles.py --check
+bash Scripts/build.sh Debug
+bash Scripts/build.sh Release
+bash Scripts/package.sh Debug
+bash Scripts/package.sh Release
+python3 Scripts/release.py verify-assets
+```
+
+The Python suite skips ACPI compilation without `iasl`; CI installs it on Linux. Native sanitizer tests require clang++ on macOS/Linux, and PowerShell parser checks require Windows. Document skipped checks.
 
 ## Pull requests
 

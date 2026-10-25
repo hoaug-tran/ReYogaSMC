@@ -13,7 +13,7 @@ Profiles in `HardwareProfiles/` use `schema_version: 1` and are consumed by `Scr
 | :--- | :--- | :--- |
 | `schema_version` | integer | Must be `1` |
 | `kind` | string | `acpi` for system firmware or `rgb` for a USB lighting controller |
-| `id` | string | Unique identifier matching the driver profile table |
+| `id` | string | Unique profile identifier; ACPI entries are included in the generated driver table |
 | `name` | string | Model name shown in the app (for example `Lenovo Legion 7 16ACHg6`) |
 | `sources` | array of strings | References to Linux kernel drivers, PSREF specifications or Lenovo Legion Toolkit |
 | `machine_types` | array of strings | Lenovo 4-character machine type codes (for example `82N6`, `82JQ`, `82WK`) |
@@ -27,6 +27,10 @@ Profiles in `HardwareProfiles/` use `schema_version: 1` and are consumed by `Scr
 | `battery_conservation_mask` | integer | Bitmask for conservation mode in `GBMD`/`SBMC` |
 | `battery_rapidcharge_mask` | integer | Bitmask for rapid charge in `GBMD`/`SBMC` |
 | `native_telemetry` | array of objects | Native ACPI sensor fields (`field` and `scale`) |
+
+ACPI-specific fields do not apply to `rgb` profiles, which describe USB device matching and lighting layout. The supported schemas are enforced by the profile tests and adapters.
+
+For raw-offset bridges, `reviewed_dsdt_hashes` or `reviewed_aml_hashes` identify reviewed firmware, `required_patterns` and `offsets` describe the declarations, and `verified_writes` records write validation. A native telemetry entry alone does not make a bridge eligible for generation. All current ACPI profiles leave manual fan writes disabled.
 
 ## Header generation
 
@@ -42,7 +46,7 @@ python3 Scripts/generate_firmware_profiles.py --check
 Run the profile schema and identity tests:
 
 ```sh
-python3 -m unittest Tests/test_profile_schemas.py Tests/test_firmware_profiles.py
+python3 -B -m unittest Tests.test_profile_schemas Tests.test_firmware_profiles Tests.test_firmware_identity
 ```
 
 Display identity also accepts optional `pci_subsystem_ids` entries (`"17aa:1234"`, lowercase hexadecimal subsystem vendor/device pairs). Only add IDs verified for that model; shared USB/RGB controller IDs do not identify a laptop. Machine types and PCI subsystem IDs do not grant firmware write permission. Ambiguous matches fall back to `Lenovo Laptop`; absent Lenovo evidence falls back to `Unknown Laptop`.

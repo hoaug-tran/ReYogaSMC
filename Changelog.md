@@ -4,30 +4,38 @@
 
 ### Driver
 
-- Gate `ReYogaSMCUserClient` external methods through the provider's `IOCommandGate`, reject calls while `-reysafe` is active, and retire the legacy `kRYSMCUCWriteEC` selector and raw `writeEC` property interface.
-- Add the serialized `kRYSMCUCThinkFan` (`ThinkFanProtocolVersion = 1`) transaction path for ThinkPad dual-fan reads and level writes, with EC register `0x31` selector restoration, readback verification, automatic-mode (`0x84`) restoration on client close, sleep, or driver stop, and explicit `-reyfanstop` opt-in for zero-RPM level `0`.
-- Replace single-digest native profile matching in `IdeaVPC` with `ReYogaFirmware::select` (`FirmwareIdentity.hpp`), resolving profiles from DSDT header/checksum validation, `LENOVO` OEM vendor, OEM table ID, original machine type (`OEMProduct`, `OEMBoard`, Lenovo SMBIOS Type 1, `/options` NVRAM), BIOS family (`OEMBIOSVersion`, SMBIOS Type 0), and model-specific Lenovo PCI subsystem IDs (`17aa:xxxx`), while rejecting conflicting or ambiguous identity evidence.
-- Decouple model identification from sensor availability and write permission: validate each native ACPI telemetry sample (`FANS`, `FA2S`, `CPUT`, `GPUT`) individually with per-sensor WMI fallback, clear failed or out-of-range SMC sensor readings instead of retaining stale values, and require an exact reviewed AML digest match before enabling an installed `RYID` ACPI bridge.
-- Pass an explicit empty `OSData` buffer as `Arg2` for 2-argument ACPI WMI `WMxx` evaluations in `WMI::evaluateMethod` so firmware methods that dereference `Arg2` on reads do not fault, bound `_WDG` descriptor parsing to 256 entries, cap `-reytrace` logging at 128 WMI calls, and silence non-fatal BMF parser warnings at boot.
-- Keep `IdeaVPC` active when `_CFG` is absent by discovering individual ACPI and WMI capabilities, refresh battery, keyboard, and feature state every 4 telemetry cycles (2 seconds), verify `BDVT` conservation updates via readback before updating VirtualSMC state, remove the unimplemented `CH0B` key, and preserve modified CPU power-limit baselines across external power-profile switches until the original profile is restored.
+- Fix the DYTC notification feedback path on ThinkPad T490 (20N3, BIOS 1.85): reading status no longer issues SET commands that generate further `0x6032` notifications. Read current state after writes.
+- Add PSC thermal profiles when firmware advertises PSC without MMC, including T490 BIOS 1.85. Use Quiet/Balanced/Performance levels 3/5/7 before DYTC revision 9 and 1/3/4 from revision 9; preserve lap mode and set PSC Balanced without resetting other thermal functions.
+- Serialize ThinkPad fan transactions, restore the second-fan selector, verify accepted levels and attempt automatic-mode restoration on sleep, client close or driver stop. Fan level zero requires `-reyfanstop`.
+- Restore ThinkPad hotkey state and masks after wake, serialize ACPI notifications with control requests, and check ACPI parameter allocations before issuing commands.
+- Serialize user-client requests, block firmware access in safe mode and disable the legacy raw EC write interfaces.
+- Match native sensor profiles using machine type or declared PCI subsystem IDs together with DSDT identity; reject conflicting matches. Keep sensor availability and write permission separate from model recognition.
+- Validate ACPI sensor values independently with WMI fallback. Failed SMC readings become unavailable; a valid stopped fan remains zero RPM.
+- Support both HP numeric-sensor layouts, decimal modifiers and temperature units. Reject malformed BIOS responses, duplicate sensor keys, fault states and changed sensor types; export consecutive fan indices.
+- Check Lenovo WMI parameter allocations and publish EC monitor state only after firmware accepts the command. Supply all three arguments to WMI methods and bound descriptor parsing and diagnostic traces.
+- Keep generic IdeaPad controls available without Game Zone WMI, verify conservation-mode changes, remove the unimplemented `CH0B` key and preserve saved CPU power limits across external profile changes.
+- Restrict ThinkPad/ECRW sample namespaces to Darwin, serialize byte access and fix the missing namespace declaration in the WMIS sample.
 
 ### Hardware profiles
 
-- Expand the hardware profile catalog to 21 ACPI profiles (`ReYogaFirmwareProfiles.hpp`) covering IdeaPad Gaming 3 (15ARH05, 15ACH6), Legion 5 (15ARH05, 15IMH05, 15ACH6, 15ARH7), Legion 5 Pro (16ACH6H, 16IAH7H), Legion Pro 5 (16ARX8, 16IRX8, 16IRX9), Legion 7 (15IMH05, 16ITHg6, 16ACHg6, 16ARHA7), Legion Pro 7 (16IRX8H, 16IRX9H), LOQ (15APH8, 15IRH8, 15AHP9), and Yoga Slim 7 (14ARE05).
-- Preserve quoted string literals when computing normalized DSL source hashes in `Scripts/hardware_support.py`, and restrict raw-offset SSDT bridge generation to profiles with complete reviewed digests, required patterns, and EC offsets.
+- Expand the catalog to 21 native ACPI profiles for Legion, LOQ, IdeaPad Gaming and Yoga Slim models. See [hardware profiles](HardwareProfiles/README.md) for matching and validation requirements.
+- Preserve quoted strings in source fingerprints. Require reviewed fingerprints and complete bridge data for raw-offset SSDT generation; fan writes still require separate hardware validation.
 
 ### App
 
-- Rename the application target and bundle from `ReYogaSMCNC.app` (`ReYogaSMCNCHelper.app`) to `ReYogaSMC.app` (`ReYogaSMCHelper.app`), migrating saved preferences from previous bundle identifiers on first launch.
-- Redesign the app interface, status bar menu, and OSD overlays with a new theme system (`AppTheme.swift`) and a 6-section sidebar layout (**Overview**, **Device**, **Cooling**, **Battery**, **Lighting**, **Diagnostics**) plus **Settings**, keeping independent `AppleSmartBattery`, `AppleSMC` (`SMCProcessorAMD`, `SMCProcessor`, `SMCRadeonSensors`), and ITE `c968` USB RGB features functional when the VPC kernel service is absent or in safe mode.
-- Add live `AppleSmartBattery` telemetry with a visual charge ring, charging state, current/full-charge/design capacity (mAh), design capacity retention, cycle count, voltage, signed current, power draw, temperature, adapter watt rating, and battery model/serial identifiers.
-- Add a typed `LocalizedKey` catalog with complete English (`en.lproj`) and Vietnamese (`vi.lproj`) localization and in-app language selection covering UI views, OSD notifications, driver capability reasons, and diagnostic summaries.
-- Embed git source revision metadata into `Info.plist` after target plist generation and report app build version, loaded kext build version, firmware match state, and active SMC temperature keys (`TC0E`, `TC0P`, `TG0D`, `TG0P`) in **Diagnostics**.
+- Replace the preference pane with Overview, Device, Cooling, Battery, Lighting and Diagnostics views, plus Settings. Keep independent battery, SMC and USB RGB access available without a VPC connection.
+- Rename `ReYogaSMCNC.app` and its helper to `ReYogaSMC.app` and `ReYogaSMCHelper.app`, migrating existing preferences.
+- Add Bluetooth privacy usage text for the ThinkPad Fn+F10 action.
+- Prefer ThinkVPC over generic HIDD during discovery, limit background ThinkPad firmware refreshes to two seconds and hide IdeaPad bridge tools on ThinkPad.
+- Make speaker mute LED synchronization on wake opt-in through `ThinkMuteLEDFixup`.
+- Preserve fractional CPU/GPU temperatures and display one decimal. Add live battery capacity, health, current, power, temperature and adapter readings.
+- Add English/Vietnamese localization, sentence-case English labels, app/driver version details, firmware match state and local diagnostic export.
 
 ### Packaging and tests
 
-- Retire the duplicate `ReYogaSMCAlter.kext` build target and package `ReYogaSMC-<version>-<CONFIG>.zip` (`ReYogaSMC.kext`) alongside `ReYogaSMC-App-<version>-<CONFIG>.zip` (`ReYogaSMC.app`).
-- Add host-compiled C++ unit tests (`Tests/test_firmware_identity.cpp`, `Tests/test_control_validation.py`) with AddressSanitizer/UndefinedBehaviorSanitizer coverage for SMBIOS parsing, profile selection, sensor bounds, and ThinkPad fan transactions, alongside localization parity and project structure test suites.
+- Remove the Alter target and package the kext and app separately in Debug and Release configurations.
+- Share signing between local builds, packaging and CI. Sign nested libraries and the helper before the app, verify signatures before UI rendering, and reject mixed package versions.
+- Add portable C++ tests with address/undefined-behavior sanitizers, Swift support tests, profile/localization checks and ACPI sample compilation in CI.
 
 ## 2.0.0
 
@@ -58,8 +66,7 @@ First ReYogaSMC release, based on YogaSMC 1.5.3.
 - Provide Windows/macOS hardware-collection scripts in the source repository.
 - Build separate DEBUG and RELEASE ZIPs for the main kext, Alter kext and app.
 - Publish release notes from this changelog and include SHA-256 checksums.
-
-Packages are unsigned.
+- Distribute unsigned packages.
 
 ## 1.5.3 - YogaSMC
 

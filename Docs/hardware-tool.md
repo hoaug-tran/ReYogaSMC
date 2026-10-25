@@ -2,9 +2,9 @@
 
 The tool exports evidence for firmware support and compiles an SSDT when a reviewed profile matches. It does not install tables, edit EFI, write EC registers or invoke arbitrary WMI methods.
 
-## Run
+## Run the tool
 
-Install Python 3.9 or newer. On Windows, open `ReYoga.cmd`; it requests reviewed live getter probes and an EC snapshot. An unavailable backend is recorded as a collection error. On macOS, open `ReYoga.command`; you can enter the path to an ACPI dump or leave it blank for a runtime report. Command-line use works on Windows, macOS and Linux:
+Install Python 3.9 or newer and run from a source checkout. On Windows, open `ReYoga.cmd`; it requests reviewed live getter probes and an EC snapshot. An unavailable backend is recorded as a collection error. On macOS, open `ReYoga.command`; you can enter the path to an ACPI dump or leave it blank for a runtime report. Command-line use works on Windows, macOS and Linux:
 
 ```sh
 python3 Scripts/hardware_support.py --acpi /path/to/tables --model My-Laptop
@@ -26,9 +26,9 @@ python3 Scripts/hardware_support.py --acpi /path/to/tables --model My-Laptop
 
 With no compiler on PATH, Windows downloads the pinned ACPICA iasl executable. On macOS/Linux, the tool downloads verified ACPICA source and builds it. Those hosts need system C build tools installed once. Cache location: `~/.cache/reyoga/acpica`. Source/compiler failures are recorded so the rest of the report can still be reviewed.
 
-## What is exported
+## Export contents
 
-The dated directory and ZIP contain `report.json`, `device-support.md`, copied DSDT/SSDT input and available disassembly. Unrelated tables, including licensing tables, are excluded. Matching firmware also gets `SSDT-ReYoga-<model>.dsl` and compiled AML. The tool never generates a control profile for unmatched firmware.
+The dated directory and ZIP contain `report.json`, `device-support.md`, copied DSDT/SSDT input and available disassembly. Unrelated tables, including licensing tables, are excluded. When fingerprints and required bridge data match a reviewed profile, the export also includes `SSDT-ReYoga-<model>.dsl` and compiled AML. The tool never generates a control profile for unmatched firmware.
 
 Windows inventory also preserves instance data and method parameter directions. Getter results include every returned output field, with failures recorded individually. The collector never invokes methods merely because they have no input parameters.
 
@@ -37,6 +37,8 @@ The report contains table hashes, checksum status, method declarations, literal 
 Literal field offsets identify declarations. They do not establish units, writable semantics or safe values. Dynamic expressions, aliases, banked/indexed fields and incomplete table dumps need review. Unknown firmware still gets an export, with generation marked unmatched.
 
 Windows registry ACPI tables supplement the firmware API, including multiple SSDTs when present. Tables are checked for length and checksum and deduplicated by content. The firmware API cannot retrieve every repeated SSDT by signature. Supply a complete dump when companion SSDTs are required. On Linux, table access can require permission. On macOS, provide the dump or use the app's supported DSDT export.
+
+ThinkPad does not need an IdeaPad/Legion bridge. An unmatched bridge result does not establish that ThinkPad hotkeys, battery thresholds or fan control are unsupported.
 
 ## Live EC values
 
@@ -54,4 +56,4 @@ Read the export before publishing it. Device IDs, local paths and firmware table
 
 Describe the exact model and BIOS, the feature, expected/actual behavior and AC/battery or sleep/wake differences. Do not repeat a command that caused shutdown. A maintainer must review field meaning and write safety before enabling a new control.
 
-Source and contribution guidance: https://github.com/hoaug-tran/ReYogaSMC
+For profile review and code changes, see [contributing](../CONTRIBUTING.md).

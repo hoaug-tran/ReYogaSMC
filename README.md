@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/hoaug-tran/ReYogaSMC)](https://github.com/hoaug-tran/ReYogaSMC/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL--2.0-blue)](LICENSE)
 
-Kernel extension (`ReYogaSMC.kext`), macOS app (`ReYogaSMC.app`), and hardware support tool for Lenovo ThinkPad, IdeaPad, Yoga, LOQ, and Legion laptops on macOS.  
+Hackintosh ACPI/WMI kernel extension and VirtualSMC plugin (`ReYogaSMC.kext`), macOS app (`ReYogaSMC.app`), and hardware support tool for Lenovo ThinkPad, IdeaPad, Yoga, LOQ, and Legion laptops, with HP WMI sensor/event support.
 Forked from [YogaSMC 1.5.3](https://github.com/zhen-zen/YogaSMC).
 
 [Releases](https://github.com/hoaug-tran/ReYogaSMC/releases/latest) - [Actions builds](https://github.com/hoaug-tran/ReYogaSMC/actions/workflows/main.yml) - [Hardware profiles](HardwareProfiles) - [Compatibility](Docs/compatibility.md) - [Hardware tool](Docs/hardware-tool.md)
@@ -20,7 +20,7 @@ Forked from [YogaSMC 1.5.3](https://github.com/zhen-zen/YogaSMC).
 
 ## Overview
 
-ReYogaSMC connects Lenovo ACPI (`VPC0` and `HKEY`), Lenovo WMI (`PNP0C14`), `AppleSmartBattery`, `AppleSMC`, and ITE USB RGB controllers to macOS. Control requests run through the driver's `IOCommandGate`, check firmware capability flags, and read back hardware state before reporting success.
+ReYogaSMC connects Lenovo ACPI (`VPC0` and `HKEY`), Lenovo WMI (`PNP0C14`), `AppleSmartBattery`, `AppleSMC`, and ITE USB RGB controllers to macOS. App hardware-control requests are serialized by the driver, checked against available firmware interfaces and verified through readback.
 
 <p align="center">
   <img src="Assets/Screenshots/overview.png" alt="ReYogaSMC overview" width="860">
@@ -34,9 +34,9 @@ Available controls and sensors depend on what the laptop's firmware and connecte
 
 | Interface | Provider | Supported features |
 | :--- | :--- | :--- |
-| **ThinkPad ACPI** | `ThinkVPC` (`LEN0068` / `LEN0268` `HKEY`) | Fn hotkeys, Fn Lock, keyboard backlight, battery start/stop charge thresholds (`BCTG`/`BCCS`/`BCSG`/`BCSS`), inhibit charge, force discharge, DYTC thermal profiles, mute/mic-mute LEDs, and serialized dual-fan EC control (`kRYSMCUCThinkFan`) |
-| **IdeaPad / Yoga / Legion / LOQ ACPI** | `IdeaVPC` (`VPC0`) | Battery conservation mode (`GBMD`/`SBMC`), rapid charge, keyboard backlight (`HALS`/`SLBL`), Fn Lock, Always-On USB, native ACPI EC sensors (`FANS`, `FA2S`, `CPUT`, `GPUT`), and reviewed `RYID` ACPI bridge support |
-| **Lenovo Game Zone WMI** | `IdeaWMIGameZone` | Thermal modes (`Quiet`, `Balanced`, `Performance`), `Fn+Q` full-speed cooling, opt-in CPU boost and sustained power limits (`-reycpupower`), display overdrive, touchpad lock, Win key lock, Y-logo LED, rear port lighting, and WMI sensor fallback |
+| **ThinkPad ACPI** | `ThinkVPC` (`LEN0068` / `LEN0268` `HKEY`) | Fn hotkeys, Fn Lock, keyboard backlight, battery start/stop charge thresholds (`BCTG`/`BCCS`/`BCSG`/`BCSS`), inhibit charge, force discharge, DYTC thermal profiles (`MMC` and `PSC`), mute/mic-mute LEDs, and serialized dual-fan EC control (`kRYSMCUCThinkFan`) |
+| **IdeaPad / Yoga / Legion / LOQ ACPI** | `IdeaVPC` (`VPC0`) | Battery conservation mode (`GBMD`/`SBMC`), rapid charge, keyboard backlight (`HALS`/`SLBL`), Fn Lock, Always-on USB, native ACPI EC sensors (`FANS`, `FA2S`, `CPUT`, `GPUT`), and reviewed `RYID` ACPI bridge support |
+| **Lenovo Game Zone WMI** | `IdeaWMIGameZone` | Thermal modes (`Quiet`, `Balanced`, `Performance`), full-speed fan control, opt-in CPU boost and sustained power limits (`-reycpupower`), display overdrive, touchpad lock, Win key lock, Y-logo LED, rear port lighting, and WMI sensor fallback |
 | **Intel HID / HP WMI** | `ReYogaHIDD` (`INT33D5`), `DYVPC` | HID DSM Fn hotkeys, Yoga mode events, and HP WMI thermal/event sensors |
 | **Smart battery** | `AppleSmartBattery` | Charge percentage, charging state, current/full-charge/design capacity (mAh), design health percentage, cycle count, voltage (V), signed current (mA), power draw (W), temperature (°C), and AC adapter watt rating |
 | **SMC sensors** | `AppleSMC` | Read-only CPU (`TC0E`, `TC0P`, `TC0D`, `TC0F`, `TC0C`, `TC1C`, `TCSA`) and GPU (`TG0D`, `TG0P`, `TG0E`) temperature keys |
@@ -55,8 +55,8 @@ ReYogaSMC supports two categories of Lenovo laptops:
 
 Most Lenovo laptops **do not need** a profile file in [`HardwareProfiles/`](HardwareProfiles):
 
-- **ThinkPad series (T, X, X1 Carbon, P, L, E, etc.):** Controlled dynamically through standard ThinkPad `HKEY` ACPI methods (`ThinkVPC`). Battery charge thresholds, Fn hotkeys, Fn Lock, keyboard backlight, DYTC thermal modes, and ThinkPad fan control work across generations without per-model JSON profiles.
-- **Yoga, IdeaPad, and older Lenovo laptops:** Controlled through standard `VPC0` ACPI methods (`IdeaVPC`) and Lenovo WMI (`IdeaWMI`). Battery conservation mode (`GBMD`/`SBMC`), rapid charge, keyboard backlight (`HALS`/`SLBL`), Fn Lock, Always-On USB, hotkeys, and WMI thermal modes work automatically on any laptop whose DSDT exposes those standard methods.
+- **ThinkPad series (T, X, X1 Carbon, P, L, E, etc.):** Controlled dynamically through standard ThinkPad `HKEY` ACPI methods (`ThinkVPC`). Battery charge thresholds, Fn hotkeys, Fn Lock, keyboard backlight, DYTC thermal modes and fan control use the available firmware interfaces without per-model JSON profiles. Individual features can still be unavailable.
+- **Yoga, IdeaPad, and older Lenovo laptops:** Controlled through standard `VPC0` ACPI methods (`IdeaVPC`) and Lenovo WMI (`IdeaWMI`). Battery conservation mode (`GBMD`/`SBMC`), rapid charge, keyboard backlight (`HALS`/`SLBL`), Fn Lock, Always-on USB, hotkeys and thermal modes depend on the advertised methods and successful readback.
 
 ### 2. Legion, LOQ, IdeaPad Gaming, and Yoga Slim profiles
 
@@ -69,47 +69,47 @@ On newer Lenovo gaming and consumer laptops, fan speeds (`FANS`, `FA2S`) and EC 
 
 | Profile ID | Model name | Machine types | BIOS families | EC path |
 | :--- | :--- | :--- | :--- | :--- |
-| `ideapad_gaming_3_15arh05` | IdeaPad Gaming 3 15ARH05 | `82EY` | `FCCN` | `\_SB.PCI0.LPC0.EC0` |
-| `ideapad_gaming_3_15ach6` | IdeaPad Gaming 3 15ACH6 | `82K2`, `82MJ` | `H3CN` | `\_SB.PCI0.LPC0.EC0` |
-| `legion_5_15arh05` | Legion 5 15ARH05 / 15ARH05H / R7000P2020H | `82B5`, `82B1`, `82GN` | `EUCN`, `FSCN` | `\_SB.PCI0.LPC0.EC0` |
-| `legion_5_15imh05` | Legion 5 15IMH05 / 15IMH05H / 17IMH05H | `82AU`, `81Y6`, `81Y8` | `EFCN` | `\_SB.PCI0.LPCB.EC0` |
-| `legion_5_15ach6` | Legion 5 15ACH6 / 15ACH6A / 15ACH6H / 17ACH6H | `82JW`, `82NW`, `82JU`, `82K0` | `HHCN`, `GKCN` | `\_SB.PCI0.LPC0.EC0` |
-| `legion_5_15arh7` | Legion 5 15ARH7 / 15ARH7H | `82RE`, `82RD` | `JUCN` | `\_SB.PCI0.LPC0.EC0` |
-| `legion_5_pro_16ach6h` | Legion 5 Pro 16ACH6H / R9000P2021H | `82JQ`, `82GR` | `GKCN` | `\_SB.PCI0.LPC0.EC0` |
-| `legion_5_pro_16iah7h` | Legion 5 Pro 16IAH7H / 5 15IAH7H | `82RF`, `82RB` | `K1CN` | `\_SB.PC00.LPCB.EC0` |
-| `legion_7_15imh05` | Legion 7 15IMH05 / S7 15IMH5 | `81YT`, `82BC` | `E9CN`, `F5CN` | `\_SB.PCI0.LPCB.EC0` |
-| `legion_7_16achg6` | Legion 7 16ACHg6 / R9000K2021H (`17aa:3801`/`3802`/`3803`/`381b`) | `82N6`, `82K6` | `GKCN` | `\_SB.PCI0.LPC0.EC0` |
-| `legion_7_16ithg6` | Legion 7 16ITHg6 / S7 16IAH7 | `82K8`, `82TF` | `H1CN`, `JYCN` | `\_SB.PC00.LPCB.EC0` |
-| `legion_7_16arha7` | Legion 7 16ARHA7 / Slim 7 16ARHA7 | `82UH`, `82UG` | `K9CN` | `\_SB.PCI0.LPC0.EC0` |
-| `legion_pro_5_16arx8` | Legion Pro 5 16ARX8 / Pro 7 16ARX8H | `82WM`, `82WS` | `LPCN` | `\_SB.PCI0.LPC0.EC0` |
-| `legion_pro_5_16irx8` | Legion Pro 5 16IRX8 / Slim 5 16IRH8 | `82WK`, `82YA` | `KWCN`, `M2CN` | `\_SB.PC00.LPCB.EC0` |
-| `legion_pro_5_16irx9` | Legion Pro 5 16IRX9 / Legion 7 16IRX9 | `83DF`, `83FD` | `N0CN`, `N9CN` | `\_SB.PC00.LPCB.EC0` |
-| `legion_pro_7_16irx8h` | Legion Pro 7 16IRX8H | `82WQ` | `KWCN` | `\_SB.PC00.LPCB.EC0` |
-| `legion_pro_7_16irx9h` | Legion Pro 7 16IRX9H | `83DE` | `N2CN` | `\_SB.PC00.LPCB.EC0` |
-| `loq_15aph8` | LOQ 15APH8 / Legion Slim 5 16APH8 | `82XT`, `82Y9` | `LYCN`, `M3CN` | `\_SB.PCI0.LPC0.EC0` |
-| `loq_15irh8` | LOQ 15IRH8 / 16IRH8 | `82XV`, `82XW` | `LZCN` | `\_SB.PC00.LPCB.EC0` |
-| `loq_15ahp9` | LOQ 15AHP9 / Legion Slim 5 16AHP9 | `83DX`, `83DH` | `NZCN`, `NRCN` | `\_SB.PCI0.LPC0.EC0` |
-| `yoga_slim_7_14are05` | Yoga Slim 7 14ARE05 / IdeaPad 5 15ARE05 | `82A2`, `81YQ` | `DMCN`, `E7CN` | `\_SB.PCI0.LPC0.EC0` |
+| `ideapad-gaming3-gen5` | Lenovo IdeaPad Gaming 3 15ARH05 | `82EY` | `FCCN` | `\_SB.PCI0.LPC0.EC0` |
+| `ideapad-gaming3-gen6` | Lenovo IdeaPad Gaming 3 15ACH6 | `82K2`, `82K1` | `H3CN` | `\_SB.PCI0.LPC0.EC0` |
+| `legion-pro5-gen8-arh` | Lenovo Legion Pro 5 16ARX8 | `82WM`, `82WQ` | `LPCN` | `\_SB.PCI0.LPC0.EC0` |
+| `legion-pro5-gen8-irx` | Lenovo Legion Pro 5 16IRX8 | `82WK`, `82WL` | `KWCN` | `\_SB.PC00.LPCB.EC0` |
+| `legion-pro5-gen9-irx` | Lenovo Legion Pro 5 16IRX9 | `83DF` | `N2CN` | `\_SB.PC00.LPCB.EC0` |
+| `legion-pro7-gen8-irx` | Lenovo Legion Pro 7 16IRX8H | `82WQ`, `82WR` | `KWCN` | `\_SB.PC00.LPCB.EC0` |
+| `legion-pro7-gen9-irx` | Lenovo Legion Pro 7 16IRX9 | `83FD` | `NSCN` | `\_SB.PC00.LPCB.EC0` |
+| `legion5-gen5-ach` | Lenovo Legion 5 15ARH05 | `82B5`, `82B1`, `82EY`, `82GN` | `EUCN`, `FSCN` | `\_SB.PCI0.LPC0.EC0` |
+| `legion5-gen5-imh` | Lenovo Legion 5 15IMH05 | `81Y6`, `82AU`, `82B3`, `81Y8` | `EFCN`, `E9CN` | `\_SB.PCI0.LPC0.EC0` |
+| `legion5-gen6-ach` | Lenovo Legion 5 15ACH6 | `82JW`, `82JU`, `82NW` | `GKCN`, `HHCN` | `\_SB.PCI0.LPC0.EC0` |
+| `legion5-gen7-arh` | Lenovo Legion 5 15ARH7 | `82RE`, `82RD` | `JUCN`, `K9CN` | `\_SB.PCI0.LPC0.EC0` |
+| `legion5pro-gen6-ach` | Lenovo Legion 5 Pro 16ACH6H | `82JQ`, `82JS` | `GKCN` | `\_SB.PCI0.LPC0.EC0` |
+| `legion5pro-gen7-iah` | Lenovo Legion 5 Pro 16IAH7H | `82RF`, `82RG` | `J2CN`, `KFCN` | `\_SB.PC00.LPCB.EC0` |
+| `legion7-16achg6-gkcn` | Lenovo Legion 7 2021 16ACHg6 | `82N6` | `GKCN` | `\_SB.PCI0.LPC0.EC0` |
+| `legion7-gen5-imh` | Lenovo Legion 7 15IMH05 | `81YT`, `81YU` | `E9CN` | `\_SB.PCI0.LPC0.EC0` |
+| `legion7-gen6-ith` | Lenovo Legion 7 16ITHg6 | `82K6` | `H1CN` | `\_SB.PC00.LPCB.EC0` |
+| `legion7-gen7-arh` | Lenovo Legion 7 16ARHA7 | `82UH` | `K9CN` | `\_SB.PCI0.LPC0.EC0` |
+| `loq-gen8-aph` | Lenovo LOQ 15APH8 | `82XT` | `LYCN` | `\_SB.PCI0.LPC0.EC0` |
+| `loq-gen8-irh` | Lenovo LOQ 15IRH8 | `82XV`, `82XW`, `82XU` | `LZCN` | `\_SB.PC00.LPCB.EC0` |
+| `loq-gen9-ahp` | Lenovo LOQ 15AHP9 | `83DX`, `83DV`, `83JC` | `NECN` | `\_SB.PCI0.LPC0.EC0` |
+| `yoga-slim7-gen5` | Lenovo Yoga Slim 7 14ARE05 | `82A2`, `82A8` | `DMCN`, `EMCN` | `\_SB.PCI0.LPC0.EC0` |
 
 > [!IMPORTANT]
-> Matching a hardware profile enables read-only ACPI sensor polling (`FANS`, `FA2S`, `CPUT`, `GPUT`) with automatic per-sensor fallback to WMI if an ACPI field returns an invalid reading. Matching a model never enables raw EC writes.
+> The table reflects the JSON catalog, not a certification of every model/BIOS combination. Matching enables validated sensor reads with per-sensor WMI fallback. Manual fan writes require separate validation; all current ACPI profiles leave them disabled.
 
 ---
 
 ## Temperature sensors
 
-ReYogaSMC reads temperatures from Lenovo firmware (`CPUT`, `GPUT`, or Game Zone WMI) when available, and falls back to `AppleSMC` keys provided by VirtualSMC sensor plugins:
+The app preserves fractional readings and displays one decimal, such as `55.5 °C`. A sensor that reports only whole degrees appears as `55.0 °C`.
 
-| Sensor | Required kext or source | SMC keys / firmware fields | Notes |
+The app prefers valid CPU/GPU readings from `AppleSMC` and falls back to driver firmware readings (`CPUT`, `GPUT` or Game Zone WMI). Available sources include:
+
+| Sensor | Kext or firmware source | SMC keys / firmware fields | Notes |
 | :--- | :--- | :--- | :--- |
 | **AMD Ryzen CPU** | [**SMCProcessorAMD.kext**](https://github.com/trulyspinach/SMCAMDProcessor) | `TC0E`, `TC0P`, `TC0D`, `TC0F` | Needed on AMD Ryzen laptops when ACPI EC `CPUT` or WMI CPU temperature is unavailable |
 | **Intel CPU** | [**SMCProcessor.kext**](https://github.com/acidanthera/VirtualSMC) | `TC0P`, `TC0D`, `TC0C`, `TC1C`, `TCSA` | Included in the official VirtualSMC release archive |
 | **AMD Radeon iGPU / dGPU** | [**SMCRadeonSensors.kext**](https://github.com/ChefKissInc/SMCRadeonSensors) | `TG0D`, `TG0P`, `TG0E` | Needed to read AMD Radeon iGPU and dGPU temperatures through `AppleSMC` |
-| **NVIDIA dGPU** | Firmware EC (`GPUT`) / WMI only | `GPUT` | Not supported when the dGPU is disabled or patched with [`nullmoth/nvidia-macos-driver`](https://github.com/nullmoth/nvidia-macos-driver) |
+| **NVIDIA dGPU** | Firmware EC / WMI | `GPUT` | Depends on firmware and whether the GPU is powered |
 
-> [!WARNING]
-> **NVIDIA dGPU temperature:**  
-> Laptops that disable the NVIDIA discrete GPU via ACPI (`_OFF`), boot arguments (`-wegnoegpu`), or [`nullmoth/nvidia-macos-driver`](https://github.com/nullmoth/nvidia-macos-driver) do not expose an active NVIDIA temperature sensor to `AppleSMC`, and the embedded controller's `GPUT` field reads `0 °C`. ReYogaSMC treats `0 °C` as an inactive sensor and shows `Unavailable` instead of a fake value.
+A powered-off GPU may have no valid temperature source. Zero or invalid readings are shown as unavailable; installing a graphics driver does not establish EC sensor support.
 
 ---
 
@@ -126,12 +126,12 @@ ReYogaSMC reads temperatures from Lenovo firmware (`CPUT`, `GPUT`, or Game Zone 
 | <img src="Assets/Screenshots/diagnostics.png" alt="Diagnostics" width="420"> | <img src="Assets/Screenshots/settings.png" alt="Settings" width="420"> |
 
 - **Overview:** CPU/GPU temperatures, fan speeds, battery charge ring, thermal mode selector (`Quiet`, `Balanced`, `Performance`), and quick hardware toggles.
-- **Device:** Battery conservation mode (~55–60% limit), rapid charge, display overdrive, touchpad lock, Win key lock, Fn Lock, Always-On USB, and custom action mapping for Lenovo Fn hotkeys (`Bluetooth`, `Search`, `Siri`, `Sleep`, `Mic`, `Second Display`, or launching an app/script).
-- **Cooling:** Thermal mode switching, `Fn+Q` full-speed cooling toggle, manual fan minimum RPM (when a validated v2 ACPI bridge is active), and opt-in WMI CPU boost / sustained power limits.
+- **Device:** Battery conservation mode (firmware-defined charge limit), rapid charge, display overdrive, touchpad lock, Win key lock, Fn Lock, Always-on USB, and custom action mapping for Lenovo Fn hotkeys (`Bluetooth`, `Search`, `Siri`, `Sleep`, `Mic`, `Second Display`, or launching an app/script).
+- **Cooling:** Thermal mode switching, full-speed fan toggle, manual fan minimum RPM (when a validated v2 ACPI bridge is active), and opt-in WMI CPU boost / sustained power limits.
 - **Battery:** Live `AppleSmartBattery` charge level, design health, cycle count, capacity breakdown (current / full-charge / design mAh), voltage, current, wattage, temperature, and adapter rating.
 - **Lighting:** Keyboard backlight levels, Y-logo LED, rear port lighting, and USB RGB controls for supported ITE `c968` controllers.
 - **Diagnostics:** Firmware profile match state, DSDT SHA-256 and OEM table ID, machine type and BIOS family, active temperature/fan sources (`Native ACPI`, `WMI`, `SMCProcessorAMD`, `SMCRadeonSensors`), per-feature availability reasons, and local diagnostic export.
-- **Settings and OSD:** Native macOS on-screen display (OSD) popups for thermal modes, keyboard backlight, Fn Lock, touchpad, mic/camera, and Caps Lock, plus startup registration, update checks, and in-app language selection (`System`, `English`, `Tiếng Việt`).
+- **Settings and OSD:** App on-screen display (OSD) popups for thermal modes, keyboard backlight, Fn Lock, touchpad, mic/camera, and Caps Lock, plus startup registration, update checks, and in-app language selection (`System`, `English`, `Tiếng Việt`).
 
 ---
 
@@ -161,12 +161,12 @@ Copy `ReYogaSMC.kext` to `EFI/OC/Kexts` and order `Kernel -> Add` in `config.pli
 
 1. `Lilu.kext`
 2. `VirtualSMC.kext`
-3. `SMCProcessorAMD.kext` (for AMD Ryzen CPUs) or `SMCProcessor.kext` (for Intel CPUs)
-4. `SMCRadeonSensors.kext` (for AMD Radeon iGPUs/dGPUs)
-5. `ReYogaSMC.kext`
+3. `ReYogaSMC.kext`
+
+CPU/GPU sensor plugins are optional temperature sources. Load them after their dependencies; they are not required for ReYogaSMC hotkeys or battery controls.
 
 > [!IMPORTANT]
-> Release and CI builds are unsigned. Keep a working recovery EFI on a USB drive when updating kexts.
+> Release and CI kexts are unsigned; the app and embedded helper are ad-hoc signed. Keep a working recovery EFI on a USB drive when updating kexts.
 
 ### 3. Install the app
 
@@ -184,47 +184,68 @@ Add any of the following flags to `boot-args` in `config.plist` when troubleshoo
 | :--- | :--- |
 | `-reysafe` | Start `ReYogaSMC.kext` in safe mode: skip ACPI/WMI hardware probes and block all firmware writes |
 | `-reynobridge` | Disable native ACPI profile matching and `RYID` SSDT bridge discovery; use generic ACPI/WMI only |
-| `-reynowmi` | Skip vendor WMI probing on `IdeaVPC` |
+| `-reynowmi` | Disable vendor WMI probing, including IdeaVPC and HP WMI interfaces |
 | `-reycpupower` | Enable opt-in WMI CPU boost and sustained power-limit controls on supported Legion firmware |
 | `-reyfanstop` | Allow ThinkPad manual fan level `0` (`0 RPM`) through `kRYSMCUCThinkFan` |
-| `-reydump` | Enable diagnostic EC read (`readEC`) and dump properties |
 | `-reytrace` | Log ACPI/WMI method entry and exit markers (capped at 128 WMI calls) |
-| `-reytel` | Increase periodic telemetry debug logging in Debug builds |
-| `reyec=<ms>` | Set the `IdeaVPC` telemetry polling interval in milliseconds (`500`–`10000`, default `2000`) |
 
 ---
 
 ## Troubleshooting
 
 ### 1. CPU or GPU temperature shows `Unavailable`
+
 - **AMD CPU temperature missing:** Load `SMCProcessorAMD.kext` after `VirtualSMC.kext`. Check **Diagnostics → Telemetry sources** to confirm `CPU Temperature` uses `SMCProcessorAMD / TC0E` (or `TC0P`).
 - **AMD GPU temperature missing:** Load `SMCRadeonSensors.kext`. Check **Diagnostics → Telemetry sources** to confirm `GPU Temperature` uses `SMCRadeonSensors / TG0D`.
-- **NVIDIA dGPU temperature missing:** Expected when the NVIDIA dGPU is disabled via SSDT/`-wegnoegpu` or patched with [`nullmoth/nvidia-macos-driver`](https://github.com/nullmoth/nvidia-macos-driver). When the dGPU is off or uninitialized, `GPUT` returns `0` and is ignored.
+- **NVIDIA dGPU temperature missing:** Check whether the GPU is powered and whether firmware supplies a valid `GPUT`/WMI reading. A missing firmware sensor cannot be supplied by ReYogaSMC.
 
 ### 2. Profile match state shows `identity_unavailable` or `conflict`
+
 - OpenCore setups that spoof a Mac SMBIOS (`MacBookPro16,1`, etc.) replace SMBIOS Type 0 and Type 1 strings unless original OEM fields are preserved.
 - On models with verified Lenovo PCI subsystem IDs in `HardwareProfiles/` (such as Legion 7 16ACHg6), `ReYogaSMC` matches the board's PCI subsystem ID (`17aa:xxxx`) together with the DSDT OEM table ID (`pci_matched`).
 - For other models in `HardwareProfiles/` when SMBIOS is spoofed, expose the original 4-character Lenovo machine type and BIOS family prefix in `/efi/platform` or NVRAM (`OEMProduct` and `OEMBIOSVersion`), or export diagnostics so your DSDT SHA-256 digest can be reviewed.
 - If `ProfileMatchState` is `conflict`, two identity sources on the system disagree (for example, an injected `OEMProduct` does not match the board's PCI subsystem ID). Remove the mismatched property.
 
 ### 3. Manual fan minimum RPM is disabled on IdeaPad or Legion
-- Standard Lenovo WMI and native ACPI profiles provide fan RPM readings and preset thermal modes (`Quiet`, `Balanced`, `Performance`, and `Fn+Q` full-speed cooling), but do not expose a safe generic manual RPM floor register.
+
+- Available ACPI/WMI interfaces may provide RPM readings, preset thermal modes and a separate full-speed fan toggle. These do not establish a safe generic manual RPM floor register.
 - Manual fan minimum RPM controls (`Fan1TargetRPM`, `Fan2TargetRPM`) are enabled only when a reviewed v2 ACPI bridge (`RYID = 0x52590102`) with hardware-validated writes (`RYVW = 1`) matches your exact DSDT SHA-256 fingerprint.
 
 ### 4. CPU power limits are locked after switching thermal mode
+
 - When `CPUBoostPower` or `CPUSustainedPower` is changed (with `-reycpupower` enabled), the driver records the active thermal profile in `CPUPowerPendingProfile`.
 - If the thermal profile changes outside the app (such as pressing `Fn+Q`), the driver locks power-limit edits until you switch back to the recorded profile and restore its saved values.
 
-### 5. ThinkPad manual fan control is disabled
-- ThinkPad dual-fan access writes EC register `0x31` to select the second fan and restores `0x31` before finishing. If restoring `0x31` fails during a transaction, the driver sets `ThinkFanAccessFailed = true` and disables further fan writes until reboot so later EC reads cannot hit the wrong bank.
+### 5. ThinkPad fan control and ACPI bridge generation
 
-### 6. Hotkeys, Fn keys, or Caps Lock OSD do not work
+- ThinkPad laptops do not use `HardwareProfiles/*.json` or `SSDT-ReYoga` bridges. The app hides **Generate ACPI bridge** when connected to ThinkVPC.
+- ThinkPad fan speeds and manual levels (`Auto`, `Full Speed`, and levels `1`–`7`) are controlled in **Cooling → ThinkPad Fans** through the `ThinkFanProtocolVersion = 1` user client (`kRYSMCUCThinkFan`), which requires a `PNP0C09` EC device with `RW` access.
+- If EC access is Basic or RO, check the real EC path and the `RE1B`/`WE1B` methods. Adapt [SSDT-ECRW.dsl](ReYogaSMC/SSDTSample/SSDT-ECRW.dsl) only after checking existing battery patches for field/method conflicts. ECEnabler alone does not add these methods.
+- On dual-fan ThinkPads, the driver writes EC register `0x31` to select the second fan and restores `0x31` before finishing. If restoring `0x31` fails during a transaction, the driver sets `ThinkFanAccessFailed = true` and disables further fan access until reboot so later EC reads cannot hit the wrong bank.
+
+### 6. Hotkeys, Fn keys, Bluetooth toggle, or Caps Lock OSD do not work
+
 - Keep `ReYogaSMC.app` in `/Applications/ReYogaSMC.app`.
-- Enable **Accessibility** and **Input Monitoring** for `ReYogaSMC` in **System Settings → Privacy & Security**.
-- Because unsigned builds change their ad-hoc signature when rebuilt or updated, macOS TCC stops trusting previous permissions after replacing the app. Remove `ReYogaSMC` from **Accessibility** and **Input Monitoring** (or toggle both switches off and back on), then reopen the app.
+- Enable **Accessibility** and **Input Monitoring** for `ReYogaSMC` in **System Settings → Privacy & Security** (and allow **Bluetooth** access when using the `Fn+F10` Bluetooth hotkey).
+- Because ad-hoc signed builds change their signature when rebuilt or updated, macOS may require privacy approval again after replacing the app. Remove `ReYogaSMC` from **Accessibility** and **Input Monitoring** (or toggle both switches off and back on), then reopen the app.
 
 ### 7. Start with macOS shows `Approve ReYogaSMC in System Settings → Login Items`
-- On macOS 13 and newer, `SMAppService` registers the login item and waits for user approval in **System Settings → General → Login Items**.
+
+- On macOS 13 and newer, `SMAppService` registers the login item and waits for user approval in **System Settings → General → Login Items**. `Scripts/build.sh` and `Scripts/package.sh` ad-hoc sign `ReYogaSMC.app` to avoid shipping an unsigned bundle. Ad-hoc signing alone does not establish that login registration or permission persistence works on every macOS release. If registration still fails, install the app in `/Applications`, check Login Items approval, and collect diagnostics; use `Scripts/sign-app.sh` with a persistent signing identity for updates.
+
+### 8. Windows hardware tool (`ReYoga.cmd`) reports that EC read is unavailable
+
+- Windows blocks raw I/O port `0x62`/`0x66` access from unprivileged processes. Collecting a live 256-byte EC snapshot on Windows (`--ec-read`) is optional and requires the signed [PawnIO driver](https://pawnio.eu/) installed with Administrator privileges.
+- Standard ACPI table dumps (`DSDT.aml`, `SSDT*.aml`) and WMI inventory on Windows work without PawnIO or EC read access.
+
+---
+
+## Compatibility limits
+
+- T490 BIOS 1.85 provides the PSC interface used by the thermal-profile fix. Thermal modes, Fn+F10, login registration, performance and lid sleep still need validation with the updated app and kext on that machine. Removing the DYTC feedback path does not establish the cause of a graphics panic.
+- Some X1 Carbon Gen 6 firmware rejects Quiet mode. Older MMC firmware may hide the active profile during lap mode; polling does not change lap mode to reveal it.
+- Legion/LOQ support depends on firmware capabilities and the matching profile. A similar model name does not justify reusing register offsets.
+- HP support covers the implemented WMI sensor/event interfaces, not every HP generation or the separate Elite x2 brightness interface. See [compatibility](Docs/compatibility.md) for sensor formats and unsupported cases.
 
 ---
 
@@ -260,9 +281,9 @@ bash Scripts/package.sh Release
   ```
 - Run the test suite:
   ```sh
-  python3 -m unittest discover -s Tests -v
+  python3 -B -m unittest discover -s Tests -v
   ```
-- Sign the app with a local or Developer ID certificate so macOS keeps Accessibility and Input Monitoring permissions across updates:
+- Sign the app with a local or Developer ID certificate using the same identity for subsequent builds to reduce repeated privacy prompts:
   ```sh
   bash Scripts/sign-app.sh 'Developer ID Application: Your Name (TEAMID)' build/Release
   ```
