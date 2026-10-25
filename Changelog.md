@@ -33,6 +33,8 @@
 
 ### Packaging and tests
 
+- Read and write support-tool text as UTF-8 on every platform, including Windows localization checks. Run all platform tests before building and publishing; a failed test no longer cancels the other test platforms.
+
 - Remove the Alter target and package the kext and app separately in Debug and Release configurations.
 - Share signing between local builds, packaging and CI. Sign nested libraries and the helper before the app, verify signatures before UI rendering, and reject mixed package versions.
 - Add portable C++ tests with address/undefined-behavior sanitizers, Swift support tests, profile/localization checks and ACPI sample compilation in CI.

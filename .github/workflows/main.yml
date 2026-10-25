@@ -10,25 +10,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  plan:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      publish: ${{ steps.version.outputs.publish }}
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - id: version
-        run: python3 Scripts/release.py plan
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: release-plan
-          path: build/release-plan.json
-          if-no-files-found: error
-  support-tool:
+  test:
+    name: Test (${{ matrix.os }})
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -47,15 +32,20 @@ jobs:
       - name: Test support tools and release policy
         run: python -B -m unittest discover -s Tests -p "test_*.py"
   build:
-    needs: plan
+    name: Build and package
+    needs: test
     runs-on: macos-latest
-    env:
-      BUILD_VERSION: ${{ needs.plan.outputs.version }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Plan release
+        id: version
+        run: python3 Scripts/release.py plan
       - name: Bootstrap locked dependencies
         run: bash Scripts/bootstrap.sh
       - name: Check support adapters
@@ -66,6 +56,8 @@ jobs:
           REYOGA_LOCALIZATION_ROOT="$PWD" build/SupportTests
           clang++ -std=c++14 -fsyntax-only Tests/control_validation.cpp
       - name: Build Debug and Release
+        env:
+          BUILD_VERSION: ${{ steps.version.outputs.version }}
         run: |
           xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Debug CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO > build/debug.log 2>&1 || { tail -n 100 build/debug.log; exit 1; }
           xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Release CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO > build/release.log 2>&1 || { tail -n 100 build/release.log; exit 1; }
@@ -81,6 +73,8 @@ jobs:
           build/Debug/ReYogaSMC.app/Contents/MacOS/ReYogaSMC --render-ui
           test "$(find build/ReYogaUIReview -name '*.png' | wc -l | tr -d ' ')" -eq 26
       - name: Package
+        env:
+          BUILD_VERSION: ${{ steps.version.outputs.version }}
         run: |
           bash Scripts/package.sh Debug
           bash Scripts/package.sh Release
@@ -95,11 +89,14 @@ jobs:
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: ReYogaSMC-development
-          path: build/packages/
+          path: |
+            build/packages/
+            build/release-plan.json
           if-no-files-found: error
   release:
-    needs: [plan, support-tool, build]
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.plan.outputs.publish == 'true'
+    name: Publish release
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.build.outputs.publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -110,16 +107,12 @@ jobs:
           fetch-depth: 0
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
-          name: release-plan
-          path: build/
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
           name: ReYogaSMC-development
-          path: build/packages/
+          path: build/
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
         run: |
           set -euo pipefail
           tag="v$RELEASE_VERSION"
