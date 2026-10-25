@@ -11,7 +11,7 @@
 - Pass an explicit empty `OSData` buffer as `Arg2` for 2-argument ACPI WMI `WMxx` evaluations in `WMI::evaluateMethod` so firmware methods that dereference `Arg2` on reads do not fault, bound `_WDG` descriptor parsing to 256 entries, cap `-reytrace` logging at 128 WMI calls, and silence non-fatal BMF parser warnings at boot.
 - Keep `IdeaVPC` active when `_CFG` is absent by discovering individual ACPI and WMI capabilities, refresh battery, keyboard, and feature state every 4 telemetry cycles (2 seconds), verify `BDVT` conservation updates via readback before updating VirtualSMC state, remove the unimplemented `CH0B` key, and preserve modified CPU power-limit baselines across external power-profile switches until the original profile is restored.
 
-### Hardware Profiles
+### Hardware profiles
 
 - Expand the hardware profile catalog to 21 ACPI profiles (`ReYogaFirmwareProfiles.hpp`) covering IdeaPad Gaming 3 (15ARH05, 15ACH6), Legion 5 (15ARH05, 15IMH05, 15ACH6, 15ARH7), Legion 5 Pro (16ACH6H, 16IAH7H), Legion Pro 5 (16ARX8, 16IRX8, 16IRX9), Legion 7 (15IMH05, 16ITHg6, 16ACHg6, 16ARHA7), Legion Pro 7 (16IRX8H, 16IRX9), LOQ (15APH8, 15IRH8, 15AHP9), and Yoga Slim 7 (14ARE05).
 - Preserve quoted string literals when computing normalized DSL source hashes in `Scripts/hardware_support.py`, and restrict raw-offset SSDT bridge generation to profiles with complete reviewed digests, required patterns, and EC offsets.
@@ -19,12 +19,12 @@
 ### App
 
 - Rename the application target and bundle from `ReYogaSMCNC.app` (`ReYogaSMCNCHelper.app`) to `ReYogaSMC.app` (`ReYogaSMCHelper.app`), migrating saved preferences from previous bundle identifiers on first launch.
-- Replace the 2-tab layout with a 6-section sidebar workspace (**Overview**, **Device**, **Cooling**, **Battery**, **Lighting**, **Diagnostics**) plus **Settings**, keeping independent `AppleSmartBattery`, `AppleSMC` (`SMCProcessorAMD`, `SMCProcessor`, `SMCRadeonSensors`), and ITE `c968` USB RGB features functional when the VPC kernel service is absent or in safe mode.
-- Add live `AppleSmartBattery` telemetry reporting charge percentage, charging state, current/full-charge/design capacity (mAh), design capacity retention, cycle count, voltage, signed current, power draw, temperature, adapter watt rating, and battery model/serial identifiers.
-- Add a typed `LocalizedKey` catalog with complete English (`en.lproj`) and Vietnamese (`vi.lproj`) localization covering UI views, OSD notifications, driver capability reasons, and diagnostic summaries.
+- Redesign the app interface, status bar menu, and OSD overlays with a new theme system (`AppTheme.swift`) and a 6-section sidebar layout (**Overview**, **Device**, **Cooling**, **Battery**, **Lighting**, **Diagnostics**) plus **Settings**, keeping independent `AppleSmartBattery`, `AppleSMC` (`SMCProcessorAMD`, `SMCProcessor`, `SMCRadeonSensors`), and ITE `c968` USB RGB features functional when the VPC kernel service is absent or in safe mode.
+- Add live `AppleSmartBattery` telemetry with a visual charge ring, charging state, current/full-charge/design capacity (mAh), design capacity retention, cycle count, voltage, signed current, power draw, temperature, adapter watt rating, and battery model/serial identifiers.
+- Add a typed `LocalizedKey` catalog with complete English (`en.lproj`) and Vietnamese (`vi.lproj`) localization and in-app language selection covering UI views, OSD notifications, driver capability reasons, and diagnostic summaries.
 - Embed git source revision metadata into `Info.plist` after target plist generation and report app build version, loaded kext build version, firmware match state, and active SMC temperature keys (`TC0E`, `TC0P`, `TG0D`, `TG0P`) in **Diagnostics**.
 
-### Packaging & Tests
+### Packaging and tests
 
 - Retire the duplicate `ReYogaSMCAlter.kext` build target and package `ReYogaSMC-<version>-<CONFIG>.zip` (`ReYogaSMC.kext`) alongside `ReYogaSMC-App-<version>-<CONFIG>.zip` (`ReYogaSMC.app`).
 - Add host-compiled C++ unit tests (`Tests/test_firmware_identity.cpp`, `Tests/test_control_validation.py`) with AddressSanitizer/UndefinedBehaviorSanitizer coverage for SMBIOS parsing, profile selection, sensor bounds, and ThinkPad fan transactions, alongside localization parity and project structure test suites.
