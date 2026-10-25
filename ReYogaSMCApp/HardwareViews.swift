@@ -542,11 +542,17 @@ public struct HardwareControlsView: View {
         }
     }
     private func thermalTile(_ title: String, value: Double, source: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let isGPU = title == "GPU"
+        let unavailableText = isGPU ? "N/A" : "—"
+        return VStack(alignment: .leading, spacing: 8) {
             SymbolLabel(title, systemImage: "thermometer").font(.system(size: 11)).foregroundColor(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(localizedMessage(value > 0 ? String(format: "%.1f", value) : "—")).font(.system(size: 23, weight: .semibold, design: .rounded))
-                Text(localizedMessage("°C")).font(.system(size: 10)).foregroundColor(.secondary)
+                Text(value > 0 ? String(format: "%.1f", value) : unavailableText).font(.system(size: value > 0 ? 23 : 18, weight: .semibold, design: .rounded))
+                if value > 0 {
+                    Text(localizedMessage("°C")).font(.system(size: 10)).foregroundColor(.secondary)
+                } else if isGPU {
+                    Text("iGPU").font(.system(size: 10)).foregroundColor(.secondary)
+                }
             }.foregroundColor(value >= 80 ? .orange : .primary)
         }.frame(maxWidth: .infinity, alignment: .leading).padding(10)
             .background(Color.primary.opacity(0.025)).cornerRadius(8).help(localizedMessage(source))

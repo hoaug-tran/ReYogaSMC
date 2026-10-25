@@ -59,7 +59,8 @@ ThinkFanResult transactThinkFan(unsigned fan, unsigned target, unsigned char out
     if (sample[0] == 0xff && sample[1] == 0xff) return ThinkFanResult::unavailable;
     if (target != 0x100) {
         const bool confirmed = target == 0x47 ? (sample[2] & 0x40) != 0 :
-            (target == 0x80 || target == 0x84) ? (sample[2] & 0x80) != 0 : sample[2] == target;
+            (target == 0x80 || target == 0x84) ? (sample[2] & 0x80) != 0 :
+            (sample[2] & 0x07) == (target & 0x07);
         if (!confirmed) return ThinkFanResult::readbackMismatch;
     }
     for (unsigned i = 0; i < 3; ++i) output[i] = sample[i];

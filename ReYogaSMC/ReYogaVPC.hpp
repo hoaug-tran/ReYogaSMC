@@ -116,6 +116,7 @@ protected:
             (profile == 1 ? 3 : profile == 2 ? 5 : 7);
     }
     bool supportsMMCThermal() const { return (DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0; }
+    bool supportsPSCThermal() const { return (DYTCCap & BIT(DYTC_FUNCTION_PSC)) != 0; }
 
     /**
      *  VPC device

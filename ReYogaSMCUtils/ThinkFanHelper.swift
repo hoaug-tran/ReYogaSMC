@@ -55,7 +55,6 @@ class ThinkFanHelper {
         }
         guard status == kIOReturnSuccess, size == 3 else {
             rpm = nil
-            enable = false
             showOSDRaw(String(format: localizedMessage("ThinkPad fan access failed (0x%08x). Retry the driver connection."), status))
             return nil
         }

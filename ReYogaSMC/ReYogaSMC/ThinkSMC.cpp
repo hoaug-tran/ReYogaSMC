@@ -32,6 +32,8 @@ void ThinkSMC::updateECVendor() {
         const bool valid = sensorProvider && sensorProvider->accessThinkFan(fan, 0x100, sample) == kIOReturnSuccess;
         const UInt32 rpm = valid ? static_cast<UInt32>(sample[0]) | static_cast<UInt32>(sample[1]) << 8 : UINT32_MAX;
         atomic_store_explicit(&currentSensor[fan], rpm, memory_order_release);
+        if (sensorProvider && valid && rpm < 0xFFFF)
+            sensorProvider->setProperty(fan == 0 ? "Fan1RPM" : "Fan2RPM", rpm, 32);
     }
 }
 

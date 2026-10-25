@@ -39,6 +39,14 @@ void ThinkVPC::updateAll() {
     updateKBDLocale();
     updateVPC();
     updateYogaMode();
+    for (unsigned fan = 0; fan < 2; ++fan) {
+        UInt8 sample[3] = {};
+        if (accessThinkFan(fan, 0x100, sample) == kIOReturnSuccess) {
+            UInt32 rpm = static_cast<UInt32>(sample[0]) | (static_cast<UInt32>(sample[1]) << 8);
+            if (rpm < 0xFFFF)
+                setProperty(fan == 0 ? "Fan1RPM" : "Fan2RPM", rpm, 32);
+        }
+    }
     super::updateAll();
     updateControlStatus();
 }
@@ -350,19 +358,32 @@ void ThinkVPC::updateControlStatus() {
         const bool orderingKnown = counterpart != nullptr && ReYogaControl::validThresholdState(counterpart->unsigned32BitValue(), i == 0);
         add(keys[i], supported && orderingKnown, "Battery threshold capability, setter or paired threshold unavailable");
     }
-    auto startRaw = battery ? OSDynamicCast(OSNumber, battery->getObject(getCMstart)) : nullptr;
-    const bool individual = startRaw && (startRaw->unsigned32BitValue() & BIT(9));
+    UInt32 secSample = 0;
+    const bool secondaryExists = vpc->validateObject(getCMstart) == kIOReturnSuccess &&
+        evaluateIntegerParam(getCMstart, &secSample, BAT_SECONDARY) == kIOReturnSuccess &&
+        !(secSample & BIT(31));
+    const bool individual = secondaryExists;
+    if (!individual && batnum != BAT_PRIMARY) {
+        batnum = BAT_PRIMARY;
+    }
     setProperty("BatteryIndividualAddressing", individual);
-    add("BatteryIndex", true, "");
+    add("BatteryIndex", individual, "Single battery platform");
     setProperty("BatteryIndex", batnum, 32);
     auto thermal = OSDynamicCast(OSDictionary, getProperty("DYTC"));
     auto mode = thermal ? OSDynamicCast(OSString, thermal->getObject("PerfMode")) : nullptr;
     UInt32 profile = mode && mode->isEqualTo("Quiet") ? 1 : mode && mode->isEqualTo("Balance") ? 2 :
         mode && (!strncmp(mode->getCStringNoCopy(), "Performance", 11)) ? 3 : 0;
-    const bool thermalSupported = supportsThermalProfiles() && profile != 0;
+    const bool thermalSupported = supportsThermalProfiles();
     add("SmartFanMode", thermalSupported, "DYTC desk thermal profiles unavailable");
-    if (thermalSupported) setProperty("SmartFanMode", profile, 32);
-    else removeProperty("SmartFanMode");
+    if (thermalSupported) {
+        if (profile == 0) {
+            auto current = OSDynamicCast(OSNumber, getProperty("SmartFanMode"));
+            profile = current ? current->unsigned32BitValue() : 2;
+        }
+        setProperty("SmartFanMode", profile, 32);
+    } else {
+        removeProperty("SmartFanMode");
+    }
     setProperty("FeatureStatus", features);
     features->release();
 }
@@ -389,7 +410,7 @@ void ThinkVPC::controlRequest(OSDictionary *request) {
                 batnum = target;
                 status = kIOReturnSuccess;
             } else if (key->isEqualTo("SmartFanMode") && target >= 1 && target <= 3) {
-                const bool useMMC = supportsMMCThermal();
+                const bool useMMC = supportsMMCThermal() && !supportsPSCThermal();
                 const int func = useMMC ? DYTC_FUNCTION_MMC : DYTC_FUNCTION_PSC;
                 const int mode = useMMC ? (target == 1 ? DYTC_MODE_QUIET :
                     target == 2 ? DYTC_MODE_BALANCE : DYTC_MODE_PERFORM) : pscThermalMode(target);

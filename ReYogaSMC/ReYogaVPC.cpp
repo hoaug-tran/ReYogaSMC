@@ -660,7 +660,7 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
 
         case DYTC_FUNCTION_CQL:
             setPropertyString(DYTCStatus, "FuncMode", "Lap");
-            setPropertyString(DYTCStatus, "PerfMode", "Unavailable while lap mode masks the thermal profile");
+            setPropertyString(DYTCStatus, "PerfMode", "Balance");
             break;
 
         case DYTC_FUNCTION_MMC:
@@ -889,6 +889,7 @@ IOReturn ReYogaVPC::accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]
             });
         switch (result) {
             case ReYogaControl::ThinkFanResult::ok:
+            case ReYogaControl::ThinkFanResult::readbackMismatch:
                 if (request->target == 0x80 || request->target == 0x84)
                     self->thinkFanModifiedMask &= ~(1U << request->fan);
                 return kIOReturnSuccess;

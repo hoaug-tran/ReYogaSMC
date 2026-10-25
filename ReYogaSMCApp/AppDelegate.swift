@@ -322,8 +322,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(iconWakeup), name: NSWorkspace.didWakeNotification, object: nil)
     }
 
+    @objc func toggleControlsWindow(_ sender: AnyObject? = nil) {
+        setupControlsWindow()
+        guard let window = controlsWindow else { return }
+        if window.isVisible && window.isKeyWindow {
+            window.orderOut(nil)
+        } else {
+            showControlsWindow()
+        }
+    }
+
     @objc func openControlsWindow(_ sender: AnyObject?) {
-        showControlsWindow()
+        toggleControlsWindow(sender)
     }
 
     private func showControlsWindow() {
