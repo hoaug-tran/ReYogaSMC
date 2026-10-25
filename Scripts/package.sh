@@ -1,12 +1,25 @@
 #!/bin/bash
-# Package the kext and app cleanly.
+# Package the kext and app cleanly without requiring root.
 set -euo pipefail
 export COPYFILE_DISABLE=1
 package_config="${1:-Release}"
 case "$package_config" in Debug|Release) ;; *) echo 'Use Debug or Release' >&2; exit 2 ;; esac
 package_root="$(cd "$(dirname "$0")/.." && pwd)"
-package_products="$package_root/build/$package_config"
-package_output="$package_root/build/packages/$package_config"
+
+if [ "${EUID:-$(id -u)}" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
+    chown -R "$SUDO_USER" "$package_root/build" "$package_root/build-user" 2>/dev/null || true
+    exec sudo -u "$SUDO_USER" bash "$0" "$@"
+fi
+
+build_dir="${BUILD_DIR:-$package_root/build}"
+if [ ! -d "$build_dir/$package_config" ] && [ -d "$package_root/build-user/$package_config" ]; then
+    build_dir="$package_root/build-user"
+elif [ -e "$build_dir" ] && [ ! -w "$build_dir" ]; then
+    build_dir="$package_root/build-user"
+fi
+
+package_products="$build_dir/$package_config"
+package_output="$build_dir/packages/$package_config"
 package_stage="$(mktemp -d)"
 trap 'rm -rf "$package_stage"' EXIT
 package_label="$(printf '%s' "$package_config" | tr '[:lower:]' '[:upper:]')"
