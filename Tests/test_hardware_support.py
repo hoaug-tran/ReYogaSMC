@@ -137,5 +137,9 @@ class HardwareSupportTests(unittest.TestCase):
             self.assertFalse(list(output.glob('SSDT-*.dsl')))
 
 
+    def test_fingerprint_preserves_quoted_data(self):
+        self.assertNotEqual(support.normalized_hash('Name (X, "a b")'), support.normalized_hash('Name (X, "ab")'))
+        self.assertEqual(support.normalized_hash('Name (X, "a // b") /* ignored */'), support.normalized_hash('Name(X,"a // b")'))
+
 if __name__ == '__main__':
     unittest.main()

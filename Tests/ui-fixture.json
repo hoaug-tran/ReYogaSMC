@@ -1,6 +1,6 @@
 {
   "IOClass": "IdeaVPC",
-  "HardwareProfileName": "Hardware controls",
+  "HardwareProfileName": "Lenovo Legion 7 2021 16ACHg6",
   "ControlProtocolVersion": 1,
   "Fan number": 2,
   "Fan1RPM": 2400,
@@ -13,10 +13,51 @@
   "BacklightLevel": 1,
   "FnlockMode": false,
   "FeatureStatus": {
-    "SmartFanMode": {"Available": true, "Backend": "ACPI", "Reason": ""},
-    "ConservationMode": {"Available": true, "Backend": "ACPI", "Reason": ""},
-    "RapidChargeMode": {"Available": true, "Backend": "ACPI", "Reason": ""},
-    "BacklightLevel": {"Available": true, "Backend": "ACPI", "Reason": ""},
-    "FnlockMode": {"Available": true, "Backend": "ACPI", "Reason": ""}
-  }
+    "SmartFanMode": {
+      "Available": true,
+      "Backend": "ACPI",
+      "Reason": ""
+    },
+    "ConservationMode": {
+      "Available": true,
+      "Backend": "ACPI",
+      "Reason": ""
+    },
+    "RapidChargeMode": {
+      "Available": true,
+      "Backend": "ACPI",
+      "Reason": ""
+    },
+    "BacklightLevel": {
+      "Available": true,
+      "Backend": "ACPI",
+      "Reason": ""
+    },
+    "FnlockMode": {
+      "Available": true,
+      "Backend": "ACPI",
+      "Reason": ""
+    }
+  },
+  "AppleSmartBattery": {
+    "AppleRawCurrentCapacity": 2817,
+    "AppleRawMaxCapacity": 4694,
+    "DesignCapacity": 5208,
+    "ExternalConnected": true,
+    "IsCharging": false,
+    "Amperage": 0,
+    "Voltage": 12000,
+    "Temperature": 2981,
+    "CycleCount": 180,
+    "DeviceName": "UI review fixture"
+  },
+  "HardwareProfile": "legion7-16achg6-gkcn",
+  "ProfileMatchState": "identity_matched",
+  "FirmwareMachineType": "82N6",
+  "FirmwareBIOSFamily": "GKCN",
+  "FirmwareDSDTOEMTableID": "CB-01",
+  "BatteryStateSchemaVersion": 4,
+  "ConservationStateMask": 32,
+  "RapidChargeStateMask": 4,
+  "BatteryModeRaw": 131104
 }

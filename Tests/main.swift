@@ -1,5 +1,3 @@
-// Exercise production profile matching/rendering and USB wire encoding without
-// opening a device, installing ACPI tables, or changing hardware state.
 import Foundation
 struct HardwareFeatureStatus: Equatable { let available: Bool; let reason: String; let backend: String }
 final class ReYogaDiagnostics {
@@ -16,6 +14,33 @@ func rejects(_ name: String, _ action: () throws -> Void) {
 let profiles = HardwareProfiles.all()
 require(!profiles.isEmpty, "Bundled profiles missing")
 require(profiles.allSatisfy { $0["schema_version"] as? Int == 1 }, "Unsupported profile schema")
+let legionIdentity = LaptopIdentity.resolve(strings: ["82N6CTO1WW"], pciIDs: [], lenovo: false)
+require(legionIdentity.name == "Lenovo Legion 7 2021 16ACHg6", "Machine type identity failed")
+require(LaptopIdentity.resolve(strings: ["MacBookPro16,3"], pciIDs: [], lenovo: false).name == "Unknown Laptop", "Spoofed SMBIOS leaked into identity")
+require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:ffff"], lenovo: false).name == "Lenovo Laptop", "Lenovo PCI fallback failed")
+let identityProfiles: [[String: Any]] = [["kind": "acpi", "name": "Test Lenovo", "pci_subsystem_ids": ["17aa:1234"]]]
+require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:1234"], lenovo: false, profiles: identityProfiles).name == "Test Lenovo", "PCI subsystem lookup failed")
+require(LaptopIdentity.resolve(strings: ["82N6", "82JQ"], pciIDs: [], lenovo: true).name == "Lenovo Laptop", "Ambiguous identity selected a model")
+print("PASS laptop model lookup, PCI identity, ambiguity and fallbacks")
+require(HardwareProfiles.normalizedDSDT("Name (X, \"a b//c\") /* comment */") == "Name(X,\"a b//c\")", "Quoted AML data changed during normalization")
+require(HardwareProfiles.normalizedDSDT("Name (X, \"a b\")") != HardwareProfiles.normalizedDSDT("Name (X, \"ab\")"), "Distinct AML strings share a fingerprint")
+require(LaptopIdentity.resolve(strings: ["MacBookPro16,2"], pciIDs: ["17aa:3a58"], lenovo: false).name == "Lenovo Legion 7 2021 16ACHg6", "Verified PCI identity did not survive SMBIOS spoofing")
+require(HardwareSnapshot.fanRPM(0) == 0 && HardwareSnapshot.fanRPM(0xffff) == -1 && HardwareSnapshot.fanRPM(nil) == -1, "Fan availability or stopped-fan state is incorrect")
+require(HardwareSnapshot.temperature(45) == 45 && HardwareSnapshot.temperature(0) == -1 && HardwareSnapshot.temperature(125) == -1, "Invalid temperatures were displayed as readings")
+require(!HardwareSnapshot.stale(["SensorSampleTimeMS": 99000, "TelemetryIntervalMS": 500], observedAge: 5, uptime: 100), "Fresh device timestamp was rejected")
+require(HardwareSnapshot.stale(["SensorSampleTimeMS": 90000, "TelemetryIntervalMS": 500], observedAge: 0, uptime: 100), "Cached sample was incorrectly marked live on first connection")
+require(HardwareSnapshot.stale(["SensorSampleTimeMS": -1], observedAge: 0, uptime: 100), "Invalid sample timestamp was accepted")
+require(HardwareSnapshot.stale([:], observedAge: 3, uptime: 100), "Legacy stalled sequence was accepted")
+require(!HardwareSnapshot.stale(["TelemetryIntervalMS": 5000], observedAge: 10, uptime: 100), "Device polling interval was ignored")
+require(HardwareSnapshot.powerRange(["Min": 5, "Max": 65, "Step": 1], current: 45)?["Max"] == 65, "Reported power range was lost")
+require(HardwareSnapshot.powerRange(["Min": 5, "Max": 65], current: 45) == nil, "Missing power step was invented")
+require(HardwareSnapshot.powerRange(["Min": 5, "Max": 65, "Step": 1], current: nil) == nil, "Missing power limit became a measured zero")
+let nativeFan = HardwareFeatureStatus(available: true, reason: "", backend: "WMI Fan")
+require(HardwareSnapshot.manualFanFeature(nativeFan, key: "Fan1TargetRPM", bridgeVersion: 0, writesValidated: false).available, "A non-bridge fan backend inherited bridge restrictions")
+let legacyFan = HardwareFeatureStatus(available: false, reason: "Install ACPI bridge v2", backend: "ACPI profile")
+let fanNotice = HardwareSnapshot.manualFanFeature(legacyFan, key: "FanControlMode", bridgeVersion: 0, writesValidated: false)
+require(!fanNotice.available && !fanNotice.reason.contains("Install") && !fanNotice.reason.contains("SSDT"), "Unsupported fan control prescribed an unverified installation")
+print("PASS device identity, live timestamp validation, invalid readings and per-backend fan availability")
 let modelHotkeys = HardwareProfiles.hotkeys(for: "legion7-16achg6-gkcn")
 let usbHotkeys = HardwareProfiles.hotkeys(for: "ite-c968-gen6")
 require(modelHotkeys?["id"] as? String == "legion7-gen6-hotkeys", "Embedded hotkeys missing for ACPI profile")
@@ -142,3 +167,46 @@ require(LiveBatterySnapshot(properties: ["AppleRawCurrentCapacity": 4694, "Curre
 
 require(SMCTemperatureReader.cpuTemperatureKeys(available: ["TC0G", "TC0E", "TC0P", "TCGC"], amd: true) == ["TC0E", "TC0P"],
         "CPU reader selected a placeholder or firmware GPU key")
+
+let normalizedPack = LiveBatterySnapshot(properties: ["CurrentCapacity": 60, "MaxCapacity": 100])
+require(normalizedPack.percent == 60 && normalizedPack.maximumCapacity == nil && normalizedPack.currentCapacity == nil,
+        "Normalized percent was mislabeled as mAh")
+let partialPack = LiveBatterySnapshot(properties: ["AppleRawMaxCapacity": 4694, "DesignCapacity": 5208])
+require(partialPack.maximumCapacity == 4694 && partialPack.currentCapacity == nil && partialPack.percent == nil,
+        "Maximum capacity must survive missing current capacity")
+let realPack = LiveBatterySnapshot(properties: ["AppleRawCurrentCapacity": 2817, "AppleRawMaxCapacity": 4694,
+    "DesignCapacity": 5208, "Temperature": 2931, "Voltage": 15692, "InstantAmperage": 0,
+    "CycleCount": 61, "AvgTimeToFull": 65535, "TimeRemaining": 65535,
+    "BatteryData": ["DeviceName": "L20D4PC1"], "AdapterDetails": ["Watts": 60]])
+require(realPack.percent == 60 && realPack.designCapacity == 5208, "Live pack capacity decode")
+require(abs((realPack.healthPercent ?? 0) - 90.13) < 0.02, "Retained capacity calculation")
+require(abs((realPack.temperatureCelsius ?? 0) - 19.95) < 0.01, "Temperature must use tenths kelvin")
+require(realPack.timeToFull == nil && realPack.timeToEmpty == nil, "Unknown time sentinel shown as duration")
+require(realPack.deviceName == "L20D4PC1" && realPack.adapterWatts == 60, "Nested pack/adapter metadata missing")
+require(LiveBatterySnapshot(properties: ["InstantAmperage": 65536 - 900]).milliamps == -900,
+        "Unsigned current register was not sign extended")
+require(LiveBatterySnapshot(properties: ["Temperature": 0, "DesignCapacity": -1, "Voltage": 0]).temperatureCelsius == nil,
+        "Invalid temperature was shown as real")
+require(!BatteryDetail(index: 1, properties: ["ID": "0000 0000", "Cycle count": "0", "Manufacture date": "2021/06/05"]).present,
+        "Empty slot became a real battery")
+print("PASS battery capacity, units, nested metadata, time sentinels and absent slot")
+
+if CommandLine.arguments.contains("--probe-identity") {
+    let identity = LaptopIdentity.read()
+    print("Live identity: \(identity.name) [\(identity.source)]")
+}
+
+if let languageRoot = ProcessInfo.processInfo.environment["REYOGA_LOCALIZATION_ROOT"],
+   let vietnamese = Bundle(path: languageRoot + "/vi.lproj"), let english = Bundle(path: languageRoot + "/en.lproj") {
+    let source = "The active driver has no validated manual fan control for this firmware."
+    require(renderLocalizedMessage(source, arguments: [], bundle: vietnamese).hasPrefix("Driver đang nạp"), "Firmware reason was not localized")
+    require(renderLocalizedMessage(source, arguments: [], bundle: english) == source, "English message fallback changed")
+    let sample = renderLocalizedMessage("%@: requested %@ RPM, measured %@. The minimum has not been reached.",
+        arguments: ["Quạt 1", "3200", "2900"], bundle: vietnamese)
+    require(sample.contains("3200") && sample.contains("2900") && sample.contains("Chưa đạt"), "Localized telemetry message lost its runtime values")
+    let transport = renderLocalizedMessage("IOKit transport failed (0x%08x)", arguments: [UInt32(42)], bundle: vietnamese)
+    require(transport.contains("0x0000002a") && transport.hasPrefix("Truyền lệnh"), "Localized error code was corrupted")
+    let rawName = renderLocalizedMessage("Could not open %@: %@", arguments: ["Off", "0x1234"], bundle: vietnamese)
+    require(rawName.contains("Off") && rawName.contains("0x1234"), "Localization altered a runtime identifier")
+    print("PASS English/Vietnamese firmware reasons, runtime values and error-code formatting")
+}

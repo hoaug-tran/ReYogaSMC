@@ -20,7 +20,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(release.bump('2.0.0', ['fix: protocol\n\nBREAKING CHANGE: new selectors']), '3.0.0')
 
     def test_shipped_changes_only(self):
-        for path in ['ReYogaSMC/WMI.cpp', 'ReYogaSMCNC/HardwareViews.swift', 'Scripts/dependencies.json']:
+        for path in ['ReYogaSMC/WMI.cpp', 'ReYogaSMCApp/HardwareViews.swift', 'Scripts/dependencies.json']:
             self.assertTrue(release.shipped(path), path)
         for path in ['README.md', 'Tests/test_release.py', '.github/workflows/main.yml', 'HardwareProfiles/README.md', 'Scripts/release.py']:
             self.assertFalse(release.shipped(path), path)
@@ -47,7 +47,7 @@ class ReleaseTests(unittest.TestCase):
                 release.verify_assets(root, '2.0.0')
             manifest = release.package_manifest('2.0.0')
             expected = {f'{mode}/{product}-2.0.0-{mode.upper()}.zip'
-                        for mode in ('Debug', 'Release') for product in ('ReYogaSMC', 'ReYogaSMCAlter', 'ReYogaSMCNC')}
+                        for mode in ('Debug', 'Release') for product in ('ReYogaSMC', 'ReYogaSMC-App')}
             self.assertEqual(set(manifest), expected)
             for name, required in manifest.items():
                 archive_path = root / name
@@ -56,7 +56,7 @@ class ReleaseTests(unittest.TestCase):
                     for member in required:
                         archive.writestr(member, b'content')
             release.verify_assets(root, '2.0.0')
-            self.assertEqual(len((root / 'SHA256SUMS.txt').read_text().splitlines()), 6)
+            self.assertEqual(len((root / 'SHA256SUMS.txt').read_text().splitlines()), 4)
             (root / 'ReYogaSMC-tool-Release.zip').write_bytes(b'extra')
             with self.assertRaises(ValueError):
                 release.verify_assets(root, '2.0.0')

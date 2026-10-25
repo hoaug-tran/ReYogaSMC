@@ -49,6 +49,17 @@ class BootSafetyTests(unittest.TestCase):
             self.assertIn('Firmware begin:', before)
             self.assertIn('Firmware end:', after)
 
+    def test_successful_firmware_trace_is_bounded(self):
+        wmi = source('ReYogaSMC/WMI.cpp')
+        self.assertIn('while (calls < 128)', wmi)
+        self.assertIn('OSCompareAndSwap(calls, calls + 1', wmi)
+        self.assertNotIn('GUID %s matched, verifying flag', wmi)
+        idea = source('ReYogaSMC/ReYogaVPC/IdeaVPC.cpp')
+        self.assertIn('firmwareTrace && sampleSequence < 4', idea)
+        self.assertIn('firmwareRefreshTraces < 4', idea)
+        self.assertIn('sampleSequence % (detailedTelemetry ? 4 : 20)', idea)
+        self.assertNotIn('0x113f sync found', source('ReYogaSMC/bmfdec.c'))
+
     def test_wmi_methods_always_receive_an_input_argument(self):
         body = source('ReYogaSMC/WMI.cpp').split('IOReturn WMI::evaluateMethod(', 1)[1].split('\n}', 1)[0]
         self.assertIn('OSData::withCapacity(0)', body)
@@ -61,10 +72,35 @@ class BootSafetyTests(unittest.TestCase):
         wmi = source('ReYogaSMC/WMI.cpp')
         self.assertIn('WMI BMF metadata incomplete; continuing with _WDG descriptors', wmi)
 
-    def test_app_preserves_hardware_reported_model_name(self):
-        manager = source('ReYogaSMCNC/HardwareManager.swift')
+    def test_native_profile_uses_shared_identity_selector(self):
+        text = source('ReYogaSMC/ReYogaVPC/IdeaVPC.cpp')
+        self.assertIn('ProfileMatchState', text)
+        self.assertIn('ReYogaFirmware::select', text)
+        self.assertIn('candidate->id', text)
+
+    def test_bridge_identity_does_not_override_native_profile(self):
+        text = source('ReYogaSMC/ReYogaVPC/IdeaVPC.cpp')
+        self.assertIn('ACPIBridgeProfile', text)
+        self.assertNotIn('setProperty("HardwareProfile", identity)', text)
+
+    def test_live_bios_hash_remains_unreviewed(self):
+        header = source('ReYogaSMC/ReYogaFirmwareProfiles.hpp')
+        self.assertNotIn('c803c21a14bd4063c7dd29ff3a11f3ac04c3aeb8552b89c075bbfff9899e1ed1', header)
+
+        text = source('ReYogaSMC/ReYogaVPC/IdeaVPC.cpp')
+        for property_name in ('ProfileMatchStage', 'ProfileMatchReason', 'ProfileMatchProfilesChecked',
+                              'ProfileMatchOEMMatches', 'FirmwareDSDTSHA256',
+                              'FirmwareDSDTOEMTableID', 'FirmwareDSDTLength', 'FirmwareDSDTChecksum'):
+            self.assertIn(property_name, text)
+        self.assertIn('unsupported firmware is likely', text)
+
+        manager = source('ReYogaSMCApp/HardwareManager.swift')
         accept = manager.split('private func accept(', 1)[1].split('\n    private func loadHardwareSettings', 1)[0]
-        self.assertNotIn('HardwareProfileName', accept)
+        identity = accept.split('if let driverModelName =', 1)[1].split('let protocolVersion', 1)[0]
+        self.assertIn('["exact", "identity_matched", "pci_matched"].contains(matchState)', identity)
+        self.assertNotIn('"Lenovo firmware device"', identity)
+        self.assertNotIn('Legion 7', identity)
+
 
 
 if __name__ == '__main__':
