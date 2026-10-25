@@ -13,7 +13,7 @@
  * (ThermalZone one usually has Serialized type)
  *
  * Find: 57514249 01 // WQBI
- * Repl: 58514249 01 // XQBI 
+ * Repl: 58514249 01 // XQBI
  *
  * MethodFlags :=
  * bit 0-2: ArgCount (0-7)
@@ -23,6 +23,7 @@
  */
 DefinitionBlock ("", "SSDT", 2, "hack", "WMIS", 0x00000000)
 {
+    External (_SB.WMIS, DeviceObj)
     External (_TZ.WQBI, MethodObj)    // Method in ThermalZone
 
     Method (_SB.WMIS.WQBI, 1, NotSerialized)
