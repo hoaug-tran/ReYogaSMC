@@ -62,9 +62,19 @@ struct HardwareSnapshot {
         return value
     }
 
-    static func temperature(_ value: Any?) -> Int {
-        guard let value = value as? Int, (1..<125).contains(value) else { return -1 }
-        return value
+    static func temperature(_ value: Any?) -> Double {
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else { return -1 }
+        let celsius = number.doubleValue
+        return celsius.isFinite && celsius > 0 && celsius < 125 ? celsius : -1
+    }
+
+    static func providerPriority(_ name: String) -> Int {
+        switch name {
+        case "ThinkVPC": return 3
+        case "IdeaVPC": return 2
+        case "DYVPC": return 1
+        default: return 0
+        }
     }
 
     static func powerRange(_ value: Any?, current: Any?) -> [String: Int]? {

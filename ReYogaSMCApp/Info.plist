@@ -32,6 +32,8 @@
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>ReYogaSMC uses automation to run the system and application actions you configure.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>ReYogaSMC toggles Bluetooth when the hardware hotkey is pressed.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 hoaug-tran. Forked from YogaSMC (Zhen). All rights reserved.</string>
 	<key>ReYogaMaintainer</key>

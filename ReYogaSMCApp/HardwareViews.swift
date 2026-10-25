@@ -521,10 +521,14 @@ public struct HardwareControlsView: View {
                     HStack {
                         Button(loc(.diagnosticsExportDiagnostics)) { manager.exportDiagnostics() }
                         Button(loc(.diagnosticsOpenLogs)) { manager.openDiagnostics() }
-                        Button(loc(.diagnosticsGenerateBridge)) { manager.generateACPIBridge() }
+                        if manager.canGenerateACPIBridge {
+                            Button(loc(.diagnosticsGenerateBridge)) { manager.generateACPIBridge() }
+                        }
                     }
-                    Text(loc(.diagnosticsBridgeDesc))
-                        .font(.system(size: 11)).foregroundColor(.secondary)
+                    if manager.canGenerateACPIBridge {
+                        Text(loc(.diagnosticsBridgeDesc))
+                            .font(.system(size: 11)).foregroundColor(.secondary)
+                    }
                 }
             }
         }
@@ -537,17 +541,17 @@ public struct HardwareControlsView: View {
             if manager.hasDualFan { FanReadout(title: manager.fanLabels[1], rpm: manager.fan2RPM, accentColor: AppTheme.gpu) }
         }
     }
-    private func thermalTile(_ title: String, value: Int, source: String) -> some View {
+    private func thermalTile(_ title: String, value: Double, source: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SymbolLabel(title, systemImage: "thermometer").font(.system(size: 11)).foregroundColor(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(localizedMessage(value > 0 ? "\(value)" : "—")).font(.system(size: 23, weight: .semibold, design: .rounded))
+                Text(localizedMessage(value > 0 ? String(format: "%.1f", value) : "—")).font(.system(size: 23, weight: .semibold, design: .rounded))
                 Text(localizedMessage("°C")).font(.system(size: 10)).foregroundColor(.secondary)
             }.foregroundColor(value >= 80 ? .orange : .primary)
         }.frame(maxWidth: .infinity, alignment: .leading).padding(10)
             .background(Color.primary.opacity(0.025)).cornerRadius(8).help(localizedMessage(source))
             .accessibilityElement(children: .ignore).accessibilityLabel(localizedMessage(title))
-            .accessibilityValue(localizedMessage(value > 0 ? localizedMessage("%@ degrees Celsius", String(value)) : "Unavailable"))
+            .accessibilityValue(localizedMessage(value > 0 ? localizedMessage("%@ degrees Celsius", String(format: "%.1f", value)) : "Unavailable"))
     }
     private var profile: some View {
         ControlSection(loc(.overviewSectionProfiles)) {

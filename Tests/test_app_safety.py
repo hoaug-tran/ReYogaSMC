@@ -4,6 +4,20 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 def read(path): return (ROOT / path).read_text(encoding='utf-8')
 class AppSafetyTests(unittest.TestCase):
+    def test_thinkpad_refresh_is_throttled_and_bridge_diagnostics_are_scoped(self):
+        body = read('ReYogaSMCApp/HardwareManager.swift')
+        refresh = body.split('let refreshFirmware =', 1)[1].split('hardwareQueue.async', 1)[0]
+        self.assertIn('Date().timeIntervalSince(lastFirmwareRefresh) >= 2', refresh)
+        self.assertNotIn('full || providerClass == "ThinkVPC"', refresh)
+        scope = body.split('if providerClass == "IdeaVPC" {', 1)[1].split('let stateControls', 1)[0]
+        self.assertIn('HardwareSnapshot.manualFanFeature', scope)
+
+    def test_hp_bios_response_checks_header_and_requested_payload(self):
+        body = read('ReYogaSMC/ReYogaVPC/DYVPC.cpp').split('bool DYVPC::WMIQuery(', 1)[1]
+        guard = body.index('output->getLength() < sizeof(bios_return)')
+        self.assertLess(guard, body.index('biosRet->return_code'))
+        self.assertIn('output->getLength() - sizeof(bios_return) < outsize', body)
+
     def test_every_provider_connects_dashboard(self):
         body=read('ReYogaSMCApp/AppDelegate.swift').split('func initNotification(',1)[1].split('func flagsCallBack',1)[0]
         self.assertLess(body.index('HardwareManager.shared.service = conf.service'),body.index('switch IOClass'))

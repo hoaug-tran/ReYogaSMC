@@ -40,8 +40,8 @@ public final class HardwareManager: ObservableObject {
 
     @Published public var fan1RPM: Int = -1
     @Published public var fan2RPM: Int = -1
-    @Published public var cpuTemp: Int = -1
-    @Published public var gpuTemp: Int = -1
+    @Published public var cpuTemp: Double = -1
+    @Published public var gpuTemp: Double = -1
     @Published public var powerProfile: Int = 0
     @Published public var alwaysOnUSBState: Int = 0
     @Published public var isConservationOn: Bool = false
@@ -248,8 +248,9 @@ public final class HardwareManager: ObservableObject {
         let handle = service
         let generation = connectionGeneration
         IOObjectRetain(handle)
-        let refreshFirmware = full || providerClass == "ThinkVPC" ||
-            (!featurePollingSupported && Date().timeIntervalSince(lastFirmwareRefresh) >= 2)
+        let refreshFirmware = full ||
+            ((providerClass == "ThinkVPC" || !featurePollingSupported) &&
+             Date().timeIntervalSince(lastFirmwareRefresh) >= 2)
         if refreshFirmware { lastFirmwareRefresh = Date() }
         hardwareQueue.async {
             if refreshFirmware { _ = sendBoolean("Update", true, handle) }
@@ -282,11 +283,11 @@ public final class HardwareManager: ObservableObject {
                     self.publish(\.liveBattery, battery)
                     self.cpuUsesSMC = smcCPU != nil
                     self.gpuUsesSMC = smcGPU != nil
-                    self.publish(\.cpuTemp, smcCPU.map { Int($0.celsius.rounded()) } ?? HardwareSnapshot.temperature(snapshot["CPUTemp"]))
+                    self.publish(\.cpuTemp, smcCPU.map { $0.celsius } ?? HardwareSnapshot.temperature(snapshot["CPUTemp"]))
                     self.publish(\.cpuTemperatureSource, smcCPU?.source ?? (snapshot["SensorSources"] as? [String: String])?["CPUTemp"] ?? "Firmware CPU sensor")
                     self.publish(\.cpuTemperatureReason, cpuReason)
                     if let reading = smcGPU {
-                        self.publish(\.gpuTemp, Int(reading.celsius.rounded()))
+                        self.publish(\.gpuTemp, reading.celsius)
                         self.publish(\.gpuTemperatureSource, reading.source)
                     }
                     if smcGPU == nil {
@@ -321,8 +322,8 @@ public final class HardwareManager: ObservableObject {
                 self.refreshInFlight = false
                 self.publish(\.liveBattery, battery)
                 self.publish(\.batterySummary, battery?.summary ?? "")
-                self.publish(\.cpuTemp, cpu.map { Int($0.celsius.rounded()) } ?? -1)
-                self.publish(\.gpuTemp, gpu.map { Int($0.celsius.rounded()) } ?? -1)
+                self.publish(\.cpuTemp, cpu.map { $0.celsius } ?? -1)
+                self.publish(\.gpuTemp, gpu.map { $0.celsius } ?? -1)
                 self.publish(\.cpuTemperatureSource, cpu?.source ?? "No CPU temperature source")
                 self.publish(\.gpuTemperatureSource, gpu?.source ?? "No GPU temperature source")
                 self.publish(\.cpuTemperatureReason, cpuReason)
@@ -389,10 +390,12 @@ public final class HardwareManager: ObservableObject {
                     backend: "Unavailable")
             }
         }
-        for key in ["FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"] {
-            availability[key] = HardwareSnapshot.manualFanFeature(availability[key], key: key,
-                bridgeVersion: props["ACPIBridgeVersion"] as? Int ?? 0,
-                writesValidated: props["FanWritesValidated"] as? Bool == true)
+        if providerClass == "IdeaVPC" {
+            for key in ["FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"] {
+                availability[key] = HardwareSnapshot.manualFanFeature(availability[key], key: key,
+                    bridgeVersion: props["ACPIBridgeVersion"] as? Int ?? 0,
+                    writesValidated: props["FanWritesValidated"] as? Bool == true)
+            }
         }
         let stateControls = ["SmartFanMode", "ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"]
         for key in stateControls where availability[key]?.available == true && props[key] == nil {
@@ -844,7 +847,9 @@ public final class HardwareManager: ObservableObject {
             }
         }
     }
+    public var canGenerateACPIBridge: Bool { service == 0 || providerClass == "IdeaVPC" }
     public func generateACPIBridge() {
+        guard canGenerateACPIBridge else { return }
         if service != 0, getNumber("ACPIExportVersion", service) == 1 { HardwareProfiles.exportLiveBridge(service: service) }
         else { HardwareProfiles.exportBridge() }
     }
@@ -896,8 +901,8 @@ public final class HardwareManager: ObservableObject {
         controlsRestoreAttempted = true
         if let props = getProperties(handle) {
             isConnected = true; driverState = .ready; accept(props)
-            if let reading = smcTemperatures.cpuTemperature() { cpuUsesSMC = true; cpuTemp = Int(reading.celsius.rounded()); cpuTemperatureSource = reading.source }
-            if let reading = smcTemperatures.gpuTemperature() { gpuUsesSMC = true; gpuTemp = Int(reading.celsius.rounded()); gpuTemperatureSource = reading.source }
+            if let reading = smcTemperatures.cpuTemperature() { cpuUsesSMC = true; cpuTemp = reading.celsius; cpuTemperatureSource = reading.source }
+            if let reading = smcTemperatures.gpuTemperature() { gpuUsesSMC = true; gpuTemp = reading.celsius; gpuTemperatureSource = reading.source }
             liveBattery = LiveBatterySnapshot.read()
             batterySummary = liveBattery?.summary ?? ""
             batteryDetails = (0...1).compactMap { index in

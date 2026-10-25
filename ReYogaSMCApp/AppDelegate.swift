@@ -48,7 +48,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func thinkWakeup() {
         micMuteLEDHelper(conf.service)
-        muteLEDHelper(conf.service)
+        if defaults.bool(forKey: "ThinkMuteLEDFixup") { muteLEDHelper(conf.service) }
 
         if fanHelper2 != nil {
             fanHelper2?.setFanLevel()
@@ -128,35 +128,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         var found = false
         var error = "ReYogaSMC.kext is required. Install the driver and its required dependencies in your bootloader, then restart macOS."
         if result == kIOReturnSuccess {
-            while let service = IOIteratorNextOptional(iterator) {
+            var candidates: [io_service_t] = []
+            while let service = IOIteratorNextOptional(iterator) { candidates.append(service) }
+            defer { candidates.forEach { IOObjectRelease($0) } }
+            candidates.sort {
+                HardwareSnapshot.providerPriority(getProperties($0)?["IOClass"] as? String ?? "") >
+                    HardwareSnapshot.providerPriority(getProperties($1)?["IOClass"] as? String ?? "")
+            }
+            for service in candidates {
                 found = true
                 guard let props = getProperties(service), let provider = props["IOClass"] as? String,
                       ["IdeaVPC", "ThinkVPC", "DYVPC", "ReYogaHIDD"].contains(provider) else {
                     if error.hasPrefix("ReYogaSMC.kext is required") {
                         error = "The kext is loaded, but no supported Lenovo firmware control interface is available. Independent SMC sensors and USB RGB remain available."
                     }
-                    IOObjectRelease(service); continue
+                    continue
                 }
                 if props["SafeMode"] as? Bool == true {
                     error = props["SafeModeReason"] as? String ?? "Driver safe mode is active; firmware controls are disabled"
-                    IOObjectRelease(service); continue
+                    continue
                 }
                 let protocolVersion = props["ControlProtocolVersion"] as? Int ?? 0
                 if ["IdeaVPC", "ThinkVPC"].contains(provider) && protocolVersion != 1 {
                     error = "The loaded driver does not provide a compatible control protocol. Boot the matching ReYogaSMC driver and retry."
-                    IOObjectRelease(service); continue
+                    continue
                 }
                 var connection: io_connect_t = 0
                 let openStatus = IOServiceOpen(service, mach_task_self_, 0, &connection)
                 guard openStatus == kIOReturnSuccess else {
                     error = String(format: localizedMessage("Cannot open the hardware driver (0x%08x). Check permissions and the driver log."), openStatus)
-                    IOObjectRelease(service); continue
+                    continue
                 }
                 let claim = IOConnectCallScalarMethod(connection, UInt32(kRYSMCUCOpen), nil, 0, nil, nil)
                 guard claim == kIOReturnSuccess else {
                     error = String(format: localizedMessage("The driver rejected the connection (0x%08x). Another copy of this app may already be running."), claim)
-                    IOServiceClose(connection); IOObjectRelease(service); continue
+                    IOServiceClose(connection); continue
                 }
+                IOObjectRetain(service)
                 conf.service = service; conf.connect = connection; IOClass = provider
                 manager.setDriverState(.ready, message: "Hardware driver ready")
                 watchDriverTermination(service)
