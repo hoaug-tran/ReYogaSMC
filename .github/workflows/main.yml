@@ -57,8 +57,8 @@ jobs:
         run: |
           mkdir -p build
           cp -R HardwareProfiles build/HardwareProfiles
-          swiftc ReYogaSMCNC/HardwareSupport.swift ReYogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
-          build/SupportTests
+          swiftc ReYogaSMCApp/LocalizedKey.swift ReYogaSMCApp/HardwareSupport.swift ReYogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
+          REYOGA_LOCALIZATION_ROOT="$PWD" build/SupportTests
           clang++ -std=c++14 -fsyntax-only Tests/control_validation.cpp
       - name: Build Debug and Release
         run: |
@@ -69,8 +69,8 @@ jobs:
         run: |
           export REYOGA_UI_REVIEW_DIR="$PWD/build"
           export REYOGA_UI_FIXTURE="$PWD/Tests/ui-fixture.json"
-          build/Debug/ReYogaSMCNC.app/Contents/MacOS/ReYogaSMCNC --render-ui
-          test "$(find build/ReYogaUIReview -name '*.png' | wc -l | tr -d ' ')" -eq 16
+          build/Debug/ReYogaSMC.app/Contents/MacOS/ReYogaSMC --render-ui
+          test "$(find build/ReYogaUIReview -name '*.png' | wc -l | tr -d ' ')" -eq 26
       - name: Package
         run: |
           bash Scripts/package.sh Debug

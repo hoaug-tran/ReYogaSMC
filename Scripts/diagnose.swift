@@ -2,8 +2,8 @@ import Foundation
 import IOKit
 
 let keys = [
-    "ConservationCapability", "RapidChargeCapability", "BatteryCommand", "BatteryCommandResult", "FanCoolingCapability", "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask",
-    "VersionInfo", "ForkName", "HardwareProfile", "HardwareProfileName",
+    "IOClass", "SafeMode", "SafeModeReason", "ConservationCapability", "RapidChargeCapability", "BatteryCommand", "BatteryCommandResult", "FanCoolingCapability", "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask",
+    "VersionInfo", "ForkName", "HardwareProfile", "HardwareProfileName", "NativeTelemetryProfile", "NativeTelemetryReason", "ProfileMatchState", "ProfileMatchStage", "ProfileMatchReason", "ProfileMatchProfilesChecked", "ProfileMatchOEMMatches", "FirmwareDSDTSHA256", "FirmwareDSDTOEMTableID", "FirmwareDSDTLength", "FirmwareDSDTChecksum", "FirmwareMachineType", "FirmwareBIOSFamily", "FirmwareIdentityConflict", "ACPIBridgeReason", "ThinkFanProtocolVersion", "ThinkFanStatus", "ThinkFanAccessFailed", "CPUPowerPendingProfile", "CPUPowerRestoreReason", "FanRestoreReason",
     "ControlProtocolVersion", "DiagnosticSchemaVersion", "ACPIBridgeVersion",
     "FeatureStatus", "SensorStatus", "SensorSampleSequence", "SensorSampleTimeMS",
     "TelemetrySource", "TelemetryIntervalMS", "DetailedTelemetry", "LastControlResult",
@@ -26,12 +26,15 @@ if !arguments.isEmpty && (arguments.count != 2 || arguments[0] != "--output") {
     fputs("Usage: swift Scripts/diagnose.swift [--output report.json]\n", stderr)
     exit(2)
 }
-let service = IOServiceGetMatchingService(0, IOServiceMatching("IdeaVPC"))
+let providers = ["IdeaVPC", "ThinkVPC", "DYVPC", "ReYogaHIDD"]
+let service = providers.lazy.map { (provider: String) -> io_service_t in
+    provider.withCString { IOServiceGetMatchingService(0, IOServiceMatching($0)) }
+}.first { $0 != 0 } ?? 0
 var report: [String: Any] = ["schema_version": 1, "time": ISO8601DateFormatter().string(from: Date()),
                            "os": ProcessInfo.processInfo.operatingSystemVersionString,
                            "mode": "Passive registry samples; no firmware commands sent"]
 if service == 0 {
-    report["driver"] = ["status": "unavailable", "reason": "IdeaVPC service not found"]
+    report["driver"] = ["status": "unavailable", "reason": "No supported firmware control service found"]
 } else {
     defer { IOObjectRelease(service) }
     var samples: [[String: Any]] = []

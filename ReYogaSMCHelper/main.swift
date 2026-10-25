@@ -1,6 +1,6 @@
 //
 //  AppDelegate.swift
-//  ReYogaSMCNCHelper
+//  ReYogaSMCHelper
 //
 //  Created by Zhen on 10/12/20.
 //  Copyright © 2020 Zhen. All rights reserved.
@@ -10,7 +10,11 @@ import AppKit
 
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        let mainBundleID = Bundle.main.bundleIdentifier!.replacingOccurrences(of: "Helper", with: "")
+        guard let identifier = Bundle.main.bundleIdentifier, identifier.hasSuffix("Helper") else {
+            NSApp.terminate(nil)
+            return
+        }
+        let mainBundleID = String(identifier.dropLast("Helper".count))
         let bundlePath = Bundle.main.bundlePath as NSString
 
         guard NSRunningApplication.runningApplications(withBundleIdentifier: mainBundleID).isEmpty else {
@@ -18,16 +22,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let pathComponents = bundlePath.pathComponents
-        let path = NSString.path(withComponents: Array(pathComponents[0 ..< (pathComponents.count - 4)]))
+        guard pathComponents.count > 4 else { NSApp.terminate(nil); return }
+        let path = NSString.path(withComponents: Array(pathComponents.dropLast(4)))
 
+        let appBundle = Bundle(path: path) ?? .main
+        let preferences = UserDefaults(suiteName: mainBundleID)?.stringArray(forKey: "AppleLanguages")
+        let language = Bundle.preferredLocalizations(from: appBundle.localizations, forPreferences: preferences).first
+        let messages = language.flatMap { appBundle.path(forResource: $0, ofType: "lproj") }.flatMap(Bundle.init(path:)) ?? appBundle
         NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: path), configuration: .init()) { _, error in
             DispatchQueue.main.async {
                 if let error = error {
                     let alert = NSAlert()
-                    alert.messageText = "Could not open ReYogaSMC"
+                    alert.messageText = messages.localizedString(forKey: "Could not open ReYogaSMC", value: nil, table: nil)
                     alert.informativeText = error.localizedDescription
                     alert.alertStyle = .warning
-                    alert.addButton(withTitle: "OK")
+                    alert.addButton(withTitle: messages.localizedString(forKey: "OK", value: nil, table: nil))
                     alert.runModal()
                 }
                 NSApp.terminate(nil)

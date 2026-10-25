@@ -1,5 +1,5 @@
 #!/bin/bash
-# Package each driver variant and the app separately.
+# Package the kext and app cleanly.
 set -euo pipefail
 export COPYFILE_DISABLE=1
 package_config="${1:-Release}"
@@ -13,21 +13,17 @@ package_label="$(printf '%s' "$package_config" | tr '[:lower:]' '[:upper:]')"
 package_version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$package_products/ReYogaSMC.kext/Contents/Info.plist")"
 if [ -n "${BUILD_VERSION:-}" ] && [ "$package_version" != "$BUILD_VERSION" ]; then echo 'Build version mismatch' >&2; exit 1; fi
 mkdir -p "$package_output"
-for package_name in ReYogaSMC ReYogaSMCAlter ReYogaSMCNC; do
-    package_extension=kext
-    if [ "$package_name" = ReYogaSMCNC ]; then package_extension=app; fi
-    package_product="$package_products/$package_name.$package_extension"
-    test -f "$package_product/Contents/MacOS/$package_name" || { echo "Missing executable: $package_name" >&2; exit 1; }
-    package_product_version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$package_product/Contents/Info.plist")"
-    if [ "$package_product_version" != "$package_version" ]; then echo "Version mismatch: $package_name" >&2; exit 1; fi
-    mkdir -p "$package_stage/$package_name"
-    cp -R "$package_product" "$package_stage/$package_name/"
-    cp "$package_root/LICENSE" "$package_root/README.md" "$package_stage/$package_name/"
-    if [ "$package_extension" = app ]; then
-        ln -s /Applications "$package_stage/$package_name/Applications"
-    else
-        cp -R "$package_root/ReYogaSMC/SSDTSample" "$package_stage/$package_name/"
-    fi
-    ditto --norsrc --noextattr --noacl -c -k --keepParent "$package_stage/$package_name" "$package_output/$package_name-$package_version-$package_label.zip"
-done
+
+# 1. Package ReYogaSMC.kext (ONLY the .kext inside zip)
+kext_dir="$package_products/ReYogaSMC.kext"
+test -f "$kext_dir/Contents/MacOS/ReYogaSMC" || { echo "Missing kext binary" >&2; exit 1; }
+ditto --norsrc --noextattr --noacl -c -k --keepParent "$kext_dir" "$package_output/ReYogaSMC-$package_version-$package_label.zip"
+
+# 2. Package ReYogaSMC.app (App release bundle)
+app_dir="$package_products/ReYogaSMC.app"
+test -f "$app_dir/Contents/MacOS/ReYogaSMC" || { echo "Missing app binary" >&2; exit 1; }
+mkdir -p "$package_stage/app_pkg"
+cp -R "$app_dir" "$package_stage/app_pkg/"
+ditto --norsrc --noextattr --noacl -c -k --keepParent "$package_stage/app_pkg/ReYogaSMC.app" "$package_output/ReYogaSMC-App-$package_version-$package_label.zip"
+
 echo "Packages: $package_output"

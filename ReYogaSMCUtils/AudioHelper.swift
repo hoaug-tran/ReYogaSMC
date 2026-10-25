@@ -1,6 +1,6 @@
 //
 //  AudioHelper.swift
-//  ReYogaSMCNC
+//  ReYogaSMC
 //
 //  Created by Zhen on 12/9/20.
 //  Copyright © 2020 Zhen. All rights reserved.
@@ -143,9 +143,7 @@ class AudioHelper {
                 prop: defaultOutputDeviceProp
             ).get().get()
         } catch {
-            if #available(macOS 10.12, *) {
-                os_log("Failed to initialize AudioHelper!", type: .error)
-            }
+            os_log("Failed to initialize AudioHelper!", type: .error)
             return nil
         }
 
@@ -180,9 +178,7 @@ class AudioHelper {
             }
         } catch {
             showOSDRes("Mic", "Toggle failed", .kMic)
-            if #available(macOS 10.12, *) {
-                os_log("Mic toggle failed!", type: .error)
-            }
+            os_log("Mic toggle failed!", type: .error)
         }
     }
 
@@ -192,13 +188,9 @@ class AudioHelper {
             guard sendNumber("MicMuteLED", mute ? 2 : 0, service) else {
                 throw AudioPropertyError.noProperty
             }
-            if #available(macOS 10.12, *) {
-                os_log("Mic Mute LED updated", type: .info)
-            }
+            os_log("Mic Mute LED updated", type: .info)
         } catch {
-            if #available(macOS 10.12, *) {
-                os_log("Failed to update Mic Mute LED", type: .error)
-            }
+            os_log("Failed to update Mic Mute LED", type: .error)
         }
     }
 
@@ -210,19 +202,15 @@ class AudioHelper {
                 throw AudioPropertyError.noProperty
             }
             Self.muteLEDStatus = mute
-            if #available(macOS 10.12, *) {
-                os_log("Mute LED updated", type: .info)
-            }
+            os_log("Mute LED updated", type: .info)
         } catch {
-            if #available(macOS 10.12, *) {
-                os_log("Failed to update Mute LED", type: .error)
-            }
+            os_log("Failed to update Mute LED", type: .error)
         }
     }
 }
 
 class VolumeObserver: NSApplication {
-    static let volumeChanged = Notification.Name("ReYogaSMCNC.volumeChanged")
+    static let volumeChanged = Notification.Name("ReYogaSMC.volumeChanged")
 
     //from https://stackoverflow.com/a/32769093/6884062
     override func sendEvent(_ event: NSEvent) {
@@ -269,15 +257,11 @@ func muteLEDHelper(_ service: io_service_t, _ wake: Bool = true) {
     guard let current = scriptHelper(getAudioMutedAS, "Mute") else { return }
     if !wake, current.booleanValue == muteLEDStatus { return }
     guard sendBoolean("MuteLED", current.booleanValue, service) else {
-        if #available(macOS 10.12, *) {
-            os_log("Failed to update Mute LED", type: .error)
-        }
+        os_log("Failed to update Mute LED", type: .error)
         return
     }
     muteLEDStatus = current.booleanValue
-    if #available(macOS 10.12, *) {
-        os_log("Mute LED updated", type: .info)
-    }
+    os_log("Mute LED updated", type: .info)
 }
 
 var muteVolume: Int32 = 50

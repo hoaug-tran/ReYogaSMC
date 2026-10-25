@@ -1,6 +1,6 @@
 //
 //  Configuration.swift
-//  ReYogaSMCNC
+//  ReYogaSMCApp
 //
 //  Created by Zhen on 10/17/20.
 //  Copyright © 2020 Zhen. All rights reserved.
@@ -36,9 +36,7 @@ struct EventDesc {
             } else if let res = Bundle.main.path(forResource: path, ofType: nil) {
                 self.image = res as NSString
             } else {
-                if #available(macOS 10.12, *) {
-                    os_log("Incompatible res path: %s", type: .error, path)
-                }
+                os_log("Incompatible res path: %s", type: .error, path)
                 self.image = nil
             }
         } else {
@@ -184,10 +182,8 @@ let HIDDEvents: [UInt32: [UInt32: EventDesc]] = [
 ]
 
 func loadEvents(_ conf: inout SharedConfig) {
-    guard let dict = UserDefaults(suiteName: "org.reyoga.ReYogaSMC")?.object(forKey: "Events") as? [String: Any] else {
-        if #available(macOS 10.12, *) {
-            os_log("Events not found in preference, loading defaults", type: .info)
-        }
+    guard let dict = ReYogaConstants.hardwareDefaults.object(forKey: "Events") as? [String: Any] else {
+        os_log("Events not found in preference, loading defaults", type: .info)
         return
     }
 
@@ -204,9 +200,7 @@ func loadEvents(_ conf: inout SharedConfig) {
                     if info[data] != nil,
                        action == "nothing",
                        (opt == "Unknown" || (opt == nil && name.hasPrefix("Event 0x"))) {
-                        if #available(macOS 10.12, *) {
-                            os_log("Override unknown event 0x%04x : %d", type: .info, eid, data)
-                        }
+                        os_log("Override unknown event 0x%04x : %d", type: .info, eid, data)
                     } else {
                         info[data] = EventDesc(
                             name,
@@ -216,21 +210,15 @@ func loadEvents(_ conf: inout SharedConfig) {
                             opt: opt)
                     }
                 } else {
-                    if #available(macOS 10.12, *) {
-                        os_log("Invalid event for 0x%04x : %s!", type: .info, eid, sdata)
-                    }
+                    os_log("Invalid event for 0x%04x : %s!", type: .info, eid, sdata)
                 }
             }
             conf.events[eid] = info
         } else {
-            if #available(macOS 10.12, *) {
-                os_log("Invalid event %s!", type: .info, sid)
-            }
+            os_log("Invalid event %s!", type: .info, sid)
         }
     }
-    if #available(macOS 10.12, *) {
-        os_log("Loaded %d events", type: .info, conf.events.count)
-    }
+    os_log("Loaded %d events", type: .info, conf.events.count)
 }
 
 func saveEvents(_ conf: inout SharedConfig) {
@@ -257,5 +245,5 @@ func saveEvents(_ conf: inout SharedConfig) {
         }
         dict[String(eid, radix: 16)] = events
     }
-    UserDefaults(suiteName: "org.reyoga.ReYogaSMC")?.setValue(dict, forKey: "Events")
+    ReYogaConstants.hardwareDefaults.setValue(dict, forKey: "Events")
 }

@@ -1,6 +1,6 @@
 //
 //  NotificationHandler.swift
-//  ReYogaSMCNC
+//  ReYogaSMCApp
 //
 //  Created by Zhen on 12/22/20.
 //  Copyright © 2020 Zhen. All rights reserved.
@@ -45,9 +45,7 @@ func notificationCallback(
     _ info: UnsafeMutableRawPointer?
 ) {
     guard let info = info, let msg = msg, size >= MemoryLayout<SMCNotificationMessage>.size else {
-        if #available(macOS 10.12, *) {
-            os_log("Invalid config", type: .error)
-        }
+        os_log("Invalid config", type: .error)
         return
     }
 
@@ -66,19 +64,15 @@ func notificationCallback(
             eventActuator(desc, notification.data, &conf)
         } else {
             let value = String(format: "0x%04x:%d", notification.event, notification.data)
-            showOSDRaw("\(NSLocalizedString("EventVar", comment: "Event "))\(value)")
-            if #available(macOS 10.12, *) {
-                os_log("Event %s default data not found", type: .error, value)
-            }
+            showOSDRaw("\(loc(.eventPrefix))\(value)")
+            os_log("Event %s default data not found", type: .error, value)
         }
     } else {
         let value = String(format: "0x%04x:%d", notification.event, notification.data)
-        showOSDRaw("\(NSLocalizedString("EventVar", comment: "Event "))\(value)")
-        conf.events[notification.event] = [0: EventDesc("Event \(value)", nil, opt: "Unknown")]
+        showOSDRaw("\(loc(.eventPrefix))\(value)")
+        conf.events[notification.event] = [0: EventDesc(localizedMessage("Event %@", value), nil, opt: "Unknown")]
         #if DEBUG
-        if #available(macOS 10.12, *) {
-            os_log("Event %s", type: .debug, value)
-        }
+        os_log("Event %s", type: .debug, value)
         #endif
     }
 }
@@ -87,13 +81,11 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
     switch desc.action {
     case .nothing:
         #if DEBUG
-        if #available(macOS 10.12, *) {
-            os_log("%s: Do nothing", type: .info, desc.name)
-        }
+        os_log("%s: Do nothing", type: .info, desc.name)
         #endif
         if !desc.display { return }
         if desc.name.hasPrefix("Event ") {
-            let prompt = NSLocalizedString("EventVar", comment: "Event ") + desc.name.dropFirst("Event ".count)
+            let prompt = loc(.eventPrefix) + desc.name.dropFirst("Event ".count)
             showOSDRaw(prompt, desc.image)
         } else {
             showOSD(desc.name, desc.image)
@@ -102,9 +94,7 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
         if let scpt = desc.option {
             _ = scriptHelper(scpt, desc.name, desc.display ? desc.image : nil)
         } else {
-            if #available(macOS 10.12, *) {
-                os_log("%s: script not found", type: .error, desc.name)
-            }
+            os_log("%s: script not found", type: .error, desc.name)
         }
     case .launchapp:
         guard let name = desc.option,
@@ -114,15 +104,13 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
         }
         NSWorkspace.shared.openApplication(at: url, configuration: .init()) { _, error in
             DispatchQueue.main.async {
-                if let error = error { showOSDRaw("Could not open \(name): \(error.localizedDescription)") }
+                if let error = error { showOSDRaw(localizedMessage("Could not open %@: %@", name, error.localizedDescription)) }
                 else if desc.display { showOSD(desc.name, desc.image) }
             }
         }
     case .launchbundle:
         guard let identifier = desc.option else {
-            if #available(macOS 10.12, *) {
-                os_log("%s: bundle not found", type: .error)
-            }
+            os_log("%s: bundle not found", type: .error)
             return
         }
         let collection = NSRunningApplication.runningApplications(withBundleIdentifier: identifier)
@@ -133,7 +121,7 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
             }
             NSWorkspace.shared.openApplication(at: url, configuration: .init()) { _, error in
                 if let error = error {
-                    DispatchQueue.main.async { showOSDRaw("Could not open \(desc.name): \(error.localizedDescription)") }
+                    DispatchQueue.main.async { showOSDRaw(localizedMessage("Could not open %@: %@", desc.name, error.localizedDescription)) }
                 }
             }
         } else {
@@ -212,7 +200,7 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
     case .spotlight:
         _ = scriptHelper(spotlightAS, desc.name)
     case .controls:
-        (NSApp.delegate as? AppDelegate)?.toggleGamingPopover(nil)
+        (NSApp.delegate as? AppDelegate)?.openControlsWindow(nil)
         showOSD(desc.name)
     case .calculator, .screenshot, .siri:
         let bundle = desc.action == .siri ? "com.apple.Siri" : desc.action == .calculator ? "com.apple.calculator" : "com.apple.Screenshot"
@@ -221,23 +209,19 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
                 if let error = error { ReYogaDiagnostics.shared.record("hotkey_launch_failed", ["bundle": bundle, "error": error.localizedDescription]) }
             }
             showOSD(desc.name)
-        } else { showOSDRaw("\(desc.name): application unavailable") }
+        } else { showOSDRaw(localizedMessage("%@: application unavailable", desc.name)) }
     case .displaysettings, .mirror:
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.displays") { NSWorkspace.shared.open(url) }
         showOSDRaw("Display Settings")
     case .thermal:
-        if #available(macOS 11.0, *) { HardwareManager.shared.refreshAll() }
+        HardwareManager.shared.refreshAll()
         showOSD(desc.name, desc.image)
-        if #available(macOS 10.12, *) {
-            os_log("%s: thermal event", type: .info, desc.name)
-        }
+        os_log("%s: thermal event", type: .info, desc.name)
     case .wireless:
         wirelessHelper(desc.name, desc.display)
     default:
         #if DEBUG
-        if #available(macOS 10.12, *) {
-            os_log("%s: Not implmented", type: .info, desc.name)
-        }
+        os_log("%s: Not implmented", type: .info, desc.name)
         #endif
         if desc.display {
             showOSD(desc.name, desc.image)

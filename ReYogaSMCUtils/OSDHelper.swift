@@ -24,7 +24,6 @@ enum ReYogaBrand {
             let path = NSBezierPath()
             path.lineWidth = 1.8 * scale
             path.lineCapStyle = .round
-            path.lineWidth = 1.8*scale
             path.lineJoinStyle = .round
             path.move(to: NSPoint(x: 5*scale, y: 3*scale))
             path.line(to: NSPoint(x: 5*scale, y: 14*scale))
@@ -98,6 +97,7 @@ final class HUDContentView: NSView {
     }
     required init?(coder: NSCoder) { nil }
     func configure(prompt: String, image: NSImage?) -> NSSize {
+        let prompt = localizedMessage(prompt)
         let pieces = prompt.split(separator: ":", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         let twoLines = pieces.count == 2 && pieces[0].count <= 40
         let longMessage = !twoLines && prompt.count > 42
@@ -189,6 +189,7 @@ private final class StatusHUD {
 }
 
 func showOSDRaw(_ prompt: String, _ img: NSString? = nil, duration: UInt32 = 1000, priority: UInt32 = 0x1f4, symbol: String? = nil) {
+    let prompt = localizedMessage(prompt)
     if Thread.isMainThread {
         StatusHUD.shared.show(prompt, imagePath: img, duration: duration, symbol: symbol)
     } else {
@@ -219,14 +220,11 @@ func showOSDRes(
     if let path = Bundle.main.pathForImageResource(String(image.rawValue.dropFirst(1))) {
         img = path as NSString
     }
-    var alias = prompt
-    if img != nil {
-        alias = NSLocalizedString(prompt, comment: "")
-    }
+    var alias = localizedMessage(prompt)
     if alias.isEmpty {
         showOSDRaw(alias, img, duration: duration, priority: priority)
     } else {
-        alias += " " + NSLocalizedString(status, comment: "")
+        alias += " " + localizedMessage(status)
         showOSDRaw(alias, img, duration: duration, priority: priority)
     }
 }

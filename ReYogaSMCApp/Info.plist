@@ -12,8 +12,10 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleDisplayName</key>
+	<string>ReYogaSMC</string>
 	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
+	<string>ReYogaSMC</string>
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
@@ -31,10 +33,14 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>ReYogaSMC uses automation to run the system and application actions you configure.</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2022 Zhen. All rights reserved.</string>
+	<string>Copyright © 2026 hoaug-tran. Forked from YogaSMC (Zhen). All rights reserved.</string>
+	<key>ReYogaMaintainer</key>
+	<string>hoaug-tran</string>
+	<key>ReYogaRepositoryURL</key>
+	<string>https://github.com/hoaug-tran/ReYogaSMC</string>
 	<key>NSMainStoryboardFile</key>
 	<string>Main</string>
 	<key>NSPrincipalClass</key>
-	<string>ReYogaSMCNC.VolumeObserver</string>
+	<string>ReYogaSMC.VolumeObserver</string>
 </dict>
 </plist>

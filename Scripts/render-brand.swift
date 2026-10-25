@@ -64,7 +64,7 @@ let menu = """
 """
 try menu.write(to: output.appendingPathComponent("menubar.svg"), atomically: true, encoding: .utf8)
 
-let catalog = root.appendingPathComponent("ReYogaSMCNC/Assets.xcassets/AppIcon.appiconset")
+let catalog = root.appendingPathComponent("ReYogaSMCApp/Assets.xcassets/AppIcon.appiconset")
 let manifestURL = catalog.appendingPathComponent("Contents.json")
 var manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as! [String: Any]
 var images = manifest["images"] as! [[String: String]]

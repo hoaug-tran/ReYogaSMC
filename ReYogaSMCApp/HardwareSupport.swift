@@ -56,6 +56,135 @@ struct SavedRGBSettings: Codable, Equatable {
     }
 }
 
+struct HardwareSnapshot {
+    static func fanRPM(_ value: Any?) -> Int {
+        guard let value = value as? Int, (0..<0xffff).contains(value) else { return -1 }
+        return value
+    }
+
+    static func temperature(_ value: Any?) -> Int {
+        guard let value = value as? Int, (1..<125).contains(value) else { return -1 }
+        return value
+    }
+
+    static func powerRange(_ value: Any?, current: Any?) -> [String: Int]? {
+        guard let range = value as? [String: Int], let current = current as? Int,
+              let low = range["Min"], let high = range["Max"], let step = range["Step"],
+              low >= 0, high >= low, high <= Int(UInt32.max), step > 0,
+              current >= low, current <= high else { return nil }
+        return ["Min": low, "Max": high, "Step": step]
+    }
+
+    static func stale(_ props: NSDictionary, observedAge: TimeInterval, uptime: TimeInterval) -> Bool {
+        let interval = props["TelemetryIntervalMS"] as? Int ?? 0
+        let threshold = max(2, Double(max(0, interval)) / 1000 * 3)
+        if props["SensorSampleTimeMS"] != nil {
+            guard let sampleMS = props["SensorSampleTimeMS"] as? Double, sampleMS.isFinite, sampleMS >= 0 else { return true }
+            let age = uptime - sampleMS / 1000
+            return age < -1 || age > threshold
+        }
+        return observedAge > threshold
+    }
+
+    static func manualFanFeature(_ feature: HardwareFeatureStatus?, key: String,
+                                 bridgeVersion: Int, writesValidated: Bool) -> HardwareFeatureStatus {
+        let unavailable = HardwareFeatureStatus(available: false,
+            reason: "The active driver has no validated manual fan control for this firmware.", backend: feature?.backend ?? "Unavailable")
+        guard let feature = feature else { return unavailable }
+        // Bridge requirements belong to this adapter, not every fan backend.
+        guard feature.backend == "ACPI profile" else { return feature }
+        guard feature.available, bridgeVersion >= 2 else { return unavailable }
+        if key != "FanControlMode" && !writesValidated {
+            return HardwareFeatureStatus(available: false,
+                reason: "Manual fan minimums have not been validated for this firmware.", backend: feature.backend)
+        }
+        return feature
+    }
+}
+
+// Display identity is independent of firmware control eligibility.
+struct LaptopIdentity {
+    let name: String
+    let source: String
+
+    static func resolve(strings: [String], pciIDs: Set<String>, lenovo: Bool,
+                        profiles: [[String: Any]] = HardwareProfiles.all()) -> LaptopIdentity {
+        let evidence = strings.map { $0.uppercased() }
+        let models = profiles.filter { $0["kind"] as? String == "acpi" }
+        let machineMatches = models.filter { profile in
+            (profile["machine_types"] as? [String] ?? []).contains { type in
+                evidence.contains { value in
+                    value.range(of: "(?<![A-Z0-9])" + NSRegularExpression.escapedPattern(for: type.uppercased()) + "[A-Z0-9]*(?![A-Z0-9])", options: .regularExpression) != nil
+                }
+            }
+        }
+        let pciMatches = models.filter { profile in
+            (profile["pci_subsystem_ids"] as? [String] ?? []).contains { pciIDs.contains($0.lowercased()) }
+        }
+        let machineNames = Set(machineMatches.compactMap { $0["name"] as? String })
+        let pciNames = Set(pciMatches.compactMap { $0["name"] as? String })
+        let names = machineNames.union(pciNames)
+        if names.count == 1, let name = names.first {
+            let source = machineNames.isEmpty ? "PCI subsystem ID" : pciNames.isEmpty ? "Machine type" : "Machine type + PCI subsystem ID"
+            return LaptopIdentity(name: name, source: source)
+        }
+        let isLenovo = lenovo || !machineNames.isEmpty || pciIDs.contains { $0.hasPrefix("17aa:") } ||
+            evidence.contains { $0.contains("LENOVO") }
+        return LaptopIdentity(name: isLenovo ? "Lenovo Laptop" : "Unknown Laptop", source: "Hardware identity")
+    }
+
+    static func text(_ value: Any?) -> String? {
+        if let string = value as? String { return String(string.prefix(256)) }
+        guard let data = value as? Data, data.count <= 256 else { return nil }
+        return String(data: data, encoding: .utf8)?.replacingOccurrences(of: "\0", with: " ")
+    }
+
+    static func read() -> LaptopIdentity {
+        var strings: [String] = []
+        var pciIDs = Set<String>()
+        func collect(_ entry: io_registry_entry_t) {
+            for key in ["product-name", "model", "manufacturer", "board-product", "OEMProduct", "OEMVendor", "OEMBoard", "machine-type"] {
+                let value = IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+                if let string = text(value) { strings.append(string) }
+            }
+        }
+        for path in ["IODeviceTree:/", "IODeviceTree:/efi/platform"] {
+            let entry = IORegistryEntryFromPath(kIOMasterPortDefault, path)
+            if entry != 0 { collect(entry); IOObjectRelease(entry) }
+        }
+        let options = IORegistryEntryFromPath(kIOMasterPortDefault, "IODeviceTree:/options")
+        if options != 0 {
+            defer { IOObjectRelease(options) }
+            var properties: Unmanaged<CFMutableDictionary>?
+            if IORegistryEntryCreateCFProperties(options, &properties, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+               let props = properties?.takeRetainedValue() as? [String: Any] {
+                for (key, value) in props where ["OEMProduct", "OEMVendor"].contains(String(key.split(separator: ":").last ?? "")) {
+                    if let string = text(value) { strings.append(string) }
+                }
+            }
+        }
+        var iterator: io_iterator_t = 0
+        if IORegistryCreateIterator(kIOMasterPortDefault, kIOServicePlane, IOOptionBits(kIORegistryIterateRecursively), &iterator) == KERN_SUCCESS {
+            defer { IOObjectRelease(iterator) }
+            while case let entry = IOIteratorNext(iterator), entry != 0 {
+                defer { IOObjectRelease(entry) }
+                if IOObjectConformsTo(entry, "IOPlatformExpertDevice") != 0 { collect(entry) }
+                guard IOObjectConformsTo(entry, "IOPCIDevice") != 0 else { continue }
+                func number(_ key: String) -> UInt32? {
+                    let value = IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+                    if let value = value as? NSNumber { return value.uint32Value }
+                    guard let data = value as? Data, data.count == 4 else { return nil }
+                    return data.enumerated().reduce(UInt32(0)) { $0 | UInt32($1.element) << (8 * $1.offset) }
+                }
+                if let vendor = number("subsystem-vendor-id"), let device = number("subsystem-id"), vendor <= 0xffff, device <= 0xffff {
+                    pciIDs.insert(String(format: "%04x:%04x", vendor, device))
+                }
+            }
+        }
+        return resolve(strings: strings, pciIDs: pciIDs, lenovo: false)
+    }
+}
+
 struct HardwareProfiles {
     static var directory: URL? { Bundle.main.resourceURL?.appendingPathComponent("HardwareProfiles", isDirectory: true) }
     private static let cachedProfiles = loadProfiles()
@@ -64,7 +193,7 @@ struct HardwareProfiles {
         guard let directory = directory,
               let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return [] }
         return files.filter { $0.pathExtension == "json" }.compactMap {
-            guard let data = try? Data(contentsOf: $0) else { return nil }
+            guard let data = try? Data(contentsOf: $0), data.count <= 1024 * 1024 else { return nil }
             guard let profile = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                   profile["schema_version"] as? Int == 1 else { return nil }
             return profile
@@ -75,27 +204,46 @@ struct HardwareProfiles {
             ($0["matchProfiles"] as? [String])?.contains(profileID) == true
         }
     }
+    static func normalizedDSDT(_ source: String) -> String {
+        let pattern = #""(?:\\.|[^"\\])*"|/\*.*?\*/|//[^\n]*|[^\s]"#
+        guard let expression = try? NSRegularExpression(pattern: pattern, options: .dotMatchesLineSeparators) else { return source }
+        let text = source as NSString
+        return expression.matches(in: source, range: NSRange(location: 0, length: text.length)).map {
+            text.substring(with: $0.range)
+        }.filter { !$0.hasPrefix("/*") && !$0.hasPrefix("//") }.joined()
+    }
     static func matchingDSDT(_ source: String) throws -> [String: Any] {
-        let commentsRemoved = source.replacingOccurrences(of: "(?s)/\\*.*?\\*/|//[^\\n]*", with: "", options: .regularExpression, range: nil)
-        let normalized = commentsRemoved.replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
+        guard source.utf8.count <= 16 * 1024 * 1024 else { throw SupportError.message("DSDT source exceeds the supported size") }
+        let normalized = normalizedDSDT(source)
         let digest = SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
-        let matches = all().filter { item in
-            guard let patterns = item["required_patterns"] as? [String], !patterns.isEmpty else { return false }
-            guard (item["reviewed_dsdt_hashes"] as? [String])?.contains(digest) == true else { return false }
-            return patterns.allSatisfy {
-                source.range(of: $0, options: .regularExpression) != nil
-            }
+        let exactMatches = all().filter { item in
+            item["kind"] as? String == "acpi" && item["offsets"] != nil &&
+                (item["reviewed_dsdt_hashes"] as? [String])?.contains(digest) == true
         }
-        guard matches.count == 1 else { throw SupportError.message("No unique reviewed ACPI profile matches this DSDT. Export diagnostics for profile review.") }
-        return matches[0]
+        if exactMatches.count == 1 { return exactMatches[0] }
+
+        throw SupportError.message("No reviewed DSDT fingerprint matches. Export diagnostics for firmware review.")
     }
     static func matchingAML(_ data: Data) throws -> [String: Any] {
-        guard data.count >= 36, data.prefix(4) == Data("DSDT".utf8) else { throw SupportError.message("Exported ACPI table is not a DSDT") }
+        guard data.count >= 36, data.count <= 1024 * 1024, data.prefix(4) == Data("DSDT".utf8) else {
+            throw SupportError.message("Exported ACPI table is not a valid DSDT")
+        }
+        let bytes = [UInt8](data)
+        let length = (0..<4).reduce(UInt32(0)) { $0 | UInt32(bytes[4 + $1]) << (8 * $1) }
+        guard Int(length) == data.count, bytes.reduce(UInt8(0), { $0 &+ $1 }) == 0 else {
+            throw SupportError.message("DSDT length or checksum is invalid")
+        }
         let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-        let matches = all().filter { ($0["reviewed_aml_hashes"] as? [String])?.contains(digest) == true }
-        guard matches.count == 1 else { throw SupportError.message("This DSDT/firmware is not in a reviewed profile. Export diagnostics; do not reuse another model’s EC offsets.") }
+        let matches = all().filter {
+            $0["kind"] as? String == "acpi" && $0["offsets"] != nil &&
+                ($0["reviewed_aml_hashes"] as? [String])?.contains(digest) == true
+        }
+        guard matches.count == 1 else {
+            throw SupportError.message("No unique reviewed AML fingerprint matches. Export diagnostics for firmware review.")
+        }
         return matches[0]
     }
+
     static func bridgeFilename(_ profile: [String: Any]) -> String {
         let identity = profile["id"] as? String ?? "device"
         let label = identity.replacingOccurrences(of: "[^A-Za-z0-9]+", with: "-", options: .regularExpression)
@@ -114,7 +262,7 @@ struct HardwareProfiles {
         let identity = IORegistryEntryCreateCFProperty(service, "HardwareProfile" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? String
         let namedProfile = all().first { $0["id"] as? String == identity }
         save.nameFieldStringValue = bridgeFilename(namedProfile ?? [:])
-        save.message = "The driver exports DSDT locally. Only a reviewed profile can generate an SSDT; it is never installed automatically."
+        save.message = localizedMessage("The driver exports DSDT locally. Only a reviewed profile can generate an SSDT; it is never installed automatically.")
         guard save.runModal() == .OK, let output = save.url else { return }
         IOObjectRetain(service)
         DispatchQueue.global(qos: .utility).async {
@@ -165,7 +313,7 @@ struct HardwareProfiles {
     static func exportBridge() {
         let chooser = NSOpenPanel()
         chooser.allowedFileTypes = ["dsl"]
-        chooser.message = "Select a disassembled DSDT. A bridge is generated only when a reviewed profile matches."
+        chooser.message = localizedMessage("Select a disassembled DSDT. A bridge is generated only when a reviewed profile matches.")
         guard chooser.runModal() == .OK, let input = chooser.url else { return }
         do {
             let source = try String(contentsOf: input, encoding: .utf8)
@@ -174,7 +322,7 @@ struct HardwareProfiles {
             let save = NSSavePanel()
             save.nameFieldStringValue = bridgeFilename(profile)
             save.allowedFileTypes = ["dsl"]
-            save.message = "Save ACPI source for review and compilation with iasl. It will not be installed."
+            save.message = localizedMessage("Save ACPI source for review and compilation with iasl. It will not be installed.")
             guard save.runModal() == .OK, let output = save.url else { return }
             try generated.write(to: output, atomically: true, encoding: .utf8)
             ReYogaDiagnostics.shared.record("acpi_generated", ["profile": profile["id"] ?? "unknown", "validation": profile["validation"] ?? "unknown"])
@@ -189,7 +337,7 @@ struct HardwareProfiles {
 
 enum SupportError: LocalizedError {
     case message(String)
-    var errorDescription: String? { if case .message(let text) = self { return text }; return nil }
+    var errorDescription: String? { if case .message(let text) = self { return localizedMessage(text) }; return nil }
 }
 
 // Wire format derived from OpenRGB's LenovoUSBController (Cooper Hall/geobot19,
@@ -236,12 +384,25 @@ final class LegionRGBController {
         IOHIDManagerSetDeviceMatchingMultiple(manager, matchers as CFArray)
         let opened = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
         guard opened == kIOReturnSuccess else {
-            status = HardwareFeatureStatus(available: false, reason: opened == kIOReturnNotPermitted ? "macOS denied HID access. Enable Input Monitoring for ReYogaSMCNC, then retry discovery." : String(format: "HID discovery failed: 0x%08x", opened), backend: "USB HID")
+            status = HardwareFeatureStatus(available: false, reason: opened == kIOReturnNotPermitted ? "macOS denied HID access. Enable Input Monitoring for ReYogaSMC, then retry discovery." : String(format: localizedMessage("HID discovery failed: 0x%08x"), opened), backend: "USB HID")
             return
         }
         self.manager = manager
         let devices = IOHIDManagerCopyDevices(manager) as? Set<IOHIDDevice> ?? []
-        for candidate in devices {
+        let candidates = devices.filter { candidate in
+            let vendor = IOHIDDeviceGetProperty(candidate, kIOHIDVendorIDKey as CFString) as? Int ?? -1
+            let product = IOHIDDeviceGetProperty(candidate, kIOHIDProductIDKey as CFString) as? Int ?? -1
+            let page = IOHIDDeviceGetProperty(candidate, kIOHIDPrimaryUsagePageKey as CFString) as? Int ?? -1
+            let size = IOHIDDeviceGetProperty(candidate, kIOHIDMaxFeatureReportSizeKey as CFString) as? Int ?? -1
+            return profiles.contains { $0["vendorID"] as? Int == vendor && $0["productID"] as? Int == product &&
+                $0["usagePage"] as? Int == page && $0["reportSize"] as? Int == size }
+        }
+        guard candidates.count <= 1 else {
+            matchedProfileID = nil
+            status = HardwareFeatureStatus(available: false, reason: "Multiple matching RGB controllers found; disconnect additional controllers and retry", backend: "USB HID")
+            return
+        }
+        for candidate in candidates {
             let vendor = IOHIDDeviceGetProperty(candidate, kIOHIDVendorIDKey as CFString) as? Int ?? -1
             let product = IOHIDDeviceGetProperty(candidate, kIOHIDProductIDKey as CFString) as? Int ?? -1
             let page = IOHIDDeviceGetProperty(candidate, kIOHIDPrimaryUsagePageKey as CFString) as? Int ?? -1
@@ -251,7 +412,7 @@ final class LegionRGBController {
             matchedProfileID = match["id"] as? String
             let ret = IOHIDDeviceOpen(candidate, IOOptionBits(kIOHIDOptionsTypeNone))
             guard ret == kIOReturnSuccess else {
-                status = HardwareFeatureStatus(available: false, reason: ret == kIOReturnNotPermitted ? "RGB access denied. Check Input Monitoring permission." : ret == kIOReturnExclusiveAccess ? "Another application owns the RGB HID device. Close it and retry." : String(format: "RGB HID open failed: 0x%08x", ret), backend: "USB HID")
+                status = HardwareFeatureStatus(available: false, reason: ret == kIOReturnNotPermitted ? "RGB access denied. Check Input Monitoring permission." : ret == kIOReturnExclusiveAccess ? "Another application owns the RGB HID device. Close it and retry." : String(format: localizedMessage("RGB HID open failed: 0x%08x"), ret), backend: "USB HID")
                 continue
             }
             device = candidate
@@ -263,7 +424,7 @@ final class LegionRGBController {
                 device = nil
                 continue
             }
-            status = HardwareFeatureStatus(available: true, reason: "Direct colors have transport acknowledgement; color readback is unavailable", backend: "USB HID • \(match["id"] ?? "unknown")")
+            status = HardwareFeatureStatus(available: true, reason: "Direct colors have transport acknowledgement; color readback is unavailable", backend: localizedMessage("USB HID • %@", String(describing: match["id"] ?? "unknown")))
             ReYogaDiagnostics.shared.record("rgb_detected", ["vendor": vendor, "product": product, "reportSize": size, "profile": match["id"] ?? "unknown"])
             break
         }
@@ -273,7 +434,7 @@ final class LegionRGBController {
               let report = profile["reportID"] as? Int,
               bytes.count == profile["reportSize"] as? Int else { throw SupportError.message("RGB device disconnected or profile invalid") }
         let ret = bytes.withUnsafeBufferPointer { IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(report), $0.baseAddress!, bytes.count) }
-        guard ret == kIOReturnSuccess else { throw SupportError.message(String(format: "RGB feature report failed: 0x%08x", ret)) }
+        guard ret == kIOReturnSuccess else { throw SupportError.message(String(format: localizedMessage("RGB feature report failed: 0x%08x"), ret)) }
     }
     private func instruction(_ code: Int) throws {
         guard let profile = profile, let size = profile["reportSize"] as? Int, let report = profile["reportID"] as? Int else { throw SupportError.message("RGB profile unavailable") }
@@ -291,7 +452,7 @@ final class LegionRGBController {
         var length = size
         let ret = response.withUnsafeMutableBufferPointer { IOHIDDeviceGetReport(device, kIOHIDReportTypeFeature, CFIndex(report), $0.baseAddress!, &length) }
         guard ret == 0, length > 4, response[0] == UInt8(report), response[4] <= 41 else {
-            throw SupportError.message(String(format: "RGB layout query failed (0x%08x); no LED map will be guessed", ret))
+            throw SupportError.message(String(format: localizedMessage("RGB layout query failed (0x%08x); no LED map will be guessed"), ret))
         }
         layout = response[4] == 41 ? "Keyboard Japan" : (16...40).contains(response[4]) ? "Keyboard ISO" : "Keyboard ANSI"
         return Int(response[4])
@@ -363,12 +524,12 @@ final class LegionRGBController {
         var batches: [(Int, [(Int, UInt8, UInt8, UInt8)])] = []
         for (name, colors) in values {
             guard let zone = zones[name == "Keyboard" ? layout : name], let bank = zone["bank"] as? Int,
-                  let leds = zone["leds"] as? [[String: Any]] else { throw SupportError.message("Unknown RGB zone: \(name)") }
+                  let leds = zone["leds"] as? [[String: Any]] else { throw SupportError.message(localizedMessage("Unknown RGB zone: %@", name)) }
             var batch: [(Int, UInt8, UInt8, UInt8)] = []
             for (name, value) in colors {
                 let allowed = leds.first { String($0["id"] as? Int ?? -1) == name || $0["name"] as? String == name }
                 guard let id = allowed?["id"] as? Int, value.count == 7, value.first == "#",
-                      let color = UInt32(value.dropFirst(), radix: 16) else { throw SupportError.message("Unknown LED or invalid color: \(name)") }
+                      let color = UInt32(value.dropFirst(), radix: 16) else { throw SupportError.message(localizedMessage("Unknown LED or invalid color: %@", name)) }
                 batch.append((id, UInt8((color >> 16) & 255), UInt8((color >> 8) & 255), UInt8(color & 255)))
             }
             batches.append((bank, batch))
@@ -401,7 +562,6 @@ final class LegionHotkeys {
     private var consumedKeys: Set<Int> = []
     private var repeatableActions: Set<String> = []
     static func rawAction(keycode: Int, physicalFnDown: Bool, mapping: [String: String]) -> String? {
-        // Apple's function modifier is also set for ordinary F/navigation keys.
         physicalFnDown ? mapping[String(keycode)] : nil
     }
     var action: ((String) -> Void)?
@@ -409,7 +569,7 @@ final class LegionHotkeys {
         guard tap == nil else { return }
         guard AXIsProcessTrusted() else {
             _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
-            throw SupportError.message("Enable Accessibility for ReYogaSMCNC to map Fn hotkeys")
+            throw SupportError.message("Enable Accessibility for ReYogaSMC to map Fn hotkeys")
         }
         guard let profile = HardwareProfiles.hotkeys(for: profileID) else { throw SupportError.message("No hotkey profile available") }
         mapping = profile["keycodes"] as? [String: String] ?? [:]
@@ -470,7 +630,7 @@ final class LegionHotkeys {
         self.manager = manager
         if opened != kIOReturnSuccess {
             stop()
-            throw SupportError.message(String(format: "Consumer hotkeys unavailable (0x%08x); check Input Monitoring permission", opened))
+            throw SupportError.message(String(format: localizedMessage("Consumer hotkeys unavailable (0x%08x); check Input Monitoring permission"), opened))
         }
         ReYogaDiagnostics.shared.record("hotkeys_started", ["profile": profile["id"] ?? "unknown", "consumerStatus": opened])
     }
@@ -507,7 +667,6 @@ final class SMCTemperatureReader {
     private var cpuKeys: [String] = []
     private var cpuProvider = "SMC"
     private var gpuProvider = "SMC"
-    private var discovered = false
     private var info: [String: (size: Int, type: String)] = [:]
     private var nextDiscovery = Date.distantPast
     private(set) var reason = "SMC discovery pending"
@@ -555,7 +714,7 @@ final class SMCTemperatureReader {
             }
         }
         guard status == kIOReturnSuccess, outputSize == 80, output[40] == 0 else {
-            throw SupportError.message(String(format: "SMC read failed: transport=0x%08x result=%u bytes=%u", status, output[40], outputSize))
+            throw SupportError.message(String(format: localizedMessage("SMC read failed: transport=0x%08x result=%u bytes=%u"), status, output[40], outputSize))
         }
         return output
     }
@@ -563,10 +722,10 @@ final class SMCTemperatureReader {
         if info[key] == nil {
             let result = try call(key: key, command: 9)
             let size = Int(uint32(result, 28))
-            guard (1...32).contains(size) else { throw SupportError.message("Invalid SMC value length for \(key)") }
+            guard (1...32).contains(size) else { throw SupportError.message(localizedMessage("Invalid SMC value length for %@", key)) }
             info[key] = (size, string(uint32(result, 32)))
         }
-        let descriptor = info[key]!
+        guard let descriptor = info[key] else { throw SupportError.message("SMC key descriptor unavailable") }
         let result = try call(key: key, command: 5, size: descriptor.size)
         return (descriptor.type, Array(result[48..<(48 + descriptor.size)]))
     }
@@ -582,7 +741,7 @@ final class SMCTemperatureReader {
             guard service != 0 else { throw SupportError.message("AppleSMC service is missing") }
             defer { IOObjectRelease(service) }
             let status = IOServiceOpen(service, mach_task_self_, 0, &connection)
-            guard status == kIOReturnSuccess else { throw SupportError.message(String(format: "AppleSMC access denied: 0x%08x", status)) }
+            guard status == kIOReturnSuccess else { throw SupportError.message(String(format: localizedMessage("AppleSMC access denied: 0x%08x"), status)) }
         }
         let countData = try read("#KEY").1
         guard countData.count == 4 else { throw SupportError.message("Invalid SMC key count") }
@@ -607,18 +766,17 @@ final class SMCTemperatureReader {
             reason = "Multiple SMC GPUs found; sensor identity needs a reviewed mapping"
         } else { reason = keys.isEmpty ? "No GPU temperature keys published by the SMC plugins" : "GPU temperature keys discovered" }
         cpuReason = cpuKeys.isEmpty ? "No CPU temperature keys published by the SMC plugins" : "CPU temperature keys discovered"
-        discovered = true
     }
     func gpuTemperature() -> Reading? {
         do {
-            if (!discovered || cpuKeys.isEmpty || keys.isEmpty) && Date() >= nextDiscovery {
+            if Date() >= nextDiscovery {
                 nextDiscovery = Date().addingTimeInterval(30)
                 try discover()
             }
             for key in keys {
-                let value = try read(key)
+                guard let value = try? read(key) else { continue }
                 if let temperature = Self.decodeTemperature(type: value.0, bytes: value.1) {
-                    reason = "Reading \(key) published by \(gpuProvider)"
+                    reason = localizedMessage("Reading %@ published by %@", key, gpuProvider)
                     return Reading(celsius: temperature, key: key, source: "\(gpuProvider) / \(key)")
                 }
             }
@@ -631,14 +789,14 @@ final class SMCTemperatureReader {
     }
     func cpuTemperature() -> Reading? {
         do {
-            if (!discovered || cpuKeys.isEmpty || keys.isEmpty) && Date() >= nextDiscovery {
+            if Date() >= nextDiscovery {
                 nextDiscovery = Date().addingTimeInterval(30)
                 try discover()
             }
             for key in cpuKeys {
-                let value = try read(key)
+                guard let value = try? read(key) else { continue }
                 if let temperature = Self.decodeTemperature(type: value.0, bytes: value.1) {
-                    cpuReason = "Reading \(key) published by \(cpuProvider)"
+                    cpuReason = localizedMessage("Reading %@ published by %@", key, cpuProvider)
                     return Reading(celsius: temperature, key: key, source: "\(cpuProvider) / \(key)")
                 }
             }
@@ -651,32 +809,151 @@ final class SMCTemperatureReader {
     }
     func close() {
         if connection != 0 { IOServiceClose(connection) }
-        connection = 0; keys = []; cpuKeys = []; info = [:]; discovered = false
+        connection = 0; keys = []; cpuKeys = []; info = [:]
     }
     deinit { close() }
 }
 
-struct LiveBatterySnapshot: Equatable {
+public struct BatteryDetail: Identifiable, Equatable {
+    public let id: Int
+    let label: String
+    let present: Bool
+    let cycleCount: Int?
+    let temperature: String?
+    let manufactureDate: String?
+    let identifier: String?
+    let critical: Bool
+    let source: String
+
+    init(index: Int, properties: [String: Any], source: String = "Lenovo ACPI") {
+        id = index
+        label = localizedMessage("Battery %@", String(index + 1))
+        cycleCount = (properties["Cycle count"] as? String).flatMap(Int.init).flatMap { $0 > 0 ? $0 : nil }
+        temperature = properties["Temperature"] as? String
+        manufactureDate = properties["Manufacture date"] as? String
+        let rawIdentifier = properties["ID"] as? String
+        identifier = rawIdentifier.flatMap { value in
+            let compact = value.replacingOccurrences(of: " ", with: "")
+            return compact.isEmpty || Set(compact) == ["0"] ? nil : value
+        }
+        critical = properties["Critical"] as? Bool ?? false
+        present = cycleCount != nil || temperature != nil || identifier != nil || critical
+        self.source = source
+    }
+
+    static func fallback(index: Int, snapshot: LiveBatterySnapshot) -> BatteryDetail {
+        BatteryDetail(index: index, properties: [:], source: snapshot.source)
+    }
+}
+
+public struct LiveBatterySnapshot: Equatable {
     let percent: Int?
+    let currentCapacity: Int?
+    let maximumCapacity: Int?
+    let designCapacity: Int?
     let externalPower: Bool?
     let charging: Bool?
+    let fullyCharged: Bool?
+    let installed: Bool?
     let milliamps: Int?
+    let voltage: Double?
+    let temperatureCelsius: Double?
+    let cycleCount: Int?
+    let health: String?
+    let manufacturer: String?
+    let deviceName: String?
+    let serial: String?
+    let timeToEmpty: Int?
+    let timeToFull: Int?
+    let adapterWatts: Double?
+    let updatedAt: Date?
+    let rawFields: [String: String]
+    let source: String
 
+    var healthPercent: Double? {
+        guard let maximum = maximumCapacity, let design = designCapacity, design > 0 else { return nil }
+        return Double(maximum) / Double(design) * 100
+    }
+    var watts: Double? {
+        guard let voltage = voltage, let current = milliamps else { return nil }
+        return voltage * Double(current) / 1000
+    }
+    var state: String {
+        if installed == false { return "Not installed" }
+        if charging == true { return "Charging" }
+        if let current = milliamps, current < 0 { return "Discharging" }
+        if fullyCharged == true { return "Fully charged" }
+        if externalPower == true && charging == false { return "Connected · not charging" }
+        return "Unavailable"
+    }
     init(properties: [String: Any]) {
-        let rawCurrent = properties["AppleRawCurrentCapacity"] as? NSNumber
-        let rawMaximum = properties["AppleRawMaxCapacity"] as? NSNumber
-        let useRaw = rawCurrent != nil && rawMaximum != nil
-        let current = useRaw ? rawCurrent : properties["CurrentCapacity"] as? NSNumber
-        let maximum = useRaw ? rawMaximum : properties["MaxCapacity"] as? NSNumber
-        if let current = current?.doubleValue, let maximum = maximum?.doubleValue,
-           current.isFinite, maximum.isFinite, current >= 0, maximum > 0 {
-            percent = Int(min(100, max(0, (current / maximum * 100).rounded())))
+        let nested = properties["BatteryData"] as? [String: Any] ?? [:]
+        func number(_ key: String) -> Double? {
+            guard let n = (properties[key] ?? nested[key]) as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
+            let value = n.doubleValue
+            return value.isFinite ? value : nil
+        }
+        func capacity(_ key: String) -> Int? {
+            guard let value = number(key), value >= 0, value <= 1_000_000 else { return nil }
+            return Int(value.rounded())
+        }
+        func text(_ key: String) -> String? {
+            guard let value = (properties[key] ?? nested[key]) as? String, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+            return value
+        }
+        // MaxCapacity=100 may be a normalized percentage, not a physical mAh value.
+        let rawCurrent = capacity("AppleRawCurrentCapacity")
+        let rawMaximum = capacity("AppleRawMaxCapacity").flatMap { $0 > 0 ? $0 : nil }
+        let normalCurrent = capacity("CurrentCapacity")
+        let normalMaximum = capacity("MaxCapacity").flatMap { $0 > 0 ? $0 : nil }
+        currentCapacity = rawCurrent ?? (normalMaximum != 100 ? normalCurrent : nil)
+        maximumCapacity = rawMaximum ?? (normalMaximum != 100 ? normalMaximum : nil)
+        if let current = rawCurrent, let maximum = rawMaximum {
+            percent = Int(min(100, max(0, (Double(current) / Double(maximum) * 100).rounded())))
+        } else if let current = normalCurrent, let maximum = normalMaximum {
+            percent = Int(min(100, max(0, (Double(current) / Double(maximum) * 100).rounded())))
         } else { percent = nil }
+        designCapacity = capacity("DesignCapacity").flatMap { $0 > 0 ? $0 : nil }
         externalPower = properties["ExternalConnected"] as? Bool
         charging = properties["IsCharging"] as? Bool
-        let currentValue = (properties["InstantAmperage"] as? NSNumber) ?? (properties["Amperage"] as? NSNumber)
-        if let value = currentValue?.int64Value, (-100_000...100_000).contains(value) { milliamps = Int(value) }
-        else { milliamps = nil }
+        fullyCharged = properties["FullyCharged"] as? Bool
+        installed = properties["BatteryInstalled"] as? Bool
+        let amperage = number("InstantAmperage") ?? number("Amperage")
+        // Some providers encode a signed current in an unsigned 16/32-bit register.
+        let signed = amperage.map { value -> Double in
+            if (32768.0...65535.0).contains(value) { return value - 65536 }
+            if (2147483648.0...4294967295.0).contains(value) { return value - 4294967296 }
+            return value
+        }
+        milliamps = signed.flatMap { (-100_000...100_000).contains($0) ? Int($0) : nil }
+        voltage = number("Voltage").flatMap { (1...100_000).contains($0) ? $0 / 1000 : nil }
+        // Smart Battery Temperature uses tenths of a kelvin.
+        temperatureCelsius = number("Temperature").flatMap { value in
+            let celsius = value / 10 - 273.15
+            return (-40...120).contains(celsius) ? celsius : nil
+        }
+        cycleCount = capacity("CycleCount").flatMap { $0 <= 100_000 ? $0 : nil }
+        health = text("Health") ?? text("BatteryHealth")
+        manufacturer = text("Manufacturer")
+        deviceName = text("DeviceName")
+        serial = text("Serial") ?? text("BatterySerialNumber")
+        func minutes(_ key: String) -> Int? {
+            guard let value = number(key), value >= 0, value < 0x8000 else { return nil }
+            return Int(value)
+        }
+        timeToEmpty = minutes("AvgTimeToEmpty") ?? minutes("TimeRemaining")
+        timeToFull = minutes("AvgTimeToFull")
+        let adapter = properties["AdapterDetails"] as? [String: Any]
+        adapterWatts = ((adapter?["Watts"] as? NSNumber)?.doubleValue).flatMap { $0 > 0 && $0 < 2000 ? $0 : nil }
+        updatedAt = number("UpdateTime").flatMap { $0 > 0 ? Date(timeIntervalSince1970: $0) : nil }
+        rawFields = properties.reduce(into: [String: String]()) { result, pair in
+            if let value = pair.value as? String { result[pair.key] = value }
+            else if let value = pair.value as? NSNumber { result[pair.key] = value.stringValue }
+            else if pair.key == "BatteryData" || pair.key == "AdapterDetails" || pair.key == "ChargerData" {
+                result[pair.key] = String(describing: pair.value)
+            }
+        }
+        source = "AppleSmartBattery"
     }
 
     var summary: String {
@@ -686,8 +963,8 @@ struct LiveBatterySnapshot: Equatable {
         if charging == true { parts.append("Charging") }
         else if let milliamps = milliamps, milliamps < 0 { parts.append("Discharging") }
         else if charging == false && externalPower == true { parts.append("Not charging") }
-        if let milliamps = milliamps { parts.append("\(milliamps) mA") }
-        return parts.joined(separator: " - ")
+        if let milliamps = milliamps { parts.append(localizedMessage("%@ mA", String(milliamps))) }
+        return parts.map { localizedMessage($0) }.joined(separator: " - ")
     }
 
     static func read() -> LiveBatterySnapshot? {

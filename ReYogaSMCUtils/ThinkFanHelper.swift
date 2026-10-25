@@ -1,6 +1,6 @@
 //
 //  ThinkFanHelper.swift
-//  ReYogaSMCNC
+//  ReYogaSMCApp
 //
 //  Created by Zhen on 11/5/20.
 //  Copyright © 2020 Zhen. All rights reserved.
@@ -8,237 +8,82 @@
 
 import AppKit
 import Foundation
-import os.log
 
 class ThinkFanHelper {
-    let item = NSMenuItem()
-    let menu: NSMenu
     let connect: io_connect_t
     let main: Bool
-    let defaults = UserDefaults(suiteName: "org.reyoga.ReYogaSMC")!
+    let defaults = ReYogaConstants.hardwareDefaults
     var enable = false
-    var single: Bool
-    let fanPrompt: String
 
-    let slider = NSSlider(frame: NSRect(x: 15, y: 5, width: 200, height: 30))
-    let fanReading = NSTextField(frame: NSRect(x: 12, y: 30, width: 110, height: 30))
-    let autoMode = NSButton(frame: NSRect(x: 125, y: 35, width: 45, height: 30))
-    let fullMode = NSButton(frame: NSRect(x: 175, y: 35, width: 45, height: 30))
+    private(set) var level = 4
+    private(set) var rpm: Int?
+    var minimumLevel: Int { defaults.bool(forKey: "AllowFanStop") ? 0 : 1 }
+    private static let automaticLevel: UInt8 = 0x84
+    private static let fullSpeedLevel: UInt8 = 0x47
 
     var savedLevel: UInt8 = 0x80
 
-    var fanLevel = "HFSP" // 0x2f
-    var fanStatus: UInt64  = 0x2f
-    var fanSelect: UInt64  = 0x31
-    var fanSpeed: UInt64  = 0x84
-
-    public init(_ menu: NSMenu, _ connect: io_connect_t, _ main: Bool, _ single: Bool) {
-        self.menu = menu
+    init(_ connect: io_connect_t, _ main: Bool) {
         self.connect = connect
         self.main = main
-        self.single = single
-
         enable = connect != 0
-        fanPrompt = NSLocalizedString(main ? "Main: %d rpm" : "Alt: %d rpm", comment: "")
-
-        slider.maxValue = 7
-        slider.minValue = defaults.bool(forKey: "AllowFanStop") ? 0 : 1
-        slider.numberOfTickMarks = 8 - Int(slider.minValue)
-        slider.target = self
-        slider.action = #selector(sliderChanged)
-        slider.allowsTickMarkValuesOnly = true
-        slider.isContinuous = false
-
-        fanReading.isEditable = false
-        fanReading.isSelectable = false
-        fanReading.isBezeled = false
-        fanReading.drawsBackground = false
-        fanReading.stringValue = String(format: fanPrompt, 12345)
-        fanReading.font = menu.font
-
-        autoMode.title = NSLocalizedString("Auto", comment: "")
-        autoMode.bezelStyle = .texturedRounded
-        autoMode.setButtonType(.onOff)
-        autoMode.target = self
-        autoMode.action = #selector(buttonChanged)
-
-        fullMode.title = NSLocalizedString("Full", comment: "")
-        fullMode.bezelStyle = .texturedRounded
-        fullMode.setButtonType(.onOff)
-        fullMode.target = self
-        fullMode.action = #selector(buttonChanged)
-
-        let view = NSView(frame: NSRect(x: 0, y: 0, width: slider.frame.width + 40, height: slider.frame.height + 40))
-        view.addSubview(slider)
-        view.addSubview(fanReading)
-        view.addSubview(autoMode)
-        view.addSubview(fullMode)
-
-        item.view = view
-        menu.insertItem(item, at: 4)
     }
 
-    deinit { menu.removeItem(item) }
+    func setAutomatic() {
+        setFanLevel(Self.automaticLevel)
+    }
 
-    @objc func buttonChanged(_ sender: NSButton) {
-        if sender == autoMode {
-            autoMode.state = .on
-            fullMode.state = .off
-            savedLevel = 0x84 // safety min speed 4
-            slider.intValue = 4
-        } else if sender == fullMode {
-            autoMode.state = .off
-            fullMode.state = .on
-            savedLevel = 0x47 // safety min speed 7
-            slider.intValue = 7
-        } else {
-            if #available(macOS 10.12, *) {
-                os_log("Unknown fan mode: %s", type: .error, sender.title)
+    func setFullSpeed() {
+        setFanLevel(Self.fullSpeedLevel)
+    }
+
+    func setManualLevel(_ target: Int) {
+        guard (minimumLevel...7).contains(target) else { return }
+        setFanLevel(UInt8(target))
+    }
+
+    private func access(level requested: UInt64 = 0x100) -> [UInt8]? {
+        guard enable, connect != 0 else { return nil }
+        let input: [UInt64] = [main ? 0 : 1, requested]
+        var output = [UInt8](repeating: 0, count: 3)
+        var size = output.count
+        let status = input.withUnsafeBufferPointer { values in
+            output.withUnsafeMutableBytes { bytes in
+                IOConnectCallMethod(connect, UInt32(kRYSMCUCThinkFan), values.baseAddress, 2,
+                                    nil, 0, nil, nil, bytes.baseAddress, &size)
             }
-            return
         }
-
-        setFanLevel()
+        guard status == kIOReturnSuccess, size == 3 else {
+            rpm = nil
+            enable = false
+            showOSDRaw(String(format: localizedMessage("ThinkPad fan access failed (0x%08x). Retry the driver connection."), status))
+            return nil
+        }
+        rpm = Int(output[0]) | Int(output[1]) << 8
+        return output
     }
 
-    @objc func sliderChanged(_ sender: NSSlider) {
-        autoMode.state = .off
-        fullMode.state = .off
-        savedLevel = UInt8(sender.intValue)
-
-        setFanLevel()
-    }
-
-    func setFanLevel(_ level: UInt8 = 0) {
-        if level != 0 {
-            if #available(macOS 10.12, *) {
-                os_log("Set Fan Level to %x", type: .info, level)
-            }
-            savedLevel = level
-        }
-
-        guard (1...7).contains(savedLevel) || savedLevel == 0x47 || savedLevel == 0x80 || savedLevel == 0x84 ||
-              (savedLevel == 0 && defaults.bool(forKey: "AllowFanStop")) else {
+    func setFanLevel(_ requested: UInt8? = nil) {
+        let target = requested ?? savedLevel
+        guard (1...7).contains(target) || target == 0x47 || target == 0x80 || target == 0x84 ||
+              (target == 0 && defaults.bool(forKey: "AllowFanStop")) else {
             showOSDRaw("Fan level is invalid; use Auto or a supported level")
             return
         }
-        guard enable, switchFan(main) else { return }
-
-        var input = [savedLevel]
-        if kIOReturnSuccess != IOConnectCallMethod(connect, UInt32(kRYSMCUCWriteEC),
-                                                   &fanStatus, 1, &input, 1, nil, nil, nil, nil) {
-            if #available(macOS 10.12, *) {
-                os_log("Write Fan Speed failed!", type: .fault)
-            }
-            showOSD("WriteFanFail")
-            enable = false
-        }
+        guard let sample = access(level: UInt64(target)) else { return }
+        savedLevel = target
+        acceptLevel(sample[2])
     }
 
-    @objc func update(_ updateLevel: Bool = false) {
-        guard enable, connect != 0, switchFan(main) else { return }
-
-        var output: [UInt8] = [0, 0]
-        var outputSize = 2
-        guard kIOReturnSuccess == IOConnectCallMethod(connect, UInt32(kRYSMCUCReadEC),
-                                                      &fanSpeed, 1, nil, 0, nil, nil, &output, &outputSize),
-           outputSize == 2 else {
-            if #available(macOS 10.12, *) {
-                os_log("Failed to access EC", type: .error)
-            }
-            enable = false
-            return
-        }
-
-        fanReading.stringValue = String(format: fanPrompt, Int32(output[0]) | Int32(output[1]) << 8)
-
-        if !updateLevel { return }
-
-        outputSize = 1
-        let field = Array(fanLevel.utf8)
-        guard field.count == 4 else { return }
-        let status = field.withUnsafeBytes { bytes in
-            IOConnectCallMethod(connect, UInt32(kRYSMCUCReadECName),
-                                nil, 0, bytes.baseAddress, 4, nil, nil, &output, &outputSize)
-        }
-        guard status == kIOReturnSuccess, outputSize == 1 else {
-            showOSD("ReadFanFail")
-            if #available(macOS 10.12, *) {
-                os_log("Failed to read fan level!", type: .error)
-            }
-            enable = false
-            return
-        }
-
-        if (output[0] & 0x40) != 0 {
-            autoMode.state = .off
-            fullMode.state = .on
-            savedLevel = 0x47
-            slider.intValue = 7
-        } else if (output[0] & 0x80) != 0 {
-            autoMode.state = .on
-            fullMode.state = .off
-            savedLevel = 0x84
-            slider.intValue = 4
-        } else {
-            autoMode.state = .off
-            fullMode.state = .off
-            if output[0] > 7 {
-                if #available(macOS 10.12, *) {
-                    os_log("Unknown level 0x%02x", type: .error, output[0])
-                }
-                savedLevel = 7
-            } else {
-                savedLevel = output[0]
-            }
-            slider.intValue = Int32(savedLevel)
-        }
+    private func acceptLevel(_ raw: UInt8) {
+        if raw & 0x40 != 0 { savedLevel = Self.fullSpeedLevel; level = 7 }
+        else if raw & 0x80 != 0 { savedLevel = Self.automaticLevel; level = 4 }
+        else if raw <= 7 { savedLevel = raw; level = Int(raw) }
+        else { enable = false; rpm = nil }
     }
 
-    func switchFan(_ main: Bool) -> Bool {
-        if single { return true }
-
-        var current: [UInt8] = [0]
-        var outputSize = 1
-        guard kIOReturnSuccess == IOConnectCallMethod(connect, UInt32(kRYSMCUCReadEC),
-                                                      &fanSelect, 1, nil, 0, nil, nil, &current, &outputSize),
-           outputSize == 1 else {
-            if #available(macOS 10.12, *) {
-                os_log("Failed to read current fan", type: .error)
-            }
-            enable = false
-            return false
-        }
-        if #available(macOS 10.12, *) {
-            os_log("fan reg: 0x%x", type: .info, current[0])
-        }
-
-        if (current[0] & 0x1) != 0 {
-            if !main {
-                if #available(macOS 10.12, *) {
-                    os_log("Already selected second fan", type: .info)
-                }
-                return true
-            }
-            current[0] &= 0xfe
-        } else {
-            if main {
-                if #available(macOS 10.12, *) {
-                    os_log("Already selected main fan", type: .info)
-                }
-                return true
-            }
-            current[0] |= 0x1
-        }
-
-        guard kIOReturnSuccess == IOConnectCallMethod(connect, UInt32(kRYSMCUCWriteEC),
-                                                      &fanSelect, 1, &current, 1, nil, nil, nil, nil) else {
-            if #available(macOS 10.12, *) {
-                os_log("Failed to select another fan", type: .error)
-            }
-            enable = false
-            return false
-        }
-        return true
+    func update(_ updateLevel: Bool = false) {
+        guard let sample = access() else { return }
+        if updateLevel { acceptLevel(sample[2]) }
     }
 }

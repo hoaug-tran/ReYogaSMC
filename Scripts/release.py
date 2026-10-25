@@ -45,7 +45,7 @@ def bump(version, messages):
 def shipped(path):
     if path.endswith('.md'):
         return False
-    if path.startswith(('ReYogaSMC/', 'ReYogaSMCNC/', 'ReYogaSMCUtils/', 'ReYogaSMCNCHelper/', 'HardwareProfiles/')):
+    if path.startswith(('ReYogaSMC/', 'ReYogaSMCApp/', 'ReYogaSMCUtils/', 'ReYogaSMCHelper/', 'HardwareProfiles/')):
         return True
     return path in ('ReYoga.cmd', 'ReYoga.command', PROJECT.as_posix()) or (
         path.startswith('Scripts/') and pathlib.PurePosixPath(path).name not in ('release.py', 'generate_firmware_profiles.py'))
@@ -95,10 +95,9 @@ def plan():
 def package_manifest(version):
     version_tuple(version)
     executables = {
-        'ReYogaSMC': ['ReYogaSMC/ReYogaSMC.kext/Contents/MacOS/ReYogaSMC'],
-        'ReYogaSMCAlter': ['ReYogaSMCAlter/ReYogaSMCAlter.kext/Contents/MacOS/ReYogaSMCAlter'],
-        'ReYogaSMCNC': ['ReYogaSMCNC/ReYogaSMCNC.app/Contents/MacOS/ReYogaSMCNC',
-                        'ReYogaSMCNC/ReYogaSMCNC.app/Contents/Library/LoginItems/ReYogaSMCNCHelper.app/Contents/MacOS/ReYogaSMCNCHelper'],
+        'ReYogaSMC': ['ReYogaSMC.kext/Contents/MacOS/ReYogaSMC'],
+        'ReYogaSMC-App': ['ReYogaSMC.app/Contents/MacOS/ReYogaSMC',
+                        'ReYogaSMC.app/Contents/Library/LoginItems/ReYogaSMCHelper.app/Contents/MacOS/ReYogaSMCHelper'],
     }
     return {f'{mode}/{product}-{version}-{mode.upper()}.zip': members
             for mode in ('Debug', 'Release') for product, members in executables.items()}

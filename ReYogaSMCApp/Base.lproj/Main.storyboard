@@ -10,18 +10,18 @@
                 <application id="hnw-xV-0zn" sceneMemberID="viewController">
                     <menu key="mainMenu" title="Main Menu" systemMenu="main" id="AYu-sK-qS6">
                         <items>
-                            <menuItem title="ReYogaSMCNC" id="1Xt-HY-uBw">
+                            <menuItem title="ReYogaSMC" id="1Xt-HY-uBw">
                                 <modifierMask key="keyEquivalentModifierMask"/>
-                                <menu key="submenu" title="ReYogaSMCNC" systemMenu="apple" id="uQy-DD-JDr">
+                                <menu key="submenu" title="ReYogaSMC" systemMenu="apple" id="uQy-DD-JDr">
                                     <items>
-                                        <menuItem title="About ReYogaSMCNC" id="HGG-QI-ARu">
+                                        <menuItem title="About ReYogaSMC" id="HGG-QI-ARu">
                                             <modifierMask key="keyEquivalentModifierMask"/>
                                             <connections>
                                                 <action selector="openAboutPanel:" target="Voe-Tx-rLC" id="3jz-aH-gzR"/>
                                             </connections>
                                         </menuItem>
                                         <menuItem isSeparatorItem="YES" id="Vvg-1T-VQw"/>
-                                        <menuItem title="Quit ReYogaSMCNC" keyEquivalent="q" id="4sb-4s-VLi">
+                                        <menuItem title="Quit ReYogaSMC" keyEquivalent="q" id="4sb-4s-VLi">
                                             <connections>
                                                 <action selector="terminate:" target="Ady-hI-5gd" id="Te7-pn-YzF"/>
                                             </connections>
@@ -35,10 +35,7 @@
                         <outlet property="delegate" destination="Voe-Tx-rLC" id="PrD-fu-P6m"/>
                     </connections>
                 </application>
-                <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="ReYogaSMCNC" customModuleProvider="target">
-                    <connections>
-                        <outlet property="appMenu" destination="uQy-DD-JDr" id="xRW-0W-h6J"/>
-                    </connections>
+                <customObject id="Voe-Tx-rLC" customClass="AppDelegate" customModule="ReYogaSMC" customModuleProvider="target">
                 </customObject>
                 <customObject id="Ady-hI-5gd" userLabel="First Responder" customClass="NSResponder" sceneMemberID="firstResponder"/>
             </objects>

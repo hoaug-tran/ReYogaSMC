@@ -5,12 +5,28 @@ import AppKit
 import ApplicationServices
 import os.log
 
-@available(macOS 11.0, *)
 public final class HardwareManager: ObservableObject {
     public static let shared = HardwareManager()
 
     @Published public var modelName: String = ""
+    @Published public var smbiosModel: String = ""
+    @Published public var modelSource: String = "SMBIOS"
+    @Published public var modelWarning: String = ""
     @Published public var cpuBrand: String = ""
+    @Published public var driverVersion = "Unavailable"
+    @Published public var profileMatchState = "Unavailable"
+    @Published public var firmwareProfileID = ""
+    public var localizedModelName: String {
+        ["Lenovo Laptop", "Unknown Laptop"].contains(modelName) ? localizedMessage(modelName) : modelName
+    }
+    public var appBuild: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? localizedMessage("Unknown")
+    }
+    public var appRevision: String {
+        Bundle.main.object(forInfoDictionaryKey: "ReYogaGitRevision") as? String ?? localizedMessage("Unknown revision")
+    }
+    private var featurePollingSupported = false
+    private var lastFirmwareRefresh = Date.distantPast
 
     @Published public var hasDualFan: Bool = false
     @Published public var hasPowerProfiles: Bool = false
@@ -75,11 +91,27 @@ public final class HardwareManager: ObservableObject {
                 queuedControls.removeAll(); pendingFanChecks.removeAll()
                 lastSampleSequence = -1; lastSampleDate = .distantPast
                 powerProfile = 0; powerRanges = [:]; cpuPowerModified = false
+                isConservationOn = false; isRapidChargeOn = false; isOverDriveOn = false; isTouchpadLocked = false
+                isFnLocked = false; keyboardBacklight = -1
+                chargeStartThreshold = -1; chargeStopThreshold = -1; batteryIndex = 1; batteryIndividualAddressing = false
+                manualFanMode = false; fan1TargetRPM = -1; fan2TargetRPM = -1; fan1MaxRPM = 0; fan2MaxRPM = 0; fanStepsRPM = [0, 0]
+                cpuBoostWatts = 0; cpuSustainedWatts = 0; alwaysOnUSBState = 0
                 hotkeysRestoreAttempted = false; hotkeyProfileID = ""
                 fan1RPM = -1; fan2RPM = -1; cpuTemp = -1; gpuTemp = -1
                 hotkeys.stop(); hotkeysEnabled = false
-                hardwareQueue.async { self.stopRGBEffect(); self.rgbRestoredProfile = nil; try? self.rgbController.restoreHardwareMode(); self.smcTemperatures.close() }
+                batteryDetails = []
+                liveBattery = nil
                 featureStatus = [:]
+                providerClass = ""
+                driverVersion = "Unavailable"; profileMatchState = "Unavailable"; firmwareProfileID = ""
+                featurePollingSupported = false; lastFirmwareRefresh = .distantPast
+                fanLabels = ["Fan 1", "Fan 2"]
+                hasDualFan = false; hasPowerProfiles = false; hasConservation = false; hasRapidCharge = false
+                hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasAlwaysOnUSB = false
+                preferenceIdentity = ""
+                modelName = detectedIdentity.name; modelSource = detectedIdentity.source; modelWarning = ""
+                telemetryStatus = "Driver unavailable"
+                startMonitoring()
                 initialized = false
                 controlsRestoreAttempted = false
                 restoringControls.removeAll()
@@ -90,11 +122,14 @@ public final class HardwareManager: ObservableObject {
     private var timer: Timer?
     public init() {
         detectHardwareInfo()
+        if !CommandLine.arguments.contains("--render-ui") && !CommandLine.arguments.contains("--check-missing-driver") { startMonitoring() }
         hotkeys.action = { [weak self] action in self?.performHotkey(action) }
+        guard !CommandLine.arguments.contains("--render-ui"), !CommandLine.arguments.contains("--check-missing-driver") else { return }
         hardwareQueue.async {
             self.rgbController.detect()
             DispatchQueue.main.async {
                 self.rgbStatus = self.rgbController.status
+                self.hasRGBHardware = self.rgbController.matchedProfileID != nil
                 if let profile = self.rgbController.matchedProfileID { self.hotkeyProfileID = profile }
                 self.refreshPermissions()
                 self.restoreSavedRGB()
@@ -102,38 +137,36 @@ public final class HardwareManager: ObservableObject {
         }
     }
 
-    public func detectHardwareInfo() {
+    private func systemString(_ key: String) -> String {
         var size: size_t = 0
-        sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0)
-        if size > 0 {
-            var data = [CChar](repeating: 0, count: Int(size))
-            sysctlbyname("machdep.cpu.brand_string", &data, &size, nil, 0)
-            cpuBrand = String(cString: data).trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        let platformExpert = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
-        if platformExpert != 0 {
-            defer { IOObjectRelease(platformExpert) }
-            if let prodData = IORegistryEntryCreateCFProperty(platformExpert, "product-name" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Data,
-               let name = String(data: prodData, encoding: .utf8)?.trimmingCharacters(in: .controlCharacters), !name.isEmpty {
-                modelName = name
-            } else if let modelData = IORegistryEntryCreateCFProperty(platformExpert, "model" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Data,
-                      let name = String(data: modelData, encoding: .utf8)?.trimmingCharacters(in: .controlCharacters), !name.isEmpty {
-                modelName = name
-            }
-        }
-        if modelName.isEmpty {
-            sysctlbyname("hw.model", nil, &size, nil, 0)
-            if size > 0 {
-                var data = [CChar](repeating: 0, count: Int(size))
-                sysctlbyname("hw.model", &data, &size, nil, 0)
-                modelName = String(cString: data).trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-        if modelName.isEmpty {
-            modelName = "Computer"
-        }
+        guard sysctlbyname(key, nil, &size, nil, 0) == 0, size > 0, size <= 4096 else { return "" }
+        var data = [CChar](repeating: 0, count: size + 1)
+        guard sysctlbyname(key, &data, &size, nil, 0) == 0 else { return "" }
+        return String(cString: data).trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    public func detectHardwareInfo() {
+        cpuBrand = systemString("machdep.cpu.brand_string")
+        smbiosModel = ""
+        let platform = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
+        if platform != 0 {
+            defer { IOObjectRelease(platform) }
+            for key in ["product-name", "model"] {
+                let value = IORegistryEntryCreateCFProperty(platform, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+                if let name = LaptopIdentity.text(value)?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+                    smbiosModel = name
+                    break
+                }
+            }
+        }
+        if smbiosModel.isEmpty { smbiosModel = systemString("hw.model") }
+        detectedIdentity = LaptopIdentity.read()
+        modelName = detectedIdentity.name
+        modelSource = detectedIdentity.source
+        modelWarning = ""
+    }
+
+    private var detectedIdentity = LaptopIdentity(name: "Unknown Laptop", source: "Hardware identity")
 
     private let hardwareQueue = DispatchQueue(label: "org.reyogasmc.hardware", qos: .utility)
     private var refreshInFlight = false
@@ -150,24 +183,30 @@ public final class HardwareManager: ObservableObject {
     private var queuedControls: [(String, Int, Bool, String, Bool)] = []
     @Published public var telemetryStatus = "Waiting for driver"
     @Published public var batterySummary = ""
+    @Published public var liveBattery: LiveBatterySnapshot?
+    @Published public var batteryDetails: [BatteryDetail] = []
     @Published public var featureStatus: [String: HardwareFeatureStatus] = [:]
     @Published public var cpuBoostWatts = 0
     @Published public var cpuSustainedWatts = 0
     @Published public var powerRanges: [String: [String: Int]] = [:]
     @Published public var manualFanMode = false
-    @Published public var fan1TargetRPM = 0
-    @Published public var fan2TargetRPM = 0
+    @Published public var fan1TargetRPM = -1
+    @Published public var fan2TargetRPM = -1
+    @Published public var fanStepsRPM = [0, 0]
     @Published public var fan1MaxRPM = 0
     @Published public var fan2MaxRPM = 0
     private let rgbController = LegionRGBController()
     private let hotkeys = LegionHotkeys()
     @Published public var rgbStatus = HardwareFeatureStatus(available: false, reason: "RGB discovery pending", backend: "USB HID")
+    @Published public var hasRGBHardware = false
     @Published public var rgbApplying = false
     @Published public var hotkeysEnabled = false
     @Published public var hotkeyStatus = "Off — native media keys remain active."
     @Published public var rgbMode = "Factory"
     private var rgbLogoEnabled = true
     private var hotkeysRestoreAttempted = false
+    @Published public var hasAccessibilityPermission = false
+    @Published public var hasInputMonitoringPermission = false
     @Published public var permissionStatus = ""
     private var rgbEffectTimer: DispatchSourceTimer?
     private var rgbEffectStart = Date()
@@ -183,7 +222,7 @@ public final class HardwareManager: ObservableObject {
         let poll = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             let delegate = NSApp.delegate as? AppDelegate
-            let visible = delegate?.controlsPopover?.isShown == true || delegate?.settingsWindow?.isVisible == true
+            let visible = delegate?.controlsWindow?.isVisible == true
             if visible || !self.pendingFanChecks.isEmpty || Date().timeIntervalSince(self.lastBackgroundRefresh) >= 2 {
                 self.lastBackgroundRefresh = Date()
                 self.refreshSnapshot(full: false)
@@ -203,12 +242,15 @@ public final class HardwareManager: ObservableObject {
     public func refreshMetrics() { refreshSnapshot(full: false) }
 
     private func refreshSnapshot(full: Bool) {
-        guard service != 0, !refreshInFlight else { return }
+        guard !refreshInFlight else { return }
+        if service == 0 { refreshIndependentSensors(); return }
         refreshInFlight = true
         let handle = service
         let generation = connectionGeneration
         IOObjectRetain(handle)
-        let refreshFirmware = full || providerClass == "ThinkVPC"
+        let refreshFirmware = full || providerClass == "ThinkVPC" ||
+            (!featurePollingSupported && Date().timeIntervalSince(lastFirmwareRefresh) >= 2)
+        if refreshFirmware { lastFirmwareRefresh = Date() }
         hardwareQueue.async {
             if refreshFirmware { _ = sendBoolean("Update", true, handle) }
             let snapshot = getProperties(handle)
@@ -227,9 +269,20 @@ public final class HardwareManager: ObservableObject {
                         self.publish(\.batterySummary, batteryStatus)
                         ReYogaDiagnostics.shared.record("battery_status", ["state": batteryStatus])
                     }
+                    var details: [BatteryDetail] = []
+                    if let first = snapshot["Battery 0"] as? [String: Any] {
+                        let detail = BatteryDetail(index: 0, properties: first)
+                        if detail.present { details.append(detail) }
+                    }
+                    if let second = snapshot["Battery 1"] as? [String: Any] {
+                        let detail = BatteryDetail(index: 1, properties: second)
+                        if detail.present { details.append(detail) }
+                    }
+                    self.publish(\.batteryDetails, details)
+                    self.publish(\.liveBattery, battery)
                     self.cpuUsesSMC = smcCPU != nil
                     self.gpuUsesSMC = smcGPU != nil
-                    self.publish(\.cpuTemp, smcCPU.map { Int($0.celsius.rounded()) } ?? (snapshot["CPUTemp"] as? Int ?? -1))
+                    self.publish(\.cpuTemp, smcCPU.map { Int($0.celsius.rounded()) } ?? HardwareSnapshot.temperature(snapshot["CPUTemp"]))
                     self.publish(\.cpuTemperatureSource, smcCPU?.source ?? (snapshot["SensorSources"] as? [String: String])?["CPUTemp"] ?? "Firmware CPU sensor")
                     self.publish(\.cpuTemperatureReason, cpuReason)
                     if let reading = smcGPU {
@@ -237,7 +290,7 @@ public final class HardwareManager: ObservableObject {
                         self.publish(\.gpuTemperatureSource, reading.source)
                     }
                     if smcGPU == nil {
-                        self.publish(\.gpuTemp, snapshot["GPUTemp"] as? Int ?? -1)
+                        self.publish(\.gpuTemp, HardwareSnapshot.temperature(snapshot["GPUTemp"]))
                         self.publish(\.gpuTemperatureSource, self.gpuTemp > 0 ? (snapshot["SensorSources"] as? [String: String])?["GPUTemp"] ?? "Firmware GPU sensor" : "No GPU temperature source")
                     }
                     self.publish(\.gpuTemperatureReason, smcReason)
@@ -254,12 +307,40 @@ public final class HardwareManager: ObservableObject {
         }
     }
 
+    private func refreshIndependentSensors() {
+        refreshInFlight = true
+        let generation = connectionGeneration
+        hardwareQueue.async {
+            let battery = LiveBatterySnapshot.read()
+            let cpu = self.smcTemperatures.cpuTemperature()
+            let gpu = self.smcTemperatures.gpuTemperature()
+            let cpuReason = self.smcTemperatures.cpuReason
+            let gpuReason = self.smcTemperatures.reason
+            DispatchQueue.main.async {
+                guard generation == self.connectionGeneration, self.service == 0 else { return }
+                self.refreshInFlight = false
+                self.publish(\.liveBattery, battery)
+                self.publish(\.batterySummary, battery?.summary ?? "")
+                self.publish(\.cpuTemp, cpu.map { Int($0.celsius.rounded()) } ?? -1)
+                self.publish(\.gpuTemp, gpu.map { Int($0.celsius.rounded()) } ?? -1)
+                self.publish(\.cpuTemperatureSource, cpu?.source ?? "No CPU temperature source")
+                self.publish(\.gpuTemperatureSource, gpu?.source ?? "No GPU temperature source")
+                self.publish(\.cpuTemperatureReason, cpuReason)
+                self.publish(\.gpuTemperatureReason, gpuReason)
+            }
+        }
+    }
+
     private func publish<Value: Equatable>(_ path: ReferenceWritableKeyPath<HardwareManager, Value>, _ value: Value) {
         if self[keyPath: path] != value { self[keyPath: path] = value }
     }
 
     private func accept(_ props: NSDictionary) {
         publish(\.providerClass, props["IOClass"] as? String ?? "")
+        publish(\.driverVersion, props["VersionInfo"] as? String ?? "Unavailable")
+        publish(\.profileMatchState, props["ProfileMatchState"] as? String ?? "Not reported")
+        publish(\.firmwareProfileID, props["HardwareProfile"] as? String ?? "")
+        featurePollingSupported = props["FeaturePollingVersion"] as? Int == 1
         publish(\.isFnLocked, props["FnlockMode"] as? Bool ?? false)
         publish(\.keyboardBacklight, props["BacklightLevel"] as? Int ?? -1)
         publish(\.chargeStartThreshold, props["ChargeStartThreshold"] as? Int ?? -1)
@@ -270,9 +351,31 @@ public final class HardwareManager: ObservableObject {
         if let profileID = props["HardwareProfile"] as? String,
            let labels = HardwareProfiles.all().first(where: { $0["id"] as? String == profileID })?["fan_labels"] as? [String], labels.count == 2 {
             publish(\.fanLabels, labels)
-        }
+        } else { publish(\.fanLabels, ["Fan 1", "Fan 2"]) }
         let descriptors = props["FeatureStatus"] as? [String: [String: Any]] ?? [:]
         if let profile = props["HardwareProfile"] as? String { hotkeyProfileID = profile }
+        else { hotkeyProfileID = rgbController.matchedProfileID ?? "" }
+        let matchState = props["ProfileMatchState"] as? String ?? ""
+        let sequence = props["SensorSampleSequence"] as? Int ?? -1
+        let observationAge = sequence != lastSampleSequence ? 0 : Date().timeIntervalSince(lastSampleDate)
+        let sampleIsStale = sequence >= 0 && HardwareSnapshot.stale(props,
+            observedAge: observationAge, uptime: ProcessInfo.processInfo.systemUptime)
+        let firmwareIdentity = props["FirmwareIdentityConflict"] as? Bool == true ? detectedIdentity :
+            LaptopIdentity.resolve(strings: [props["FirmwareMachineType"] as? String ?? ""], pciIDs: [],
+                                   lenovo: ["IdeaVPC", "ThinkVPC"].contains(props["IOClass"] as? String ?? ""))
+        let displayIdentity = firmwareIdentity.name != "Lenovo Laptop" && firmwareIdentity.name != "Unknown Laptop" ? firmwareIdentity : detectedIdentity
+        if let driverModelName = props["HardwareProfileName"] as? String, !driverModelName.isEmpty,
+           ["exact", "identity_matched", "pci_matched"].contains(matchState) {
+            publish(\.modelName, driverModelName)
+            publish(\.modelSource, matchState == "pci_matched" ? "PCI subsystem ID" : "Lenovo firmware identity")
+            publish(\.modelWarning, "")
+        } else {
+            let lenovo = ["IdeaVPC", "ThinkVPC"].contains(props["IOClass"] as? String ?? "")
+            publish(\.modelName, displayIdentity.name == "Unknown Laptop" && lenovo ? "Lenovo Laptop" : displayIdentity.name)
+            publish(\.modelSource, displayIdentity.source)
+            let reason = props["ProfileMatchReason"] as? String ?? "Not reported"
+            publish(\.modelWarning, ["conflict", "ambiguous"].contains(matchState) ? localizedMessage(reason) : "")
+        }
         let protocolVersion = props["ControlProtocolVersion"] as? Int ?? 0
         var availability: [String: HardwareFeatureStatus] = [:]
         for key in HardwareFeatureStatus.catalog.keys {
@@ -286,17 +389,33 @@ public final class HardwareManager: ObservableObject {
                     backend: "Unavailable")
             }
         }
-        if (props["ACPIBridgeVersion"] as? Int ?? 0) < 2 {
-            for key in ["FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"] {
-                availability[key] = HardwareFeatureStatus(available: false, reason: "Fan minimums require the corrected ReYogaSMC driver and ACPI bridge v2. Replace the old SSDT and reboot.", backend: "ACPI profile")
+        for key in ["FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"] {
+            availability[key] = HardwareSnapshot.manualFanFeature(availability[key], key: key,
+                bridgeVersion: props["ACPIBridgeVersion"] as? Int ?? 0,
+                writesValidated: props["FanWritesValidated"] as? Bool == true)
+        }
+        let stateControls = ["SmartFanMode", "ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"]
+        for key in stateControls where availability[key]?.available == true && props[key] == nil {
+            availability[key] = HardwareFeatureStatus(available: false,
+                reason: "The driver did not provide a current value for this control.", backend: availability[key]?.backend ?? "Unavailable")
+        }
+        let reportedRanges = props["PowerLimitRanges"] as? [String: Any] ?? [:]
+        var validatedRanges: [String: [String: Int]] = [:]
+        for key in ["CPUBoostPower", "CPUSustainedPower"] {
+            if let range = HardwareSnapshot.powerRange(reportedRanges[key], current: props[key]) {
+                validatedRanges[key] = range
+            } else if availability[key]?.available == true {
+                availability[key] = HardwareFeatureStatus(available: false,
+                    reason: "The driver did not provide a valid current power limit and adjustment range.", backend: availability[key]?.backend ?? "Unavailable")
             }
         }
-        if props["FanWritesValidated"] as? Bool != true {
-            for key in ["Fan1TargetRPM", "Fan2TargetRPM"] {
-                let reason = availability[key]?.available == false ? availability[key]?.reason : nil
+        let fanSteps = [props["Fan1TargetRPMStep"] as? Int ?? 0, props["Fan2TargetRPMStep"] as? Int ?? 0]
+        publish(\.fanStepsRPM, fanSteps)
+        for (index, key) in ["Fan1TargetRPM", "Fan2TargetRPM"].enumerated() where availability[key]?.available == true {
+            let maximum = HardwareSnapshot.fanRPM(props[index == 0 ? "Fan1MaxRPM" : "Fan2MaxRPM"])
+            if maximum <= 0 || fanSteps[index] <= 0 || fanSteps[index] > maximum {
                 availability[key] = HardwareFeatureStatus(available: false,
-                    reason: reason ?? "Manual fan writes need the current driver and a hardware-validated firmware profile.",
-                    backend: "ACPI profile")
+                    reason: "The driver did not provide a valid fan adjustment range and step.", backend: availability[key]?.backend ?? "Unavailable")
             }
         }
         if rgbStatus.available && rgbMode != "Factory" {
@@ -322,6 +441,13 @@ public final class HardwareManager: ObservableObject {
                 }
             }
         }
+        if sampleIsStale {
+            for key in availability.keys where availability[key]?.available == true && availability[key]?.backend != "USB HID" {
+                availability[key] = HardwareFeatureStatus(available: false,
+                    reason: "The driver snapshot is stale. Refresh the connection before changing firmware controls.",
+                    backend: availability[key]?.backend ?? "Unavailable")
+            }
+        }
         if availability != featureStatus {
             featureStatus = availability
             ReYogaDiagnostics.shared.record("capabilities", availability.mapValues { ["available": $0.available, "reason": $0.reason, "backend": $0.backend] })
@@ -337,12 +463,12 @@ public final class HardwareManager: ObservableObject {
         publish(\.hasTouchpadLock, supported("TouchpadLock"))
         publish(\.hasYLogo, supported("YLogoStatus"))
         publish(\.hasPortLighting, supported("PortLighting"))
-        publish(\.hasDualFan, number("Fan number") >= 2 || props["Fan2RPM"] != nil)
-        publish(\.fan1RPM, number("Fan1RPM"))
-        publish(\.fan2RPM, number("Fan2RPM"))
-        if !cpuUsesSMC { publish(\.cpuTemp, number("CPUTemp")) }
+        publish(\.hasDualFan, number("Fan number") >= 0 ? number("Fan number") >= 2 : HardwareSnapshot.fanRPM(props["Fan2RPM"]) > 0)
+        publish(\.fan1RPM, HardwareSnapshot.fanRPM(props["Fan1RPM"]))
+        publish(\.fan2RPM, HardwareSnapshot.fanRPM(props["Fan2RPM"]))
+        if !cpuUsesSMC { publish(\.cpuTemp, HardwareSnapshot.temperature(props["CPUTemp"])) }
         if !gpuUsesSMC {
-            publish(\.gpuTemp, number("GPUTemp"))
+            publish(\.gpuTemp, HardwareSnapshot.temperature(props["GPUTemp"]))
             publish(\.gpuTemperatureSource, number("GPUTemp") > 0 ? (props["SensorSources"] as? [String: String])?["GPUTemp"] ?? "Firmware GPU sensor" : "No GPU temperature source")
         }
         for (fan, check) in pendingFanChecks {
@@ -352,7 +478,8 @@ public final class HardwareManager: ObservableObject {
                 ReYogaDiagnostics.shared.record("fan_minimum_measured", ["fan": fan, "target": check.target, "actualRPM": rpm])
             } else if Date() >= check.deadline {
                 pendingFanChecks.removeValue(forKey: fan)
-                let message = "\(fan == 0 ? "CPU" : "GPU") fan: requested \(check.target) RPM, measured \(rpm). EC has not reached the minimum."
+                let label = fanLabels.indices.contains(fan) ? fanLabels[fan] : localizedMessage("Fan %@", String(describing: fan + 1))
+                let message = localizedMessage("%@: requested %@ RPM, measured %@. The minimum has not been reached.", localizedMessage(label), String(check.target), String(rpm))
                 ReYogaDiagnostics.shared.record("fan_minimum_not_reached", ["fan": fan, "target": check.target, "actualRPM": rpm])
                 showOSDRaw(message, duration: 4000)
             }
@@ -366,20 +493,20 @@ public final class HardwareManager: ObservableObject {
         if rgbMode == "Factory" { publish(\.isYLogoOn, boolean("YLogoStatus")) }
         publish(\.isPortLightingOn, boolean("PortLighting"))
         publish(\.alwaysOnUSBState, max(number("AlwaysOnUSBState"), 0))
-        publish(\.cpuBoostWatts, max(number("CPUBoostPower"), 0))
-        publish(\.cpuSustainedWatts, max(number("CPUSustainedPower"), 0))
-        publish(\.powerRanges, props["PowerLimitRanges"] as? [String: [String: Int]] ?? [:])
+        publish(\.cpuBoostWatts, number("CPUBoostPower"))
+        publish(\.cpuSustainedWatts, number("CPUSustainedPower"))
+        publish(\.powerRanges, validatedRanges)
         publish(\.manualFanMode, number("FanControlMode") > 0)
-        publish(\.fan1TargetRPM, max(number("Fan1TargetRPM"), 0))
-        publish(\.fan2TargetRPM, max(number("Fan2TargetRPM"), 0))
+        publish(\.fan1TargetRPM, HardwareSnapshot.fanRPM(props["Fan1TargetRPM"]))
+        publish(\.fan2TargetRPM, HardwareSnapshot.fanRPM(props["Fan2TargetRPM"]))
         publish(\.fan1MaxRPM, max(number("Fan1MaxRPM"), 0))
         publish(\.fan2MaxRPM, max(number("Fan2MaxRPM"), 0))
         let mode = number("SmartFanMode")
+        if !(1...3).contains(mode) { publish(\.powerProfile, 0) }
         if (1...3).contains(mode) && mode != powerProfile {
             publish(\.powerProfile, mode)
-            if initialized && !isApplying { showOSDRaw("Power Profile: \(["Quiet", "Balanced", "Performance"][mode - 1])", symbol: ReYogaBrand.controlSymbol("SmartFanMode", value: mode)) }
+            if initialized && !isApplying { showOSDRaw(localizedMessage("Power Profile: %@", localizedMessage(["Quiet", "Balanced", "Performance"][mode - 1])), symbol: ReYogaBrand.controlSymbol("SmartFanMode", value: mode)) }
         }
-        let sequence = number("SensorSampleSequence")
         if sequence != lastSampleSequence && sequence >= 0 {
             lastSampleSequence = sequence
             lastSampleDate = Date()
@@ -391,9 +518,12 @@ public final class HardwareManager: ObservableObject {
                     "sensorStatus": props["SensorStatus"] ?? [:]])
             }
         }
-        let status = sequence < 0 ? (protocolVersion == 1 ? "ACPI state refreshed" : "Driver update required") :
-            Date().timeIntervalSince(lastSampleDate) > 2 ? "Telemetry stale — check driver log" : "Live • \(props["TelemetryIntervalMS"] ?? 500) ms"
-        if sequence >= 0 && Date().timeIntervalSince(lastSampleDate) > 2 {
+        let stale = sampleIsStale
+        let interval = props["TelemetryIntervalMS"] as? Int
+        let liveStatus = interval.map { $0 > 0 ? localizedMessage("Live • %@ ms", String(describing: $0)) : "Live" } ?? "Live"
+        let status = sequence < 0 ? (protocolVersion == 1 ? "Firmware state refreshed" : "Driver update required") :
+            stale ? "Telemetry stale — check driver log" : liveStatus
+        if stale {
             publish(\.fan1RPM, -1); publish(\.fan2RPM, -1)
             if !cpuUsesSMC { publish(\.cpuTemp, -1) }
             if !gpuUsesSMC { publish(\.gpuTemp, -1) }
@@ -403,8 +533,11 @@ public final class HardwareManager: ObservableObject {
             ReYogaDiagnostics.shared.record("telemetry_status", ["status": status])
         }
         initialized = true
-        preferenceIdentity = (props["HardwareProfile"] as? String ?? modelName) + "|" + (props["IOClass"] as? String ?? "driver")
-        if !controlsRestoreAttempted {
+        let firmwareDigest = props["FirmwareDSDTSHA256"] as? String ?? ""
+        let profileIdentity = props["HardwareProfile"] as? String ?? ""
+        preferenceIdentity = firmwareDigest.isEmpty && profileIdentity.isEmpty ? "" :
+            profileIdentity + "|" + firmwareDigest + "|" + (props["IOClass"] as? String ?? "driver")
+        if !controlsRestoreAttempted && !sampleIsStale {
             controlsRestoreAttempted = true
             refreshPermissions()
             let handle = service
@@ -412,7 +545,7 @@ public final class HardwareManager: ObservableObject {
                 IOObjectRetain(handle)
                 hardwareQueue.async { _ = sendBoolean("DetailedTelemetry", self.detailedLogging, handle); IOObjectRelease(handle) }
             }
-            let saved = loadHardwareSettings()
+            let saved = preferenceIdentity.isEmpty ? SavedHardwareSettings(identity: "") : loadHardwareSettings()
             let order = ["SmartFanMode", "ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "Fan1TargetRPM", "Fan2TargetRPM"]
             restoringControls = order.compactMap { key in saved.values[key].map { (key, $0) } }
             DispatchQueue.main.async { self.restoreNextControl() }
@@ -463,7 +596,7 @@ public final class HardwareManager: ObservableObject {
         if !restoring { restoringControls.removeAll() }
         guard service != 0, featureStatus[key]?.available == true else {
             let reason = featureStatus[key]?.reason ?? "Driver unavailable"
-            showOSDRaw("\(title): \(reason)", duration: 3000, symbol: ReYogaBrand.controlSymbol(key, value: target))
+            showOSDRaw(localizedMessage("%@: %@", localizedMessage(title), localizedMessage(reason)), duration: 3000, symbol: ReYogaBrand.controlSymbol(key, value: target))
             ReYogaDiagnostics.shared.record("control_unavailable", ["property": key, "reason": reason])
             if !queuedControls.isEmpty {
                 let next = queuedControls.removeFirst()
@@ -501,7 +634,7 @@ public final class HardwareManager: ObservableObject {
                     }
                 }
             }
-            let reason = transport != kIOReturnSuccess ? String(format: "IOKit transport failed (0x%08x)", transport) :
+            let reason = transport != kIOReturnSuccess ? String(format: localizedMessage("IOKit transport failed (0x%08x)"), transport) :
                 !correlated ? "Driver response missing or request ID mismatch" : result["Reason"] as? String ?? "Firmware error"
             ReYogaDiagnostics.shared.record("control_result", ["id": requestID, "property": key, "transport": transport,
                 "status": confirmed ? 0 : status, "initialStatus": status, "confirmed": confirmed, "reason": confirmed ? "Firmware readback matched" : reason, "requested": targetValue, "actual": snapshot?[key] ?? NSNull(), "code": result["Code"] ?? "unknown", "stage": result["Stage"] ?? "unknown", "initialCommandStatus": result["CommandStatus"] ?? NSNull()])
@@ -521,11 +654,11 @@ public final class HardwareManager: ObservableObject {
                     let fan = key == "Fan1TargetRPM" ? 0 : 1
                     self.pendingFanChecks[fan] = (target, Date().addingTimeInterval(12))
                 }
-                let valueLabel = key == "SmartFanMode" ? ([1: "Quiet", 2: "Balanced", 3: "Performance"][target] ?? "Unknown (\(target))") :
-                    key == "AlwaysOnUSBState" ? ([0: "Off", 1: "AC power", 2: "AC + battery"][target] ?? "Unknown (\(target))") :
+                let valueLabel = key == "SmartFanMode" ? ([1: "Quiet", 2: "Balanced", 3: "Performance"][target] ?? localizedMessage("Unknown (%@)", String(target))) :
+                    key == "AlwaysOnUSBState" ? ([0: "Off", 1: "AC power", 2: "AC + battery"][target] ?? localizedMessage("Unknown (%@)", String(target))) :
                     key.hasPrefix("Charge") ? "\(target)%" : key == "BatteryIndex" ? (target == 1 ? "Primary" : "Secondary") :
-                    key == "BacklightLevel" ? String(target) : key == "CPUPowerReset" ? "Restored" : key.contains("TargetRPM") ? "\(target) RPM minimum" : key == "CPUBoostPower" || key == "CPUSustainedPower" ? "\(target) W" : target == 0 ? "Off" : "On"
-                if !restoring || !confirmed { showOSDRaw(confirmed ? "\(title): \(valueLabel)" : "\(title): \(reason)", duration: confirmed ? 1500 : 3000, symbol: ReYogaBrand.controlSymbol(key, value: target)) }
+                    key == "BacklightLevel" ? String(target) : key == "CPUPowerReset" ? "Restored" : key.contains("TargetRPM") ? localizedMessage("%@ RPM minimum", String(target)) : key == "CPUBoostPower" || key == "CPUSustainedPower" ? "\(target) W" : target == 0 ? "Off" : "On"
+                if !restoring || !confirmed { showOSDRaw(confirmed ? localizedMessage("%@: %@", localizedMessage(title), localizedMessage(valueLabel)) : localizedMessage("%@: %@", localizedMessage(title), localizedMessage(reason)), duration: confirmed ? 1500 : 3000, symbol: ReYogaBrand.controlSymbol(key, value: target)) }
             }
         }
     }
@@ -553,8 +686,10 @@ public final class HardwareManager: ObservableObject {
         apply("AlwaysOnUSBState", state, title: "USB Charging")
     }
     public func setFanMinimum(_ fan: Int, rpm: Int) {
-        guard fanLabels.indices.contains(fan), rpm >= 0 else { return }
-        guard (0...1).contains(fan), rpm >= 0 else { return }
+        guard fanLabels.indices.contains(fan), fanStepsRPM.indices.contains(fan), rpm >= 0 else { return }
+        let maximum = fan == 0 ? fan1MaxRPM : fan2MaxRPM
+        let step = fanStepsRPM[fan]
+        guard maximum > 0, step > 0, rpm <= maximum, rpm % step == 0 else { return }
         guard confirmControlRisk("Change fan minimum?", message: "This raises the minimum over the factory cooling curve; it does not set an unrestricted fixed speed. Higher minima increase fan noise and power use. Restore Auto returns control to the factory curve.", preference: "AcknowledgedFanMinimumRisk") else { return }
         apply(fan == 0 ? "Fan1TargetRPM" : "Fan2TargetRPM", rpm, title: fanLabels[fan])
     }
@@ -562,10 +697,10 @@ public final class HardwareManager: ObservableObject {
     private func confirmControlRisk(_ title: String, message: String, preference: String) -> Bool {
         if UserDefaults.standard.bool(forKey: preference) { return true }
         let alert = NSAlert()
-        alert.alertStyle = .warning; alert.messageText = title; alert.informativeText = message
-        alert.addButton(withTitle: "Continue"); alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning; alert.messageText = localizedMessage(title); alert.informativeText = localizedMessage(message)
+        alert.addButton(withTitle: localizedMessage("Continue")); alert.addButton(withTitle: localizedMessage("Cancel"))
         alert.showsSuppressionButton = true
-        alert.suppressionButton?.title = "Don’t show this explanation again"
+        alert.suppressionButton?.title = localizedMessage("Don’t show this explanation again")
         guard alert.runModal() == .alertFirstButtonReturn else { return false }
         if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: preference) }
         return true
@@ -615,27 +750,28 @@ public final class HardwareManager: ObservableObject {
             hardwareQueue.async { _ = sendBoolean("DetailedTelemetry", enabled, handle); IOObjectRelease(handle) }
         }
         ReYogaDiagnostics.shared.record("logging", ["detailed": enabled])
-        showOSDRaw("Detailed Logging: \(enabled ? "On" : "Off")")
+        showOSDRaw(localizedMessage("Detailed Logging: %@", localizedMessage(enabled ? "On" : "Off")))
     }
     public func openDiagnostics() { NSWorkspace.shared.open(ReYogaDiagnostics.shared.directory) }
     public func exportDiagnostics() {
         let save = NSSavePanel()
         save.allowedFileTypes = ["zip"]
         save.nameFieldStringValue = "ReYoga-diagnostics.zip"
-        save.message = "Export hardware status and recent app logs locally. Review the archive before attaching it to an issue."
+        save.message = localizedMessage("Export hardware status and recent app logs locally. Review the archive before attaching it to an issue.")
         guard save.runModal() == .OK, let output = save.url else { return }
-        let metadata: [String: Any] = ["schemaVersion": 1, "model": modelName, "cpu": cpuBrand,
+        let metadata: [String: Any] = ["schemaVersion": 1, "model": modelName, "smbiosModel": smbiosModel, "modelSource": modelSource, "modelWarning": modelWarning, "cpu": cpuBrand,
             "macOS": ProcessInfo.processInfo.operatingSystemVersionString,
             "appVersion": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "unknown",
             "bundleID": Bundle.main.bundleIdentifier ?? "unknown", "installationPath": Bundle.main.bundlePath,
             "accessibility": AXIsProcessTrusted(), "inputMonitoring": CGPreflightListenEventAccess(),
-            "rgbReason": rgbStatus.reason, "hotkeyProfile": hotkeyProfileID, "telemetry": telemetryStatus, "battery": batterySummary]
+            "rgbReason": rgbStatus.reason, "hotkeyProfile": hotkeyProfileID, "telemetry": telemetryStatus, "battery": batterySummary,
+            "batteryProviderFields": liveBattery?.rawFields ?? [:]]
         let handle = service
         if handle != 0 { IOObjectRetain(handle) }
         hardwareQueue.async {
             defer { if handle != 0 { IOObjectRelease(handle) } }
-            let keys = ["IOClass", "SafeMode", "NativeTelemetryProfile", "NativeTelemetryReason", "FirmwareDSDTSHA256", "SensorSources", "BatteryIndex", "ChargeStartThreshold", "ChargeStopThreshold", "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask", "VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
-                        "ACPIBridgeVersion", "FanWritesValidated", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "FanFullSpeedECResult", "FanFullSpeedCommandBackend", "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage", "SensorSampleSequence", "SensorSampleTimeMS",
+            let keys = ["Battery 0", "Battery 1", "IOClass", "SafeMode", "NativeTelemetryProfile", "NativeTelemetryReason", "FirmwareDSDTSHA256", "SensorSources", "BatteryIndex", "ChargeStartThreshold", "ChargeStopThreshold", "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask", "VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
+                        "ACPIBridgeVersion", "ACPIBridgeProfile", "ACPIBridgeProfileName", "ProfileMatchState", "ProfileMatchStage", "ProfileMatchReason", "ProfileMatchProfilesChecked", "ProfileMatchOEMMatches", "FirmwareDSDTOEMTableID", "FirmwareDSDTLength", "FirmwareDSDTChecksum", "FirmwareMachineType", "FirmwareBIOSFamily", "FirmwareIdentityConflict", "ACPIBridgeReason", "ThinkFanProtocolVersion", "ThinkFanStatus", "ThinkFanAccessFailed", "CPUPowerPendingProfile", "CPUPowerRestoreReason", "FanRestoreReason", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "FanFullSpeedECResult", "FanFullSpeedCommandBackend", "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage", "SensorSampleSequence", "SensorSampleTimeMS",
                         "Fan1RPM", "Fan2RPM", "Fan1TargetRPM", "Fan2TargetRPM", "FanControlMode", "CPUTemp", "GPUTemp"]
             let snapshot: NSDictionary = handle != 0 ? getProperties(handle) ?? [:] : [:]
             var driver: [String: Any] = [:]
@@ -650,7 +786,7 @@ public final class HardwareManager: ObservableObject {
                    table.prefix(4) == Data("DSDT".utf8) {
                     report["DSDT"] = table
                 } else {
-                    report["ACPIExportError"] = String(format: "DSDT unavailable (0x%08x)", status)
+                    report["ACPIExportError"] = String(format: localizedMessage("DSDT unavailable (0x%08x)"), status)
                 }
             }
             ReYogaDiagnostics.shared.export(report, to: output)
@@ -666,18 +802,25 @@ public final class HardwareManager: ObservableObject {
         }
         body += "\nRGB: \(rgbStatus.available ? "ready" : "unavailable") — \(rgbStatus.reason)\nHotkey profile: \(hotkeyProfileID.isEmpty ? "no reviewed match" : hotkeyProfileID)\n"
         body += "\nTelemetry: \(telemetryStatus)\n\nDescribe the failing action and attach events.jsonl after reviewing it.\n"
-        let destination = UserDefaults.standard.string(forKey: "SupportRepositoryURL") ?? "https://github.com/hoaug-tran/ReYogaSMC"
+        let destination = UserDefaults.standard.string(forKey: "SupportRepositoryURL") ?? ReYogaConstants.repositoryURL
         guard let base = URL(string: destination), base.scheme == "https", base.host == "github.com" else {
             showOSDRaw("Support repository URL is invalid"); return
         }
         var components = URLComponents(url: base.appendingPathComponent("issues/new"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "title", value: "Device support: \(modelName)"), URLQueryItem(name: "body", value: body)]
+        components.queryItems = [URLQueryItem(name: "title", value: localizedMessage("Device support: %@", modelName)), URLQueryItem(name: "body", value: body)]
         let report = ReYogaDiagnostics.shared.directory.appendingPathComponent("support-report.txt")
         do { try body.write(to: report, atomically: true, encoding: .utf8) }
         catch { ReYogaDiagnostics.shared.record("report_write_failed", ["error": error.localizedDescription]) }
         if let url = components.url { NSWorkspace.shared.open(url) }
         showOSDRaw("Support report ready — review and submit the issue")
     }
+    public func openAccessibilitySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+    public func openInputMonitoringSettings() { openPrivacySettings() }
+
     public func openPrivacySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent") { NSWorkspace.shared.open(url) }
         showOSDRaw("Grant Accessibility and Input Monitoring. If macOS requests a restart, quit and reopen ReYogaSMC.", duration: 4000)
@@ -693,6 +836,7 @@ public final class HardwareManager: ObservableObject {
             DispatchQueue.main.async {
                 self.rgbApplying = false
                 self.rgbStatus = self.rgbController.status
+                self.hasRGBHardware = self.rgbController.matchedProfileID != nil
                 if let profile = self.rgbController.matchedProfileID { self.hotkeyProfileID = profile }
                 self.refreshPermissions()
                 self.restoreSavedRGB()
@@ -707,7 +851,9 @@ public final class HardwareManager: ObservableObject {
     public func refreshPermissions() {
         let accessibility = AXIsProcessTrusted()
         let input = CGPreflightListenEventAccess()
-        permissionStatus = "Accessibility: \(accessibility ? "Granted" : "Required") - Input Monitoring: \(input ? "Granted" : "Required")"
+        hasAccessibilityPermission = accessibility
+        hasInputMonitoringPermission = input
+        permissionStatus = localizedMessage("Accessibility: %@ - Input Monitoring: %@", localizedMessage(accessibility ? "Granted" : "Required"), localizedMessage(input ? "Granted" : "Required"))
         if hotkeysEnabled && (!accessibility || !input) {
             hotkeys.stop(); hotkeysEnabled = false
             hotkeyStatus = "Hotkey privacy access is missing. Check Accessibility and Input Monitoring, then enable the mapper again."
@@ -723,17 +869,42 @@ public final class HardwareManager: ObservableObject {
     }
     #if DEBUG
     func loadUIFixture(_ props: NSDictionary) {
+        stopMonitoring()
         controlsRestoreAttempted = true
         isConnected = true
         driverState = .ready
         accept(props)
+        liveBattery = (props["AppleSmartBattery"] as? [String: Any]).map { LiveBatterySnapshot(properties: $0) }
+        batteryDetails = (0...1).compactMap { index in
+            guard let values = props["Battery \(index)"] as? [String: Any] else { return nil }
+            let detail = BatteryDetail(index: index, properties: values)
+            return detail.present ? detail : nil
+        }
+    }
+    func loadMissingDriverPreview() {
+        stopMonitoring()
+        isConnected = false
+        driverState = .missing
+        driverMessage = "Firmware driver unavailable. Independent battery, SMC and USB RGB functions remain accessible."
+        featureStatus = [:]
+        hasDualFan = false; hasPowerProfiles = false; hasConservation = false; hasRapidCharge = false
+        hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasAlwaysOnUSB = false
+        fan1RPM = -1; fan2RPM = -1; powerProfile = 0
+        telemetryStatus = "Independent sensors"
     }
     func loadReadOnlyPreview(_ handle: io_service_t) {
+        controlsRestoreAttempted = true
         if let props = getProperties(handle) {
             isConnected = true; driverState = .ready; accept(props)
             if let reading = smcTemperatures.cpuTemperature() { cpuUsesSMC = true; cpuTemp = Int(reading.celsius.rounded()); cpuTemperatureSource = reading.source }
             if let reading = smcTemperatures.gpuTemperature() { gpuUsesSMC = true; gpuTemp = Int(reading.celsius.rounded()); gpuTemperatureSource = reading.source }
-            batterySummary = LiveBatterySnapshot.read()?.summary ?? ""
+            liveBattery = LiveBatterySnapshot.read()
+            batterySummary = liveBattery?.summary ?? ""
+            batteryDetails = (0...1).compactMap { index in
+                guard let values = props["Battery \(index)"] as? [String: Any] else { return nil }
+                let detail = BatteryDetail(index: index, properties: values)
+                return detail.present ? detail : nil
+            }
         }
     }
     #endif
@@ -749,7 +920,7 @@ public final class HardwareManager: ObservableObject {
             UserDefaults.standard.set(enabled, forKey: "LegionHotkeysEnabled")
             hotkeyStatus = enabled ? "Mapper active. Native firmware/media keys are unchanged." : "Off — native media keys remain active."
             refreshPermissions()
-            showOSDRaw("Legion Hotkeys: \(enabled ? "On" : "Off")")
+            showOSDRaw(localizedMessage("Legion Hotkeys: %@", localizedMessage(enabled ? "On" : "Off")))
         } catch {
             hotkeysEnabled = false
             hotkeyStatus = error.localizedDescription
@@ -762,7 +933,7 @@ public final class HardwareManager: ObservableObject {
         let red = UInt8(max(0, min(255, (rgb.redComponent * 255).rounded())))
         let green = UInt8(max(0, min(255, (rgb.greenComponent * 255).rounded())))
         let blue = UInt8(max(0, min(255, (rgb.blueComponent * 255).rounded())))
-        rgbAction("\(zone) RGB") {
+        rgbAction(localizedMessage("%@ RGB", localizedMessage(zone))) {
             var colors = self.rgbColors
             colors[zone] = (red, green, blue)
             let logoEnabled = zone == "Logo" ? red != 0 || green != 0 || blue != 0 : self.rgbLogoEnabled
@@ -787,7 +958,7 @@ public final class HardwareManager: ObservableObject {
         guard ["Static", "Breathing", "Spectrum", "Factory"].contains(mode) else { return }
         if mode == "Factory" { restoreRGBHardwareMode(); return }
         let bytes = colors.mapValues { SavedRGBSettings.bytes(SavedRGBSettings.hex($0))! }
-        rgbAction("RGB \(mode)") {
+        rgbAction(localizedMessage("RGB %@", localizedMessage(mode))) {
             try self.configureRGB(mode: mode, colors: bytes, logoEnabled: true)
             self.saveRGBSettings(mode: mode)
         }
@@ -809,7 +980,7 @@ public final class HardwareManager: ObservableObject {
                     DispatchQueue.main.async {
                         self.rgbMode = "Stopped — error"
                         self.rgbStatus = HardwareFeatureStatus(available: false, reason: error.localizedDescription, backend: "USB HID")
-                        showOSDRaw("RGB effect stopped: \(error.localizedDescription)", duration: 3000, symbol: "exclamationmark.triangle")
+                        showOSDRaw(localizedMessage("RGB effect stopped: %@", error.localizedDescription), duration: 3000, symbol: "exclamationmark.triangle")
                     }
                 }
             }
@@ -861,7 +1032,7 @@ public final class HardwareManager: ObservableObject {
     public func importRGBColors() {
         let chooser = NSOpenPanel()
         chooser.allowedFileTypes = ["json"]
-        chooser.message = "Select a zone/LED color map. Unknown LEDs are rejected."
+        chooser.message = localizedMessage("Select a zone/LED color map. Unknown LEDs are rejected.")
         guard chooser.runModal() == .OK, let file = chooser.url else { return }
         rgbAction("Per-key RGB") {
             let data = try Data(contentsOf: file)
@@ -874,7 +1045,7 @@ public final class HardwareManager: ObservableObject {
         }
     }
     private func rgbAction(_ title: String, action: @escaping () throws -> Void) {
-        guard rgbStatus.available, !rgbApplying else { showOSDRaw("RGB: \(rgbStatus.reason)"); return }
+        guard rgbStatus.available, !rgbApplying else { showOSDRaw(localizedMessage("RGB: %@", localizedMessage(rgbStatus.reason))); return }
         rgbApplying = true
         hardwareQueue.async {
             var errorText: String?
@@ -883,12 +1054,12 @@ public final class HardwareManager: ObservableObject {
                 errorText = error.localizedDescription
                 self.stopRGBEffect()
                 do { try self.rgbController.restoreHardwareMode() }
-                catch { errorText = "\(errorText ?? "RGB error"); factory-mode restoration also failed: \(error.localizedDescription)" }
+                catch { errorText = localizedMessage("%@; factory-mode restoration also failed: %@", localizedMessage(errorText ?? "RGB error"), error.localizedDescription) }
             }
             ReYogaDiagnostics.shared.record("rgb_result", ["action": title, "error": errorText ?? "none", "acknowledgement": "USB report transport only"])
             DispatchQueue.main.async {
                 self.rgbApplying = false
-                showOSDRaw(errorText.map { "\(title): \($0)" } ?? "\(title): sent to controller", duration: errorText == nil ? 1500 : 3000, symbol: "lightbulb")
+                showOSDRaw(errorText.map { localizedMessage("%@: %@", localizedMessage(title), $0) } ?? localizedMessage("%@: sent to controller", localizedMessage(title)), duration: errorText == nil ? 1500 : 3000, symbol: "lightbulb")
             }
         }
     }
@@ -904,7 +1075,7 @@ public final class HardwareManager: ObservableObject {
         case "touchpad": toggleTouchpad()
         case "airplane": airplaneModeHelper("Airplane Mode", true)
         case "controlCenter":
-            (NSApp.delegate as? AppDelegate)?.toggleGamingPopover(nil)
+            (NSApp.delegate as? AppDelegate)?.openControlsWindow(nil)
             showOSDRaw("ReYogaSMC Controls")
         case "displays":
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.displays") { NSWorkspace.shared.open(url) }
@@ -916,15 +1087,15 @@ public final class HardwareManager: ObservableObject {
         case "screenshot": launchHotkeyApp("com.apple.Screenshot", title: "Screenshot")
         default:
             ReYogaDiagnostics.shared.record("hotkey_unimplemented", ["action": action])
-            showOSDRaw("Hotkey mapping needs support: \(action)")
+            showOSDRaw(localizedMessage("Hotkey mapping needs support: %@", action))
         }
     }
     private func launchHotkeyApp(_ bundle: String, title: String) {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) else {
-            showOSDRaw("\(title): application unavailable"); return
+            showOSDRaw(localizedMessage("%@: application unavailable", localizedMessage(title))); return
         }
         NSWorkspace.shared.openApplication(at: url, configuration: .init()) { _, error in
-            DispatchQueue.main.async { showOSDRaw(error.map { "\(title): \($0.localizedDescription)" } ?? title) }
+            DispatchQueue.main.async { showOSDRaw(error.map { localizedMessage("%@: %@", localizedMessage(title), $0.localizedDescription) } ?? title) }
         }
     }
     private func postMediaKey(_ code: Int) {
@@ -1018,7 +1189,7 @@ final class ReYogaDiagnostics {
                 try archive.write(to: output, options: .atomic)
                 DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([output]); showOSDRaw("Diagnostic report saved locally", duration: 2500) }
             } catch {
-                DispatchQueue.main.async { showOSDRaw("Report export: " + error.localizedDescription, duration: 3500) }
+                DispatchQueue.main.async { showOSDRaw(localizedMessage("Report export: %@", error.localizedDescription), duration: 3500) }
             }
         }
     }
