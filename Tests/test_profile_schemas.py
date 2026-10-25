@@ -2,10 +2,7 @@
 import glob
 import json
 import os
-import re
 import unittest
-
-FORBIDDEN_KEYS = set()
 
 REQUIRED_KEYS_COMMON = {
     "schema_version",
@@ -36,11 +33,6 @@ class TestProfileSchemas(unittest.TestCase):
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                # 1. No forbidden junk or hash keys
-                for key in FORBIDDEN_KEYS:
-                    self.assertNotIn(key, data, f"{filename} contains forbidden key '{key}'")
-
-                # 2. Common required fields
                 for key in REQUIRED_KEYS_COMMON:
                     self.assertIn(key, data, f"{filename} missing required key '{key}'")
 
@@ -49,7 +41,6 @@ class TestProfileSchemas(unittest.TestCase):
                 self.assertIsInstance(data["name"], str)
                 self.assertIn(data["kind"], ["acpi", "rgb"])
 
-                # 3. ACPI profiles strict schema validation
                 if data["kind"] == "acpi":
                     for key in REQUIRED_KEYS_ACPI:
                         self.assertIn(key, data, f"{filename} missing ACPI key '{key}'")
@@ -63,7 +54,6 @@ class TestProfileSchemas(unittest.TestCase):
                     self.assertIsInstance(data["battery_rapidcharge_mask"], int)
                     self.assertEqual(data["battery_conservation_mask"] & data["battery_rapidcharge_mask"], 0)
 
-                    # Check native telemetry items
                     telemetry = data["native_telemetry"]
                     self.assertIsInstance(telemetry, list)
                     self.assertEqual(len(telemetry), 4, f"{filename} native_telemetry must have exactly 4 fields")
