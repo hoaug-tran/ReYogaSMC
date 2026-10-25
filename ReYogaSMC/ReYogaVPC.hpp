@@ -65,6 +65,7 @@ private:
      *  DYTC capability, will be update on init
      */
     UInt16 DYTCCap {0};
+    UInt8 DYTCRevision {0};
 
     /**
      *  Simple lock to prevent DYTC update when user setting is in progress
@@ -109,7 +110,12 @@ private:
     void probeWMI();
 
 protected:
-    bool supportsThermalProfiles() const { return (DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0; }
+    bool supportsThermalProfiles() const { return (DYTCCap & (BIT(DYTC_FUNCTION_MMC) | BIT(DYTC_FUNCTION_PSC))) != 0; }
+    int pscThermalMode(UInt32 profile) const {
+        return DYTCRevision >= 9 ? (profile == 1 ? 1 : profile == 2 ? 3 : 4) :
+            (profile == 1 ? 3 : profile == 2 ? 5 : 7);
+    }
+    bool supportsMMCThermal() const { return (DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0; }
 
     /**
      *  VPC device

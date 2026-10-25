@@ -77,6 +77,7 @@ void IdeaWMIYoga::updateYogaMode() {
     UInt32 value;
 
     in = OSNumber::withNumber(0ULL, 32);
+    if (in == nullptr) return;
     ret = YWMI->evaluateInteger(extension ? GSENSOR_DATA_WMI_METHOD_EXT : GSENSOR_DATA_WMI_METHOD,
                                 0, GSENSOR_DATA_WMI_UASGE_MODE, &value, in, true);
     OSSafeReleaseNULL(in);
@@ -198,6 +199,7 @@ void IdeaWMISuperRes::ACPIEvent(UInt32 argument) {
     UInt32 value;
 
     in = OSNumber::withNumber(0ULL, 32);
+    if (in == nullptr) return;
     ret = YWMI->evaluateInteger(SUPER_RES_DATA_WMI_METHOD, 0, SUPER_RES_DATA_WMI_VALUE, &value, in, true);
     OSSafeReleaseNULL(in);
 
@@ -221,6 +223,7 @@ void IdeaWMISuperRes::processWMI() {
     UInt32 value;
 
     in = OSNumber::withNumber(0ULL, 32);
+    if (in == nullptr) return;
     ret = YWMI->evaluateInteger(SUPER_RES_DATA_WMI_METHOD, 0, SUPER_RES_DATA_WMI_CAP, &value, in, true);
     OSSafeReleaseNULL(in);
 
@@ -256,16 +259,18 @@ void IdeaWMISuperRes::setPropertiesGated(OSObject* props) {
                 UInt32 result;
 
                 in = OSNumber::withNumber(0ULL, 32);
+                if (in == nullptr) continue;
                 ret = YWMI->evaluateInteger(SUPER_RES_DATA_WMI_METHOD, 0,
                                             value->getValue() ? SUPER_RES_DATA_WMI_START : SUPER_RES_DATA_WMI_STOP, &result, in, true);
                 OSSafeReleaseNULL(in);
 
                 if (ret != kIOReturnSuccess || result != 1) {
                     AlwaysLog(toggleError, "ECMonitor", ret ?: result);
+                    removeProperty("ECMonitor started");
                 } else {
+                    setProperty("ECMonitor started", value);
                     DebugLog(toggleSuccess, "ECMonitor", value->getValue() ? SUPER_RES_DATA_WMI_START : SUPER_RES_DATA_WMI_STOP, value->getValue() ? "start" : "stop");
                 }
-                setProperty("ECMonitor started", value);
             } else {
                 AlwaysLog("Unknown property %s", key->getCStringNoCopy());
             }
@@ -318,6 +323,7 @@ bool IdeaWMIGameZone::getGamzeZoneData(UInt32 query, UInt32 *result) {
     OSNumber *in;
 
     in = OSNumber::withNumber(0ULL, 32);
+    if (in == nullptr) return false;
     ret = YWMI->evaluateInteger(GAME_ZONE_DATA_WMI_METHOD, 0, query, result, in, true);
     OSSafeReleaseNULL(in);
 
@@ -333,6 +339,7 @@ bool IdeaWMIGameZone::setGameZoneData(UInt32 query, UInt32 value) {
     UInt32 result = 0;
 
     in = OSNumber::withNumber(static_cast<uint64_t>(value), 32);
+    if (in == nullptr) return false;
     ret = YWMI->evaluateInteger(GAME_ZONE_DATA_WMI_METHOD, 0, query, &result, in, true);
     OSSafeReleaseNULL(in);
 
@@ -347,6 +354,7 @@ bool IdeaWMIGameZone::getFanSpeed(UInt32 fanId, UInt32 *result) {
         return false;
     IOReturn ret;
     OSNumber *in = OSNumber::withNumber(static_cast<uint64_t>(fanId), 32);
+    if (in == nullptr) return false;
     ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 7, result, in, true);
     OSSafeReleaseNULL(in);
     return (ret == kIOReturnSuccess);
@@ -357,6 +365,7 @@ bool IdeaWMIGameZone::getSensorTemperature(UInt32 sensorId, UInt32 *result) {
         return false;
     IOReturn ret;
     OSNumber *in = OSNumber::withNumber(static_cast<uint64_t>(sensorId), 32);
+    if (in == nullptr) return false;
     ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 8, result, in, true);
     OSSafeReleaseNULL(in);
     return (ret == kIOReturnSuccess);
@@ -382,7 +391,7 @@ bool IdeaWMIGameZone::setFanFullSpeed(bool enable) {
     OSObject *result = nullptr;
     const UInt8 state = enable ? 1 : 0;
     OSData *in = OSData::withBytes(&state, sizeof(state));
-    if (!in) return false;
+    if (in == nullptr) return false;
     // LENOVO_FAN_METHOD accepts a one-byte buffer; a successful call may have no return object.
     ret = YWMI->evaluateMethod(LENOVO_FAN_METHOD, 0, 2, &result, in, true);
     OSSafeReleaseNULL(result);
@@ -442,7 +451,7 @@ bool IdeaWMIGameZone::getYLogoStatus(bool *enabled) {
     if (!enabled) return false;
     const UInt8 component = 3;
     OSData *in = OSData::withBytes(&component, sizeof(component));
-    if (!in) return false;
+    if (in == nullptr) return false;
     OSObject *result = nullptr;
     IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 1, &result, in, true);
     OSSafeReleaseNULL(in);
@@ -476,7 +485,7 @@ bool IdeaWMIGameZone::getPortLightingStatus(bool *enabled) {
     if (!enabled) return false;
     const UInt8 component = 5;
     OSData *in = OSData::withBytes(&component, sizeof(component));
-    if (!in) return false;
+    if (in == nullptr) return false;
     OSObject *result = nullptr;
     IOReturn ret = YWMI->evaluateMethod(LENOVO_LIGHTING_METHOD, 0, 1, &result, in, true);
     OSSafeReleaseNULL(in);

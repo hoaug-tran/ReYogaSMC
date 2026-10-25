@@ -2,6 +2,40 @@
 #ifndef ReYogaControlValidation_hpp
 #define ReYogaControlValidation_hpp
 namespace ReYogaControl {
+constexpr bool validHPSensorStatus(unsigned status) {
+    switch (status) {
+        case 3: case 4: case 5: case 6: case 7:
+        case 12: case 13: case 14: case 16:
+        case 20: case 23:
+            return false;
+        default:
+            return true;
+    }
+}
+
+// Temperature output is milli-Celsius; fan output is RPM.
+inline bool decodeHPSensor(unsigned reading, int modifier, unsigned type, unsigned units, unsigned &value) {
+    if (modifier < -9 || modifier > 9 ||
+        (type == 2 ? units < 2 || units > 4 : type != 12 || units != 19)) return false;
+    unsigned long long scaled = static_cast<unsigned long long>(reading) * 1000;
+    while (modifier < 0) { scaled /= 10; ++modifier; }
+    while (modifier > 0) {
+        if (scaled > 0x7fffffffffffffffULL / 10) return false;
+        scaled *= 10;
+        --modifier;
+    }
+    long long result = static_cast<long long>(scaled);
+    if (type == 2 && units == 3) {
+        if (result > 0x7fffffffffffffffLL / 5) return false;
+        result = (result - 32000) * 5 / 9;
+    } else if (type == 2 && units == 4) {
+        result -= 273150;
+    }
+    if (result < 0 || (type == 2 ? result == 0 || result >= 125000 : result > 65534000)) return false;
+    value = static_cast<unsigned>(type == 2 ? result : (result + 500) / 1000);
+    return true;
+}
+
 constexpr bool validThinkFanLevel(unsigned value) {
     return value <= 7 || value == 0x47 || value == 0x80 || value == 0x84;
 }

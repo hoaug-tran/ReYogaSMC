@@ -82,7 +82,7 @@ void IdeaSMC::updateECVendor() {
     UInt32 value;
     for (UInt8 index = 0; index < ECSensorBase; ++index) {
         UInt8 code = sensorIndex[index];
-        atomic_store_explicit(&currentSensor[index], 0, memory_order_release);
+        atomic_store_explicit(&currentSensor[index], UINT32_MAX, memory_order_release);
         // Reuse the VPC telemetry sample rather than querying the EC twice.
         if (sensorProvider && sensorProvider->getProperty("SensorSampleSequence")) {
             const char *key = (code == 0xF0 || code == GAME_ZONE_WMI_GET_FAN_ONE) ? "Fan1RPM" :
@@ -91,7 +91,7 @@ void IdeaSMC::updateECVendor() {
                 (code == 0xE1 || code == GAME_ZONE_WMI_GET_TMP_GPU) ? "GPUTemp" : nullptr;
             if (key) {
                 auto sample = OSDynamicCast(OSNumber, sensorProvider->getProperty(key));
-                atomic_store_explicit(&currentSensor[index], sample != nullptr ? sample->unsigned32BitValue() : 0, memory_order_release);
+                atomic_store_explicit(&currentSensor[index], sample != nullptr ? sample->unsigned32BitValue() : UINT32_MAX, memory_order_release);
                 continue;
             }
         }

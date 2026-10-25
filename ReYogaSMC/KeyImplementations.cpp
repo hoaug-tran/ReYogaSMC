@@ -33,6 +33,13 @@ SMC_RESULT atomicSpKey::readAccess() {
     return SmcSuccess;
 }
 
+SMC_RESULT atomicSpMilliCelsiusKey::readAccess() {
+    const uint32_t value = atomic_load_explicit(currentSensor, memory_order_acquire);
+    if (!value || value >= 125000) return SmcNotReadable;
+    *reinterpret_cast<uint16_t *>(data) = VirtualSMCAPI::encodeSp(type, static_cast<double>(value) / 1000.0);
+    return SmcSuccess;
+}
+
 SMC_RESULT atomicSpDeciKelvinKey::readAccess() {
     uint32_t value = atomic_load_explicit(currentSensor, memory_order_acquire);
     if (value <= 2731 || value >= 4231) return SmcNotReadable;

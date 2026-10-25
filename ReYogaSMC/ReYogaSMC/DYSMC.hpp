@@ -44,7 +44,7 @@
  * 0x9: BaseUnits
  *   1: Other
  *   2: Degrees C
- *   3: RPM
+ *  19: RPM
  * 0xa: UnitModifier (sint32)
  * 0xb: CurrentReading
  * 0xc: RateUnits
@@ -74,9 +74,11 @@ private:
     /**
      *  Corresponding sensor index
      */
-    UInt8 sensorIndex[MAX_SENSOR];
+    UInt8 sensorIndex[MAX_SENSOR] {};
+    UInt32 sensorType[MAX_SENSOR] {};
+    SMC_KEY fanKeys[MAX_SENSOR] {};
 
-    bool addTachometerKey(OSString *name);
+    bool addTachometerKey(OSString *name, UInt8 fan);
     bool addTemperatureKey(OSString *name);
 
     void addVSMCKey() APPLE_KEXT_OVERRIDE;

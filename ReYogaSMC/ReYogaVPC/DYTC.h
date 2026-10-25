@@ -58,20 +58,6 @@ enum {
 #define DYTC_UNSUPPORTED      4 << 1
 #define DYTC_MODE_INVALID     5 << 1
 
-// Deprecated constants
-
-//#define DYTC_QUERY_ENABLE_BIT 8  /* Bit 8 - 0 = disabled, 1 = enabled */
-//#define DYTC_QUERY_SUBREV_BIT 16 /* Bits 16 - 27 - sub revisision */
-//#define DYTC_QUERY_REV_BIT    28 /* Bits 28 - 31 - revision */
-
-//#define DYTC_GET_FUNCTION_BIT 8  /* Bits 8-11 - function setting */
-//#define DYTC_GET_MODE_BIT     12 /* Bits 12-15 - mode setting */
-//#define DYTC_GET_LAPMODE_BIT  17 /* Bit 17 - lapmode. Set when on lap */
-
-//#define DYTC_SET_FUNCTION_BIT 12 /* Bits 12-15 - funct setting */
-//#define DYTC_SET_MODE_BIT     16 /* Bits 16-19 - mode setting */
-//#define DYTC_SET_VALID_BIT    20 /* Bit 20 - 1 = on, 0 = off */
-
 union DYTC_CMD {
     UInt32 raw;
     struct {

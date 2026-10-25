@@ -210,8 +210,7 @@ bool ReYogaVPC::exitVPC() {
         toggleClamshell();
     }
 
-    if (DYTCCap)
-        OSSafeReleaseNULL(DYTCVersion);
+    OSSafeReleaseNULL(DYTCVersion);
 
     return true;
 }
@@ -262,7 +261,6 @@ void ReYogaVPC::setPropertiesGated(OSObject* props) {
         return;
     }
 
-//    DebugLog("Found %d objects in properties", dict->getCount());
     OSCollectionIterator* i = OSCollectionIterator::withCollection(dict);
 
     if (i) {
@@ -560,10 +558,16 @@ void ReYogaVPC::initDYTC() {
         return;
     }
 
+    DYTCRevision = result.query.rev;
+
     // FCAP (16-bit EC field) read might be broken
     DYTCCap = BIT(DYTC_FUNCTION_STD) | BIT(DYTC_FUNCTION_CQL) | BIT(DYTC_FUNCTION_MMC);
 
     DYTCVersion = OSDictionary::withCapacity(3);
+    if (!DYTCVersion) {
+        DYTCCap = 0;
+        return;
+    }
     setPropertyNumber(DYTCVersion, "Revision", result.query.rev, 4);
     setPropertyNumber(DYTCVersion, "SubRevision", (result.query.subrev_hi << 8) + result.query.subrev_lo, 12);
 
@@ -578,11 +582,17 @@ void ReYogaVPC::initDYTC() {
 }
 
 bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
+    if (!DYTCVersion) return false;
     OSDictionary *DYTCStatus = OSDictionary::withDictionary(DYTCVersion);
+    if (!DYTCStatus) return false;
 
     bool lapmode = false;
 
     OSDictionary *functionStatus = OSDictionary::withCapacity(16);
+    if (!functionStatus) {
+        DYTCStatus->release();
+        return false;
+    }
     for (int func_bit = 0; func_bit < 16; func_bit++) {
         if (BIT(func_bit) & DYTCCap) {
             bool func_status = (BIT(func_bit) & result.get.func_sta);
@@ -642,15 +652,15 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
     DYTCStatus->setObject("Function Status", functionStatus);
     functionStatus->release();
 
-    if (lapmode && !DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_CQL, 0xf, false)) {
-        DYTCStatus->release();
-        return false;
-    }
-
     switch (result.get.funcmode) {
         case DYTC_FUNCTION_STD:
             setPropertyString(DYTCStatus, "FuncMode", "Standard");
             setPropertyString(DYTCStatus, "PerfMode", "Balance");
+            break;
+
+        case DYTC_FUNCTION_CQL:
+            setPropertyString(DYTCStatus, "FuncMode", "Lap");
+            setPropertyString(DYTCStatus, "PerfMode", "Unavailable while lap mode masks the thermal profile");
             break;
 
         case DYTC_FUNCTION_MMC:
@@ -664,6 +674,11 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
                     setPropertyString(DYTCStatus, "PerfMode", "Quiet");
                     break;
 
+                case 0:
+                case DYTC_MODE_BALANCE:
+                    setPropertyString(DYTCStatus, "PerfMode", "Balance");
+                    break;
+
                 default:
                     AlwaysLog(valueUnknown, DYTCPerfPrompt, result.get.perfmode);
                     char Unknown[16];
@@ -675,7 +690,22 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
 
         case DYTC_FUNCTION_PSC:
             setPropertyString(DYTCStatus, "FuncMode", "Controlled");
-            setPropertyNumber(DYTCStatus, "PerfMode", result.get.perfmode, 16);
+            setPropertyNumber(DYTCStatus, "PerfLevel", result.get.perfmode, 16);
+            if ((DYTCRevision >= 9 && result.get.perfmode == pscThermalMode(1)) ||
+                (DYTCRevision < 9 && result.get.perfmode >= 1 && result.get.perfmode <= 4)) {
+                setPropertyString(DYTCStatus, "PerfMode", "Quiet");
+            } else if ((DYTCRevision >= 9 && result.get.perfmode == pscThermalMode(2)) ||
+                       (DYTCRevision < 9 && result.get.perfmode >= 5 && result.get.perfmode <= 6)) {
+                setPropertyString(DYTCStatus, "PerfMode", "Balance");
+            } else if ((DYTCRevision >= 9 && result.get.perfmode == pscThermalMode(3)) ||
+                       (DYTCRevision < 9 && result.get.perfmode >= 7 && result.get.perfmode <= 8)) {
+                setPropertyString(DYTCStatus, "PerfMode", lapmode ? "Performance (Reduced as lapmode active)" : "Performance");
+            } else {
+                AlwaysLog(valueUnknown, DYTCPerfPrompt, result.get.perfmode);
+                char Unknown[16];
+                snprintf(Unknown, 16, "UnknownPerf:0x%x", result.get.perfmode);
+                setPropertyString(DYTCStatus, "PerfMode", Unknown);
+            }
             break;
 
         default:
@@ -689,13 +719,8 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
             break;
     }
 
-    if (lapmode) {
+    if (lapmode)
         setPropertyString(DYTCStatus, "FuncMode", "Lap");
-        if (!DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_CQL, 0xf, true)) {
-            DYTCStatus->release();
-            return false;
-        }
-    }
 
     setProperty("DYTC", DYTCStatus);
     DYTCStatus->release();
@@ -714,28 +739,31 @@ bool ReYogaVPC::updateDYTC() {
 }
 
 bool ReYogaVPC::setDYTC(int funcmode, int perfmode) {
-    if (!DYTCCap)
-        return true;
+    if (!DYTCCap || funcmode < 0 || funcmode >= 16 || !(DYTCCap & BIT(funcmode)))
+        return false;
 
     DYTC_RESULT result;
 
     if (!DYTCCommand(dytc_get_cmd, &result))
         return false;
 
-    bool lapmode = (result.get.funcmode == DYTC_FUNCTION_CQL);
+    bool lapmode = (result.get.func_sta & BIT(DYTC_FUNCTION_CQL)) != 0;
 
-    if (!DYTCCommand(dytc_reset_cmd, &result))
-            return false;
-
-    if (perfmode != DYTC_MODE_BALANCE)
+    if (funcmode == DYTC_FUNCTION_PSC) {
         if (!DYTCCommand(dytc_set_cmd, &result, funcmode, perfmode, true))
             return false;
-
-    if (lapmode)
-        if (!DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_CQL, 0xf, true))
+    } else {
+        if (!DYTCCommand(dytc_reset_cmd, &result))
             return false;
+        const bool modeSet = perfmode == DYTC_MODE_BALANCE ||
+            DYTCCommand(dytc_set_cmd, &result, funcmode, perfmode, true);
+        const bool lapRestored = !lapmode ||
+            DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_CQL, 0xf, true);
+        if (!modeSet || !lapRestored)
+            return false;
+    }
 
-    return parseDYTC(result);
+    return updateDYTC();
 }
 
 bool ReYogaVPC::dumpECOffset(UInt32 value) {

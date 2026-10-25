@@ -80,7 +80,7 @@ bool ReYogaSMC::start(IOService *provider) {
         return false;
     }
 
-    // WARNING: watch out, key addition is sorted here!
+    for (auto &reading : currentSensor) atomic_init(&reading, UINT32_MAX);
     addVSMCKey();
     qsort(const_cast<VirtualSMCKeyValue *>(vsmcPlugin.data.data()), vsmcPlugin.data.size(), sizeof(VirtualSMCKeyValue), VirtualSMCKeyValue::compare);
     setProperty("Key Submitted", vsmcPlugin.data.size(), 32);

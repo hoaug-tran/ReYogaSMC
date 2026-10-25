@@ -63,6 +63,20 @@ int main() {
     duplicates[1].id = "conflicting-profile";
     assert(select(duplicates, 2, empty, row.oemTableID, hash).state == MatchState::ambiguous);
 
+    for (unsigned status : {3U, 4U, 5U, 6U, 7U, 12U, 13U, 14U, 16U, 20U, 23U})
+        assert(!ReYogaControl::validHPSensorStatus(status));
+    for (unsigned status : {0U, 1U, 2U, 17U, 19U})
+        assert(ReYogaControl::validHPSensorStatus(status));
+    unsigned hpValue = 0;
+    assert(ReYogaControl::decodeHPSensor(420, -1, 2, 2, hpValue) && hpValue == 42000);
+    assert(ReYogaControl::decodeHPSensor(555, -1, 2, 2, hpValue) && hpValue == 55500);
+    assert(ReYogaControl::decodeHPSensor(104, 0, 2, 3, hpValue) && hpValue == 40000);
+    assert(ReYogaControl::decodeHPSensor(31315, -2, 2, 4, hpValue) && hpValue == 40000);
+    assert(ReYogaControl::decodeHPSensor(32, 2, 12, 19, hpValue) && hpValue == 3200);
+    assert(ReYogaControl::decodeHPSensor(0, 0, 12, 19, hpValue) && hpValue == 0);
+    assert(!ReYogaControl::decodeHPSensor(42, 0, 2, 19, hpValue));
+    assert(!ReYogaControl::decodeHPSensor(42, -2147483647 - 1, 2, 2, hpValue));
+    assert(!ReYogaControl::decodeHPSensor(0xffffffffU, 9, 12, 19, hpValue));
     uint32_t value = 0;
     assert(validSample(0, 0, 100, value) && value == 0);
     assert(validSample(0, 50, 100, value) && value == 5000);

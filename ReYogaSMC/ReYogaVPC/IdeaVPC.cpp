@@ -237,7 +237,6 @@ IOReturn IdeaVPC::message(UInt32 type, IOService *provider, void *argument) {
             if (!argument) return kIOReturnBadArgument;
             if (!updateBattery(false)) return kIOReturnIOError;
             *(reinterpret_cast<bool *>(argument)) = conservationMode;
-//            conservationModeLock = false;
             DebugLog("message: %s get conservation mode %d", provider->getName(), conservationMode);
             break;
 
@@ -286,7 +285,6 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
         return;
     }
 
-//    AlwaysLog("%d objects in properties", dict->getCount());
     OSCollectionIterator* i = OSCollectionIterator::withCollection(dict);
 
     if (i) {
@@ -615,9 +613,6 @@ bool IdeaVPC::updateBatteryInfo(OSDictionary *bat0, OSDictionary *bat1) {
         snprintf(temperature0, 9, "%d.%d℃", celsius / 10, celsius % 10);
         setPropertyString(bat0, "Temperature", temperature0);
         DebugLog("Battery 0 temperature %s", temperature0);
-//        UInt16 fahrenheit = celsius * 9 / 5 + 320;
-//        snprintf(temperature0, 9, "%d.%d℉", fahrenheit / 10, fahrenheit % 10);
-//        setPropertyString(bat0, "Fahrenheit", temperature0);
     }
     // B1DT
     if (bdata[8] != 0) {

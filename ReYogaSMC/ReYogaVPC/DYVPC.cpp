@@ -17,14 +17,18 @@ bool DYVPC::probeVPC(IOService *provider) {
         PE_parse_boot_argn("-reynowmi", &bootArgument, sizeof(bootArgument)))
         return false;
     YWMI = new WMI(provider);
-    if (!YWMI->initialize())
+    if (!YWMI || !YWMI->initialize()) {
+        delete YWMI;
+        YWMI = nullptr;
         return false;
+    }
 
     inputCap = YWMI->hasMethod(INPUT_WMI_EVENT, ACPI_WMI_EVENT);
     BIOSCap = YWMI->hasMethod(BIOS_QUERY_WMI_METHOD);
 
     if (!inputCap && !BIOSCap) {
         delete YWMI;
+        YWMI = nullptr;
         return false;
     }
 
@@ -74,23 +78,6 @@ bool DYVPC::initVPC() {
     if (inputCap)
         YWMI->enableEvent(INPUT_WMI_EVENT, true);
 
-//    if (BIOSCap) {
-//        UInt32 value;
-//        if (WMIQuery(HPWMI_HARDWARE_QUERY, &value))
-//            setProperty("HARDWARE", value, 32);
-//        if (WMIQuery(HPWMI_WIRELESS_QUERY, &value))
-//            setProperty("WIRELESS", value, 32);
-//        if (WMIQuery(HPWMI_WIRELESS2_QUERY, &value))
-//            setProperty("WIRELESS2", value, 32);
-//        if (WMIQuery(HPWMI_FEATURE2_QUERY, &value))
-//            setProperty("FEATURE2", value, 32);
-//        else if (WMIQuery(HPWMI_FEATURE_QUERY, &value))
-//            setProperty("FEATURE", value, 32);
-//        if (WMIQuery(HPWMI_POSTCODEERROR_QUERY, &value))
-//            setProperty("POSTCODE", value, 32);
-//        if (WMIQuery(HPWMI_THERMAL_POLICY_QUERY, &value))
-//            setProperty("THERMAL_POLICY", value, 32);
-//    }
     return true;
 }
 
@@ -119,7 +106,7 @@ void DYVPC::updateVPC(UInt32 event) {
     OSData *buf = OSDynamicCast(OSData, result);
     if (!buf) {
         DebugLog("Unknown response type");
-        result->release();
+        OSSafeReleaseNULL(result);
         return;
     }
 
@@ -190,9 +177,10 @@ bool DYVPC::WMIQuery(UInt32 query, void *buffer, enum hp_wmi_command command, UI
     if (vsize != nullptr && vsize->unsigned32BitValue() != insize)
         AlwaysLog("Input size mismatch: expected 0x%x, actual 0x%x", vsize->unsigned32BitValue(), insize);
 
-    memcpy(&args.data[0], buffer, insize);
+    if (insize) memcpy(&args.data[0], buffer, insize);
     OSData *in = OSData::withBytesNoCopy(&args, sizeof(struct bios_args));
 
+    if (!in) return false;
     OSObject *result = nullptr;
 
     IOReturn ret = YWMI->evaluateMethod(BIOS_QUERY_WMI_METHOD, 0, mid, &result, in);
@@ -207,7 +195,8 @@ bool DYVPC::WMIQuery(UInt32 query, void *buffer, enum hp_wmi_command command, UI
     setProperty("WMIQuery", result);
 #endif
     OSData *output = OSDynamicCast(OSData, result);
-    if (output == nullptr) {
+    if (output == nullptr || output->getLength() < sizeof(bios_return) ||
+        output->getLength() - sizeof(bios_return) < outsize) {
         AlwaysLog("BIOS query 0x%x: unexpected output type", query);
         OSSafeReleaseNULL(result);
         return false;
@@ -237,7 +226,6 @@ bool DYVPC::WMIQuery(UInt32 query, void *buffer, enum hp_wmi_command command, UI
 
     if (ret && outsize != 0) {
         memset(buffer, 0, outsize);
-        outsize = min(outsize, output->getLength() - sizeof(*biosRet));
         memcpy(buffer, output->getBytesNoCopy(sizeof(*biosRet), outsize), outsize);
     }
 
@@ -250,7 +238,6 @@ void DYVPC::setPropertiesGated(OSObject *props) {
     if (!dict)
         return;
 
-//    AlwaysLog("%d objects in properties", dict->getCount());
     OSCollectionIterator* i = OSCollectionIterator::withCollection(dict);
 
     if (i) {
@@ -272,6 +259,7 @@ void DYVPC::setPropertiesGated(OSObject *props) {
                     AlwaysLog("%s failed 0x%x", "BIOSQuery", value->unsigned32BitValue());
             } else {
                 OSDictionary *entry = OSDictionary::withCapacity(1);
+                if (!entry) continue;
                 entry->setObject(key, dict->getObject(key));
                 super::setPropertiesGated(entry);
                 entry->release();

@@ -97,6 +97,14 @@ public:
     atomicSpKey(_Atomic(uint32_t) *currentSensor) : currentSensor(currentSensor) {};
 };
 
+class atomicSpMilliCelsiusKey : public VirtualSMCValue {
+    _Atomic(uint32_t) *currentSensor;
+protected:
+    SMC_RESULT readAccess() override;
+public:
+    atomicSpMilliCelsiusKey(_Atomic(uint32_t) *sensor) : currentSensor(sensor) {};
+};
+
 class atomicSpDeciKelvinKey : public VirtualSMCValue {
     _Atomic(uint32_t) *currentSensor;
 protected:

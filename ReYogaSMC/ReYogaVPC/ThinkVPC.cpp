@@ -151,6 +151,12 @@ bool ThinkVPC::setNotificationMask(UInt32 i, UInt32 all_mask, UInt32 offset, boo
         OSNumber::withNumber(enable, 32),
     };
 
+    if (!params[0] || !params[1]) {
+        OSSafeReleaseNULL(params[0]);
+        OSSafeReleaseNULL(params[1]);
+        return false;
+    }
+
     IOReturn ret = vpc->evaluateObject(setHKEYmask, nullptr, params, 2);
     params[0]->release();
     params[1]->release();
@@ -383,8 +389,11 @@ void ThinkVPC::controlRequest(OSDictionary *request) {
                 batnum = target;
                 status = kIOReturnSuccess;
             } else if (key->isEqualTo("SmartFanMode") && target >= 1 && target <= 3) {
-                const int mode = target == 1 ? DYTC_MODE_QUIET : target == 2 ? DYTC_MODE_BALANCE : DYTC_MODE_PERFORM;
-                status = setDYTC(DYTC_FUNCTION_MMC, mode) ? kIOReturnSuccess : kIOReturnIOError;
+                const bool useMMC = supportsMMCThermal();
+                const int func = useMMC ? DYTC_FUNCTION_MMC : DYTC_FUNCTION_PSC;
+                const int mode = useMMC ? (target == 1 ? DYTC_MODE_QUIET :
+                    target == 2 ? DYTC_MODE_BALANCE : DYTC_MODE_PERFORM) : pscThermalMode(target);
+                status = setDYTC(func, mode) ? kIOReturnSuccess : kIOReturnIOError;
             } else if (key->isEqualTo(backlightPrompt) && target <= 2)
                 status = setBacklight(target) ? kIOReturnSuccess : kIOReturnIOError;
             else if (key->isEqualTo("ChargeStartThreshold") || key->isEqualTo("ChargeStopThreshold")) {
@@ -426,7 +435,6 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
         return;
     }
 
-    //    AlwaysLog("%d objects in properties", dict->getCount());
     OSCollectionIterator* i = OSCollectionIterator::withCollection(dict);
     IOReturn ret;
 
@@ -480,6 +488,10 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
                     OSNumber::withNumber((raw & 0xff), 8)
                 };
 
+                if (!params[0] || !params[1] || !params[2] || !params[3]) {
+                    for (auto &param : params) OSSafeReleaseNULL(param);
+                    continue;
+                }
                 ret = vpc->evaluateObject("SCPF", nullptr, params, 4);
                 if (ret == kIOReturnSuccess)
                     DebugLog(updateSuccess, "SCPF", value->unsigned8BitValue());
@@ -536,7 +548,6 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
             } else if (key->isEqualTo(fanControlPrompt)) {
                 OSNumber *value;
                 getPropertyNumber(fanControlPrompt);
-//                setFanControl(value->unsigned32BitValue());
                 updateFanControl(value->unsigned32BitValue());
             } else if (key->isEqualTo(fanSpeedPrompt)) {
                 OSNumber *value;
@@ -651,6 +662,12 @@ bool ThinkVPC::setLEDStatus(UInt8 status) {
         OSNumber::withNumber(status & 0xf0, 32),
     };
 
+    if (!params[0] || !params[1]) {
+        OSSafeReleaseNULL(params[0]);
+        OSSafeReleaseNULL(params[1]);
+        return false;
+    }
+
     IOReturn ret = ec->evaluateObject(setLED, nullptr, params, 2);
     params[0]->release();
     params[1]->release();
@@ -714,8 +731,13 @@ IOReturn ThinkVPC::message(UInt32 type, IOService *provider, void *argument) {
 
         case kIOACPIMessageDeviceNotification:
             if (argument && *(reinterpret_cast<UInt32 *>(argument)) == kIOACPIMessageReserved) {
-                updateVPC();
-                break;
+                if (!commandGate || isInactive()) return kIOReturnNotReady;
+                return commandGate->runAction([](OSObject *owner, void *, void *, void *, void *) -> IOReturn {
+                    auto self = static_cast<ThinkVPC *>(owner);
+                    if (self->isInactive()) return kIOReturnNotAttached;
+                    self->updateVPC();
+                    return kIOReturnSuccess;
+                });
             }
 
         default:
@@ -792,27 +814,20 @@ UInt32 ThinkVPC::updateYogaMode() {
     UInt32 data = mode & 0xf;
     switch (data) {
         case 1:
-//            mode = TP_ACPI_MULTI_MODE_LAPTOP;
             if (validModes & TP_ACPI_MULTI_MODE_TABLET_LIKE)
                 setTopCase(true);
             setProperty("YogaMode", "Laptop");
             break;
         case 2:
-//            mode = TP_ACPI_MULTI_MODE_FLAT;
             if (validModes & TP_ACPI_MULTI_MODE_TABLET_LIKE)
                 setTopCase(true);
             setProperty("YogaMode", "Flat");
             break;
         case 3:
-//            mode = TP_ACPI_MULTI_MODE_TABLET;
             setTopCase(clamshellMode);
             setProperty("YogaMode", "Tablet");
             break;
         case 4:
-//            if ((mode >> 16) == 1)
-//                mode = TP_ACPI_MULTI_MODE_STAND_TENT;
-//            else
-//                mode = TP_ACPI_MULTI_MODE_STAND;
             setTopCase(clamshellMode);
             if ((mode >> 16) == 1)
                 setProperty("YogaMode", "Stand/Tent");
@@ -820,13 +835,10 @@ UInt32 ThinkVPC::updateYogaMode() {
                 setProperty("YogaMode", "Stand");
             break;
         case 5:
-//            mode = TP_ACPI_MULTI_MODE_TENT;
             setTopCase(clamshellMode);
             setProperty("YogaMode", "Tent");
             break;
         default:
-//            if (type == 5 && value == 0xffff)
-//                DebugLog("Multi mode status is undetected, assuming laptop");
             setTopCase(true);
             AlwaysLog("unknown tablet mode: %x", mode);
             break;
@@ -1135,8 +1147,6 @@ bool ThinkVPC::setSSTStatus(UInt32 value) {
             break;
 
         case 1:
-//            if (SPS || WNTF)
-//                setBeepStatus(0x05);
             status = setLEDStatus(0x80) && setLEDStatus(0x8A) && setLEDStatus(0x07);
             break;
 
@@ -1145,21 +1155,10 @@ bool ThinkVPC::setSSTStatus(UInt32 value) {
             break;
 
         case 3:
-//            if (SPS == 3) {
-//                setBeepStatus(0x03);
-//            } else {
-//                if (SPS > 3)
-//                    setBeepStatus(0x07);
-//                else
-//                    setBeepStatus(0x04);
-//                setLEDStatus(0x80);
-//                setLEDStatus(0x8A);
-//            }
             status = setLEDStatus(0xC7) && setLEDStatus(0xC0) && setLEDStatus(0xCA);
             break;
 
         case 4:
-//            setBeepStatus(0x03);
             status = setLEDStatus(0xC7) && setLEDStatus(0xC0) && setLEDStatus(0xCA);
             break;
 
@@ -1229,6 +1228,11 @@ IOReturn ThinkVPC::setPowerState(unsigned long powerStateOrdinal, IOService * wh
                 setMicMuteLEDStatus(0);
         }
     } else {
+        setHotkeyStatus(true);
+        for (UInt32 i = 0; i < 32; ++i) {
+            if ((hotkey_all_mask & BIT(i)) &&
+                !setNotificationMask(i, hotkey_all_mask, DHKN_MASK_offset)) break;
+        }
         if (automaticBacklightMode & BIT(2))
             setSSTStatus(1);
         if ((automaticBacklightMode & BIT(3)) && muteLEDstateSaved)
