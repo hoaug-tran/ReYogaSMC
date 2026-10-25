@@ -12,7 +12,7 @@
 Kernel extension (`ReYogaSMC.kext`), macOS control workspace (`ReYogaSMC.app`), and ACPI/EC diagnostic toolkit for Lenovo ThinkPad, IdeaPad, Yoga, LOQ, and Legion laptops running macOS.  
 Forked from [YogaSMC 1.5.3](https://github.com/zhen-zen/YogaSMC).
 
-[Releases](https://github.com/hoaug-tran/ReYogaSMC/releases/latest) · [CI Artifacts](https://github.com/hoaug-tran/ReYogaSMC/actions/workflows/main.yml) · [Hardware Profiles](HardwareProfiles) · [Compatibility](Docs/compatibility.md) · [Hardware Tool](Docs/hardware-tool.md)
+[Releases](https://github.com/hoaug-tran/ReYogaSMC/releases/latest) - [CI Artifacts](https://github.com/hoaug-tran/ReYogaSMC/actions/workflows/main.yml) - [Hardware Profiles](HardwareProfiles) - [Compatibility](Docs/compatibility.md) - [Hardware Tool](Docs/hardware-tool.md)
 
 </div>
 

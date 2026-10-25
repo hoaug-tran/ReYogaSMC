@@ -281,7 +281,7 @@
 "Checking published releases…" = "Checking published releases…";
 "Checking the hardware driver…" = "Checking the hardware driver…";
 "Connect a compatible hardware driver before enabling keyboard mapping." = "Connect a compatible hardware driver before enabling keyboard mapping.";
-"Connected · not charging" = "Connected · not charging";
+"Connected - not charging" = "Connected - not charging";
 "Conservation" = "Conservation";
 "Conservation: Firmware did not confirm the requested state" = "Conservation: Firmware did not confirm the requested state";
 "Consumer hotkeys unavailable (0x%08x); check Input Monitoring permission" = "Consumer hotkeys unavailable (0x%08x); check Input Monitoring permission";

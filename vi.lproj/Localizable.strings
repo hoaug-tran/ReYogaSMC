@@ -283,7 +283,7 @@
 "Checking published releases…" = "Đang kiểm tra các bản phát hành…";
 "Checking the hardware driver…" = "Đang kiểm tra driver phần cứng…";
 "Connect a compatible hardware driver before enabling keyboard mapping." = "Kết nối driver phần cứng tương thích trước khi bật ánh xạ phím.";
-"Connected · not charging" = "Đã cắm nguồn · không sạc";
+"Connected - not charging" = "Đã cắm nguồn - không sạc";
 "Conservation" = "Bảo toàn pin";
 "Conservation: Firmware did not confirm the requested state" = "Bảo toàn pin: firmware chưa xác nhận trạng thái được yêu cầu";
 "Consumer hotkeys unavailable (0x%08x); check Input Monitoring permission" = "Phím đa phương tiện không khả dụng (0x%08x); kiểm tra quyền Giám sát đầu vào";

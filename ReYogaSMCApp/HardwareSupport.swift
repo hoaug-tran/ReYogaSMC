@@ -883,7 +883,7 @@ public struct LiveBatterySnapshot: Equatable {
         if charging == true { return "Charging" }
         if let current = milliamps, current < 0 { return "Discharging" }
         if fullyCharged == true { return "Fully charged" }
-        if externalPower == true && charging == false { return "Connected · not charging" }
+        if externalPower == true && charging == false { return "Connected - not charging" }
         return "Unavailable"
     }
     init(properties: [String: Any]) {
