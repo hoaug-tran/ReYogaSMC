@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
-// ReYogaSMC support adapters. Physical addresses and device layouts live in profiles.
+
 import AppKit
 import Foundation
 import Darwin
@@ -105,7 +104,7 @@ struct HardwareSnapshot {
         let unavailable = HardwareFeatureStatus(available: false,
             reason: "The active driver has no validated manual fan control for this firmware.", backend: feature?.backend ?? "Unavailable")
         guard let feature = feature else { return unavailable }
-        // Bridge requirements belong to this adapter, not every fan backend.
+
         guard feature.backend == "ACPI profile" else { return feature }
         guard feature.available, bridgeVersion >= 2 else { return unavailable }
         if key != "FanControlMode" && !writesValidated {
@@ -116,10 +115,23 @@ struct HardwareSnapshot {
     }
 }
 
-// Display identity is independent of firmware control eligibility.
 struct LaptopIdentity {
     let name: String
     let source: String
+
+    private static let catalog: (machineTypes: [String: String], pciSubsystems: [String: String]) = loadCatalog()
+
+    private static func loadCatalog() -> (machineTypes: [String: String], pciSubsystems: [String: String]) {
+        let directory = HardwareProfiles.directory ?? URL(fileURLWithPath: "HardwareProfiles")
+        let url = directory.appendingPathComponent("catalogs").appendingPathComponent("models.json")
+        guard let data = try? Data(contentsOf: url),
+              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            return ([:], [:])
+        }
+        let machines = json["machine_types"] as? [String: String] ?? [:]
+        let pcis = json["pci_subsystems"] as? [String: String] ?? [:]
+        return (machines, pcis)
+    }
 
     static func resolve(strings: [String], pciIDs: Set<String>, lenovo: Bool,
                         profiles: [[String: Any]] = HardwareProfiles.all()) -> LaptopIdentity {
@@ -142,9 +154,51 @@ struct LaptopIdentity {
             let source = machineNames.isEmpty ? "PCI subsystem ID" : pciNames.isEmpty ? "Machine type" : "Machine type + PCI subsystem ID"
             return LaptopIdentity(name: name, source: source)
         }
+        if names.count > 1 {
+            return LaptopIdentity(name: "Lenovo Laptop", source: "Hardware identity")
+        }
+        for pci in pciIDs {
+            if let match = catalog.pciSubsystems[pci.lowercased()] {
+                return LaptopIdentity(name: match, source: "PCI subsystem ID")
+            }
+        }
+        let ignoredPrefixes = ["MACBOOK", "IMAC", "MACMINI", "MACPRO", "APPLE"]
+        let ignoredExact: Set<String> = ["DEFAULT STRING", "NONE", "TO BE FILLED BY O.E.M.", "SYSTEM PRODUCT NAME", "SYSTEM MANUFACTURER", "LENOVO", "UNKNOWN"]
+        let validCandidates = strings.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { str in
+            let upper = str.uppercased()
+            if upper.isEmpty || ignoredExact.contains(upper) { return false }
+            if ignoredPrefixes.contains(where: { upper.hasPrefix($0) }) { return false }
+            return true
+        }
+        for str in validCandidates {
+            let upper = str.uppercased()
+            if upper.contains("THINKPAD") || upper.contains("LEGION") || upper.contains("IDEAPAD") ||
+               upper.contains("YOGA") || upper.contains("THINKBOOK") || upper.contains("LOQ") || upper.contains("XIAOXIN") {
+                return LaptopIdentity(name: str, source: "Firmware identity")
+            }
+        }
+        for str in validCandidates {
+            let upper = str.uppercased()
+            for (type, model) in catalog.machineTypes {
+                if upper.range(of: "(?<![A-Z0-9])" + type + "[A-Z0-9]*(?![A-Z0-9])", options: .regularExpression) != nil {
+                    return LaptopIdentity(name: model, source: "Machine type")
+                }
+            }
+            if let match = upper.range(of: "(?<![A-Z0-9])(2[01][A-Z0-9]{2})[A-Z0-9]*(?![A-Z0-9])", options: .regularExpression) {
+                let code = String(upper[match].prefix(4))
+                return LaptopIdentity(name: "ThinkPad (\(code))", source: "Machine type")
+            }
+            if let match = upper.range(of: "(?<![A-Z0-9])(8[0-4][A-Z0-9]{2})[A-Z0-9]*(?![A-Z0-9])", options: .regularExpression) {
+                let code = String(upper[match].prefix(4))
+                return LaptopIdentity(name: "Lenovo (\(code))", source: "Machine type")
+            }
+        }
         let isLenovo = lenovo || !machineNames.isEmpty || pciIDs.contains { $0.hasPrefix("17aa:") } ||
             evidence.contains { $0.contains("LENOVO") }
-        return LaptopIdentity(name: isLenovo ? "Lenovo Laptop" : "Unknown Laptop", source: "Hardware identity")
+        if isLenovo {
+            return LaptopIdentity(name: "Lenovo Laptop", source: "Hardware identity")
+        }
+        return LaptopIdentity(name: "Unknown Laptop", source: "Hardware identity")
     }
 
     static func text(_ value: Any?) -> String? {
@@ -183,6 +237,11 @@ struct LaptopIdentity {
             while case let entry = IOIteratorNext(iterator), entry != 0 {
                 defer { IOObjectRelease(entry) }
                 if IOObjectConformsTo(entry, "IOPlatformExpertDevice") != 0 { collect(entry) }
+                if IOObjectConformsTo(entry, "AppleSMBIOS") != 0 {
+                    if let value = IORegistryEntryCreateCFProperty(entry, "SMBIOS" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Data {
+                        strings.append(contentsOf: parseSMBIOS(data: value))
+                    }
+                }
                 guard IOObjectConformsTo(entry, "IOPCIDevice") != 0 else { continue }
                 func number(_ key: String) -> UInt32? {
                     let value = IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
@@ -200,7 +259,14 @@ struct LaptopIdentity {
 }
 
 struct HardwareProfiles {
-    static var directory: URL? { Bundle.main.resourceURL?.appendingPathComponent("HardwareProfiles", isDirectory: true) }
+    static var directory: URL? {
+        if let bundleDir = Bundle.main.resourceURL?.appendingPathComponent("HardwareProfiles", isDirectory: true),
+           FileManager.default.fileExists(atPath: bundleDir.path) {
+            return bundleDir
+        }
+        let fallback = URL(fileURLWithPath: "HardwareProfiles")
+        return FileManager.default.fileExists(atPath: fallback.path) ? fallback : nil
+    }
     private static let cachedProfiles = loadProfiles()
     static func all() -> [[String: Any]] { cachedProfiles }
     private static func loadProfiles() -> [[String: Any]] {
@@ -350,6 +416,49 @@ struct HardwareProfiles {
             }
         }
     }
+    static func renderThinkPadSSDT(ecPath: String, hkeyPath: String) throws -> String {
+        let directory = HardwareProfiles.directory ?? URL(fileURLWithPath: "HardwareProfiles")
+        let templateURL = directory.appendingPathComponent("SSDT-ThinkPad.template.dsl")
+        guard let source = try? String(contentsOf: templateURL, encoding: .utf8) else {
+            throw SupportError.message("ACPI template SSDT-ThinkPad.template.dsl not found")
+        }
+        return source
+            .replacingOccurrences(of: "{{ EC_PATH }}", with: ecPath)
+            .replacingOccurrences(of: "{{ HKEY_PATH }}", with: hkeyPath)
+    }
+    static func exportThinkPadSSDT(service: io_service_t, ecPath: String, hkeyPath: String) {
+        let save = NSSavePanel()
+        save.allowedFileTypes = ["dsl"]
+        save.nameFieldStringValue = "SSDT-ThinkPad.dsl"
+        save.message = localizedMessage("Save the all-in-one ThinkPad ACPI patch source. If iasl is installed, it will be compiled automatically.")
+        guard save.runModal() == .OK, let output = save.url else { return }
+        DispatchQueue.global(qos: .utility).async {
+            do {
+                let source = try renderThinkPadSSDT(ecPath: ecPath, hkeyPath: hkeyPath)
+                try source.write(to: output, atomically: true, encoding: .utf8)
+                var result = "ThinkPad ACPI source saved. Install iasl to compile it."
+                if let compiler = compiler() {
+                    let process = Process()
+                    process.executableURL = compiler
+                    process.arguments = ["-tc", output.path]
+                    let logURL = output.deletingPathExtension().appendingPathExtension("compile.log")
+                    FileManager.default.createFile(atPath: logURL.path, contents: nil)
+                    let handle = try FileHandle(forWritingTo: logURL)
+                    defer { try? handle.close() }
+                    process.standardOutput = handle; process.standardError = handle
+                    try process.run()
+                    process.waitUntilExit()
+                    guard process.terminationStatus == 0 else { throw SupportError.message("SSDT compilation failed. The source and compile.log are saved for inspection.") }
+                    result = "SSDT-ThinkPad compiled - review it and add it to OpenCore before rebooting"
+                }
+                ReYogaDiagnostics.shared.record("thinkpad_acpi_generated", ["ecPath": ecPath, "compiled": compiler() != nil])
+                DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([output]); showOSDRaw(result, duration: 3000) }
+            } catch {
+                ReYogaDiagnostics.shared.record("thinkpad_acpi_generation_failed", ["error": error.localizedDescription])
+                DispatchQueue.main.async { showOSDRaw(error.localizedDescription, duration: 3500) }
+            }
+        }
+    }
     static func render(_ profile: [String: Any]) throws -> String {
         guard let directory = directory,
               let offsets = profile["offsets"] as? [String: String] else { throw SupportError.message("Hardware profile is incomplete") }
@@ -401,8 +510,6 @@ enum SupportError: LocalizedError {
     var errorDescription: String? { if case .message(let text) = self { return localizedMessage(text) }; return nil }
 }
 
-// Wire format derived from OpenRGB's LenovoUSBController (Cooper Hall/geobot19,
-// GPL-2.0-or-later). Each supported USB VID/PID and LED map is data, not a guess.
 final class LegionRGBController {
     private var manager: IOHIDManager?
     private var device: IOHIDDevice?
@@ -508,7 +615,7 @@ final class LegionRGBController {
         data[0] = UInt8(report); data[1] = UInt8(code)
         try send(data)
     }
-    // Read-only device information request; no software-mode or LED-state change.
+
     func inspectLayout() throws -> Int {
         guard let profile = profile, let device = device, let query = profile["layoutQuery"] as? Int,
               let report = profile["reportID"] as? Int, let size = profile["reportSize"] as? Int else { throw SupportError.message("RGB information interface unavailable") }
@@ -587,7 +694,7 @@ final class LegionRGBController {
         guard data.count <= SavedRGBSettings.maximumImportBytes else { throw SupportError.message("RGB JSON exceeds 256 KiB") }
         guard let values = try JSONSerialization.jsonObject(with: data) as? [String: [String: String]],
               let zones = profile?["zones"] as? [String: [String: Any]] else { throw SupportError.message("Expected JSON: zone -> LED name or ID -> #RRGGBB") }
-        // Validate the complete input before issuing any LED write.
+
         var batches: [(Int, [(Int, UInt8, UInt8, UInt8)])] = []
         for (name, colors) in values {
             guard let zone = zones[name == "Keyboard" ? layout : name], let bank = zone["bank"] as? Int,
@@ -725,8 +832,6 @@ struct PowerLimitInput {
     }
 }
 
-// Read-only AppleSMC user-client adapter. Wire offsets describe its 80-byte
-// ABI, not any laptop's EC layout. Key names are discovered from the service.
 final class SMCTemperatureReader {
     struct Reading { let celsius: Double; let key: String; let source: String }
     private var connection: io_connect_t = 0
@@ -822,8 +927,7 @@ final class SMCTemperatureReader {
             if key.range(of: "^TG[0-9A-F][DP]$", options: .regularExpression) != nil { keys.append(key) }
         }
         keys.sort()
-        // Multiple GPU indices need an explicit identity association. Never
-        // silently label the first GPU as the active iGPU on a multi-GPU host.
+
         let amd = providerExists("SMCProcessorAMD")
         cpuProvider = amd ? "SMCProcessorAMD" : "SMC"
         gpuProvider = providerExists("SMCRadeonSensors") ? "SMCRadeonSensors" : "SMC"
@@ -968,7 +1072,7 @@ public struct LiveBatterySnapshot: Equatable {
             guard let value = (properties[key] ?? nested[key]) as? String, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
             return value
         }
-        // MaxCapacity=100 may be a normalized percentage, not a physical mAh value.
+
         let rawCurrent = capacity("AppleRawCurrentCapacity")
         let rawMaximum = capacity("AppleRawMaxCapacity").flatMap { $0 > 0 ? $0 : nil }
         let normalCurrent = capacity("CurrentCapacity")
@@ -986,7 +1090,7 @@ public struct LiveBatterySnapshot: Equatable {
         fullyCharged = properties["FullyCharged"] as? Bool
         installed = properties["BatteryInstalled"] as? Bool
         let amperage = number("InstantAmperage") ?? number("Amperage")
-        // Some providers encode a signed current in an unsigned 16/32-bit register.
+
         let signed = amperage.map { value -> Double in
             if (32768.0...65535.0).contains(value) { return value - 65536 }
             if (2147483648.0...4294967295.0).contains(value) { return value - 4294967296 }
@@ -994,7 +1098,7 @@ public struct LiveBatterySnapshot: Equatable {
         }
         milliamps = signed.flatMap { (-100_000...100_000).contains($0) ? Int($0) : nil }
         voltage = number("Voltage").flatMap { (1...100_000).contains($0) ? $0 / 1000 : nil }
-        // Smart Battery Temperature uses tenths of a kelvin.
+
         temperatureCelsius = number("Temperature").flatMap { value in
             let celsius = value / 10 - 273.15
             return (-40...120).contains(celsius) ? celsius : nil
