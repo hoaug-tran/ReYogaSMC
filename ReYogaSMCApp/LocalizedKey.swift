@@ -74,6 +74,8 @@ public enum LocalizedKey: String {
     case coolingManualFanDesc = "COOLING_MANUAL_FAN_DESC"
     case coolingLiveReadingsNotice = "COOLING_LIVE_READINGS_NOTICE"
     case coolingWhyUnavailable = "COOLING_WHY_UNAVAILABLE"
+    case coolingWhyFanUnavailable = "COOLING_WHY_FAN_UNAVAILABLE"
+    case coolingWhyPowerUnavailable = "COOLING_WHY_POWER_UNAVAILABLE"
     case coolingRetry = "COOLING_RETRY"
     case coolingRestoreAuto = "COOLING_RESTORE_AUTO"
     case coolingApply = "COOLING_APPLY"
@@ -147,6 +149,8 @@ public enum LocalizedKey: String {
     case diagnosticsOpenLogs = "DIAGNOSTICS_OPEN_LOGS"
     case diagnosticsGenerateBridge = "DIAGNOSTICS_GENERATE_BRIDGE"
     case diagnosticsBridgeDesc = "DIAGNOSTICS_BRIDGE_DESC"
+    case diagnosticsGenerateThinkPadSSDT = "DIAGNOSTICS_GENERATE_THINKPAD_SSDT"
+    case diagnosticsThinkPadSSDTDesc = "DIAGNOSTICS_THINKPAD_SSDT_DESC"
     case diagnosticsToolsDesc = "DIAGNOSTICS_TOOLS_DESC"
     case diagnosticsAppBuild = "DIAGNOSTICS_APP_BUILD"
     case diagnosticsGitRevision = "DIAGNOSTICS_GIT_REVISION"
@@ -211,8 +215,6 @@ public func loc(_ key: LocalizedKey) -> String {
     key.localized
 }
 
-// Driver reason strings remain canonical in snapshots and exported reports.
-// Translate them, and app message templates, only when presenting them.
 public func localizedMessage(_ source: String, _ arguments: String...) -> String {
     renderLocalizedMessage(source, arguments: arguments.map { $0 as CVarArg }, bundle: .main)
 }

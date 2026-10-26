@@ -538,9 +538,16 @@ public struct HardwareControlsView: View {
                         if manager.canGenerateACPIBridge {
                             Button(loc(.diagnosticsGenerateBridge)) { manager.generateACPIBridge() }
                         }
+                        if manager.canGenerateThinkPadSSDT {
+                            Button(loc(.diagnosticsGenerateThinkPadSSDT)) { manager.generateThinkPadSSDT() }
+                        }
                     }
                     if manager.canGenerateACPIBridge {
                         Text(loc(.diagnosticsBridgeDesc))
+                            .font(.system(size: 11)).foregroundColor(.secondary)
+                    }
+                    if manager.canGenerateThinkPadSSDT {
+                        Text(loc(.diagnosticsThinkPadSSDTDesc))
                             .font(.system(size: 11)).foregroundColor(.secondary)
                     }
                 }
@@ -897,25 +904,29 @@ public struct HardwareControlsView: View {
                 unavailableCoolingCard(loc(.coolingSectionCpuPower), icon: "bolt.fill",
                     detail: loc(.coolingCpuPowerCardDesc), tint: AppTheme.gpu)
             }
-            if manager.providerClass == "ThinkVPC" { ThinkPadFanPanel() }
-            if !hasFanControls || !hasCPUPowerControls {
+            if manager.providerClass == "ThinkVPC" { ThinkPadFanPanel(manager: manager) }
+            let showFanUnavailable = !hasFanControls && manager.providerClass != "ThinkVPC"
+            let showPowerUnavailable = !hasCPUPowerControls
+            if showFanUnavailable || showPowerUnavailable {
+                let whyTitle: LocalizedKey = (showFanUnavailable && showPowerUnavailable)
+                    ? .coolingWhyUnavailable
+                    : (showFanUnavailable ? .coolingWhyFanUnavailable : .coolingWhyPowerUnavailable)
                 DisclosureGroup {
                     VStack(alignment: .leading, spacing: 12) {
-                        if !hasFanControls && manager.providerClass != "ThinkVPC" {
+                        if showFanUnavailable {
                             coolingReason(loc(.coolingSectionManualFan), reason: manager.featureStatus["Fan1TargetRPM"]?.reason ?? "No verified manual fan interface")
                         }
-                        if !hasCPUPowerControls {
+                        if showPowerUnavailable {
                             coolingReason(loc(.coolingSectionCpuPower), reason: manager.featureStatus["CPUBoostPower"]?.reason ?? "No verified CPU power interface")
                         }
                         Text(loc(.coolingLiveReadingsNotice))
                             .font(.system(size: 11)).foregroundColor(.secondary)
                     }.padding(.top, 10)
                 } label: {
-                    SymbolLabel(loc(.coolingWhyUnavailable), systemImage: "info.circle")
+                    SymbolLabel(loc(whyTitle), systemImage: "info.circle")
                         .font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
                 }.padding(12).background(AppTheme.surface).cornerRadius(10)
             }
-        }
     }
     private func coolingReason(_ title: String, reason: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -928,61 +939,83 @@ public struct HardwareControlsView: View {
 }
 
 private struct ThinkPadFanPanel: View {
-    @State private var readings: [String] = ["Unavailable", "Unavailable"]
-    @State private var enabled = [false, false]
+    @ObservedObject var manager: HardwareManager
     @State private var levels: [Double] = [4, 4]
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
     private func helper(_ index: Int) -> ThinkFanHelper? {
         let delegate = NSApp.delegate as? AppDelegate
         return index == 0 ? delegate?.fanHelper : delegate?.fanHelper2
     }
+
+    private func fanRPMText(_ index: Int) -> String {
+        guard let fan = helper(index), fan.enable else { return loc(.commonUnavailable) }
+        let rpm = index == 0 ? manager.fan1RPM : manager.fan2RPM
+        if rpm > 0 {
+            return localizedMessage("%@ RPM", String(rpm))
+        }
+        if let direct = fan.rpm, direct > 0 {
+            return localizedMessage("%@ RPM", String(direct))
+        }
+        return loc(.commonUnavailable)
+    }
+
     var body: some View {
         ControlSection(loc(.thinkPadFans)) {
             ForEach(0..<(helper(1) == nil ? 1 : 2), id: \.self) { index in
+                let fan = helper(index)
+                let isEnabled = fan?.enable == true
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text(localizedMessage(index == 0 ? loc(.mainFan) : loc(.secondaryFan))).font(.system(size: 12, weight: .medium))
                         Spacer()
-                        Text(localizedMessage(readings[index])).font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
+                        Text(localizedMessage(fanRPMText(index))).font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
                     }
                     HStack {
                         Button(loc(.fanAuto)) { command(index) { $0.setAutomatic() } }
                             .disabled(helper(index)?.canRecoverAutomatic != true)
                         Button(loc(.fanFullSpeed)) { command(index) { $0.setFullSpeed() } }
-                            .disabled(!enabled[index])
+                            .disabled(!isEnabled)
                         Spacer()
-                        Text(localizedMessage(String(format: loc(.fanLevelFormat), Int(levels[index])))).font(.caption)
+                        if fan?.isFullSpeed == true {
+                            Text(loc(.fanFullSpeed)).font(.caption).foregroundColor(.orange)
+                        } else if fan?.isAutomatic == true {
+                            Text(loc(.fanAuto)).font(.caption).foregroundColor(.secondary)
+                        } else {
+                            Text(localizedMessage(String(format: loc(.fanLevelFormat), Int(levels[index])))).font(.caption)
+                        }
                         Button(loc(.coolingApply)) {
-                            command(index) { fan in
-                                fan.setManualLevel(Int(levels[index]))
+                            command(index) { targetFan in
+                                targetFan.setManualLevel(Int(levels[index]))
                             }
-                        }.disabled(!enabled[index])
-                    }
-                    Slider(value: $levels[index], in: Double(helper(index)?.minimumLevel ?? 1)...7, step: 1)
-                        .disabled(!enabled[index]).accessibilityLabel(localizedMessage(index == 0 ? "Main fan level" : "Secondary fan level"))
-                    if !enabled[index] {
-                        Text(helper(index) == nil ? loc(.fanInterfaceRequired) :
-                             localizedMessage("Fan status is unavailable. Try Auto or reconnect the driver."))
-                            .font(.caption).foregroundColor(.secondary)
-                    }
-                }.padding(.vertical, 6)
+                }.disabled(!enabled[index])
             }
+            Slider(value: $levels[index], in: Double(helper(index)?.minimumLevel ?? 1)...7, step: 1)
+                .disabled(!enabled[index]).accessibilityLabel(localizedMessage(index == 0 ? "Main fan level" : "Secondary fan level"))
+            if !enabled[index] {
+                Text(helper(index) == nil ? loc(.fanInterfaceRequired) :
+                     localizedMessage("Fan status is unavailable. Try Auto or reconnect the driver."))
+                    .font(.caption).foregroundColor(.secondary)
+            }
+        }.padding(.vertical, 6)
+        }
         }.onAppear { refresh(readLevel: true) }
-            .onReceive(timer) { _ in refresh(readLevel: false) }
     }
+
     private func command(_ index: Int, action: (ThinkFanHelper) -> Void) {
         guard !CommandLine.arguments.contains("--render-ui"), let fan = helper(index) else { return }
         action(fan)
-        refresh(readLevel: true)
+        refresh()
     }
-    private func refresh(readLevel: Bool) {
+
+    private func refresh(readLevel: Bool = false) {
         guard !CommandLine.arguments.contains("--render-ui") else { return }
-        for index in 0...1 {
-            guard let fan = helper(index) else { enabled[index] = false; continue }
+        for index in 0..<fans.count {
+            guard let fan = helper(index) else { continue }
             fan.update()
             enabled[index] = fan.enable
-            readings[index] = fan.enable ? fan.rpm.map { localizedMessage("%@ RPM", String(describing: $0)) } ?? loc(.commonUnavailable) : loc(.commonUnavailable)
-            if readLevel { levels[index] = Double(fan.level) }
+            statuses[index] = fan.enable ? (fan.rpm.map { localizedMessage("%@ RPM", "\($0)") } ?? loc(.fanLevelAuto)) : loc(.fanDisabled)
+            manual[index] = fan.isManual
+            levels[index] = Double(fan.level)
         }
     }
 }

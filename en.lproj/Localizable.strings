@@ -74,6 +74,8 @@
 "COOLING_MANUAL_FAN_DESC" = "Set a minimum fan speed when a verified firmware interface is available.";
 "COOLING_LIVE_READINGS_NOTICE" = "Live temperatures, fan readings and power profiles are in Overview.";
 "COOLING_WHY_UNAVAILABLE" = "Why are these unavailable?";
+"COOLING_WHY_FAN_UNAVAILABLE" = "Why is fan control unavailable?";
+"COOLING_WHY_POWER_UNAVAILABLE" = "Why are CPU power limits unavailable?";
 "COOLING_RETRY" = "Retry";
 "COOLING_RESTORE_AUTO" = "Restore auto";
 "COOLING_APPLY" = "Apply";
@@ -147,6 +149,8 @@
 "DIAGNOSTICS_OPEN_LOGS" = "Open logs";
 "DIAGNOSTICS_GENERATE_BRIDGE" = "Generate ACPI bridge…";
 "DIAGNOSTICS_BRIDGE_DESC" = "The ACPI Bridge SSDT routes native fan and thermal registers directly to macOS when required.";
+"DIAGNOSTICS_GENERATE_THINKPAD_SSDT" = "Generate ThinkPad SSDT…";
+"DIAGNOSTICS_THINKPAD_SSDT_DESC" = "Exports an all-in-one SSDT-ThinkPad (EC read/write, thermal sensors, LED proxy) matched to this machine's ACPI EC path.";
 "DIAGNOSTICS_TOOLS_DESC" = "Inspect which interfaces the driver has verified, export diagnostics, or generate an ACPI bridge SSDT.";
 "DIAGNOSTICS_IDENTITY_HEADER" = "Identity & source";
 "DIAGNOSTICS_FIRMWARE_DEVICE" = "Firmware device";
@@ -187,7 +191,7 @@
 "FAN_AUTO" = "Auto";
 "FAN_FULL_SPEED" = "Full speed";
 "FAN_LEVEL_FORMAT" = "Level %d";
-"FAN_INTERFACE_REQUIRED" = "Requires the ThinkPad EC read/write interface. No fan command is available.";
+"FAN_INTERFACE_REQUIRED" = "Requires the ThinkPad EC read/write interface.";
 "CHARGE_THRESHOLDS" = "Charge thresholds";
 "BATTERY_PRIMARY" = "Primary";
 "BATTERY_SECONDARY" = "Secondary";
@@ -573,6 +577,7 @@
 "The driver did not provide a valid current power limit and adjustment range." = "The driver did not provide a valid current power limit and adjustment range.";
 "The driver did not provide a valid fan adjustment range and step." = "The driver did not provide a valid fan adjustment range and step.";
 "The driver exports DSDT locally. Only a reviewed profile can generate an SSDT; it is never installed automatically." = "The driver exports DSDT locally. Only a reviewed profile can generate an SSDT; it is never installed automatically.";
+"Save the all-in-one ThinkPad ACPI patch source. If iasl is installed, it will be compiled automatically." = "Save the all-in-one ThinkPad ACPI patch source. If iasl is installed, it will be compiled automatically.";
 "The driver rejected the connection (0x%08x). Another copy of this app may already be running." = "The driver rejected the connection (0x%08x). Another copy of this app may already be running.";
 "The driver snapshot is stale. Refresh the connection before changing firmware controls." = "The driver snapshot is stale. Refresh the connection before changing firmware controls.";
 "The hardware driver disconnected. Retry the connection or restart with the matching kext." = "The hardware driver disconnected. Retry the connection or restart with the matching kext.";
@@ -674,3 +679,4 @@
 "RGB JSON exceeds 256 KiB" = "RGB JSON exceeds 256 KiB";
 "DSDT source is not valid UTF-8" = "DSDT source is not valid UTF-8";
 "Fan status is unavailable. Try Auto or reconnect the driver." = "Fan status is unavailable. Try Auto or reconnect the driver.";
+"ACPI template SSDT-ThinkPad.template.dsl not found" = "ACPI template SSDT-ThinkPad.template.dsl not found";

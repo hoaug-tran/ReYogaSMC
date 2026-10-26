@@ -51,6 +51,8 @@ public final class HardwareManager: ObservableObject {
     @Published public var isYLogoOn: Bool = false
     @Published public var isPortLightingOn: Bool = false
     @Published public var providerClass = ""
+    @Published public var acpiECPath = ""
+    @Published public var acpiHKEYPath = ""
     @Published public var isFnLocked = false
     @Published public var keyboardBacklight = -1
     @Published public var chargeStartThreshold = -1
@@ -103,6 +105,8 @@ public final class HardwareManager: ObservableObject {
                 liveBattery = nil
                 featureStatus = [:]
                 providerClass = ""
+        acpiECPath = ""
+        acpiHKEYPath = ""
                 driverVersion = "Unavailable"; profileMatchState = "Unavailable"; firmwareProfileID = ""
                 featurePollingSupported = false; lastFirmwareRefresh = .distantPast
                 fanLabels = ["Fan 1", "Fan 2"]
@@ -342,6 +346,8 @@ public final class HardwareManager: ObservableObject {
 
     private func accept(_ props: NSDictionary) {
         publish(\.providerClass, props["IOClass"] as? String ?? "")
+        publish(\.acpiECPath, props["ACPIECPath"] as? String ?? "")
+        publish(\.acpiHKEYPath, props["ACPIHKEYPath"] as? String ?? "")
         publish(\.driverVersion, props["VersionInfo"] as? String ?? "Unavailable")
         publish(\.profileMatchState, props["ProfileMatchState"] as? String ?? "Not reported")
         publish(\.firmwareProfileID, props["HardwareProfile"] as? String ?? "")
@@ -376,7 +382,10 @@ public final class HardwareManager: ObservableObject {
             publish(\.modelWarning, "")
         } else {
             let lenovo = ["IdeaVPC", "ThinkVPC"].contains(props["IOClass"] as? String ?? "")
-            publish(\.modelName, displayIdentity.name == "Unknown Laptop" && lenovo ? "Lenovo Laptop" : displayIdentity.name)
+            let isThinkPad = props["IOClass"] as? String == "ThinkVPC"
+            let fallbackName = isThinkPad ? "ThinkPad" : "Lenovo Laptop"
+            let name = (displayIdentity.name == "Unknown Laptop" || (displayIdentity.name == "Lenovo Laptop" && isThinkPad)) && lenovo ? fallbackName : displayIdentity.name
+            publish(\.modelName, name)
             publish(\.modelSource, displayIdentity.source)
             let reason = props["ProfileMatchReason"] as? String ?? "Not reported"
             publish(\.modelWarning, ["conflict", "ambiguous"].contains(matchState) ? localizedMessage(reason) : "")
@@ -629,8 +638,7 @@ public final class HardwareManager: ObservableObject {
             let correlated = result["RequestID"] as? String == requestID
             let status = (result["Status"] as? NSNumber)?.uint32Value ?? UInt32.max
             var confirmed = transport == kIOReturnSuccess && correlated && status == 0
-            // EC commands may complete after the AML method returns. Retry only
-            // accepted commands, never a failed/unsupported write.
+
             if transport == kIOReturnSuccess, correlated, result["ReadbackPending"] as? Bool == true {
                 for _ in 0..<10 {
                     Thread.sleep(forTimeInterval: 0.1)
@@ -738,8 +746,7 @@ public final class HardwareManager: ObservableObject {
                 DispatchQueue.main.async { self.isYLogoOn = enabled }
             }
         } else {
-            // Direct mode can survive another app's exit. Release it before a
-            // firmware logo request so the two controllers cannot fight.
+
             if rgbStatus.available {
                 hardwareQueue.async {
                     do { try self.rgbController.restoreHardwareMode(force: true) }
@@ -861,11 +868,32 @@ public final class HardwareManager: ObservableObject {
             }
         }
     }
-    public var canGenerateACPIBridge: Bool { service == 0 || providerClass == "IdeaVPC" }
+    private var isThinkPadDevice: Bool {
+        if providerClass == "ThinkVPC" { return true }
+        if providerClass == "IdeaVPC" { return false }
+        let name = modelName.isEmpty ? detectedIdentity.name : modelName
+        return name.contains("ThinkPad")
+    }
+    public var canGenerateACPIBridge: Bool {
+        if providerClass == "ThinkVPC" { return false }
+        if providerClass == "IdeaVPC" { return true }
+        return !isThinkPadDevice
+    }
     public func generateACPIBridge() {
         guard canGenerateACPIBridge else { return }
         if service != 0, getNumber("ACPIExportVersion", service) == 1 { HardwareProfiles.exportLiveBridge(service: service) }
         else { HardwareProfiles.exportBridge() }
+    }
+    public var canGenerateThinkPadSSDT: Bool {
+        if providerClass == "ThinkVPC" { return true }
+        if providerClass == "IdeaVPC" { return false }
+        return isThinkPadDevice
+    }
+    public func generateThinkPadSSDT() {
+        guard canGenerateThinkPadSSDT else { return }
+        let ec = acpiECPath.isEmpty ? "\\_SB.PCI0.LPCB.EC" : acpiECPath
+        let hkey = acpiHKEYPath.isEmpty ? "\(ec).HKEY" : acpiHKEYPath
+        HardwareProfiles.exportThinkPadSSDT(service: service, ecPath: ec, hkeyPath: hkey)
     }
     public func refreshPermissions() {
         let accessibility = AXIsProcessTrusted()

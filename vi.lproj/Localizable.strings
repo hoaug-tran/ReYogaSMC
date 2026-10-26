@@ -76,6 +76,8 @@
 "COOLING_MANUAL_FAN_DESC" = "Thiết lập tốc độ quạt tối thiểu trên các thiết bị có giao diện firmware tương thích đã được xác thực.";
 "COOLING_LIVE_READINGS_NOTICE" = "Nhiệt độ, tốc độ quạt và chế độ hiệu năng được hiển thị trong mục Tổng quan.";
 "COOLING_WHY_UNAVAILABLE" = "Vì sao các tính năng này không khả dụng?";
+"COOLING_WHY_FAN_UNAVAILABLE" = "Vì sao điều khiển quạt không khả dụng?";
+"COOLING_WHY_POWER_UNAVAILABLE" = "Vì sao giới hạn công suất CPU không khả dụng?";
 "COOLING_RETRY" = "Thử lại";
 "COOLING_RESTORE_AUTO" = "Chuyển về tự động";
 "COOLING_APPLY" = "Áp dụng";
@@ -149,6 +151,8 @@
 "DIAGNOSTICS_OPEN_LOGS" = "Mở nhật ký";
 "DIAGNOSTICS_GENERATE_BRIDGE" = "Tạo ACPI Bridge…";
 "DIAGNOSTICS_BRIDGE_DESC" = "ACPI Bridge SSDT cho phép macOS truy cập trực tiếp các thanh ghi nhiệt độ và quạt của thiết bị khi cần.";
+"DIAGNOSTICS_GENERATE_THINKPAD_SSDT" = "Tạo SSDT ThinkPad…";
+"DIAGNOSTICS_THINKPAD_SSDT_DESC" = "Xuất file SSDT-ThinkPad đồng bộ (đọc/ghi EC, cảm biến nhiệt, proxy đèn LED) khớp đúng đường dẫn ACPI EC của máy.";
 "DIAGNOSTICS_TOOLS_DESC" = "Kiểm tra các giao diện phần cứng đã được driver xác thực, xuất báo cáo chẩn đoán hoặc tạo ACPI Bridge SSDT.";
 "DIAGNOSTICS_IDENTITY_HEADER" = "Thông tin nhận diện và nguồn dữ liệu";
 "DIAGNOSTICS_FIRMWARE_DEVICE" = "Thiết bị firmware";
@@ -575,6 +579,7 @@
 "The driver did not provide a valid current power limit and adjustment range." = "Driver không cung cấp giới hạn công suất hiện tại và khoảng điều chỉnh hợp lệ.";
 "The driver did not provide a valid fan adjustment range and step." = "Driver không cung cấp khoảng điều chỉnh và bước tốc độ quạt hợp lệ.";
 "The driver exports DSDT locally. Only a reviewed profile can generate an SSDT; it is never installed automatically." = "Driver xuất DSDT trên máy. Chỉ hồ sơ đã kiểm tra mới tạo được SSDT; không tự cài đặt.";
+"Save the all-in-one ThinkPad ACPI patch source. If iasl is installed, it will be compiled automatically." = "Lưu mã nguồn bản vá ACPI ThinkPad đồng bộ. Nếu máy đã cài iasl, file sẽ được tự động biên dịch.";
 "The driver rejected the connection (0x%08x). Another copy of this app may already be running." = "Driver từ chối kết nối (0x%08x). Có thể một bản ứng dụng khác đang chạy.";
 "The driver snapshot is stale. Refresh the connection before changing firmware controls." = "Snapshot driver đã cũ. Làm mới kết nối trước khi thay đổi điều khiển firmware.";
 "The hardware driver disconnected. Retry the connection or restart with the matching kext." = "Driver phần cứng đã ngắt kết nối. Thử kết nối lại hoặc khởi động lại với kext tương ứng.";
@@ -676,3 +681,4 @@
 "RGB JSON exceeds 256 KiB" = "JSON RGB vượt quá 256 KiB";
 "DSDT source is not valid UTF-8" = "Tệp nguồn DSDT không có mã hóa UTF-8 hợp lệ";
 "Fan status is unavailable. Try Auto or reconnect the driver." = "Chưa đọc được trạng thái quạt. Hãy thử Auto hoặc kết nối lại trình điều khiển.";
+"ACPI template SSDT-ThinkPad.template.dsl not found" = "Không tìm thấy mẫu ACPI SSDT-ThinkPad.template.dsl";
