@@ -582,8 +582,7 @@ public final class HardwareManager: ObservableObject {
                     guard data.count <= SavedRGBSettings.maximumSavedBytes else { return nil }
                     return try? JSONDecoder().decode(SavedRGBSettings.self, from: data)
                 }
-            let lightingOwnedByRGB = (key == "YLogoStatus" || key == "PortLighting") && rgbPreference?.isValid == true &&
-                rgbController.status.available && rgbPreference?.profileID == rgbController.matchedProfileID && rgbPreference?.mode != "Factory"
+            let lightingOwnedByRGB = rgbController.status.available && HardwareProfiles.lightingOwnedByRGB(key: key, settings: rgbPreference, activeProfileID: rgbController.matchedProfileID)
             guard featureStatus[key]?.available == true, profileMatches, !lightingOwnedByRGB else {
                 ReYogaDiagnostics.shared.record("preference_restore_skipped", ["property": key, "reason": lightingOwnedByRGB ? "USB RGB owns lighting" : !profileMatches ? "Power profile differs" : featureStatus[key]?.reason ?? "Backend unavailable"])
                 continue

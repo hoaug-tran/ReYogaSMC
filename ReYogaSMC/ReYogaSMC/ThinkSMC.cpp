@@ -20,12 +20,16 @@ void ThinkSMC::updateECVendor() {
         UInt32 rpm = UINT32_MAX;
         const bool valid = sensorProvider && sensorProvider->readThinkFanRPM(fan, rpm) == kIOReturnSuccess;
         atomic_store_explicit(&currentSensor[fan], valid ? rpm : UINT32_MAX, memory_order_release);
-        if (sensorProvider && valid)
-            sensorProvider->setProperty(fan == 0 ? "Fan1RPM" : "Fan2RPM", rpm, 32);
+        if (sensorProvider) {
+            const char *property = fan == 0 ? "Fan1RPM" : "Fan2RPM";
+            if (valid) sensorProvider->setProperty(property, rpm, 32);
+            else sensorProvider->removeProperty(property);
+        }
     }
 }
 
 void ThinkSMC::getWMISensor(IOService *provider) {
     sensorProvider = OSDynamicCast(ReYogaVPC, provider);
+    dualFan = sensorProvider && sensorProvider->getProperty("Dual fan") == kOSBooleanTrue;
 }
 

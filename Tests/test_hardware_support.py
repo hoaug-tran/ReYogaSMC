@@ -1,12 +1,16 @@
 """Profile trust boundaries and report recovery, without firmware calls."""
+import copy
 import hashlib
 import importlib.util
 import json
 import pathlib
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('hardware_support', ROOT / 'Scripts/hardware_support.py')
@@ -108,12 +112,52 @@ class HardwareSupportTests(unittest.TestCase):
             support.match_profile(source, [profile, profile])
 
     def test_shipped_bridge_refuses_unvalidated_writes(self):
-        for profile in support.profiles():
-            source = support.render(profile)
-            self.assertNotIn('{{', source)
-            self.assertEqual(profile.get('verified_writes', 0), 0)
-            self.assertIn('Method (RYVW, 0, Serialized) { Return (0) }', source)
-            self.assertIn('If (!RYVW ()) { Return (One) }', source)
+        # Shipped profiles intentionally lack reviewed bridge hashes (fail-closed).
+        self.assertEqual(support.profiles(), [])
+
+        complete = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text(encoding='utf-8'))
+        fixture = copy.deepcopy(complete)
+        synthetic_source = 'Method (GBMD, 0, NotSerialized) { Return (Zero) }'
+        fixture['required_patterns'] = [r'Method \(GBMD, 0']
+        fixture['reviewed_dsdt_hashes'] = [support.normalized_hash(synthetic_source)]
+        fixture['verified_writes'] = 0
+
+        telemetry = json.loads((ROOT / 'HardwareProfiles/ideapad-gaming3-gen5.json').read_text(encoding='utf-8'))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_root = pathlib.Path(tmp)
+            hp_dir = tmp_root / 'HardwareProfiles'
+            hp_dir.mkdir(parents=True)
+            shutil.copy(ROOT / 'HardwareProfiles/SSDT-ReYoga.template.dsl', hp_dir / 'SSDT-ReYoga.template.dsl')
+            (hp_dir / 'legion-fixture.json').write_text(json.dumps(fixture), encoding='utf-8')
+            (hp_dir / 'telemetry-only.json').write_text(json.dumps(telemetry), encoding='utf-8')
+
+            with patch.object(support, 'ROOT', tmp_root):
+                candidates = support.profiles()
+                self.assertEqual(len(candidates), 1)
+                self.assertEqual(candidates[0]['id'], fixture['id'])
+                self.assertEqual(support.match_profile(synthetic_source, candidates), fixture)
+
+                source = support.render(candidates[0])
+                self.assertNotIn('{{', source)
+                self.assertEqual(candidates[0].get('verified_writes', 0), 0)
+                self.assertIn('Method (RYVW, 0, Serialized) { Return (0) }', source)
+
+                # Defaulting without verified_writes also fails closed.
+                fixture_default = copy.deepcopy(fixture)
+                fixture_default.pop('verified_writes', None)
+                self.assertIn('Method (RYVW, 0, Serialized) { Return (0) }', support.render(fixture_default))
+
+                ryfs = re.search(r'Method\s*\(RYFS,\s*2,\s*Serialized\)\s*\{(.*?)\s*Method\s*\(RYFA', source, re.DOTALL)
+                self.assertIsNotNone(ryfs)
+                body = ryfs.group(1)
+                gate = 'If (!RYVW ()) { Return (One) }'
+                gate_pos = body.find(gate)
+                self.assertNotEqual(gate_pos, -1)
+                for unsafe in ('RYB0 =', 'RYB1 =', 'RYC0 =', 'RYC1 =', 'RYRC ()', 'RYA0 = One', 'RYA1 = One'):
+                    write_pos = body.find(unsafe)
+                    self.assertNotEqual(write_pos, -1)
+                    self.assertLess(gate_pos, write_pos)
 
     def test_unknown_device_and_bad_compiler_still_export_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:

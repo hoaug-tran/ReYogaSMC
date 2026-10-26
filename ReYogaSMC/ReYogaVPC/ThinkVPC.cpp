@@ -25,7 +25,8 @@ void ThinkVPC::updateNotificationMask() {
 }
 
 void ThinkVPC::updateFans() {
-    for (unsigned fan = 0; fan < 2; ++fan) {
+    const unsigned count = getProperty("Dual fan") == kOSBooleanTrue ? 2 : 1;
+    for (unsigned fan = 0; fan < count; ++fan) {
         UInt32 rpm = 0;
         const char *property = fan == 0 ? "Fan1RPM" : "Fan2RPM";
         if (readThinkFanRPM(fan, rpm) == kIOReturnSuccess)
@@ -374,11 +375,7 @@ void ThinkVPC::updateControlStatus() {
         mode && (!strncmp(mode->getCStringNoCopy(), "Performance", 11)) ? 3 : 0;
     const bool thermalSupported = supportsThermalProfiles();
     add("SmartFanMode", thermalSupported, "DYTC desk thermal profiles unavailable");
-    if (thermalSupported) {
-        if (profile == 0) {
-            auto current = OSDynamicCast(OSNumber, getProperty("SmartFanMode"));
-            profile = current ? current->unsigned32BitValue() : 2;
-        }
+    if (thermalSupported && profile != 0) {
         setProperty("SmartFanMode", profile, 32);
     } else {
         removeProperty("SmartFanMode");
@@ -575,11 +572,16 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
             } else if (key->isEqualTo(fanSpeedPrompt)) {
                 OSNumber *value;
                 getPropertyNumber(fanSpeedPrompt);
+                if (value->unsigned64BitValue() > 0xff) {
+                    AlwaysLog(valueInvalid, fanSpeedPrompt);
+                    continue;
+                }
                 UInt8 speed = value->unsigned8BitValue();
                 if (speed > 7) {
                     speed = speed < 0x80 ? 0x47 : 0x84;
                 }
-                ret = method_we1b(0x2f, speed);
+                UInt8 sample[3] {};
+                ret = accessThinkFan(0, speed, sample);
                 if (ret == kIOReturnSuccess)
                     DebugLog(updateSuccess, fanSpeedPrompt, speed);
                 else

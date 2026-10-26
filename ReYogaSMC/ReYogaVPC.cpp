@@ -678,11 +678,7 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
 
         case DYTC_FUNCTION_CQL:
             setPropertyString(DYTCStatus, "FuncMode", "Lap");
-            if (result.get.func_sta & BIT(DYTC_FUNCTION_PSC)) {
-                setPropertyString(DYTCStatus, "PerfMode", "Performance (Reduced as lapmode active)");
-            } else {
-                setPropertyString(DYTCStatus, "PerfMode", "Balance");
-            }
+            setPropertyString(DYTCStatus, "PerfMode", "Unavailable while lap mode masks the thermal profile");
             break;
 
         case DYTC_FUNCTION_MMC:
@@ -896,68 +892,90 @@ IOReturn ReYogaVPC::accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]
     return commandGate->runAction([](OSObject *owner, void *context, void *, void *, void *) -> IOReturn {
         auto self = static_cast<ReYogaVPC *>(owner);
         auto request = static_cast<Request *>(context);
-        if (self->getProperty("ThinkFanAccessFailed") == kOSBooleanTrue) return kIOReturnNotReady;
-        if (request->target != ReYogaControl::kThinkFanQueryRPM) self->thinkFanModifiedMask |= 1U << request->fan;
-        IOReturn transport = kIOReturnSuccess;
-        const auto result = ReYogaControl::transactThinkFan(request->fan, request->target, request->output,
-            [&](unsigned offset, UInt8 &value) {
-                transport = self->method_re1b(offset, &value);
-                return transport == kIOReturnSuccess;
-            },
-            [&](unsigned offset, UInt8 value) {
-                const IOReturn status = self->method_we1b(offset, value);
-                if (status != kIOReturnSuccess) transport = status;
-                return status == kIOReturnSuccess;
-            });
-        switch (result) {
-            case ReYogaControl::ThinkFanResult::ok:
-            case ReYogaControl::ThinkFanResult::readbackMismatch:
-                if (request->target == 0x80 || request->target == 0x84)
-                    self->thinkFanModifiedMask &= ~(1U << request->fan);
-                return kIOReturnSuccess;
-            case ReYogaControl::ThinkFanResult::invalid: return kIOReturnBadArgument;
-            case ReYogaControl::ThinkFanResult::restoreFailed:
-                self->setProperty("ThinkFanStatus", "Fan selector restoration failed; further fan access disabled");
-                self->setProperty("ThinkFanAccessFailed", true);
-                return kIOReturnIOError;
-            case ReYogaControl::ThinkFanResult::unavailable: return kIOReturnNotReady;
-            default: return transport != kIOReturnSuccess ? transport : kIOReturnIOError;
-        }
+        return self->accessThinkFanGated(request->fan, request->target, request->output);
     }, &request);
 }
 
-IOReturn ReYogaVPC::readThinkFanRPM(UInt32 fan, UInt32 &rpm) {
-    UInt8 sample[3] = {};
-    const IOReturn status = accessThinkFan(fan, ReYogaControl::kThinkFanQueryRPM, sample);
-    if (status != kIOReturnSuccess) {
-        if (fan == 0 && ec && ec->validateObject("HSPD") == kIOReturnSuccess) {
-            UInt32 raw = 0;
-            if (ec->evaluateInteger("HSPD", &raw) == kIOReturnSuccess) {
-                UInt32 le = raw & 0xFFFF;
-                UInt32 be = ((raw & 0xFF) << 8) | ((raw >> 8) & 0xFF);
-                rpm = (le > 6000 && be < 6000) ? be : le;
-                return rpm < 0xFFFF ? kIOReturnSuccess : kIOReturnUnderrun;
+IOReturn ReYogaVPC::accessThinkFanGated(UInt32 fan, UInt32 requested, UInt8 output[3]) {
+    // Only a reviewed service configuration may declare the EC selector layout.
+    const bool hasSelector = getProperty("Dual fan") == kOSBooleanTrue;
+    if (fan && !hasSelector) return kIOReturnUnsupported;
+    IOReturn transport = kIOReturnSuccess;
+    const auto result = ReYogaControl::transactThinkFan(fan, requested, output, hasSelector, thinkFans,
+        [&](unsigned offset, UInt8 &value) {
+            const IOReturn status = method_re1b(offset, &value);
+            if (status != kIOReturnSuccess) {
+                transport = status;
+                AlwaysLog("ThinkFan %u target 0x%x read 0x%02x failed 0x%x", fan, requested, offset, status);
             }
-        }
-        return status;
+            return status == kIOReturnSuccess;
+        },
+        [&](unsigned offset, UInt8 value) {
+            const IOReturn status = method_we1b(offset, value);
+            if (status != kIOReturnSuccess) {
+                transport = status;
+                AlwaysLog("ThinkFan %u target 0x%x write 0x%02x @ 0x%02x failed 0x%x", fan, requested, value, offset, status);
+            }
+            return status == kIOReturnSuccess;
+        });
+    setProperty("ThinkFanAccessFailed", thinkFans.selectorRestorePending);
+    switch (result) {
+        case ReYogaControl::ThinkFanResult::ok:
+            removeProperty("ThinkFanStatus");
+            return kIOReturnSuccess;
+        case ReYogaControl::ThinkFanResult::invalid: return kIOReturnBadArgument;
+        case ReYogaControl::ThinkFanResult::restoreFailed:
+            setProperty("ThinkFanStatus", "Fan selector restoration pending; Auto recovery will retry with readback");
+            return kIOReturnIOError;
+        default: return transport != kIOReturnSuccess ? transport : kIOReturnIOError;
     }
-    UInt32 le = static_cast<UInt32>(sample[0]) | (static_cast<UInt32>(sample[1]) << 8);
-    UInt32 be = (static_cast<UInt32>(sample[0]) << 8) | static_cast<UInt32>(sample[1]);
-    rpm = (le > 6000 && be < 6000) ? be : le;
-    return rpm < 0xFFFF ? kIOReturnSuccess : kIOReturnUnderrun;
+}
+
+IOReturn ReYogaVPC::readThinkFanRPM(UInt32 fan, UInt32 &rpm) {
+    UInt8 sample[3] {};
+    const IOReturn status = accessThinkFan(fan, ReYogaControl::kThinkFanQueryRPM, sample);
+    if (status == kIOReturnSuccess) {
+        rpm = ReYogaControl::thinkFanRPM(sample[0], sample[1]);
+        return rpm != 0xffff ? kIOReturnSuccess : kIOReturnUnderrun;
+    }
+    if (fan != 0 || !commandGate) return status;
+    return commandGate->runAction([](OSObject *owner, void *context, void *, void *, void *) -> IOReturn {
+        auto self = static_cast<ReYogaVPC *>(owner);
+        if (!self->metaCast("ThinkVPC") || self->isInactive() || self->getProperty("SafeMode") == kOSBooleanTrue ||
+            self->thinkFans.selectorRestorePending) return kIOReturnNotReady;
+        if (!self->ec || self->ec->validateObject("HSPD") != kIOReturnSuccess) return kIOReturnUnsupported;
+        UInt32 raw = 0;
+        const IOReturn result = self->ec->evaluateInteger("HSPD", &raw);
+        if (result != kIOReturnSuccess) return result;
+        if (raw >= 0xffff) return kIOReturnUnderrun;
+        *static_cast<UInt32 *>(context) = raw;
+        return kIOReturnSuccess;
+    }, &rpm);
 }
 
 void ReYogaVPC::restoreThinkFans() {
     if (!metaCast("ThinkVPC") || !commandGate || getProperty("SafeMode") == kOSBooleanTrue) return;
     commandGate->runAction([](OSObject *owner, void *, void *, void *, void *) -> IOReturn {
         auto self = static_cast<ReYogaVPC *>(owner);
-        if (!self->thinkFanModifiedMask) return kIOReturnSuccess;
-        for (unsigned fan = 0; fan < 2; ++fan) {
-            if (!(self->thinkFanModifiedMask & (1U << fan))) continue;
-            UInt8 output[3] {};
-            if (self->accessThinkFan(fan, 0x84, output) != kIOReturnSuccess)
-                self->setProperty("ThinkFanStatus", "Automatic fan restoration failed; inspect firmware and restart");
+        if (!ReYogaControl::restoreThinkFanSelector(self->thinkFans,
+            [&](unsigned offset, UInt8 &value) { return self->method_re1b(offset, &value) == kIOReturnSuccess; },
+            [&](unsigned offset, UInt8 value) { return self->method_we1b(offset, value) == kIOReturnSuccess; })) {
+            self->setProperty("ThinkFanAccessFailed", true);
+            self->setProperty("ThinkFanStatus", "Fan selector recovery failed; automatic restoration remains pending");
+            return kIOReturnIOError;
         }
-        return kIOReturnSuccess;
+        self->setProperty("ThinkFanAccessFailed", false);
+        IOReturn status = kIOReturnSuccess;
+        for (unsigned fan = 0; fan < 2; ++fan) {
+            if (!(self->thinkFans.modifiedMask & (1U << fan))) continue;
+            UInt8 output[3] {};
+            // Cleanup also runs during stop(), after normal client access ends.
+            if (self->accessThinkFanGated(fan, 0x84, output) != kIOReturnSuccess) {
+                status = kIOReturnIOError;
+            }
+        }
+        if (status != kIOReturnSuccess)
+            self->setProperty("ThinkFanStatus", "Automatic fan restoration failed; inspect firmware and restart");
+        return status;
     });
 }

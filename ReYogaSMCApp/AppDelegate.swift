@@ -395,20 +395,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             thinkWakeup()
             if !hide, !defaults.bool(forKey: "DisableFan") {
                 if ECCap == "RW", getNumber("ThinkFanProtocolVersion", conf.service) == 1 {
-                    if !getBoolean("Dual fan", conf.service), defaults.bool(forKey: "SecondThinkFan") {
+                    if getBoolean("Dual fan", conf.service), defaults.bool(forKey: "SecondThinkFan") {
                         fanHelper2 = ThinkFanHelper(conf.connect, false)
                         if defaults.bool(forKey: "SaveFanLevel"),
                            let level = defaults.object(forKey: "Fan2Level") as? UInt8 {
                             fanHelper2?.setFanLevel(level)
                         }
-                        fanHelper2?.update(true)
+                        fanHelper2?.update()
                     }
                     fanHelper = ThinkFanHelper(conf.connect, true)
                     if defaults.bool(forKey: "SaveFanLevel"),
                        let level = defaults.object(forKey: "FanLevel") as? UInt8 {
                         fanHelper?.setFanLevel(level)
                     }
-                    fanHelper?.update(true)
+                    fanHelper?.update()
                 } else {
                     showOSD("ECAccessUnavailable")
                 }

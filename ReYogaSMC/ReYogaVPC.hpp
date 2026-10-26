@@ -11,6 +11,7 @@
 #define ReYogaVPC_hpp
 
 #include "DYTC.h"
+#include "ControlValidation.hpp"
 #include "ReYogaBaseService.hpp"
 #include "ReYogaSMCUserClientPrivate.hpp"
 
@@ -135,7 +136,8 @@ protected:
      *  Vendor specific WMI support
      */
     bool vendorWMISupport {false};
-    UInt8 thinkFanModifiedMask {0};
+    ReYogaControl::ThinkFanState thinkFans;
+    IOReturn accessThinkFanGated(UInt32 fan, UInt32 requested, UInt8 output[3]);
 
     /**
      *  Initialize WMI

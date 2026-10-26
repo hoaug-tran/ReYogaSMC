@@ -674,3 +674,5 @@
 "Machine type and DSDT OEM table matched" = "Mã máy và bảng OEM DSDT khớp";
 "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC." = "Điều khiển giới hạn công suất CPU trực tiếp chưa được triển khai hoặc xác minh cho ThinkPad này. Cấu hình hiệu năng do firmware quản lý có thể khả dụng qua DYTC.";
 "RGB JSON exceeds 256 KiB" = "JSON RGB vượt quá 256 KiB";
+"DSDT source is not valid UTF-8" = "Tệp nguồn DSDT không có mã hóa UTF-8 hợp lệ";
+"Fan status is unavailable. Try Auto or reconnect the driver." = "Chưa đọc được trạng thái quạt. Hãy thử Auto hoặc kết nối lại trình điều khiển.";
