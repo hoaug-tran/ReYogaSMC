@@ -409,11 +409,7 @@ void ThinkVPC::controlRequest(OSDictionary *request) {
                 batnum = target;
                 status = kIOReturnSuccess;
             } else if (key->isEqualTo("SmartFanMode") && target >= 1 && target <= 3) {
-                const bool useMMC = supportsMMCThermal() && !supportsPSCThermal();
-                const int func = useMMC ? DYTC_FUNCTION_MMC : DYTC_FUNCTION_PSC;
-                const int mode = useMMC ? (target == 1 ? DYTC_MODE_QUIET :
-                    target == 2 ? DYTC_MODE_BALANCE : DYTC_MODE_PERFORM) : pscThermalMode(target);
-                status = setDYTC(func, mode) ? kIOReturnSuccess : kIOReturnIOError;
+                status = setThermalProfile(target) ? kIOReturnSuccess : kIOReturnIOError;
             } else if (key->isEqualTo(backlightPrompt) && target <= 2)
                 status = setBacklight(target) ? kIOReturnSuccess : kIOReturnIOError;
             else if (key->isEqualTo("ChargeStartThreshold") || key->isEqualTo("ChargeStopThreshold")) {

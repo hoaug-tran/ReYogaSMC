@@ -109,7 +109,7 @@ class BootSafetyTests(unittest.TestCase):
         self.assertIn('case DYTC_FUNCTION_PSC:', parse_body)
         self.assertIn('setPropertyString(DYTCStatus, "PerfMode", "Quiet")', parse_body)
         self.assertIn('setPropertyString(DYTCStatus, "PerfMode", "Balance")', parse_body)
-        cql = parse_body.split('switch (result.get.funcmode)', 1)[1].split('case DYTC_FUNCTION_CQL:', 1)[1].split('case DYTC_FUNCTION_MMC:', 1)[0]
+        cql = parse_body.split('switch (readbackFunction)', 1)[1].split('case DYTC_FUNCTION_CQL:', 1)[1].split('case DYTC_FUNCTION_MMC:', 1)[0]
         self.assertIn('Unavailable while lap mode masks the thermal profile', cql)
         self.assertNotIn('"PerfMode", "Performance', cql)
         fan_body = vpc.split('IOReturn ReYogaVPC::readThinkFanRPM(', 1)[1].split('\nvoid ReYogaVPC::restoreThinkFans(', 1)[0]
@@ -118,7 +118,8 @@ class BootSafetyTests(unittest.TestCase):
         header = source('ReYogaSMC/ReYogaVPC.hpp')
         self.assertIn('BIT(DYTC_FUNCTION_MMC) | BIT(DYTC_FUNCTION_PSC)', header)
         think = source('ReYogaSMC/ReYogaVPC/ThinkVPC.cpp')
-        self.assertIn('useMMC ? DYTC_FUNCTION_MMC : DYTC_FUNCTION_PSC', think)
+        self.assertIn('status = setThermalProfile(target)', think)
+        self.assertIn('const bool useMMC = supportsMMCThermal();', vpc)
         self.assertIn('add("CPUBoostPower", false, "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.");', think)
 
     def test_psc_mapping_tracks_revision_and_does_not_reset(self):
@@ -127,8 +128,8 @@ class BootSafetyTests(unittest.TestCase):
         self.assertIn('profile == 1 ? 1 : profile == 2 ? 3 : 4', header)
         self.assertIn('profile == 1 ? 3 : profile == 2 ? 5 : 7', header)
         setter = source('ReYogaSMC/ReYogaVPC.cpp').split('bool ReYogaVPC::setDYTC(', 1)[1].split('bool ReYogaVPC::dumpECOffset', 1)[0]
-        psc = setter.split('if (funcmode == DYTC_FUNCTION_PSC)', 1)[1].split('} else {', 1)[0]
-        self.assertNotIn('dytc_reset_cmd', psc)
+        self.assertNotIn('dytc_reset_cmd', setter)
+        self.assertIn('funcmode == DYTC_FUNCTION_MMC && perfmode == DYTC_MODE_BALANCE', setter)
         self.assertIn('return updateDYTC()', setter)
 
     def test_app_info_plist_declares_bluetooth_usage_description(self):

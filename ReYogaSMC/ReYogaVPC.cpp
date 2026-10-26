@@ -341,6 +341,10 @@ void ReYogaVPC::setPropertiesGated(OSObject* props) {
                 }
                 OSNumber *value;
                 getPropertyNumber(DYTCPSCPrompt);
+                if (value->unsigned64BitValue() > 0xf) {
+                    AlwaysLog(valueInvalid, DYTCPSCPrompt);
+                    continue;
+                }
                 if (!setDYTC(DYTC_FUNCTION_PSC, value->unsigned8BitValue())) {
                     AlwaysLog(toggleFailure, DYTCPSCPrompt);
                     updateDYTC();
@@ -391,7 +395,8 @@ void ReYogaVPC::setPropertiesGated(OSObject* props) {
                         AlwaysLog(valueInvalid, DYTCPrompt);
                         continue;
                 }
-                if (!setDYTC(DYTC_FUNCTION_MMC, mode)) {
+                const UInt32 profile = mode == DYTC_MODE_QUIET ? 1 : mode == DYTC_MODE_BALANCE ? 2 : 3;
+                if (!setThermalProfile(profile)) {
                     AlwaysLog(toggleFailure, DYTCPrompt);
                     updateDYTC();
                 } else {
@@ -542,9 +547,7 @@ bool ReYogaVPC::DYTCCommand(DYTC_CMD command, DYTC_RESULT* result, UInt8 ICFunc,
 
         case DYTC_UNSUPPORTED:
         case DYTC_DPTF_UNAVAILABLE:
-            AlwaysLog("%s command 0x%x result 0x%08x (unsuppported)", DYTCPrompt, command.raw, result->raw);
-            DYTCCap = 0;
-            setProperty("DYTC", false);
+            AlwaysLog("%s command 0x%x result 0x%08x (unavailable for this command)", DYTCPrompt, command.raw, result->raw);
             break;
 
         case DYTC_FUNC_INVALID:
@@ -670,7 +673,31 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
     DYTCStatus->setObject("Function Status", functionStatus);
     functionStatus->release();
 
-    switch (result.get.funcmode) {
+    unsigned readbackFunction = result.get.funcmode;
+    setPropertyString(DYTCStatus, "ReadbackSource", "DYTC GET");
+    if (readbackFunction == DYTC_FUNCTION_CQL) {
+        const bool mmcActive = (result.get.func_sta & DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0;
+        const bool pscActive = (result.get.func_sta & DYTCCap & BIT(DYTC_FUNCTION_PSC)) != 0;
+        UInt32 mode = 0;
+        // Lenovo exposes the masked desk mode as a named ACPI field on these firmwares.
+        if (mmcActive && vpc->evaluateInteger("\\SMMC", &mode) == kIOReturnSuccess &&
+            (mode == 0 || mode == DYTC_MODE_PERFORM || mode == DYTC_MODE_QUIET || mode == DYTC_MODE_BALANCE)) {
+            readbackFunction = DYTC_FUNCTION_MMC;
+            result.get.perfmode = mode;
+            setPropertyString(DYTCStatus, "ReadbackSource", "ACPI SMMC");
+        } else if (!mmcActive && pscActive && vpc->evaluateInteger("\\SPSC", &mode) == kIOReturnSuccess &&
+                   (DYTCRevision < 9 ? mode >= 1 && mode <= 8 :
+                    mode == 1 || mode == 3 || mode == 4)) {
+            readbackFunction = DYTC_FUNCTION_PSC;
+            result.get.perfmode = mode;
+            setPropertyString(DYTCStatus, "ReadbackSource", "ACPI SPSC");
+        } else if (!mmcActive && !pscActive) {
+            readbackFunction = DYTC_FUNCTION_STD;
+            setPropertyString(DYTCStatus, "ReadbackSource", "DYTC function status");
+        }
+    }
+
+    switch (readbackFunction) {
         case DYTC_FUNCTION_STD:
             setPropertyString(DYTCStatus, "FuncMode", "Standard");
             setPropertyString(DYTCStatus, "PerfMode", "Balance");
@@ -756,30 +783,24 @@ bool ReYogaVPC::updateDYTC() {
     return parseDYTC(result);
 }
 
+bool ReYogaVPC::setThermalProfile(UInt32 profile) {
+    if (profile < 1 || profile > 3 || !supportsThermalProfiles()) return false;
+    const bool useMMC = supportsMMCThermal();
+    const int func = useMMC ? DYTC_FUNCTION_MMC : DYTC_FUNCTION_PSC;
+    const int mode = useMMC ? (profile == 1 ? DYTC_MODE_QUIET :
+        profile == 2 ? DYTC_MODE_BALANCE : DYTC_MODE_PERFORM) : pscThermalMode(profile);
+    return setDYTC(func, mode);
+}
+
 bool ReYogaVPC::setDYTC(int funcmode, int perfmode) {
-    if (!DYTCCap || funcmode < 0 || funcmode >= 16 || !(DYTCCap & BIT(funcmode)))
+    if (!DYTCCap || funcmode < 0 || funcmode >= 16 || !(DYTCCap & BIT(funcmode)) || perfmode < 0 || perfmode > 0xf)
         return false;
 
     DYTC_RESULT result;
 
-    if (!DYTCCommand(dytc_get_cmd, &result))
+    const bool enabled = !(funcmode == DYTC_FUNCTION_MMC && perfmode == DYTC_MODE_BALANCE);
+    if (!DYTCCommand(dytc_set_cmd, &result, funcmode, perfmode, enabled))
         return false;
-
-    bool lapmode = (result.get.func_sta & BIT(DYTC_FUNCTION_CQL)) != 0;
-
-    if (funcmode == DYTC_FUNCTION_PSC) {
-        if (!DYTCCommand(dytc_set_cmd, &result, funcmode, perfmode, true))
-            return false;
-    } else {
-        if (!DYTCCommand(dytc_reset_cmd, &result))
-            return false;
-        const bool modeSet = perfmode == DYTC_MODE_BALANCE ||
-            DYTCCommand(dytc_set_cmd, &result, funcmode, perfmode, true);
-        const bool lapRestored = !lapmode ||
-            DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_CQL, 0xf, true);
-        if (!modeSet || !lapRestored)
-            return false;
-    }
 
     return updateDYTC();
 }
