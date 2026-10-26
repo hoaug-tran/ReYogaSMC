@@ -40,6 +40,10 @@ public enum LocalizedKey: String {
     case settingsLoggingHeader = "SETTINGS_LOGGING_HEADER"
     case settingsDetailedLogging = "SETTINGS_DETAILED_LOGGING"
     case settingsDetailedLoggingDesc = "SETTINGS_DETAILED_LOGGING_DESC"
+    case settingsShortcutsHeader = "SETTINGS_SHORTCUTS_HEADER"
+    case settingsResetShortcutsTitle = "SETTINGS_RESET_SHORTCUTS_TITLE"
+    case settingsResetShortcutsDesc = "SETTINGS_RESET_SHORTCUTS_DESC"
+    case settingsResetShortcutsButton = "SETTINGS_RESET_SHORTCUTS_BUTTON"
 
     case overviewSectionTelemetry = "OVERVIEW_SECTION_TELEMETRY"
     case overviewSectionBattery = "OVERVIEW_SECTION_BATTERY"

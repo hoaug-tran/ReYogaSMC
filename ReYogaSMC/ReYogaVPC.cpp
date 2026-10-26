@@ -911,7 +911,18 @@ IOReturn ReYogaVPC::accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]
 IOReturn ReYogaVPC::readThinkFanRPM(UInt32 fan, UInt32 &rpm) {
     UInt8 sample[3] = {};
     const IOReturn status = accessThinkFan(fan, ReYogaControl::kThinkFanQueryRPM, sample);
-    if (status != kIOReturnSuccess) return status;
+    if (status != kIOReturnSuccess) {
+        if (fan == 0 && ec && ec->validateObject("HSPD") == kIOReturnSuccess) {
+            UInt32 raw = 0;
+            if (ec->evaluateInteger("HSPD", &raw) == kIOReturnSuccess) {
+                UInt32 le = raw & 0xFFFF;
+                UInt32 be = ((raw & 0xFF) << 8) | ((raw >> 8) & 0xFF);
+                rpm = (le > 6000 && be < 6000) ? be : le;
+                return rpm < 0xFFFF ? kIOReturnSuccess : kIOReturnUnderrun;
+            }
+        }
+        return status;
+    }
     UInt32 le = static_cast<UInt32>(sample[0]) | (static_cast<UInt32>(sample[1]) << 8);
     UInt32 be = (static_cast<UInt32>(sample[0]) << 8) | static_cast<UInt32>(sample[1]);
     rpm = (le > 6000 && be < 6000) ? be : le;

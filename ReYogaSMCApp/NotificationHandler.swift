@@ -190,7 +190,10 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
     case .settings:
         (NSApp.delegate as? AppDelegate)?.showSettings()
     case .systemsettings:
-        if let url = URL(string: "x-apple.systempreferences:") { NSWorkspace.shared.open(url) }
+        let opened = URL(string: "x-apple.systempreferences:").map { NSWorkspace.shared.open($0) } ?? false
+        if !opened, let appUrl = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.systempreferences") {
+            NSWorkspace.shared.openApplication(at: appUrl, configuration: .init(), completionHandler: nil)
+        }
     case .sleep:
         if desc.display {
             showOSDRes(desc.name, .kSleep)

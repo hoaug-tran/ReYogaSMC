@@ -41,6 +41,11 @@
 "SETTINGS_LOGGING_HEADER" = "Nhật ký và chẩn đoán";
 "SETTINGS_DETAILED_LOGGING" = "Ghi nhật ký chi tiết";
 "SETTINGS_DETAILED_LOGGING_DESC" = "Lưu thêm các mẫu dữ liệu phần cứng vào nhật ký chẩn đoán cục bộ của ứng dụng.";
+"SETTINGS_SHORTCUTS_HEADER" = "Phím tắt bàn phím";
+"SETTINGS_RESET_SHORTCUTS_TITLE" = "Khôi phục phím tắt mặc định";
+"SETTINGS_RESET_SHORTCUTS_DESC" = "Đặt lại toàn bộ ánh xạ phím Fn (như Fn+F9 mở Cài đặt hệ thống) về mặc định ban đầu.";
+"SETTINGS_RESET_SHORTCUTS_BUTTON" = "Khôi phục";
+"Shortcuts reset to defaults" = "Đã khôi phục phím tắt mặc định";
 
 "OVERVIEW_SECTION_TELEMETRY" = "Cảm biến";
 "OVERVIEW_SECTION_BATTERY" = "Pin";
@@ -667,4 +672,4 @@
 "PCI subsystem ID and DSDT OEM table matched" = "ID subsystem PCI và bảng OEM DSDT khớp";
 
 "Machine type and DSDT OEM table matched" = "Mã máy và bảng OEM DSDT khớp";
-"ThinkPad controls CPU power limits through Power Profiles (DYTC)" = "ThinkPad điều khiển giới hạn công suất CPU qua Cấu hình nguồn (DYTC)";
+"Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC." = "Điều khiển giới hạn công suất CPU trực tiếp chưa được triển khai hoặc xác minh cho ThinkPad này. Cấu hình hiệu năng do firmware quản lý có thể khả dụng qua DYTC.";

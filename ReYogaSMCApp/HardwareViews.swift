@@ -435,6 +435,20 @@ public struct HardwareControlsView: View {
                         .fixedSize(horizontal: false, vertical: true).padding(.leading, 20)
                 }.padding(.vertical, 4)
             }
+            ControlSection(loc(.settingsShortcutsHeader)) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(loc(.settingsResetShortcutsTitle)).font(.system(size: 12, weight: .medium))
+                        Text(loc(.settingsResetShortcutsDesc)).font(.caption).foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Button(loc(.settingsResetShortcutsButton)) {
+                        (NSApp.delegate as? AppDelegate)?.resetShortcutsToDefaults()
+                        showOSDRaw(localizedMessage("Shortcuts reset to defaults"))
+                    }
+                }.padding(.vertical, 4)
+            }
         }
     }
     private let columns = [GridItem(.adaptive(minimum: 270), spacing: 12, alignment: .top)]

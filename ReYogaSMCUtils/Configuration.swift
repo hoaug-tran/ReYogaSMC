@@ -200,10 +200,14 @@ func loadEvents(_ conf: inout SharedConfig) {
                        (opt == "Unknown" || (opt == nil && name.hasPrefix("Event 0x"))) {
                         os_log("Override unknown event 0x%04x : %d", type: .info, eid, data)
                     } else {
+                        var resolvedAction = EventAction(rawValue: action) ?? .nothing
+                        if eid == TP_HKEY_EV_SETTING.rawValue && resolvedAction == .settings {
+                            resolvedAction = .systemsettings
+                        }
                         info[data] = EventDesc(
                             name,
                             event["image"] as? String,
-                            act: EventAction(rawValue: action) ?? .nothing,
+                            act: resolvedAction,
                             display: event["display"] as? Bool ?? true,
                             opt: opt)
                     }
@@ -244,4 +248,18 @@ func saveEvents(_ conf: inout SharedConfig) {
         dict[String(eid, radix: 16)] = events
     }
     ReYogaConstants.hardwareDefaults.setValue(dict, forKey: "Events")
+}
+
+func resetDefaultEvents(_ conf: inout SharedConfig, ioClass: String) {
+    ReYogaConstants.hardwareDefaults.removeObject(forKey: "Events")
+    switch ioClass {
+    case "IdeaVPC":
+        conf.events = ideaEvents
+    case "ThinkVPC":
+        conf.events = thinkEvents
+    case "ReYogaHIDD":
+        conf.events = HIDDEvents
+    default:
+        break
+    }
 }

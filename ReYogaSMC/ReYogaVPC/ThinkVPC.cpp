@@ -383,9 +383,9 @@ void ThinkVPC::updateControlStatus() {
     } else {
         removeProperty("SmartFanMode");
     }
-    add("CPUBoostPower", false, "ThinkPad controls CPU power limits through Power Profiles (DYTC)");
-    add("CPUSustainedPower", false, "ThinkPad controls CPU power limits through Power Profiles (DYTC)");
-    add("CPUPowerReset", false, "ThinkPad controls CPU power limits through Power Profiles (DYTC)");
+    add("CPUBoostPower", false, "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.");
+    add("CPUSustainedPower", false, "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.");
+    add("CPUPowerReset", false, "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.");
     setProperty("FeatureStatus", features);
     features->release();
 }

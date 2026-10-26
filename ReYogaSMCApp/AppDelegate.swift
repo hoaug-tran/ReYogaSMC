@@ -73,6 +73,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         showSettings()
     }
 
+    @objc func resetShortcutsToDefaults() {
+        resetDefaultEvents(&conf, ioClass: IOClass)
+        saveEvents(&conf)
+    }
+
     @objc func iconWakeup() {
         statusItem?.button?.image = ReYogaBrand.menuImage()
         statusItem?.button?.title = ""

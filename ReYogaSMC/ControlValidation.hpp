@@ -44,10 +44,18 @@ template <typename Read, typename Write>
 ThinkFanResult transactThinkFan(unsigned fan, unsigned target, unsigned char output[3], Read read, Write write) {
     if (!output || fan > 1 || (target != kThinkFanQueryRPM && !validThinkFanLevel(target))) return ThinkFanResult::invalid;
     unsigned char original = 0;
-    if (!read(0x31, original)) return ThinkFanResult::transportFailed;
-    const unsigned char selected = (original & 0xfe) | fan;
-    const bool changed = selected != original;
-    bool valid = !changed || write(0x31, selected);
+    bool changed = false;
+    bool valid = true;
+    if (fan == 1) {
+        if (!read(0x31, original)) return ThinkFanResult::transportFailed;
+        const unsigned char selected = original | 0x01;
+        changed = selected != original;
+        valid = !changed || write(0x31, selected);
+    } else if (read(0x31, original) && (original & 0x01)) {
+        const unsigned char selected = original & 0xfe;
+        changed = selected != original;
+        valid = !changed || write(0x31, selected);
+    }
     if (valid && target != kThinkFanQueryRPM) valid = write(0x2f, static_cast<unsigned char>(target));
     unsigned char sample[3] {};
     if (valid) valid = read(0x84, sample[0]);

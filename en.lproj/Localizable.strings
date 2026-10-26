@@ -39,6 +39,11 @@
 "SETTINGS_LOGGING_HEADER" = "Diagnostics & logging";
 "SETTINGS_DETAILED_LOGGING" = "Detailed logging";
 "SETTINGS_DETAILED_LOGGING_DESC" = "Saves additional hardware samples to the app’s local diagnostic logs.";
+"SETTINGS_SHORTCUTS_HEADER" = "Keyboard shortcuts";
+"SETTINGS_RESET_SHORTCUTS_TITLE" = "Reset shortcuts to defaults";
+"SETTINGS_RESET_SHORTCUTS_DESC" = "Restores all Fn hotkey mappings (such as Fn+F9 opening System Settings) back to factory defaults.";
+"SETTINGS_RESET_SHORTCUTS_BUTTON" = "Reset";
+"Shortcuts reset to defaults" = "Shortcuts reset to defaults";
 
 "OVERVIEW_SECTION_TELEMETRY" = "Sensors";
 "OVERVIEW_SECTION_BATTERY" = "Battery";
@@ -665,4 +670,4 @@
 "PCI subsystem ID and DSDT OEM table matched" = "PCI subsystem ID and DSDT OEM table matched";
 
 "Machine type and DSDT OEM table matched" = "Machine type and DSDT OEM table matched";
-"ThinkPad controls CPU power limits through Power Profiles (DYTC)" = "ThinkPad controls CPU power limits through Power Profiles (DYTC)";
+"Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC." = "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.";
