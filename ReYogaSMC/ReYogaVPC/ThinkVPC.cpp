@@ -552,11 +552,16 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
             } else if (key->isEqualTo(fanSpeedPrompt)) {
                 OSNumber *value;
                 getPropertyNumber(fanSpeedPrompt);
+                if (value->unsigned64BitValue() > 0xff) {
+                    AlwaysLog(valueInvalid, fanSpeedPrompt);
+                    continue;
+                }
                 UInt8 speed = value->unsigned8BitValue();
                 if (speed > 7) {
                     speed = speed < 0x80 ? 0x47 : 0x84;
                 }
-                ret = method_we1b(0x2f, speed);
+                UInt8 sample[3] {};
+                ret = accessThinkFan(0, speed, sample);
                 if (ret == kIOReturnSuccess)
                     DebugLog(updateSuccess, fanSpeedPrompt, speed);
                 else

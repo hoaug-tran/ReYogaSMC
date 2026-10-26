@@ -665,3 +665,5 @@
 "PCI subsystem ID and DSDT OEM table matched" = "PCI subsystem ID and DSDT OEM table matched";
 
 "Machine type and DSDT OEM table matched" = "Machine type and DSDT OEM table matched";
+"DSDT source is not valid UTF-8" = "DSDT source is not valid UTF-8";
+"Fan status is unavailable. Try Auto or reconnect the driver." = "Fan status is unavailable. Try Auto or reconnect the driver.";

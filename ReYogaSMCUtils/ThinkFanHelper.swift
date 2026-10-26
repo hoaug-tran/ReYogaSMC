@@ -30,20 +30,21 @@ class ThinkFanHelper {
     }
 
     func setAutomatic() {
-        setFanLevel(Self.automaticLevel)
+        setFanLevel(Self.automaticLevel, operation: "auto")
     }
 
     func setFullSpeed() {
-        setFanLevel(Self.fullSpeedLevel)
+        setFanLevel(Self.fullSpeedLevel, operation: "full")
     }
 
     func setManualLevel(_ target: Int) {
         guard (minimumLevel...7).contains(target) else { return }
-        setFanLevel(UInt8(target))
+        setFanLevel(UInt8(target), operation: "manual")
     }
 
-    private func access(level requested: UInt64 = 0x100) -> [UInt8]? {
-        guard enable, connect != 0 else { return nil }
+    private func access(level requested: UInt64 = 0x100, operation: String = "poll") -> [UInt8]? {
+        // A failed sample must not prevent the next poll or an explicit Auto recovery.
+        guard connect != 0 else { return nil }
         let input: [UInt64] = [main ? 0 : 1, requested]
         var output = [UInt8](repeating: 0, count: 3)
         var size = output.count
@@ -53,24 +54,41 @@ class ThinkFanHelper {
                                     nil, 0, nil, nil, bytes.baseAddress, &size)
             }
         }
+        if requested != 0x100 || enable != (status == kIOReturnSuccess && size == 3) {
+            ReYogaDiagnostics.shared.record("think_fan_access", [
+                "operation": operation, "fan": main ? 0 : 1, "requested": requested,
+                "transportStatus": status, "outputBytes": size, "raw": output
+            ])
+        }
         guard status == kIOReturnSuccess, size == 3 else {
             rpm = nil
             enable = false
-            showOSDRaw(String(format: localizedMessage("ThinkPad fan access failed (0x%08x). Retry the driver connection."), status))
+            if requested != 0x100 {
+                showOSDRaw(String(format: localizedMessage("ThinkPad fan access failed (0x%08x). Retry the driver connection."), status))
+            }
             return nil
         }
-        rpm = Int(output[0]) | Int(output[1]) << 8
+        let raw = output[2]
+        guard raw <= 7 || raw & 0xf8 == 0x40 || raw & 0xf8 == 0x80 else {
+            enable = false
+            rpm = nil
+            return nil
+        }
+        enable = true
+        let measuredRPM = Int(output[0]) | Int(output[1]) << 8
+        rpm = measuredRPM == 0xffff ? nil : measuredRPM
         return output
     }
 
-    func setFanLevel(_ requested: UInt8? = nil) {
+    func setFanLevel(_ requested: UInt8? = nil, operation: String = "restore") {
         let target = requested ?? savedLevel
+        guard enable || target == 0x80 || target == Self.automaticLevel else { return }
         guard (1...7).contains(target) || target == 0x47 || target == 0x80 || target == 0x84 ||
               (target == 0 && defaults.bool(forKey: "AllowFanStop")) else {
             showOSDRaw("Fan level is invalid; use Auto or a supported level")
             return
         }
-        guard let sample = access(level: UInt64(target)) else { return }
+        guard let sample = access(level: UInt64(target), operation: operation) else { return }
         savedLevel = target
         acceptLevel(sample[2])
     }
@@ -82,8 +100,9 @@ class ThinkFanHelper {
         else { enable = false; rpm = nil }
     }
 
-    func update(_ updateLevel: Bool = false) {
+    func update() {
         guard let sample = access() else { return }
-        if updateLevel { acceptLevel(sample[2]) }
+        // Keep the restore mode in sync even when the slider is not being refreshed.
+        acceptLevel(sample[2])
     }
 }

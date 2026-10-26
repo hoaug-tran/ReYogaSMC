@@ -927,19 +927,22 @@ private struct ThinkPadFanPanel: View {
                     }
                     HStack {
                         Button(loc(.fanAuto)) { command(index) { $0.setAutomatic() } }
+                            .disabled(helper(index)?.connect == 0 || helper(index) == nil)
                         Button(loc(.fanFullSpeed)) { command(index) { $0.setFullSpeed() } }
+                            .disabled(!enabled[index])
                         Spacer()
                         Text(localizedMessage(String(format: loc(.fanLevelFormat), Int(levels[index])))).font(.caption)
                         Button(loc(.coolingApply)) {
                             command(index) { fan in
                                 fan.setManualLevel(Int(levels[index]))
                             }
-                        }
-                    }.disabled(!enabled[index])
+                        }.disabled(!enabled[index])
+                    }
                     Slider(value: $levels[index], in: Double(helper(index)?.minimumLevel ?? 1)...7, step: 1)
                         .disabled(!enabled[index]).accessibilityLabel(localizedMessage(index == 0 ? "Main fan level" : "Secondary fan level"))
                     if !enabled[index] {
-                        Text(loc(.fanInterfaceRequired))
+                        Text(helper(index) == nil ? loc(.fanInterfaceRequired) :
+                             localizedMessage("Fan status is unavailable. Try Auto or reconnect the driver."))
                             .font(.caption).foregroundColor(.secondary)
                     }
                 }.padding(.vertical, 6)
@@ -948,7 +951,7 @@ private struct ThinkPadFanPanel: View {
             .onReceive(timer) { _ in refresh(readLevel: false) }
     }
     private func command(_ index: Int, action: (ThinkFanHelper) -> Void) {
-        guard !CommandLine.arguments.contains("--render-ui"), let fan = helper(index), fan.enable else { return }
+        guard !CommandLine.arguments.contains("--render-ui"), let fan = helper(index) else { return }
         action(fan)
         refresh(readLevel: true)
     }
@@ -956,7 +959,7 @@ private struct ThinkPadFanPanel: View {
         guard !CommandLine.arguments.contains("--render-ui") else { return }
         for index in 0...1 {
             guard let fan = helper(index) else { enabled[index] = false; continue }
-            fan.update(readLevel)
+            fan.update()
             enabled[index] = fan.enable
             readings[index] = fan.enable ? fan.rpm.map { localizedMessage("%@ RPM", String(describing: $0)) } ?? loc(.commonUnavailable) : loc(.commonUnavailable)
             if readLevel { levels[index] = Double(fan.level) }

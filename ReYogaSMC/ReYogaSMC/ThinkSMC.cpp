@@ -29,7 +29,8 @@ void ThinkSMC::addVSMCKey() {
 void ThinkSMC::updateECVendor() {
     for (unsigned fan = 0; fan < (dualFan ? 2U : 1U); ++fan) {
         UInt8 sample[3] = {};
-        const bool valid = sensorProvider && sensorProvider->accessThinkFan(fan, 0x100, sample) == kIOReturnSuccess;
+        const bool valid = sensorProvider && sensorProvider->accessThinkFan(fan, 0x100, sample) == kIOReturnSuccess &&
+            !(sample[0] == 0xff && sample[1] == 0xff);
         const UInt32 rpm = valid ? static_cast<UInt32>(sample[0]) | static_cast<UInt32>(sample[1]) << 8 : UINT32_MAX;
         atomic_store_explicit(&currentSensor[fan], rpm, memory_order_release);
     }
@@ -37,4 +38,5 @@ void ThinkSMC::updateECVendor() {
 
 void ThinkSMC::getWMISensor(IOService *provider) {
     sensorProvider = OSDynamicCast(ReYogaVPC, provider);
+    dualFan = sensorProvider && sensorProvider->getProperty("Dual fan") == kOSBooleanTrue;
 }

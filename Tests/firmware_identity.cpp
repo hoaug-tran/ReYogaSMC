@@ -6,6 +6,122 @@
 #include <vector>
 using namespace ReYogaFirmware;
 
+struct FanEC {
+    unsigned calls {0}, failure {0}, selectorReads {0}, selectorWrites {0}, controlWrites {0};
+    bool hasSelector {true}, mutateBeforeFailure {true}, ignoreSelectorWrite {false}, ignoreControlWrite {false};
+    bool failRestore {false}, changeOtherBits {false};
+    bool tachometerUnavailable {false};
+    unsigned char selector {0xa0}, levels[2] {0x84, 0x84};
+    bool read(unsigned offset, unsigned char &value) {
+        if (offset == 0x31) ++selectorReads;
+        if (++calls == failure) return false;
+        value = offset == 0x31 ? selector : offset == 0x2f ? levels[hasSelector ? selector & 1 : 0] : offset == 0x84 ? 0x88 : 0x13;
+        if (tachometerUnavailable && (offset == 0x84 || offset == 0x85)) value = 0xff;
+        if (offset == 0x2f && changeOtherBits) { selector ^= 0x80; changeOtherBits = false; }
+        return true;
+    }
+    bool write(unsigned offset, unsigned char value) {
+        const bool failed = ++calls == failure || (failRestore && offset == 0x31 && !(value & 1));
+        if (offset == 0x31) ++selectorWrites;
+        else ++controlWrites;
+        if (!failed || mutateBeforeFailure) {
+            if (offset == 0x31) { if (!ignoreSelectorWrite) selector = value; }
+            else if (!ignoreControlWrite) levels[hasSelector ? selector & 1 : 0] = value;
+        }
+        return !failed;
+    }
+    ReYogaControl::ThinkFanResult access(unsigned fan, unsigned target, unsigned char output[3], ReYogaControl::ThinkFanState &state) {
+        return ReYogaControl::transactThinkFan(fan, target, output, hasSelector, state,
+            [&](unsigned offset, unsigned char &value) { return read(offset, value); },
+            [&](unsigned offset, unsigned char value) { return write(offset, value); });
+    }
+};
+
+static void checkThinkFans() {
+    using namespace ReYogaControl;
+    unsigned char output[3] {};
+    ThinkFanState singleState;
+    FanEC single;
+    single.hasSelector = false;
+    single.selector = 3;
+    assert(single.access(0, 0x100, output, singleState) == ThinkFanResult::ok);
+    assert(single.selectorReads == 0 && single.selectorWrites == 0 && single.controlWrites == 0);
+    const unsigned calls = single.calls;
+    assert(single.access(1, 4, output, singleState) == ThinkFanResult::invalid && single.calls == calls);
+
+    // Missing tachometer data must not turn a confirmed Auto command into a failure.
+    single.tachometerUnavailable = true;
+    assert(single.access(0, 0x84, output, singleState) == ThinkFanResult::ok);
+    assert(output[0] == 0xff && output[1] == 0xff && output[2] == 0x84);
+    assert(singleState.modifiedMask == 0);
+    assert(single.access(0, 0x100, output, singleState) == ThinkFanResult::ok);
+    assert(single.selectorReads == 0 && single.selectorWrites == 0);
+
+    // Readback still has to confirm Auto even when the tachometer is unavailable.
+    single.ignoreControlWrite = true;
+    single.levels[0] = 4;
+    assert(single.access(0, 0x84, output, singleState) == ThinkFanResult::readbackMismatch);
+    assert(singleState.modifiedMask == 1);
+    single.levels[0] = 0xc4;
+    assert(single.access(0, 0x100, output, singleState) == ThinkFanResult::readbackMismatch);
+
+    ThinkFanState mainReadState;
+    FanEC mainRead;
+    mainRead.selector = 0xa1;
+    assert(mainRead.access(0, 0x100, output, mainReadState) == ThinkFanResult::ok);
+    assert(mainRead.selector == 0xa1 && mainRead.controlWrites == 0 && mainReadState.modifiedMask == 0);
+
+    ThinkFanState initial;
+    FanEC successful;
+    assert(successful.access(1, 4, output, initial) == ThinkFanResult::ok);
+    assert(initial.modifiedMask == 2 && successful.selector == 0xa0);
+    const unsigned steps = successful.calls;
+    for (bool mutate : {false, true}) {
+        for (unsigned failure = 1; failure <= steps; ++failure) {
+            ThinkFanState state;
+            FanEC ec;
+            ec.failure = failure; ec.mutateBeforeFailure = mutate;
+            unsigned char sample[3] = {0xee, 0xee, 0xee};
+            assert(ec.access(1, 4, sample, state) != ThinkFanResult::ok);
+            assert(sample[0] == 0xee && sample[1] == 0xee && sample[2] == 0xee);
+            if (state.modifiedMask || state.selectorRestorePending) {
+                assert(ec.access(1, 0x84, sample, state) == ThinkFanResult::ok);
+                assert(!state.selectorRestorePending && state.modifiedMask == 0);
+                assert(ec.levels[1] == 0x84 && (ec.selector & 1) == 0);
+            }
+        }
+    }
+    ThinkFanState blocked;
+    FanEC ec;
+    ec.failRestore = true; ec.mutateBeforeFailure = false;
+    assert(ec.access(1, 1, output, blocked) == ThinkFanResult::restoreFailed);
+    assert(blocked.selectorRestorePending && blocked.modifiedMask == 2 && ec.levels[1] == 1);
+    const unsigned writes = ec.controlWrites;
+    assert(ec.access(1, 4, output, blocked) == ThinkFanResult::restoreFailed && ec.controlWrites == writes);
+    assert(ec.access(1, 0x84, output, blocked) == ThinkFanResult::restoreFailed && blocked.modifiedMask == 2);
+    ec.failRestore = false;
+    assert(ec.access(1, 0x84, output, blocked) == ThinkFanResult::ok);
+    assert(!blocked.selectorRestorePending && blocked.modifiedMask == 0 && ec.levels[1] == 0x84);
+
+    ThinkFanState ignored;
+    FanEC wrongBank;
+    wrongBank.ignoreSelectorWrite = true;
+    assert(wrongBank.access(1, 4, output, ignored) == ThinkFanResult::transportFailed);
+    assert(wrongBank.controlWrites == 0 && ignored.modifiedMask == 0);
+
+    ThinkFanState unconfirmed;
+    FanEC rejectedAuto;
+    assert(rejectedAuto.access(1, 1, output, unconfirmed) == ThinkFanResult::ok);
+    rejectedAuto.ignoreControlWrite = true;
+    assert(rejectedAuto.access(1, 0x84, output, unconfirmed) == ThinkFanResult::readbackMismatch);
+    assert(unconfirmed.modifiedMask == 2);
+
+    ThinkFanState changed;
+    FanEC otherBits;
+    otherBits.changeOtherBits = true;
+    assert(otherBits.access(1, 4, output, changed) == ThinkFanResult::ok && otherBits.selector == 0x20);
+}
+
 static Identity identity(const char *machine, const char *bios) {
     Identity result;
     result.add(machine, strlen(machine), false);
@@ -90,31 +206,7 @@ int main() {
         assert(ReYogaControl::validThinkFanLevel(level) ==
             (level <= 7 || level == 0x47 || level == 0x80 || level == 0x84));
 
-    // Inject a failure at every transaction step. A changed selector is always
-    // restored; failed transactions never publish a partial measurement.
-    for (unsigned failure = 0; failure <= 7; ++failure) {
-        unsigned calls = 0;
-        unsigned char selector = 0xa0, level = 0x84, output[3] = {0xee, 0xee, 0xee};
-        const auto result = ReYogaControl::transactThinkFan(1, 4, output,
-            [&](unsigned offset, unsigned char &value) {
-                if (++calls == failure) return false;
-                value = offset == 0x31 ? selector : offset == 0x2f ? level : offset == 0x84 ? 0x88 : 0x13;
-                return true;
-            },
-            [&](unsigned offset, unsigned char value) {
-                // Model firmware that changes the selector before reporting
-                // a transport failure, so restoration is still necessary.
-                if (offset == 0x31) selector = value;
-                else level = value;
-                return ++calls != failure;
-            });
-        if (!failure) {
-            assert(result == ReYogaControl::ThinkFanResult::ok && output[2] == 4);
-        } else {
-            assert(result != ReYogaControl::ThinkFanResult::ok && output[0] == 0xee);
-        }
-        assert(selector == 0xa0);
-    }
+    checkThinkFans();
     std::vector<uint8_t> table = {0, 6, 0, 0, 1, 2};
     const char bios[] = "LENOVO\0GKCN65WW\0";
     table.insert(table.end(), bios, bios + sizeof(bios));
@@ -136,5 +228,5 @@ int main() {
         Identity fuzzed;
         readSMBIOS(bytes, iteration % sizeof(bytes), fuzzed);
     }
-    puts("PASS all declared firmware identities, ambiguous/conflicting/missing evidence, sensor bounds and SMBIOS parser");
+    puts("PASS firmware identities, sensor bounds, SMBIOS parser, fan topology and transaction recovery");
 }

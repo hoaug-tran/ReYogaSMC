@@ -667,3 +667,5 @@
 "PCI subsystem ID and DSDT OEM table matched" = "ID subsystem PCI và bảng OEM DSDT khớp";
 
 "Machine type and DSDT OEM table matched" = "Mã máy và bảng OEM DSDT khớp";
+"DSDT source is not valid UTF-8" = "Tệp nguồn DSDT không có mã hóa UTF-8 hợp lệ";
+"Fan status is unavailable. Try Auto or reconnect the driver." = "Chưa đọc được trạng thái quạt. Hãy thử Auto hoặc kết nối lại trình điều khiển.";

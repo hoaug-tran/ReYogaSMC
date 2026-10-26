@@ -214,16 +214,54 @@ struct HardwareProfiles {
             ($0["matchProfiles"] as? [String])?.contains(profileID) == true
         }
     }
+    static func lightingOwnedByRGB(key: String, settings: SavedRGBSettings?, activeProfileID: String?, profiles: [[String: Any]] = HardwareProfiles.all()) -> Bool {
+        guard let zone = ["YLogoStatus": "Logo", "PortLighting": "PortLighting"][key],
+              let settings = settings,
+              settings.isValid,
+              settings.mode != "Factory",
+              let activeID = activeProfileID,
+              !activeID.isEmpty,
+              settings.profileID == activeID,
+              let profile = profiles.first(where: { $0["id"] as? String == activeID && $0["kind"] as? String == "rgb" }),
+              let zones = profile["zones"] as? [String: Any],
+              zones[zone] != nil else {
+            return false
+        }
+        return true
+    }
+    static let maxDSDTFileSize = 16 * 1024 * 1024
+    static func readDSDTSource(_ input: URL) throws -> String {
+        let attributes = try FileManager.default.attributesOfItem(atPath: input.path)
+        guard let size = (attributes[.size] as? NSNumber)?.int64Value,
+              size >= 0, size <= Int64(maxDSDTFileSize) else {
+            throw SupportError.message("DSDT source exceeds the supported size")
+        }
+        let handle = try FileHandle(forReadingFrom: input)
+        defer { try? handle.close() }
+        var data = Data()
+        // Bound the actual read too: the file may grow after the metadata check.
+        while let chunk = try handle.read(upToCount: min(65536, maxDSDTFileSize + 1 - data.count)), !chunk.isEmpty {
+            data.append(chunk)
+            guard data.count <= maxDSDTFileSize else { throw SupportError.message("DSDT source exceeds the supported size") }
+        }
+        guard let source = String(data: data, encoding: .utf8) else { throw SupportError.message("DSDT source is not valid UTF-8") }
+        return source
+    }
     static func normalizedDSDT(_ source: String) -> String {
         let pattern = #""(?:\\.|[^"\\])*"|/\*.*?\*/|//[^\n]*|[^\s]"#
         guard let expression = try? NSRegularExpression(pattern: pattern, options: .dotMatchesLineSeparators) else { return source }
         let text = source as NSString
-        return expression.matches(in: source, range: NSRange(location: 0, length: text.length)).map {
-            text.substring(with: $0.range)
-        }.filter { !$0.hasPrefix("/*") && !$0.hasPrefix("//") }.joined()
+        var normalized = ""
+        normalized.reserveCapacity(source.utf8.count)
+        expression.enumerateMatches(in: source, range: NSRange(location: 0, length: text.length)) { match, _, _ in
+            guard let match = match else { return }
+            let token = text.substring(with: match.range)
+            if !token.hasPrefix("/*") && !token.hasPrefix("//") { normalized.append(token) }
+        }
+        return normalized
     }
     static func matchingDSDT(_ source: String) throws -> [String: Any] {
-        guard source.utf8.count <= 16 * 1024 * 1024 else { throw SupportError.message("DSDT source exceeds the supported size") }
+        guard source.utf8.count <= maxDSDTFileSize else { throw SupportError.message("DSDT source exceeds the supported size") }
         let normalized = normalizedDSDT(source)
         let digest = SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
         let exactMatches = all().filter { item in
@@ -325,22 +363,31 @@ struct HardwareProfiles {
         chooser.allowedFileTypes = ["dsl"]
         chooser.message = localizedMessage("Select a disassembled DSDT. A bridge is generated only when a reviewed profile matches.")
         guard chooser.runModal() == .OK, let input = chooser.url else { return }
-        do {
-            let source = try String(contentsOf: input, encoding: .utf8)
-            let profile = try matchingDSDT(source)
-            let generated = try render(profile)
-            let save = NSSavePanel()
-            save.nameFieldStringValue = bridgeFilename(profile)
-            save.allowedFileTypes = ["dsl"]
-            save.message = localizedMessage("Save ACPI source for review and compilation with iasl. It will not be installed.")
-            guard save.runModal() == .OK, let output = save.url else { return }
-            try generated.write(to: output, atomically: true, encoding: .utf8)
-            ReYogaDiagnostics.shared.record("acpi_generated", ["profile": profile["id"] ?? "unknown", "validation": profile["validation"] ?? "unknown"])
-            NSWorkspace.shared.activateFileViewerSelecting([output])
-            showOSDRaw("ACPI bridge source saved — compile and review before booting", duration: 3000)
-        } catch {
-            ReYogaDiagnostics.shared.record("acpi_generation_failed", ["error": error.localizedDescription])
-            showOSDRaw(error.localizedDescription, duration: 3500)
+        DispatchQueue.global(qos: .utility).async {
+            do {
+                let source = try readDSDTSource(input)
+                let profile = try matchingDSDT(source)
+                let generated = try render(profile)
+                DispatchQueue.main.async {
+                    let save = NSSavePanel()
+                    save.nameFieldStringValue = bridgeFilename(profile)
+                    save.allowedFileTypes = ["dsl"]
+                    save.message = localizedMessage("Save ACPI source for review and compilation with iasl. It will not be installed.")
+                    guard save.runModal() == .OK, let output = save.url else { return }
+                    do {
+                        try generated.write(to: output, atomically: true, encoding: .utf8)
+                        ReYogaDiagnostics.shared.record("acpi_generated", ["profile": profile["id"] ?? "unknown", "validation": profile["validation"] ?? "unknown"])
+                        NSWorkspace.shared.activateFileViewerSelecting([output])
+                        showOSDRaw("ACPI bridge source saved — compile and review before booting", duration: 3000)
+                    } catch {
+                        ReYogaDiagnostics.shared.record("acpi_generation_failed", ["error": error.localizedDescription])
+                        showOSDRaw(error.localizedDescription, duration: 3500)
+                    }
+                }
+            } catch {
+                ReYogaDiagnostics.shared.record("acpi_generation_failed", ["error": error.localizedDescription])
+                DispatchQueue.main.async { showOSDRaw(error.localizedDescription, duration: 3500) }
+            }
         }
     }
 }

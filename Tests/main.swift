@@ -13,6 +13,24 @@ func rejects(_ name: String, _ action: () throws -> Void) {
 }
 let profiles = HardwareProfiles.all()
 require(!profiles.isEmpty, "Bundled profiles missing")
+do {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let input = directory.appendingPathComponent("DSDT.dsl")
+    let source = "Name (X, \"a b//c\") /* comment */\n"
+    try source.write(to: input, atomically: true, encoding: .utf8)
+    let decoded = try HardwareProfiles.readDSDTSource(input)
+    require(decoded == source, "DSDT file reader changed source data")
+    let repeated = String(repeating: source, count: 4096)
+    require(HardwareProfiles.normalizedDSDT(repeated) == String(repeating: "Name(X,\"a b//c\")", count: 4096), "Incremental normalization changed quoted data")
+    try Data([0xff]).write(to: input)
+    rejects("invalid UTF-8 DSL") { _ = try HardwareProfiles.readDSDTSource(input) }
+    let handle = try FileHandle(forWritingTo: input)
+    try handle.truncate(atOffset: UInt64(HardwareProfiles.maxDSDTFileSize + 1))
+    try handle.close()
+    rejects("oversized DSL file") { _ = try HardwareProfiles.readDSDTSource(input) }
+} catch { fatalError("DSDT file fixture failed: \(error)") }
 require(profiles.allSatisfy { $0["schema_version"] as? Int == 1 }, "Unsupported profile schema")
 let legionIdentity = LaptopIdentity.resolve(strings: ["82N6CTO1WW"], pciIDs: [], lenovo: false)
 require(legionIdentity.name == "Lenovo Legion 7 2021 16ACHg6", "Machine type identity failed")
@@ -78,6 +96,7 @@ if !inputPaths.isEmpty {
     rejects("same vendor but changed firmware") { _ = try HardwareProfiles.matchingDSDT(source.replacingOccurrences(of: "0xFE00D400", with: "0xFE00E400")) }
     print("PASS reviewed DSDT hash, profile selection, and complete source generation")
 }
+rejects("oversized DSDT in matchingDSDT") { _ = try HardwareProfiles.matchingDSDT(String(repeating: " ", count: HardwareProfiles.maxDSDTFileSize + 1)) }
 rejects("truncated AML") { _ = try HardwareProfiles.matchingAML(Data("DSDT".utf8)) }
 rejects("unreviewed AML") { _ = try HardwareProfiles.matchingAML(Data("DSDT".utf8) + Data(repeating: 0, count: 64)) }
 if inputPaths.count > 1 {
@@ -146,6 +165,26 @@ require(!invalidColors.isValid, "Unknown preference schema must not be replayed"
 let menuGlyph = ReYogaBrand.menuImage()
 require(menuGlyph.isTemplate && menuGlyph.size == NSSize(width: 18, height: 18), "Menu glyph must follow macOS template rendering")
 print("PASS persistent RGB, reset semantics, hardware isolation and template glyph")
+
+require(HardwareProfiles.maxDSDTFileSize == 16 * 1024 * 1024, "DSDT file size bound mismatch")
+let activeLogoSettings = SavedRGBSettings(profileID: "ite-c968-gen6", mode: "Static", colors: ["Logo": "#FFFFFF"], logoEnabled: true)
+require(HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: activeLogoSettings, activeProfileID: "ite-c968-gen6"), "Active USB RGB profile must own YLogoStatus")
+let factoryLogoSettings = SavedRGBSettings(profileID: "ite-c968-gen6", mode: "Factory", colors: ["Logo": "#FFFFFF"], logoEnabled: true)
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: factoryLogoSettings, activeProfileID: "ite-c968-gen6"), "Factory mode must release YLogoStatus to WMI")
+var malformedRGBSettings = activeLogoSettings; malformedRGBSettings.colors["Logo"] = "#xyz"
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: malformedRGBSettings, activeProfileID: "ite-c968-gen6"), "Invalid RGB settings must not own lighting")
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: nil, activeProfileID: "ite-c968-gen6"), "Nil RGB settings must not own lighting")
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: activeLogoSettings, activeProfileID: "other-profile"), "Mismatched RGB profile must not own lighting")
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: activeLogoSettings, activeProfileID: nil), "Missing USB RGB hardware must not own lighting")
+require(!HardwareProfiles.lightingOwnedByRGB(key: "PortLighting", settings: activeLogoSettings, activeProfileID: "ite-c968-gen6"), "Shipped ITE profile without PortLighting zone must not own PortLighting")
+let noLogoProfile: [[String: Any]] = [["kind": "rgb", "id": "test-no-logo", "zones": ["Keyboard": [:]]]]
+let noLogoSettings = SavedRGBSettings(profileID: "test-no-logo", mode: "Static", colors: ["Keyboard": "#FFFFFF"], logoEnabled: true)
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: noLogoSettings, activeProfileID: "test-no-logo", profiles: noLogoProfile), "Profile missing Logo zone must not own YLogoStatus")
+let portZoneProfile: [[String: Any]] = [["kind": "rgb", "id": "test-port-zone", "zones": ["PortLighting": [:]]]]
+let portZoneSettings = SavedRGBSettings(profileID: "test-port-zone", mode: "Static", colors: ["PortLighting": "#FFFFFF"], logoEnabled: true)
+require(HardwareProfiles.lightingOwnedByRGB(key: "PortLighting", settings: portZoneSettings, activeProfileID: "test-port-zone", profiles: portZoneProfile), "Profile with PortLighting zone must own PortLighting")
+require(!HardwareProfiles.lightingOwnedByRGB(key: "SmartFanMode", settings: activeLogoSettings, activeProfileID: "ite-c968-gen6"), "Non-lighting controls must never be owned by USB RGB")
+print("PASS RGB lighting ownership predicate for active, factory, invalid, differentprofile and missingzone cases")
 
 let conservedBattery = LiveBatterySnapshot(properties: ["AppleRawCurrentCapacity": 4694, "AppleRawMaxCapacity": 4694,
     "ExternalConnected": true, "IsCharging": false, "InstantAmperage": 0])

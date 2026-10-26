@@ -39,29 +39,67 @@ inline bool decodeHPSensor(unsigned reading, int modifier, unsigned type, unsign
 constexpr bool validThinkFanLevel(unsigned value) {
     return value <= 7 || value == 0x47 || value == 0x80 || value == 0x84;
 }
-enum class ThinkFanResult { ok, invalid, transportFailed, restoreFailed, unavailable, readbackMismatch };
+enum class ThinkFanResult { ok, invalid, transportFailed, restoreFailed, readbackMismatch };
+
+struct ThinkFanState {
+    unsigned modifiedMask {0};
+    bool selectorRestorePending {false};
+    unsigned char originalSelector {0};
+};
 
 template <typename Read, typename Write>
-ThinkFanResult transactThinkFan(unsigned fan, unsigned target, unsigned char output[3], Read read, Write write) {
-    if (!output || fan > 1 || (target != 0x100 && !validThinkFanLevel(target))) return ThinkFanResult::invalid;
+bool restoreThinkFanSelector(ThinkFanState &state, Read read, Write write) {
+    if (!state.selectorRestorePending) return true;
+    unsigned char current = 0;
+    if (!read(0x31, current)) return false;
+    if ((current & 1) != state.originalSelector) {
+        // Preserve unrelated EC bits that firmware may have changed meanwhile.
+        if (!write(0x31, (current & 0xfe) | state.originalSelector) ||
+            !read(0x31, current) || (current & 1) != state.originalSelector) return false;
+    }
+    state.selectorRestorePending = false;
+    return true;
+}
+
+template <typename Read, typename Write>
+ThinkFanResult transactThinkFan(unsigned fan, unsigned target, unsigned char output[3],
+                               bool hasSelector, ThinkFanState &state, Read read, Write write) {
+    if (!output || fan > 1 || (fan && !hasSelector) ||
+        (target != 0x100 && !validThinkFanLevel(target))) return ThinkFanResult::invalid;
+    const bool automatic = target == 0x80 || target == 0x84;
+    if (state.selectorRestorePending && (!automatic || !restoreThinkFanSelector(state, read, write)))
+        return ThinkFanResult::restoreFailed;
     unsigned char original = 0;
-    if (!read(0x31, original)) return ThinkFanResult::transportFailed;
+    if (hasSelector && !read(0x31, original)) return ThinkFanResult::transportFailed;
     const unsigned char selected = (original & 0xfe) | fan;
-    const bool changed = selected != original;
-    bool valid = !changed || write(0x31, selected);
-    if (valid && target != 0x100) valid = write(0x2f, static_cast<unsigned char>(target));
+    const bool changed = hasSelector && selected != original;
+    bool valid = true;
+    if (changed) {
+        state.originalSelector = original & 1;
+        state.selectorRestorePending = true;
+        valid = write(0x31, selected);
+        unsigned char actual = 0;
+        if (valid) valid = read(0x31, actual) && (actual & 1) == fan;
+    }
+    if (valid && target != 0x100) {
+        // A failed transport can still have applied the manual setting.
+        state.modifiedMask |= 1U << fan;
+        valid = write(0x2f, static_cast<unsigned char>(target));
+    }
     unsigned char sample[3] {};
     if (valid) valid = read(0x84, sample[0]);
     if (valid) valid = read(0x85, sample[1]);
     if (valid) valid = read(0x2f, sample[2]);
-    if (changed && !write(0x31, original)) return ThinkFanResult::restoreFailed;
+    if (!restoreThinkFanSelector(state, read, write)) return ThinkFanResult::restoreFailed;
     if (!valid) return ThinkFanResult::transportFailed;
-    if (sample[0] == 0xff && sample[1] == 0xff) return ThinkFanResult::unavailable;
+    // 0xffff means unavailable RPM, not an unsuccessful control transaction.
+    if ((sample[2] & 0x38) || (sample[2] & 0xc0) == 0xc0) return ThinkFanResult::readbackMismatch;
     if (target != 0x100) {
         const bool confirmed = target == 0x47 ? (sample[2] & 0x40) != 0 :
             (target == 0x80 || target == 0x84) ? (sample[2] & 0x80) != 0 : sample[2] == target;
         if (!confirmed) return ThinkFanResult::readbackMismatch;
     }
+    if (automatic) state.modifiedMask &= ~(1U << fan);
     for (unsigned i = 0; i < 3; ++i) output[i] = sample[i];
     return ThinkFanResult::ok;
 }
