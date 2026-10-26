@@ -207,6 +207,40 @@ struct LaptopIdentity {
         return String(data: data, encoding: .utf8)?.replacingOccurrences(of: "\0", with: " ")
     }
 
+    static func parseSMBIOS(data: Data) -> [String] {
+        guard data.count >= 4 else { return [] }
+        let bytes = [UInt8](data)
+        var result: [String] = []
+        var offset = 0
+        while offset + 4 <= bytes.count {
+            if bytes[offset] == 127 { break }
+            let length = Int(bytes[offset + 1])
+            if length < 4 || offset + length > bytes.count { break }
+            var stringOffset = offset + length
+            while stringOffset < bytes.count {
+                if bytes[stringOffset] == 0 {
+                    if stringOffset == offset + length {
+                        stringOffset += (stringOffset + 1 < bytes.count && bytes[stringOffset + 1] == 0) ? 2 : 1
+                    } else {
+                        stringOffset += 1
+                    }
+                    break
+                }
+                var end = stringOffset
+                while end < bytes.count && bytes[end] != 0 { end += 1 }
+                if let str = String(bytes: bytes[stringOffset..<end], encoding: .utf8) ??
+                             String(bytes: bytes[stringOffset..<end], encoding: .ascii) {
+                    let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty { result.append(trimmed) }
+                }
+                stringOffset = end + 1
+            }
+            guard stringOffset > offset else { break }
+            offset = stringOffset
+        }
+        return result
+    }
+
     static func read() -> LaptopIdentity {
         var strings: [String] = []
         var pciIDs = Set<String>()
@@ -309,7 +343,6 @@ struct HardwareProfiles {
         let handle = try FileHandle(forReadingFrom: input)
         defer { try? handle.close() }
         var data = Data()
-        // Bound the actual read too: the file may grow after the metadata check.
         while let chunk = try handle.read(upToCount: min(65536, maxDSDTFileSize + 1 - data.count)), !chunk.isEmpty {
             data.append(chunk)
             guard data.count <= maxDSDTFileSize else { throw SupportError.message("DSDT source exceeds the supported size") }
