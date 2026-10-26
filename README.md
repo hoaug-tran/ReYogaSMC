@@ -139,6 +139,24 @@ Known limits:
 - Some X1 Carbon Gen 6 firmware rejects Quiet. Older MMC firmware may hide its active profile during lap mode; polling does not change lap mode to reveal it.
 - A missing firmware interface cannot be supplied by reusing another laptop's register offsets. Removing the DYTC event feedback path does not establish the cause of a graphics panic.
 
+### ACPI patches and SSDT samples
+
+Sample patches live in [`ReYogaSMC/SSDTSample/`](ReYogaSMC/SSDTSample/). Most models do not need them, but specific hardware features require ACPI methods that OEM firmware leaves out:
+
+| SSDT | Target machines | Why it is needed |
+| :--- | :--- | :--- |
+| [`SSDT-ThinkPad.dsl`](ReYogaSMC/SSDTSample/SSDT-ThinkPad.dsl) | ThinkPad | Recommended all-in-one patch. Combines `RE1B`/`WE1B` EC read/write methods for fan control, `LNUX`/`WNTF` OS flags, `_SI._SST` LED proxy, and EC thermal sensor regions (`EST0`–`ESTF`). Safe on setups using `ECEnabler.kext`. |
+| [`SSDT-ECRW.dsl`](ReYogaSMC/SSDTSample/SSDT-ECRW.dsl) | ThinkPad (or any EC needing manual write) | Adds standalone `RE1B` and `WE1B` 8-bit read/write methods to the EC. Required for ThinkPad fan control (`0x2F`/`0x31` registers). Without it, the driver runs in read-only mode and fan controls stay disabled. Adjust the EC scope (`_SB.PCI0.LPCB.EC` vs `_SB.PCI0.LPCB.H_EC`) to match your DSDT and check for conflicts with existing battery patches. |
+| [`SSDT-THINK.dsl`](ReYogaSMC/SSDTSample/SSDT-THINK.dsl) | ThinkPad | Standalone sample for `LNUX`/`WNTF` OS flags, `_SI._SST` LED control via `CSSI`, and EC thermal registers (`EST0`–`ESTF`) under `ESEN`. |
+| [`SSDT-RCSM.dsl`](ReYogaSMC/SSDTSample/SSDT-RCSM.dsl) | IdeaPad / Yoga | Adds the `RCSM` method to the EC device. Needed on older IdeaPad/Yoga laptops where firmware lacks native ACPI methods for Conservation Mode and Rapid Charge. |
+| [`SSDT-WMIS.dsl`](ReYogaSMC/SSDTSample/SSDT-WMIS.dsl) | IdeaPad / Legion | Adds the `WMIS` method under `_SB.PCI0.WMID` (or `_SB.WMID`). Needed when firmware has a WMI device but does not expose standard evaluation methods for performance modes or backlight. |
+| [`SSDT-YVPC.dsl`](ReYogaSMC/SSDTSample/SSDT-YVPC.dsl) | IdeaPad / Yoga | Declares a `VPC2004` device under `_SB.PCI0.LPCB`. Needed if DSDT lacks the `VPC2004` ACPI device entirely, which prevents `IdeaVPC` from attaching. |
+
+> [!NOTE]
+> - **IdeaPad and Legion:** If your model has a reviewed profile in `HardwareProfiles/`, the companion app exports a tailored `SSDT-ReYoga` bridge directly (**Diagnostics → Generate ACPI bridge…**).
+> - **ThinkPad:** The companion app detects your machine's exact ACPI EC path and exports an all-in-one `SSDT-ThinkPad` directly (**Diagnostics → Generate ThinkPad SSDT…**). This SSDT is optional: load it only if you want manual or full-speed fan control, or if your DSDT drops EC thermal sensors. Do not load it if your EFI already uses a legacy DSDT battery patch containing `RE1B`/`WE1B`.
+
+
 <details>
 <summary>Temperature sources and optional sensor plugins</summary>
 
@@ -199,9 +217,9 @@ See [compatibility](Docs/compatibility.md#readings-and-unavailable-controls) for
 <details>
 <summary>ThinkPad fan control and ACPI bridge generation</summary>
 
-- ThinkPad laptops do not use `HardwareProfiles/*.json` or `SSDT-ReYoga` bridges. The app hides **Generate ACPI bridge** when connected to ThinkVPC.
-- ThinkPad fan speeds and manual levels (`Auto`, `Full Speed`, and levels `1`–`7`) are controlled in **Cooling → ThinkPad Fans** through the `ThinkFanProtocolVersion = 1` user client (`kRYSMCUCThinkFan`), which requires a `PNP0C09` EC device with `RW` access.
-- If EC access is Basic or RO, check the real EC path and the `RE1B`/`WE1B` methods. Adapt [SSDT-ECRW.dsl](ReYogaSMC/SSDTSample/SSDT-ECRW.dsl) only after checking existing battery patches for field/method conflicts. ECEnabler alone does not add these methods.
+- ThinkPad laptops do not use `HardwareProfiles/*.json` or `SSDT-ReYoga` bridges. When connected to ThinkVPC, the app provides **Generate ThinkPad SSDT…** in Diagnostics to export an all-in-one patch matched to your machine's EC path instead.
+- ThinkPad fan speeds and manual levels (`Auto`, `Full Speed`, and levels `1`–`7`) are controlled in **Cooling → ThinkPad Fans** through `ThinkFanProtocolVersion = 1` user client (`kRYSMCUCThinkFan`), which requires a `PNP0C09` EC device with `RW` access.
+- If EC access is Basic or RO, check the real EC path and the `RE1B`/`WE1B` methods. You can export `SSDT-ThinkPad.dsl` directly from the app or adapt [SSDT-ThinkPad.dsl](ReYogaSMC/SSDTSample/SSDT-ThinkPad.dsl) after checking existing battery patches for field/method conflicts. ECEnabler alone does not add these methods.
 - On dual-fan ThinkPads, the driver writes EC register `0x31` to select the second fan and restores `0x31` before finishing. If restoring `0x31` fails during a transaction, the driver sets `ThinkFanAccessFailed = true` and disables further fan access until reboot so later EC reads cannot hit the wrong bank.
 
 </details>
