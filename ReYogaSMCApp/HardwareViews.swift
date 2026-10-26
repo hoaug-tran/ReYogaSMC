@@ -927,7 +927,9 @@ public struct HardwareControlsView: View {
                         .font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
                 }.padding(12).background(AppTheme.surface).cornerRadius(10)
             }
+        }
     }
+
     private func coolingReason(_ title: String, reason: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(localizedMessage(title)).font(.system(size: 11, weight: .semibold))

@@ -214,8 +214,10 @@ struct LaptopIdentity {
         var offset = 0
         while offset + 4 <= bytes.count {
             if bytes[offset] == 127 { break }
+            let structureType = bytes[offset]
             let length = Int(bytes[offset + 1])
             if length < 4 || offset + length > bytes.count { break }
+            var strings: [String] = []
             var stringOffset = offset + length
             while stringOffset < bytes.count {
                 if bytes[stringOffset] == 0 {
@@ -231,9 +233,24 @@ struct LaptopIdentity {
                 if let str = String(bytes: bytes[stringOffset..<end], encoding: .utf8) ??
                              String(bytes: bytes[stringOffset..<end], encoding: .ascii) {
                     let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !trimmed.isEmpty { result.append(trimmed) }
+                    strings.append(trimmed)
                 }
                 stringOffset = end + 1
+            }
+            let allowedOffsets: [Int]
+            switch structureType {
+            case 1: allowedOffsets = [0x04, 0x05, 0x06, 0x1A]
+            case 2: allowedOffsets = [0x04, 0x05, 0x06]
+            default: allowedOffsets = []
+            }
+            for fieldOffset in allowedOffsets where fieldOffset < length {
+                let strIdx = Int(bytes[offset + fieldOffset])
+                if strIdx > 0 && strIdx <= strings.count {
+                    let candidate = strings[strIdx - 1]
+                    if !candidate.isEmpty && !result.contains(candidate) {
+                        result.append(candidate)
+                    }
+                }
             }
             guard stringOffset > offset else { break }
             offset = stringOffset
