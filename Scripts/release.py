@@ -48,7 +48,8 @@ def shipped(path):
         return False
     if path.startswith(('ReYogaSMC/', 'ReYogaSMCApp/', 'ReYogaSMCUtils/', 'ReYogaSMCHelper/', 'HardwareProfiles/')):
         return True
-    return path in ('ReYoga.cmd', 'ReYoga.command', PROJECT.as_posix()) or (
+    return path in ('en.lproj/Localizable.strings', 'vi.lproj/Localizable.strings',
+                    'ReYoga.cmd', 'ReYoga.command', PROJECT.as_posix()) or (
         path.startswith('Scripts/') and pathlib.PurePosixPath(path).name not in ('release.py', 'generate_firmware_profiles.py'))
 
 

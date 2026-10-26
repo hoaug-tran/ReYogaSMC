@@ -671,3 +671,4 @@
 
 "Machine type and DSDT OEM table matched" = "Machine type and DSDT OEM table matched";
 "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC." = "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.";
+"RGB JSON exceeds 256 KiB" = "RGB JSON exceeds 256 KiB";

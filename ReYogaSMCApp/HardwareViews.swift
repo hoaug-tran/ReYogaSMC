@@ -946,8 +946,10 @@ private struct ThinkPadFanPanel: View {
                         Text(localizedMessage(readings[index])).font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
                     }
                     HStack {
-                        Button(loc(.fanAuto)) { command(index) { $0.setAutomatic() } }
+                        Button(loc(.fanAuto)) { command(index, automatic: true) { $0.setAutomatic() } }
+                            .disabled(helper(index)?.canRecoverAutomatic != true)
                         Button(loc(.fanFullSpeed)) { command(index) { $0.setFullSpeed() } }
+                            .disabled(!enabled[index])
                         Spacer()
                         Text(localizedMessage(String(format: loc(.fanLevelFormat), Int(levels[index])))).font(.caption)
                         Button(loc(.coolingApply)) {
@@ -955,7 +957,8 @@ private struct ThinkPadFanPanel: View {
                                 fan.setManualLevel(Int(levels[index]))
                             }
                         }
-                    }.disabled(!enabled[index])
+                        .disabled(!enabled[index])
+                    }
                     Slider(value: $levels[index], in: Double(helper(index)?.minimumLevel ?? 1)...7, step: 1)
                         .disabled(!enabled[index]).accessibilityLabel(localizedMessage(index == 0 ? "Main fan level" : "Secondary fan level"))
                     if !enabled[index] {
@@ -967,8 +970,9 @@ private struct ThinkPadFanPanel: View {
         }.onAppear { refresh(readLevel: true) }
             .onReceive(timer) { _ in refresh(readLevel: false) }
     }
-    private func command(_ index: Int, action: (ThinkFanHelper) -> Void) {
-        guard !CommandLine.arguments.contains("--render-ui"), let fan = helper(index), fan.enable else { return }
+    private func command(_ index: Int, automatic: Bool = false, action: (ThinkFanHelper) -> Void) {
+        guard !CommandLine.arguments.contains("--render-ui"), let fan = helper(index),
+              automatic ? fan.canRecoverAutomatic : fan.enable else { return }
         action(fan)
         refresh(readLevel: true)
     }

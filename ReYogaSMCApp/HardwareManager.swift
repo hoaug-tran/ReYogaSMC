@@ -295,6 +295,10 @@ public final class HardwareManager: ObservableObject {
                         self.publish(\.gpuTemperatureSource, self.gpuTemp > 0 ? (snapshot["SensorSources"] as? [String: String])?["GPUTemp"] ?? "Firmware GPU sensor" : "No GPU temperature source")
                     }
                     self.publish(\.gpuTemperatureReason, smcReason)
+                    if self.detailedLogging {
+                        ReYogaDiagnostics.shared.record("driver_snapshot", ["registry": snapshot,
+                            "cpuSensorReason": cpuReason, "gpuSensorReason": smcReason])
+                    }
                     self.accept(snapshot)
                 } else {
                     self.service = 0
@@ -573,10 +577,13 @@ public final class HardwareManager: ObservableObject {
         while !restoringControls.isEmpty {
             let (key, saved) = restoringControls.removeFirst()
             let profileMatches = saved.powerProfile == nil || saved.powerProfile == powerProfile
-            let rgbPreference = UserDefaults.standard.data(forKey: "AppliedRGBSettings")
-                .flatMap { try? JSONDecoder().decode(SavedRGBSettings.self, from: $0) }
+            let rgbPreference: SavedRGBSettings? = UserDefaults.standard.data(forKey: "AppliedRGBSettings")
+                .flatMap { data in
+                    guard data.count <= SavedRGBSettings.maximumSavedBytes else { return nil }
+                    return try? JSONDecoder().decode(SavedRGBSettings.self, from: data)
+                }
             let lightingOwnedByRGB = (key == "YLogoStatus" || key == "PortLighting") && rgbPreference?.isValid == true &&
-                rgbPreference?.profileID == rgbController.matchedProfileID && rgbPreference?.mode != "Factory"
+                rgbController.status.available && rgbPreference?.profileID == rgbController.matchedProfileID && rgbPreference?.mode != "Factory"
             guard featureStatus[key]?.available == true, profileMatches, !lightingOwnedByRGB else {
                 ReYogaDiagnostics.shared.record("preference_restore_skipped", ["property": key, "reason": lightingOwnedByRGB ? "USB RGB owns lighting" : !profileMatches ? "Power profile differs" : featureStatus[key]?.reason ?? "Backend unavailable"])
                 continue
@@ -773,7 +780,7 @@ public final class HardwareManager: ObservableObject {
         if handle != 0 { IOObjectRetain(handle) }
         hardwareQueue.async {
             defer { if handle != 0 { IOObjectRelease(handle) } }
-            let keys = ["Battery 0", "Battery 1", "IOClass", "SafeMode", "NativeTelemetryProfile", "NativeTelemetryReason", "FirmwareDSDTSHA256", "SensorSources", "BatteryIndex", "ChargeStartThreshold", "ChargeStopThreshold", "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask", "VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
+            let keys = ["DYTC", "Battery 0", "Battery 1", "IOClass", "SafeMode", "NativeTelemetryProfile", "NativeTelemetryReason", "FirmwareDSDTSHA256", "SensorSources", "BatteryIndex", "ChargeStartThreshold", "ChargeStopThreshold", "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask", "VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
                         "ACPIBridgeVersion", "ACPIBridgeProfile", "ACPIBridgeProfileName", "ProfileMatchState", "ProfileMatchStage", "ProfileMatchReason", "ProfileMatchProfilesChecked", "ProfileMatchOEMMatches", "FirmwareDSDTOEMTableID", "FirmwareDSDTLength", "FirmwareDSDTChecksum", "FirmwareMachineType", "FirmwareBIOSFamily", "FirmwareIdentityConflict", "ACPIBridgeReason", "ThinkFanProtocolVersion", "ThinkFanStatus", "ThinkFanAccessFailed", "CPUPowerPendingProfile", "CPUPowerRestoreReason", "FanRestoreReason", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "FanFullSpeedECResult", "FanFullSpeedCommandBackend", "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage", "SensorSampleSequence", "SensorSampleTimeMS",
                         "Fan1RPM", "Fan2RPM", "Fan1TargetRPM", "Fan2TargetRPM", "FanControlMode", "CPUTemp", "GPUTemp"]
             let snapshot: NSDictionary = handle != 0 ? getProperties(handle) ?? [:] : [:]
@@ -781,6 +788,14 @@ public final class HardwareManager: ObservableObject {
             for key in keys { if let value = snapshot[key] { driver[key] = value } }
             var report = metadata
             report["driver"] = driver
+            report["diagnosticSchemaVersion"] = 2
+            report["captureTime"] = ISO8601DateFormatter().string(from: Date())
+            report["captureUptimeSeconds"] = ProcessInfo.processInfo.systemUptime
+            report["driverConnectionPresent"] = handle != 0
+            report["driverRegistry"] = DiagnosticSnapshot.value(snapshot)
+            report["expectedDriverFieldsMissing"] = keys.filter { snapshot[$0] == nil }
+            report["collectionPolicy"] = "Passive registry snapshot; no EC sweep, MSR writes, or thermal-policy changes. Missing fields are not measured zero."
+            report["collectionLimitations"] = ["CPU package power, PL1/PL2 and hardware throttle reasons require a separate supported measurement tool", "ACPI tables can contain device identifiers; review before sharing", "No system-wide log or unrelated user preferences collected"]
             if handle != 0, snapshot["ACPIExportVersion"] as? Int == 1 {
                 let status = IORegistryEntrySetCFProperty(handle, "ExportDSDT" as CFString, kCFBooleanTrue)
                 let table = IORegistryEntryCreateCFProperty(handle, "ExportedDSDT" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Data
@@ -997,7 +1012,7 @@ public final class HardwareManager: ObservableObject {
         guard let profile = rgbController.matchedProfileID else { return }
         let colors = rgbColors.mapValues { String(format: "#%02X%02X%02X", $0.0, $0.1, $0.2) }
         let value = SavedRGBSettings(profileID: profile, mode: mode, colors: colors, logoEnabled: rgbLogoEnabled, perKey: rgbPerKey)
-        if let data = try? JSONEncoder().encode(value), value.isValid {
+        if value.isValid, let data = try? JSONEncoder().encode(value), data.count <= SavedRGBSettings.maximumSavedBytes {
             UserDefaults.standard.set(data, forKey: "AppliedRGBSettings")
             rgbRestoredProfile = profile
         }
@@ -1006,7 +1021,8 @@ public final class HardwareManager: ObservableObject {
         guard rgbStatus.available, !rgbApplying,
               let profile = rgbController.matchedProfileID, rgbRestoredProfile != profile,
               let data = UserDefaults.standard.data(forKey: "AppliedRGBSettings"),
-              let saved = try? JSONDecoder().decode(SavedRGBSettings.self, from: data), saved.isValid else { return }
+              data.count <= SavedRGBSettings.maximumSavedBytes,
+               let saved = try? JSONDecoder().decode(SavedRGBSettings.self, from: data), saved.isValid else { return }
         guard saved.profileID == profile else {
             ReYogaDiagnostics.shared.record("rgb_restore_skipped", ["reason": "Saved RGB device profile differs", "saved": saved.profileID, "current": profile])
             return
@@ -1040,7 +1056,10 @@ public final class HardwareManager: ObservableObject {
         chooser.message = localizedMessage("Select a zone/LED color map. Unknown LEDs are rejected.")
         guard chooser.runModal() == .OK, let file = chooser.url else { return }
         rgbAction("Per-key RGB") {
-            let data = try Data(contentsOf: file)
+            let handle = try FileHandle(forReadingFrom: file)
+            defer { try? handle.close() }
+            let data = try handle.read(upToCount: SavedRGBSettings.maximumImportBytes + 1) ?? Data()
+            guard data.count <= SavedRGBSettings.maximumImportBytes else { throw SupportError.message("RGB JSON exceeds 256 KiB") }
             self.stopRGBEffect()
             try self.rgbController.importColors(data)
             self.rgbPerKey = data
@@ -1153,6 +1172,7 @@ final class ReYogaDiagnostics {
     static let shared = ReYogaDiagnostics()
     let directory = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/ReYogaSMC", isDirectory: true)
     private let queue = DispatchQueue(label: "org.reyogasmc.diagnostics", qos: .utility)
+    private let sessionID = UUID().uuidString
     private let log = OSLog(subsystem: "org.reyogasmc", category: "hardware")
     func export(_ report: [String: Any], to output: URL) {
         queue.async {
@@ -1164,15 +1184,15 @@ final class ReYogaDiagnostics {
                 if let table = metadata.removeValue(forKey: "DSDT") as? Data {
                     try table.write(to: folder.appendingPathComponent("DSDT.aml"))
                 }
-                let data = try PropertyListSerialization.data(fromPropertyList: metadata, format: .xml, options: 0)
+                let data = try PropertyListSerialization.data(fromPropertyList: DiagnosticSnapshot.value(metadata), format: .xml, options: 0)
                 try data.write(to: folder.appendingPathComponent("report.plist"))
-                // Include only our bounded logs; no system-wide log collection.
                 for name in ["events.jsonl", "events.1.jsonl", "events.2.jsonl", "events.3.jsonl"] {
                     let source = self.directory.appendingPathComponent(name)
                     if FileManager.default.fileExists(atPath: source.path) {
                         try FileManager.default.copyItem(at: source, to: folder.appendingPathComponent(name))
                     }
                 }
+                try DiagnosticCollector.collect(to: folder)
                 let signingLog = folder.appendingPathComponent("signing.txt")
                 FileManager.default.createFile(atPath: signingLog.path, contents: nil)
                 let logHandle = try FileHandle(forWritingTo: signingLog)
@@ -1182,6 +1202,7 @@ final class ReYogaDiagnostics {
                 signing.arguments = ["-d", "-r-", "--verbose=4", Bundle.main.bundlePath]
                 signing.standardOutput = logHandle; signing.standardError = logHandle
                 try signing.run(); signing.waitUntilExit()
+                try String(signing.terminationStatus).write(to: folder.appendingPathComponent("signing-status.txt"), atomically: true, encoding: .utf8)
                 let temporaryArchive = folder.appendingPathExtension("zip")
                 defer { try? FileManager.default.removeItem(at: temporaryArchive) }
                 let zip = Process()
@@ -1199,6 +1220,8 @@ final class ReYogaDiagnostics {
         }
     }
     func record(_ event: String, _ details: [String: Any]) {
+        let captured = Date()
+        let uptime = ProcessInfo.processInfo.systemUptime
         os_log("%{public}@", log: log, type: .info, event)
         queue.async {
             do {
@@ -1213,8 +1236,13 @@ final class ReYogaDiagnostics {
                         if FileManager.default.fileExists(atPath: source.path) { try FileManager.default.moveItem(at: source, to: target) }
                     }
                 }
-                let record: [String: Any] = ["time": ISO8601DateFormatter().string(from: Date()), "event": event, "details": details]
+                let record: [String: Any] = ["schemaVersion": 2, "sessionID": self.sessionID, "time": ISO8601DateFormatter().string(from: captured), "uptimeSeconds": uptime, "event": event, "details": DiagnosticSnapshot.value(details)]
                 var data = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+                if data.count > 1024 * 1024 {
+                    data = try JSONSerialization.data(withJSONObject: ["event": event, "sessionID": self.sessionID,
+                        "time": ISO8601DateFormatter().string(from: captured), "uptimeSeconds": uptime,
+                        "omitted": "Event exceeds 1 MiB; export registry snapshot", "originalBytes": data.count])
+                }
                 data.append(0x0a)
                 if !FileManager.default.fileExists(atPath: file.path) { FileManager.default.createFile(atPath: file.path, contents: nil) }
                 let handle = try FileHandle(forWritingTo: file)

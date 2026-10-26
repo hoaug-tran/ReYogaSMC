@@ -213,3 +213,25 @@ if let languageRoot = ProcessInfo.processInfo.environment["REYOGA_LOCALIZATION_R
     require(rawName.contains("Off") && rawName.contains("0x1234"), "Localization altered a runtime identifier")
     print("PASS English/Vietnamese firmware reasons, runtime values and error-code formatting")
 }
+
+var oversizedRGB = savedColors
+oversizedRGB.perKey = Data(repeating: 0, count: SavedRGBSettings.maximumImportBytes + 1)
+require(!oversizedRGB.isValid, "Oversized RGB preferences accepted")
+let boundedRGBController = LegionRGBController()
+rejects("oversized RGB parser input") {
+    try boundedRGBController.importColors(Data(repeating: 0, count: SavedRGBSettings.maximumImportBytes + 1))
+}
+
+let diagnosticSanitized = DiagnosticSnapshot.value(["SerialNumber": "private", "raw": Data([1, 2]), "missing": NSNull()]) as! [String: Any]
+require(diagnosticSanitized["SerialNumber"] as? String == "redacted", "Diagnostic serial was not redacted")
+require((diagnosticSanitized["raw"] as? [String: Any])?["bytes"] as? Int == 2, "Diagnostic binary length lost")
+
+let collectorFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+try FileManager.default.createDirectory(at: collectorFolder, withIntermediateDirectories: true)
+defer { try? FileManager.default.removeItem(at: collectorFolder) }
+let collectedEcho = try DiagnosticCollector.run("/bin/echo", ["diagnostic-check"], name: "echo", folder: collectorFolder)
+require(collectedEcho["state"] as? String == "completed", "Diagnostic collector did not capture success")
+let collectedMissing = try DiagnosticCollector.run("/nonexistent/reyoga", [], name: "missing", folder: collectorFolder)
+require(collectedMissing["state"] as? String == "launch_failed", "Diagnostic launch failure was hidden")
+let collectedTimeout = try DiagnosticCollector.run("/bin/sleep", ["5"], name: "timeout", folder: collectorFolder, timeout: 0.1)
+require(collectedTimeout["state"] as? String == "timeout", "Diagnostic command timeout failed")

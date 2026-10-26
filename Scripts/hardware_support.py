@@ -34,12 +34,50 @@ def profiles():
     return result
 
 
+MAX_DSL_BYTES = 16 * 1024 * 1024
+
+
+def read_dsl(path):
+    with path.open('rb') as stream:
+        data = stream.read(MAX_DSL_BYTES + 1)
+    if len(data) > MAX_DSL_BYTES:
+        raise ValueError('DSL input exceeds 16 MiB')
+    return data.decode('utf-8', errors='replace')
+
+
 def normalized_hash(source):
-    # Preserve quoted AML strings: whitespace and comment markers inside them
-    # are firmware data, and changing them must change the fingerprint.
-    tokens = re.findall(r'"(?:\\.|[^"\\])*"|/\*.*?\*/|//[^\n]*|[^\s]', source, re.S)
-    normalized = ''.join(token for token in tokens if not token.startswith(('/*', '//')))
-    return hashlib.sha256(normalized.encode()).hexdigest()
+    if len(source) > MAX_DSL_BYTES or len(source.encode('utf-8')) > MAX_DSL_BYTES:
+        raise ValueError('DSL input exceeds 16 MiB')
+    tokens = []
+    i = 0
+    while i < len(source):
+        if source.startswith('/*', i):
+            end = source.find('*/', i + 2)
+            if end < 0:
+                raise ValueError('Unterminated DSL comment')
+            i = end + 2
+        elif source.startswith('//', i):
+            end = source.find('\n', i + 2)
+            i = len(source) if end < 0 else end
+        elif source[i] == '"':
+            start = i
+            i += 1
+            while i < len(source):
+                if source[i] == '\\':
+                    i += 2
+                elif source[i] == '"':
+                    i += 1
+                    break
+                else:
+                    i += 1
+            else:
+                raise ValueError('Unterminated DSL string')
+            tokens.append(source[start:i])
+        else:
+            if not source[i].isspace():
+                tokens.append(source[i])
+            i += 1
+    return hashlib.sha256(''.join(tokens).encode()).hexdigest()
 
 
 def match_profile(source, candidates, aml_hashes=()):
@@ -393,9 +431,17 @@ def main():
         report['acpi'].append(item)
     sources = sorted(p for p in tables.iterdir() if p.suffix.lower() == '.dsl')
     for path in sources:
-        source = path.read_text(errors='replace', encoding='utf-8')
+        source = read_dsl(path)
         report['acpi'].append({'file': path.name, 'normalized_sha256': normalized_hash(source), 'declarations': scan(source)})
-    combined = '\n'.join(p.read_text(errors='replace', encoding='utf-8') for p in sources)
+    combined_parts = []
+    combined_size = 0
+    for path in sources:
+        source = read_dsl(path)
+        combined_size += len(source.encode('utf-8')) + 1
+        if combined_size > MAX_DSL_BYTES:
+            raise ValueError('Combined DSL input exceeds 16 MiB')
+        combined_parts.append(source)
+    combined = '\n'.join(combined_parts)
     try:
         profile = match_profile(combined, profiles(), aml_hashes)
         # Hashes of individual DSL inputs must also work with a full table bundle.
@@ -403,7 +449,7 @@ def main():
         profile = None
         for path in sources:
             try:
-                profile = match_profile(path.read_text(errors='replace', encoding='utf-8'), profiles(), aml_hashes)
+                profile = match_profile(read_dsl(path), profiles(), aml_hashes)
                 break
             except ValueError:
                 pass

@@ -6,6 +6,7 @@ class ThinkFanHelper {
     let main: Bool
     let defaults = ReYogaConstants.hardwareDefaults
     var enable = false
+    var canRecoverAutomatic: Bool { connect != 0 }
 
     private(set) var level = 4
     private(set) var rpm: Int?
@@ -36,7 +37,8 @@ class ThinkFanHelper {
     }
 
     private func access(level requested: UInt64 = queryRPMLevel) -> [UInt8]? {
-        guard enable, connect != 0 else { return nil }
+        let automatic = requested == 0x80 || requested == 0x84
+        guard connect != 0, enable || automatic else { return nil }
         let input: [UInt64] = [main ? 0 : 1, requested]
         var output = [UInt8](repeating: 0, count: 3)
         var size = output.count
@@ -46,7 +48,14 @@ class ThinkFanHelper {
                                     nil, 0, nil, nil, bytes.baseAddress, &size)
             }
         }
+        if requested != Self.queryRPMLevel || status != kIOReturnSuccess || size != 3 {
+            ReYogaDiagnostics.shared.record("think_fan_access", ["fan": main ? 0 : 1, "requested": requested,
+                "transportStatus": status, "outputBytes": size, "raw": output,
+                "manualEnabledBefore": enable, "automaticRecovery": automatic,
+                "confirmed": status == kIOReturnSuccess && size == 3])
+        }
         guard status == kIOReturnSuccess, size == 3 else {
+            enable = false
             rpm = nil
             showOSDRaw(String(format: localizedMessage("ThinkPad fan access failed (0x%08x). Retry the driver connection."), status))
             return nil
@@ -63,6 +72,10 @@ class ThinkFanHelper {
             return
         }
         guard let sample = access(level: UInt64(target)) else { return }
+        if target == 0x80 || target == 0x84 {
+            guard sample[2] & 0x80 != 0 else { enable = false; rpm = nil; return }
+            enable = true
+        }
         savedLevel = target
         acceptLevel(sample[2])
     }

@@ -501,8 +501,10 @@ void ReYogaVPC::backlightRest(OSObject *owner, IOTimerEventSource *timer) {
 }
 
 bool ReYogaVPC::DYTCCommand(DYTC_CMD command, DYTC_RESULT* result, UInt8 ICFunc, UInt8 ICMode, bool ValidF) {
-    if (DYTCLock)
+    if (DYTCLock) {
+        setProperty("DYTCBusyRejected", command.raw, 32);
         return false;
+    }
 
     DYTCLock = true;
     if (command.raw == DYTC_CMD_SET) {
@@ -511,7 +513,23 @@ bool ReYogaVPC::DYTCCommand(DYTC_CMD command, DYTC_RESULT* result, UInt8 ICFunc,
         command.validF = ValidF;
     }
 
-    if (evaluateIntegerParam(setThermalControl, &(result->raw), command.raw) != kIOReturnSuccess) {
+    result->raw = 0;
+    const IOReturn transport = evaluateIntegerParam(setThermalControl, &(result->raw), command.raw);
+    auto diagnostic = OSDictionary::withCapacity(8);
+    if (diagnostic) {
+        setPropertyNumber(diagnostic, "CommandRaw", command.raw, 32);
+        setPropertyNumber(diagnostic, "TransportStatus", transport, 32);
+        setPropertyNumber(diagnostic, "ResultRaw", result->raw, 32);
+        diagnostic->setObject("ResultValid", transport == kIOReturnSuccess ? kOSBooleanTrue : kOSBooleanFalse);
+        if (transport == kIOReturnSuccess) setPropertyNumber(diagnostic, "FirmwareError", result->errorcode, 8);
+        setPropertyNumber(diagnostic, "Revision", DYTCRevision, 8);
+        setPropertyNumber(diagnostic, "Capabilities", DYTCCap, 16);
+        setProperty("LastDYTCCommand", diagnostic);
+        if (command.command == DYTC_CMD_SET || command.command == DYTC_CMD_RESET)
+            setProperty("LastDYTCMutation", diagnostic);
+        diagnostic->release();
+    }
+    if (transport != kIOReturnSuccess) {
         AlwaysLog(toggleFailure, DYTCPrompt);
         DYTCLock = false;
         return false;
