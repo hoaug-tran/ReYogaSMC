@@ -235,3 +235,5 @@ let collectedMissing = try DiagnosticCollector.run("/nonexistent/reyoga", [], na
 require(collectedMissing["state"] as? String == "launch_failed", "Diagnostic launch failure was hidden")
 let collectedTimeout = try DiagnosticCollector.run("/bin/sleep", ["5"], name: "timeout", folder: collectorFolder, timeout: 0.1)
 require(collectedTimeout["state"] as? String == "timeout", "Diagnostic command timeout failed")
+let nestedDiagnostic = DiagnosticSnapshot.value(["items": [["SerialNumber": "private"]]]) as! [String: Any]
+require((nestedDiagnostic["items"] as? [[String: Any]])?.first?["SerialNumber"] as? String == "redacted", "Nested diagnostic recursion failed")

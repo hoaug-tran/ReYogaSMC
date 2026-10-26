@@ -1011,11 +1011,11 @@ enum DiagnosticSnapshot {
                 if name == "ExportedDSDT" { continue }
                 if name.localizedCaseInsensitiveContains("serial") || name == "IOPlatformUUID" {
                     result[name] = "redacted"
-                } else { result[name] = value(item) }
+                } else { result[name] = Self.value(item) }
             }
             return result
         }
-        if let array = value as? [Any] { return array.map(value) }
+        if let array = value as? [Any] { return array.map(Self.value) }
         if value is String || value is NSNumber { return value }
         return ["unsupportedType": String(describing: type(of: value))]
     }
