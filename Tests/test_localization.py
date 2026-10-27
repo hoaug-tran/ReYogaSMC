@@ -44,7 +44,7 @@ class LocalizationTests(unittest.TestCase):
 
     def test_literal_app_message_templates_exist_in_both_catalogs(self):
         keys = set(dict(catalog('en')))
-        for path in (ROOT / 'ReYogaSMCApp').glob('*.swift'):
+        for path in list((ROOT / 'ReYogaSMCApp').glob('*.swift')) + list((ROOT / 'ReYogaSMCUtils').glob('*.swift')):
             for raw in re.findall(r'localizedMessage\("((?:\\.|[^"\\])*)"', path.read_text(encoding='utf-8')):
                 if '\\(' in raw:
                     continue  # composed numbers, identifiers, and existing localized labels
@@ -52,6 +52,15 @@ class LocalizationTests(unittest.TestCase):
                 if not re.search(r'[A-Za-z]{2,} ', value) and not re.search(r' [A-Za-z]{2,}', value):
                     continue
                 self.assertIn(value, keys, f'{path.name}: missing message template')
+
+    def test_osd_and_async_acpi_completion_messages_are_translated(self):
+        keys = set(dict(catalog('en')))
+        paths = list((ROOT / 'ReYogaSMCApp').glob('*.swift')) + list((ROOT / 'ReYogaSMCUtils').glob('*.swift'))
+        for path in paths:
+            source = path.read_text(encoding='utf-8')
+            for raw in re.findall(r'(?:showOSDRaw|completion)\("((?:\\.|[^"\\])*)"', source):
+                if '\\(' not in raw and raw:
+                    self.assertIn(json.loads('"' + raw + '"'), keys, f'{path.name}: raw display message missing from catalogs')
 
     def test_builtin_event_and_legacy_osd_keys_are_localized(self):
         keys = set(dict(catalog('en')))

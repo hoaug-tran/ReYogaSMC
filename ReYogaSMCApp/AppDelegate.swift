@@ -26,6 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var driverPort: IONotificationPortRef?
     private var driverInterest: io_object_t = 0
     private var thinkWakeObserver: NSObjectProtocol?
+    private var thinkSleepObserver: NSObjectProtocol?
     var hide = false
 
     // MARK: - CapsLock
@@ -50,11 +51,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         micMuteLEDHelper(conf.service)
         if defaults.bool(forKey: "ThinkMuteLEDFixup") { muteLEDHelper(conf.service) }
 
-        if fanHelper2 != nil {
-            fanHelper2?.setFanLevel()
-        }
-        if fanHelper != nil {
-            fanHelper?.setFanLevel()
+        for fan in [fanHelper, fanHelper2].compactMap({ $0 }) {
+            if fan.curveEnabled { fan.stopCurve(reason: "wake_requires_restart") }
+            else { fan.setFanLevel() }
         }
     }
 
@@ -201,6 +200,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func closeDriverConnection() {
+        fanHelper?.stopCurve(reason: "connection_closed"); fanHelper2?.stopCurve(reason: "connection_closed")
         if driverInterest != 0 { IOObjectRelease(driverInterest); driverInterest = 0 }
         if let port = driverPort { IONotificationPortDestroy(port); driverPort = nil }
         if let source = conf.notificationSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
@@ -209,6 +209,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         fanHelper = nil; fanHelper2 = nil
         if let observer = thinkWakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
         thinkWakeObserver = nil
+        if let observer = thinkSleepObserver { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        thinkSleepObserver = nil
         NotificationCenter.default.removeObserver(self, name: VolumeObserver.volumeChanged, object: nil)
         DistributedNotificationCenter.default.removeObserver(self, name: NSNotification.Name("com.apple.sound.settingsChangedNotification"), object: nil)
         if conf.connect != 0 {
@@ -415,6 +417,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             thinkWakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.thinkWakeup() }
+            thinkSleepObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+                self?.fanHelper?.stopCurve(reason: "system_sleep")
+                self?.fanHelper2?.stopCurve(reason: "system_sleep")
+            }
 
             if defaults.bool(forKey: "ThinkMuteLEDFixup") {
                 NotificationCenter.default.addObserver(
@@ -497,10 +503,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if defaults.bool(forKey: "SaveFanLevel") {
             if fanHelper2 != nil {
-                defaults.setValue(fanHelper2?.savedLevel, forKey: "Fan2Level")
+                defaults.setValue(fanHelper2?.persistedLevel, forKey: "Fan2Level")
             }
             if fanHelper != nil {
-                defaults.setValue(fanHelper?.savedLevel, forKey: "FanLevel")
+                defaults.setValue(fanHelper?.persistedLevel, forKey: "FanLevel")
             }
         }
 

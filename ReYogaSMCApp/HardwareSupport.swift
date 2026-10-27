@@ -484,39 +484,150 @@ struct HardwareProfiles {
         }) else { return nil }
         return "\\" + components.joined(separator: ".")
     }
-    static func renderThinkPadSSDT(ecPath: String, hkeyPath: String) throws -> String {
-        guard let ecPath = acpiNamespacePath(ecPath), let hkeyPath = acpiNamespacePath(hkeyPath) else {
-            throw SupportError.message("The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT.")
+    static func captureThinkPadACPI(service: io_service_t) throws -> (tables: [Data], evidence: [String: Any]) {
+        guard getNumber("ThinkPadACPIAnalysisVersion", service) == 1 else {
+            throw SupportError.message("Update the driver to capture the running ACPI tables and namespace evidence.")
         }
-        let directory = HardwareProfiles.directory ?? URL(fileURLWithPath: "HardwareProfiles")
-        let templateURL = directory.appendingPathComponent("SSDT-ThinkPad.template.dsl")
-        guard let source = try? String(contentsOf: templateURL, encoding: .utf8) else {
-            throw SupportError.message("ACPI template SSDT-ThinkPad.template.dsl not found")
+        let status = IORegistryEntrySetCFProperty(service, "ExportACPITables" as CFString, kCFBooleanTrue)
+        defer {
+            let cleanup = IORegistryEntrySetCFProperty(service, "ExportACPITables" as CFString, kCFBooleanFalse)
+            if cleanup != kIOReturnSuccess { ReYogaDiagnostics.shared.record("acpi_capture_cleanup_failed", ["status": cleanup]) }
         }
-        return source
-            .replacingOccurrences(of: "{{ EC_PATH }}", with: ecPath)
-            .replacingOccurrences(of: "{{ HKEY_PATH }}", with: hkeyPath)
+        guard status == kIOReturnSuccess,
+              let tables = IORegistryEntryCreateCFProperty(service, "ExportedACPITables" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? [Data],
+              let evidence = IORegistryEntryCreateCFProperty(service, "ThinkPadACPIEvidence" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? [String: Any] else {
+            ReYogaDiagnostics.shared.record("acpi_capture_failed", ["transportStatus": status,
+                "driverStatus": getNumber("ACPIExportStatus", service), "safeMode": getBoolean("SafeMode", service)])
+            throw SupportError.message("ACPI capture failed. Check driver permissions, Safe Mode and ACPIExportStatus.")
+        }
+        try ThinkPadACPI.validateTables(tables)
+        return (tables, evidence)
     }
-    static func exportThinkPadSSDT(ecPath: String, hkeyPath: String) {
+    static func acpiDigest(_ data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+    static func exportThinkPadSSDT(service: io_service_t, completion: @escaping (String) -> Void) {
         let save = NSSavePanel()
         save.allowedFileTypes = ["dsl"]
         save.nameFieldStringValue = "SSDT-ThinkPad.dsl"
-        save.message = localizedMessage("Save the all-in-one ThinkPad ACPI patch source. If iasl is installed, it will be compiled automatically.")
-        guard save.runModal() == .OK, let output = save.url else { return }
+        save.message = localizedMessage("Analyze running ACPI tables and save only missing ThinkPad helpers. Requires iasl. Keep existing EC and battery patches.")
+        guard save.runModal() == .OK, let output = save.url else { completion(""); return }
+        IOObjectRetain(service)
         DispatchQueue.global(qos: .utility).async {
+            defer { IOObjectRelease(service) }
+            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ReYogaACPI-" + UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: folder) }
+            var report: [String: Any] = ["schemaVersion": 1, "stage": "capture"]
+            let reportURL = output.deletingPathExtension().appendingPathExtension("analysis.json")
             do {
-                let source = try renderThinkPadSSDT(ecPath: ecPath, hkeyPath: hkeyPath)
-                try source.write(to: output, atomically: true, encoding: .utf8)
-                var result = "ThinkPad ACPI source saved. Install iasl to compile it."
-                let compiled = try compileSSDT(output)
-                if compiled {
-                    result = "SSDT compiled — review it and add it to OpenCore before rebooting"
+                guard let compiler = compiler() else { throw SupportError.message("Install iasl or set IASLPath before analyzing ThinkPad ACPI.") }
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                let captured = try captureThinkPadACPI(service: service)
+                guard let ec = captured.evidence["ECPath"] as? String, let hkey = captured.evidence["HKEYPath"] as? String,
+                      let ecPath = acpiNamespacePath(ec), let hkeyPath = acpiNamespacePath(hkey) else {
+                    throw SupportError.message("The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT.")
                 }
-                ReYogaDiagnostics.shared.record("thinkpad_acpi_generated", ["ecPath": ecPath, "compiled": compiled])
-                DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([output]); showOSDRaw(result, duration: 3000) }
+                report["liveEvidence"] = captured.evidence
+                report["tables"] = captured.tables.enumerated().map { ["index": $0.offset, "sha256": acpiDigest($0.element), "bytes": $0.element.count] }
+                var inputs: [String] = []
+                for (index, table) in captured.tables.enumerated() {
+                    let input = folder.appendingPathComponent(String(format: "table-%03d.aml", index))
+                    try table.write(to: input); inputs.append(input.path)
+                }
+                report["stage"] = "disassembly"
+                var namespace = ThinkPadACPI(), totalSource = 0
+                var disassemblies: [[String: Any]] = []
+                let disassemblyStarted = ProcessInfo.processInfo.systemUptime
+                for (index, input) in inputs.enumerated() {
+                    let remaining = 60 - (ProcessInfo.processInfo.systemUptime - disassemblyStarted)
+                    guard remaining > 0 else { throw SupportError.message("ACPI disassembly failed or timed out. Review the analysis report.") }
+                    let context = inputs.filter { $0 != input }
+                    let arguments = ["-dl"] + (context.isEmpty ? [] : ["-e"] + context) + ["-d", input]
+                    let name = String(format: "disassembly-%03d", index)
+                    var disassembly = try DiagnosticCollector.run(compiler.path, arguments,
+                        name: name, folder: folder, timeout: min(15, remaining), maximumBytes: 256 * 1024)
+                    disassembly["stdoutText"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".txt"), encoding: .utf8)) ?? ""
+                    disassembly["stderrText"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".stderr.txt"), encoding: .utf8)) ?? ""
+                    disassemblies.append(disassembly); report["disassembly"] = disassemblies
+                    guard disassembly["state"] as? String == "completed" else { throw SupportError.message("ACPI disassembly failed or timed out. Review the analysis report.") }
+                    let source = try readDSDTSource(URL(fileURLWithPath: input).deletingPathExtension().appendingPathExtension("dsl"))
+                    totalSource += source.utf8.count
+                    guard totalSource <= 64 * 1024 * 1024 else { throw SupportError.message("Combined ACPI source exceeds the analysis limit") }
+                    try namespace.add(source, table: URL(fileURLWithPath: input).lastPathComponent)
+                }
+                report["stage"] = "namespace"
+                report["namespace"] = namespace.objects.map { ["path": "\\" + $0.path, "kind": $0.kind,
+                    "table": $0.table, "line": $0.line, "arguments": $0.arguments ?? -1] }
+                let template = try String(contentsOf: (HardwareProfiles.directory ?? URL(fileURLWithPath: "HardwareProfiles"))
+                    .appendingPathComponent("SSDT-ThinkPad.template.dsl"), encoding: .utf8)
+                let live = captured.evidence.compactMapValues { $0 as? Bool }
+                let protocolLayout = captured.evidence.compactMapValues { $0 as? Int }
+                let plan = try namespace.plan(ecPath: ecPath, hkeyPath: hkeyPath, live: live, protocolLayout: protocolLayout, template: template)
+                report.merge(plan.report) { _, new in new }
+                let sourceURL = folder.appendingPathComponent("SSDT-ThinkPad.dsl")
+                try plan.source.write(to: sourceURL, atomically: true, encoding: .utf8)
+                report["stage"] = "compile"
+                let compilation = try DiagnosticCollector.run(compiler.path, ["-tc", sourceURL.path], name: "compile", folder: folder, timeout: 30)
+                report["compilation"] = compilation
+                for name in ["compile", "disassembly"] {
+                    for suffix in [".txt", ".stderr.txt"] {
+                        let file = folder.appendingPathComponent(name + suffix)
+                        report[name + suffix] = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
+                    }
+                }
+                guard compilation["state"] as? String == "completed" else { throw SupportError.message("SSDT compilation failed. Review the analysis report.") }
+                let aml = try Data(contentsOf: sourceURL.deletingPathExtension().appendingPathExtension("aml"))
+                try ThinkPadACPI.validateTables([captured.tables[0], aml])
+                report["stage"] = "compiled_not_installed"
+                report["generatedSHA256"] = acpiDigest(aml)
+                report["normalizedSHA256"] = acpiDigest(ThinkPadACPI.normalizedAML(aml))
+                try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: reportURL, options: .atomic)
+                try plan.source.write(to: output, atomically: true, encoding: .utf8)
+                try aml.write(to: output.deletingPathExtension().appendingPathExtension("aml"), options: .atomic)
+                ReYogaConstants.hardwareDefaults.set(["amlSHA256": acpiDigest(aml), "normalizedSHA256": acpiDigest(ThinkPadACPI.normalizedAML(aml)), "helpers": plan.report["added"] ?? []],
+                    forKey: "ThinkPadACPI." + acpiDigest(captured.tables[0]))
+                ReYogaDiagnostics.shared.record("thinkpad_acpi_generated", report)
+                DispatchQueue.main.async {
+                    NSWorkspace.shared.activateFileViewerSelecting([output, reportURL])
+                    completion("SSDT compiled. Review the analysis, install in OpenCore, reboot, then verify.")
+                }
             } catch {
-                ReYogaDiagnostics.shared.record("thinkpad_acpi_generation_failed", ["error": error.localizedDescription])
-                DispatchQueue.main.async { showOSDRaw(error.localizedDescription, duration: 3500) }
+                report["error"] = error.localizedDescription
+                for name in ["compile", "disassembly"] {
+                    report[name + "Log"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".stderr.txt"), encoding: .utf8)) ?? ""
+                    report[name + "Output"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".txt"), encoding: .utf8)) ?? ""
+                }
+                try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: reportURL, options: .atomic)
+                ReYogaDiagnostics.shared.record("thinkpad_acpi_generation_failed", report)
+                DispatchQueue.main.async { completion(error.localizedDescription) }
+            }
+        }
+    }
+    static func verifyThinkPadSSDT(service: io_service_t, completion: @escaping (String) -> Void) {
+        IOObjectRetain(service)
+        DispatchQueue.global(qos: .utility).async {
+            defer { IOObjectRelease(service) }
+            do {
+                let captured = try captureThinkPadACPI(service: service)
+                let expected = ReYogaConstants.hardwareDefaults.dictionary(forKey: "ThinkPadACPI." + acpiDigest(captured.tables[0]))
+                let hashes = captured.tables.dropFirst().map { acpiDigest(ThinkPadACPI.normalizedAML($0)) }
+                try ThinkPadACPI.verify(expectedDigest: expected?["normalizedSHA256"] as? String, loadedDigests: hashes, live: captured.evidence)
+                let refresh = IORegistryEntrySetCFProperty(service, "UpdateFans" as CFString, kCFBooleanTrue)
+                guard refresh == kIOReturnSuccess else {
+                    ReYogaDiagnostics.shared.record("acpi_verification_readback_denied", ["transportStatus": refresh])
+                    throw SupportError.message("SSDT helpers are loaded but fan readback is unavailable. Export diagnostics and inspect ThinkFanStatus.")
+                }
+                let telemetry = IORegistryEntryCreateCFProperty(service, "ThinkFanTelemetry" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? [String: Any]
+                guard let sample = ThinkFanSnapshot(telemetry), sample.isCurrent(at: ProcessInfo.processInfo.systemUptime, after: 0),
+                      sample.main.control != nil, sample.main.rpm != nil else {
+                    throw SupportError.message("SSDT helpers are loaded but fan readback is unavailable. Export diagnostics and inspect ThinkFanStatus.")
+                }
+                ReYogaDiagnostics.shared.record("thinkpad_acpi_verified", ["expected": expected ?? [:], "evidence": captured.evidence,
+                    "fanControl": sample.main.control ?? 0xff, "rpm": sample.main.rpm ?? -1])
+                DispatchQueue.main.async { completion("SSDT loaded, EC helpers and fan readback confirmed. Fan writes still require a hardware test.") }
+            } catch {
+                ReYogaDiagnostics.shared.record("thinkpad_acpi_verification_failed", ["error": error.localizedDescription])
+                DispatchQueue.main.async { completion(error.localizedDescription) }
             }
         }
     }

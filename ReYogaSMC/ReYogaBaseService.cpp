@@ -167,8 +167,14 @@ bool ReYogaBaseService::findPNP(const char *id, IOACPIPlatformDevice **dev) {
             while (auto entry = iterator->getNextObject()) {
                 if (entry->compareName(pnp, nullptr)) {
                     DebugLog("found %s at %s", id, entry->getName());
-                    if ((*dev = OSDynamicCast(IOACPIPlatformDevice, entry)))
-                        break;
+                    if (auto candidate = OSDynamicCast(IOACPIPlatformDevice, entry)) {
+                        if (*dev) {
+                            AlwaysLog("Ambiguous %s devices; refusing an arbitrary EC selection", id);
+                            *dev = nullptr;
+                            break;
+                        }
+                        *dev = candidate;
+                    }
                 }
             }
             iterator->release();

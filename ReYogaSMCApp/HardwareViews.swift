@@ -128,7 +128,7 @@ private struct ProfileSelector: View {
                     .accessibilityValue(localizedMessage(manager.powerProfile == mode.0 ? "Selected" : "Not selected"))
             }
         }
-            .disabled(!manager.hasPowerProfiles || manager.applyingControl == "SmartFanMode")
+            .disabled(!manager.powerProfilesReady || manager.applyingControl == "SmartFanMode")
     }
     private func background(_ mode: Int) -> some View {
         RoundedRectangle(cornerRadius: 10)
@@ -483,7 +483,17 @@ public struct HardwareControlsView: View {
                     }.font(.system(size: 10)).foregroundColor(.secondary)
                 }
             }
-            if manager.hasPowerProfiles { profile }
+            if manager.hasPowerProfiles {
+                profile
+                if !manager.powerProfileError.isEmpty {
+                    Text(localizedMessage(manager.powerProfileError)).font(.caption).foregroundColor(.orange)
+                }
+                if !manager.powerProfilesReady || manager.powerProfile == 0 || !manager.powerProfileError.isEmpty {
+                    Text(localizedMessage("Power profile readback unavailable. Refresh to retry."))
+                        .font(.caption).foregroundColor(.secondary)
+                    Button(localizedMessage("Retry")) { manager.refreshAll() }
+                }
+            }
         }
     }
     private var diagnosticsPage: some View {
@@ -548,10 +558,19 @@ public struct HardwareControlsView: View {
                             .font(.system(size: 11)).foregroundColor(.secondary)
                     }
                     if manager.isThinkPadDevice {
+                        HStack {
+                            Button(localizedMessage("Verify ThinkPad SSDT")) { manager.verifyThinkPadSSDT() }
+                                .disabled(!manager.canGenerateThinkPadSSDT)
+                            if manager.acpiAnalysisBusy { ProgressView() }
+                        }
+                        if !manager.acpiAnalysisStatus.isEmpty {
+                            Text(localizedMessage(manager.acpiAnalysisStatus)).font(.caption).foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                         Text(loc(.diagnosticsThinkPadSSDTDesc))
                             .font(.system(size: 11)).foregroundColor(.secondary)
-                        if !manager.canGenerateThinkPadSSDT {
-                            Text(localizedMessage("Connect a matching driver that reports the EC and HKEY ACPI paths before generating an SSDT."))
+                        if !manager.canGenerateThinkPadSSDT && !manager.acpiAnalysisBusy {
+                            Text(localizedMessage("Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off."))
                                 .font(.caption).foregroundColor(.secondary)
                         }
                     }
@@ -983,6 +1002,7 @@ private struct ThinkPadFanControl: View {
     private var title: String { fan.main ? loc(.mainFan) : loc(.secondaryFan) }
     private var mode: String {
         guard fan.enable else { return loc(.commonUnavailable) }
+        if fan.curveEnabled { return localizedMessage("Custom Curve") }
         if fan.isFullSpeed { return loc(.fanFullSpeed) }
         if fan.isAutomatic { return loc(.fanAuto) }
         return String(format: loc(.fanLevelFormat), fan.level)
@@ -1001,17 +1021,62 @@ private struct ThinkPadFanControl: View {
                 Button(loc(.fanAuto)) { command { fan.setAutomatic() } }
                     .disabled(!fan.canRecoverAutomatic)
                 Button(loc(.fanFullSpeed)) { command { fan.setFullSpeed() } }
-                    .disabled(!fan.enable)
+                    .disabled(!fan.enable || fan.curveEnabled)
                 Spacer()
                 Text(mode).font(.caption).foregroundColor(.secondary)
             }
             HStack {
                 Slider(value: $level, in: Double(fan.minimumLevel)...7, step: 1)
-                    .disabled(!fan.enable)
+                    .disabled(!fan.enable || fan.curveEnabled)
                     .accessibilityLabel(localizedMessage(fan.main ? "Main fan level" : "Secondary fan level"))
                 Text(String(format: loc(.fanLevelFormat), Int(level))).font(.caption)
                 Button(loc(.coolingApply)) { command { fan.setManualLevel(Int(level)) } }
-                    .disabled(!fan.enable)
+                    .disabled(!fan.enable || fan.curveEnabled)
+            }
+            if manager.thinkFanCurveSupported {
+                Divider()
+                Picker(localizedMessage("Fan control mode"), selection: Binding(
+                    get: { fan.curveEnabled ? 2 : fan.isAutomatic ? 0 : 1 },
+                    set: { value in
+                        if value == 2 { manager.startThinkFanCurve(fan) }
+                        else if value == 0 { command { fan.setAutomatic() } }
+                        else { command { fan.stopCurve(); fan.setManualLevel(Int(level)) } }
+                    })) {
+                    Text(localizedMessage("BIOS Auto")).tag(0)
+                    Text(localizedMessage("Manual")).tag(1)
+                    Text(localizedMessage("Custom Curve")).tag(2)
+                }.pickerStyle(SegmentedPickerStyle())
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(localizedMessage("CPU temperature curve")).font(.caption).bold()
+                    ForEach(fan.curvePoints.indices, id: \.self) { index in
+                        HStack {
+                            Stepper(value: $fan.curvePoints[index].temperature, in: 30...95) {
+                                Text("\(fan.curvePoints[index].temperature) °C").font(.caption)
+                            }
+                            Picker(localizedMessage("Fan level"), selection: $fan.curvePoints[index].level) {
+                                ForEach(1...7, id: \.self) { value in
+                                    Text(String(format: loc(.fanLevelFormat), value)).tag(value)
+                                }
+                                Text(loc(.fanFullSpeed)).tag(0x47)
+                            }
+                        }
+                    }
+                }.disabled(fan.curveEnabled)
+                if !ThinkFanCurvePolicy.valid(fan.curvePoints) {
+                    Text(localizedMessage("Use increasing temperatures and fan levels, ending in Full Speed by 95°C."))
+                        .font(.caption).foregroundColor(AppTheme.accent)
+                }
+                Text(localizedMessage("Curve is experimental. Full Speed uses disengaged mode; calibrate on your laptop. Restart after sleep or reconnect."))
+                    .font(.caption).foregroundColor(.secondary)
+                Text(localizedMessage(manager.cpuTemperatureSource) + " · " +
+                     (manager.cpuTemp > 0 ? String(format: "%.1f °C", manager.cpuTemp) : loc(.commonUnavailable)))
+                    .font(.caption).foregroundColor(.secondary)
+                if !fan.curveStatus.isEmpty {
+                    Text(localizedMessage(fan.curveStatus)).font(.caption).foregroundColor(.secondary)
+                }
+            } else {
+                Text(localizedMessage("Custom Curve requires a matching ThinkPad driver with EC write access and watchdog support. Other firmware interfaces keep their existing controls."))
+                    .font(.caption).foregroundColor(.secondary)
             }
             if !fan.enable {
                 Text(localizedMessage("Fan status is unavailable. Try Auto or reconnect the driver."))

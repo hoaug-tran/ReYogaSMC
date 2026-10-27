@@ -6,6 +6,11 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
     External (_SI_._SST, MethodObj)
     External (LNUX, IntObj)
     External (WNTF, IntObj)
+    External ({{ HKEY_PATH }}.CSSI, MethodObj, UnknownObj, {IntObj})
+    External ({{ EC_PATH }}.RE1B, MethodObj, IntObj, {IntObj})
+    External ({{ EC_PATH }}.WE1B, MethodObj, UnknownObj, {IntObj, IntObj})
+    External ({{ EC_PATH }}.RECB, MethodObj, BuffObj, {IntObj, IntObj})
+    External ({{ EC_PATH }}.WECB, MethodObj, UnknownObj, {IntObj, IntObj, BuffObj})
 
     If (_OSI ("Darwin"))
     {
@@ -18,8 +23,11 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
         {
             \WNTF = 0x01
         }
+    }
 
-        Scope ({{ HKEY_PATH }})
+    Scope ({{ HKEY_PATH }})
+    {
+        If (!CondRefOf (CSSI))
         {
             Method (CSSI, 1, NotSerialized)
             {
@@ -29,8 +37,11 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
                 }
             }
         }
+    }
 
-        Scope ({{ EC_PATH }})
+    Scope ({{ EC_PATH }})
+    {
+        If (!CondRefOf (RE1B))
         {
             Method (RE1B, 1, Serialized)
             {
@@ -42,7 +53,10 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 
                 Return (BYTE)
             }
+        }
 
+        If (!CondRefOf (WE1B))
+        {
             Method (WE1B, 2, Serialized)
             {
                 OperationRegion (ERAM, EmbeddedControl, Arg0, One)
@@ -53,30 +67,36 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 
                 BYTE = Arg1
             }
+        }
 
+        If (!CondRefOf (RECB))
+        {
             Method (RECB, 2, Serialized)
             {
                 Local0 = ((Arg1 + 0x07) >> 0x03)
-                Name (TEMP, Buffer (Local0) {})
+                Local2 = Buffer (Local0) {}
                 Local1 = Zero
                 While ((Local1 < Local0))
                 {
-                    TEMP [Local1] = RE1B ((Arg0 + Local1))
+                    Local2 [Local1] = RE1B ((Arg0 + Local1))
                     Local1++
                 }
 
-                Return (TEMP)
+                Return (Local2)
             }
+        }
 
+        If (!CondRefOf (WECB))
+        {
             Method (WECB, 3, Serialized)
             {
                 Local0 = ((Arg1 + 0x07) >> 0x03)
-                Name (TEMP, Buffer (Local0) {})
-                TEMP = Arg2
+                Local2 = Buffer (Local0) {}
+                Local2 = Arg2
                 Local1 = Zero
                 While ((Local1 < Local0))
                 {
-                    WE1B ((Arg0 + Local1), DerefOf (TEMP [Local1]))
+                    WE1B ((Arg0 + Local1), DerefOf (Local2 [Local1]))
                     Local1++
                 }
             }

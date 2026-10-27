@@ -27,6 +27,29 @@ let owner = AppDelegate()
 owner.fanHelper = fan
 NSApp.delegate = owner
 let manager = HardwareManager()
+final class ProfileStateTest {
+    var hasPowerProfiles = false
+    var powerProfilesReady = false
+    var powerProfileError = ""
+    private func publish<Value: Equatable>(_ path: ReferenceWritableKeyPath<ProfileStateTest, Value>, _ value: Value) {
+        self[keyPath: path] = value
+    }
+    func accept(_ props: NSDictionary, ready: Bool) {
+        let descriptors = props["FeatureStatus"] as? [String: [String: Any]] ?? [:]
+        func supported(_ key: String) -> Bool { ready }
+        // PROFILE_IMPLEMENTATION
+    }
+}
+let profileState = ProfileStateTest()
+let profileSupported: [String: [String: Any]] = ["SmartFanMode": ["Available": true]]
+profileState.accept(["FeatureStatus": profileSupported, "LastControlResult":
+    ["Property": "SmartFanMode", "Status": 1, "Reason": "DPTF unavailable"]], ready: false)
+precondition(profileState.hasPowerProfiles && !profileState.powerProfilesReady && profileState.powerProfileError == "DPTF unavailable",
+             "Firmware failure and missing mode must retain the profile section and error for retry")
+profileState.accept(["FeatureStatus": profileSupported, "SmartFanMode": 3], ready: true)
+precondition(profileState.hasPowerProfiles && profileState.powerProfilesReady && profileState.powerProfileError.isEmpty)
+profileState.accept([:], ready: false)
+precondition(!profileState.hasPowerProfiles && !profileState.powerProfilesReady)
 let poll: [String: Any] = ["SensorSampleTimeMS": ProcessInfo.processInfo.systemUptime * 1000,
     "Fan1": ["RPM": 7000, "Control": 0x47], "Fan2": ["RPM": 0, "Control": 0x84]]
 let beforeSharedSample = requests.count

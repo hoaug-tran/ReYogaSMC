@@ -23,6 +23,7 @@ enum {
     kRYSMCUCWriteEC,         // ScalarIStructI
     kRYSMCUCReadECName,      // ScalarIScalarO
     kRYSMCUCThinkFan,         // Two scalar inputs (fan, level or 0x100 to read), 3 output bytes.
+    kRYSMCUCThinkFanCurve,    // Watchdog-protected level 1-7 or 0x47; same output as ThinkFan.
     kRYSMCUCNumMethods
 };
 

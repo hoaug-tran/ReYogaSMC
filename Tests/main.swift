@@ -69,14 +69,15 @@ require(HardwareProfiles.acpiNamespacePath("IOACPIPlane:/_SB/PCI0@0/LPCB/EC/HKEY
 require(HardwareProfiles.acpiNamespacePath("\\_SB.PC00.LPCB.H_EC") == "\\_SB.PC00.LPCB.H_EC", "Valid non-default ACPI path was rejected")
 for invalid in ["", "\\", "\\_SB..EC", "\\_SB.EC\n", "\\_SB.BADNAME.EC", "IOACPIPlane:/_SB//EC", "IOACPIPlane:/@/EC", "IOService:/EC", "\\_SB.EC) { Name (X, 1) }"] {
     require(HardwareProfiles.acpiNamespacePath(invalid) == nil, "Invalid ACPI path was accepted: \(invalid)")
-    rejects("invalid SSDT path") { _ = try HardwareProfiles.renderThinkPadSSDT(ecPath: invalid, hkeyPath: "\\_SB.HKEY") }
 }
 do {
-    let generated = try HardwareProfiles.renderThinkPadSSDT(ecPath: "IOACPIPlane:/_SB/PC00/LPCB/H_EC", hkeyPath: "\\_SB.PC00.LPCB.H_EC.HKEY")
-    require(generated.contains("Scope (\\_SB.PC00.LPCB.H_EC)"), "Generator guessed a default EC path")
-    require(generated.contains("Scope (\\_SB.PC00.LPCB.H_EC.HKEY)"), "Generator guessed a default HKEY path")
-    require(!generated.contains("{{") && !generated.contains("EST0"), "Generator left placeholders or added unverified sensor fields")
-} catch { fatalError("ThinkPad SSDT rendering failed: \(error)") }
+    var namespace = ThinkPadACPI()
+    try namespace.add("Device (EC0) { Name (_HID, EisaId (\"PNP0C09\")) Device (HKEY) {} }", table: "test")
+    rejects("unproven EC layout") {
+        _ = try namespace.plan(ecPath: "\\EC0", hkeyPath: "\\EC0.HKEY",
+            live: Dictionary(uniqueKeysWithValues: ThinkPadACPI.helpers.keys.map { ($0, false) }), protocolLayout: [:], template: "")
+    }
+} catch { fatalError("ThinkPad namespace parsing failed: \(error)") }
 var mockSMBIOS = Data([1, 8, 0, 0, 1, 2, 0, 3])
 mockSMBIOS.append(contentsOf: "ThinkPad T480\020L5CTO1WW\0SERIAL_SECRET_123\0\0".utf8)
 require(LaptopIdentity.parseSMBIOS(data: mockSMBIOS) == ["ThinkPad T480", "20L5CTO1WW"], "SMBIOS string parsing failed")

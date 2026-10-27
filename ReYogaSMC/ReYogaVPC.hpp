@@ -230,6 +230,9 @@ protected:
      *  Backlight poller
      */
     IOTimerEventSource* backlightPoller {nullptr};
+    IOTimerEventSource* thinkFanWatchdog {nullptr};
+    ReYogaControl::ThinkFanLease thinkFanLease;
+    void expireThinkFanCurve(OSObject *owner, IOTimerEventSource *timer);
 
     /**
      *  Action for backlight poller
@@ -322,6 +325,7 @@ public:
     virtual IOReturn setPowerState(unsigned long powerState, IOService * whatDevice) APPLE_KEXT_OVERRIDE;
 
     ReYogaSMCUserClient *client {nullptr};
+    IOReturn accessThinkFanCurve(UInt32 fan, UInt32 requested, UInt8 output[3]);
     IOReturn accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]);
     IOReturn readThinkFanRPM(UInt32 fan, UInt32 &rpm, UInt8 *control = nullptr);
     void restoreThinkFans();

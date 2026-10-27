@@ -53,7 +53,7 @@ jobs:
         run: |
           mkdir -p build
           cp -R HardwareProfiles build/HardwareProfiles
-          swiftc ReYogaSMCApp/LocalizedKey.swift ReYogaSMCApp/HardwareSupport.swift ReYogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
+          swiftc -import-objc-header ReYogaSMCUtils/ReYogaSMC-Bridging-Header.h ReYogaSMCApp/LocalizedKey.swift ReYogaSMCApp/HardwareSupport.swift ReYogaSMCApp/ThinkPadACPI.swift ReYogaSMCApp/AppTheme.swift ReYogaSMCUtils/PropertyHelper.swift ReYogaSMCUtils/ThinkFanHelper.swift ReYogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
           REYOGA_LOCALIZATION_ROOT="$PWD" build/SupportTests
           clang++ -std=c++14 -fsyntax-only Tests/control_validation.cpp
       - name: Build Debug and Release

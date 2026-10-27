@@ -3,6 +3,17 @@
 #define ReYogaControlValidation_hpp
 namespace ReYogaControl {
 constexpr unsigned kThinkFanQueryRPM = 0x100;
+constexpr unsigned kThinkFanControlOffset = 0x2f;
+constexpr unsigned kThinkFanRPMOffset = 0x84;
+constexpr unsigned kThinkFanSelectorOffset = 0x31;
+// Curve writes expire independently of the user process and temperature reader.
+struct ThinkFanLease {
+    unsigned long long deadline[2] {};
+    void renew(unsigned fan, unsigned long long now) { deadline[fan] = now + 6000; }
+    void cancel(unsigned fan) { deadline[fan] = 0; }
+    bool expired(unsigned fan, unsigned long long now) const { return deadline[fan] && now >= deadline[fan]; }
+    bool active() const { return deadline[0] || deadline[1]; }
+};
 constexpr unsigned thinkFanRPM(unsigned char low, unsigned char high) {
     return static_cast<unsigned>(low) | static_cast<unsigned>(high) << 8;
 }
@@ -61,11 +72,11 @@ template <typename Read, typename Write>
 bool restoreThinkFanSelector(ThinkFanState &state, Read read, Write write) {
     if (!state.selectorRestorePending) return true;
     unsigned char current = 0;
-    if (!read(0x31, current)) return false;
+    if (!read(kThinkFanSelectorOffset, current)) return false;
     if ((current & 1) != state.originalSelector) {
         // Preserve unrelated EC bits that firmware may have changed meanwhile.
-        if (!write(0x31, (current & 0xfe) | state.originalSelector) ||
-            !read(0x31, current) || (current & 1) != state.originalSelector) return false;
+        if (!write(kThinkFanSelectorOffset, (current & 0xfe) | state.originalSelector) ||
+            !read(kThinkFanSelectorOffset, current) || (current & 1) != state.originalSelector) return false;
     }
     state.selectorRestorePending = false;
     return true;
@@ -80,26 +91,26 @@ ThinkFanResult transactThinkFan(unsigned fan, unsigned target, unsigned char out
     if (state.selectorRestorePending && (!automatic || !restoreThinkFanSelector(state, read, write)))
         return ThinkFanResult::restoreFailed;
     unsigned char original = 0;
-    if (hasSelector && !read(0x31, original)) return ThinkFanResult::transportFailed;
+    if (hasSelector && !read(kThinkFanSelectorOffset, original)) return ThinkFanResult::transportFailed;
     const unsigned char selected = (original & 0xfe) | fan;
     const bool changed = hasSelector && selected != original;
     bool valid = true;
     if (changed) {
         state.originalSelector = original & 1;
         state.selectorRestorePending = true;
-        valid = write(0x31, selected);
+        valid = write(kThinkFanSelectorOffset, selected);
         unsigned char actual = 0;
-        if (valid) valid = read(0x31, actual) && (actual & 1) == fan;
+        if (valid) valid = read(kThinkFanSelectorOffset, actual) && (actual & 1) == fan;
     }
     if (valid && target != kThinkFanQueryRPM) {
         // A failed transport can still have applied the manual setting.
         state.modifiedMask |= 1U << fan;
-        valid = write(0x2f, static_cast<unsigned char>(target));
+        valid = write(kThinkFanControlOffset, static_cast<unsigned char>(target));
     }
     unsigned char sample[3] {};
-    if (valid) valid = read(0x84, sample[0]);
-    if (valid) valid = read(0x85, sample[1]);
-    if (valid) valid = read(0x2f, sample[2]);
+    if (valid) valid = read(kThinkFanRPMOffset, sample[0]);
+    if (valid) valid = read(kThinkFanRPMOffset + 1, sample[1]);
+    if (valid) valid = read(kThinkFanControlOffset, sample[2]);
     if (!restoreThinkFanSelector(state, read, write)) return ThinkFanResult::restoreFailed;
     if (!valid) return ThinkFanResult::transportFailed;
     // 0xffff means unavailable RPM, not an unsuccessful control transaction.

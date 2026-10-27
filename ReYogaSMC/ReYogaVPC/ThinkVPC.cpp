@@ -199,6 +199,7 @@ bool ThinkVPC::setNotificationMask(UInt32 i, UInt32 all_mask, UInt32 offset, boo
 
 bool ThinkVPC::initVPC() {
     super::initVPC();
+    setProperty("ThinkPadACPIAnalysisVersion", 1, 32);
     char path[512];
     int length = sizeof(path);
     if (ec->getPath(path, &length, gIOACPIPlane)) setProperty("ACPIECPath", path);

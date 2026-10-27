@@ -142,7 +142,7 @@ class BootSafetyTests(unittest.TestCase):
         vpc = source('ReYogaSMC/ReYogaVPC.cpp')
         self.assertIn('ec->evaluateInteger("HSPD", &raw)', vpc)
         control = source('ReYogaSMC/ControlValidation.hpp')
-        self.assertIn('if (hasSelector && !read(0x31, original))', control)
+        self.assertIn('if (hasSelector && !read(kThinkFanSelectorOffset, original))', control)
         config = source('ReYogaSMCUtils/Configuration.swift')
         self.assertIn('eid == TP_HKEY_EV_SETTING.rawValue && resolvedAction == .settings', config)
         self.assertIn('resolvedAction = .systemsettings', config)

@@ -184,6 +184,17 @@ bool ReYogaVPC::initVPC() {
     if (vpc->validateObject(setThermalControl) == kIOReturnSuccess)
         initDYTC();
 
+    if (metaCast("ThinkVPC")) {
+        thinkFanWatchdog = IOTimerEventSource::timerEventSource(this,
+            OSMemberFunctionCast(IOTimerEventSource::Action, this, &ReYogaVPC::expireThinkFanCurve));
+        if (thinkFanWatchdog && workLoop->addEventSource(thinkFanWatchdog) == kIOReturnSuccess) {
+            thinkFanWatchdog->enable();
+            setProperty("ThinkFanCurveVersion", 1, 32);
+        } else {
+            OSSafeReleaseNULL(thinkFanWatchdog);
+        }
+    }
+
     backlightPoller = IOTimerEventSource::timerEventSource(this, OSMemberFunctionCast(IOTimerEventSource::Action, this, &ReYogaVPC::backlightRest));
     if (!backlightPoller ||
         workLoop->addEventSource(backlightPoller) != kIOReturnSuccess) {
@@ -199,6 +210,12 @@ bool ReYogaVPC::initVPC() {
 }
 
 bool ReYogaVPC::exitVPC() {
+    if (thinkFanWatchdog) {
+        thinkFanWatchdog->cancelTimeout();
+        thinkFanWatchdog->disable();
+        workLoop->removeEventSource(thinkFanWatchdog);
+        OSSafeReleaseNULL(thinkFanWatchdog);
+    }
     if (backlightPoller) {
         backlightPoller->disable();
         workLoop->removeEventSource(backlightPoller);
@@ -246,6 +263,46 @@ void ReYogaVPC::setPropertiesGated(OSObject* props) {
     OSDictionary* dict = OSDynamicCast(OSDictionary, props);
     if (!dict)
         return;
+    if (auto requested = OSDynamicCast(OSBoolean, dict->getObject("ExportACPITables"))) {
+        removeProperty("ExportedACPITables");
+        removeProperty("ThinkPadACPIEvidence");
+        if (!requested->getValue()) return;
+        auto tables = OSArray::withCapacity(16);
+        auto evidence = OSDictionary::withCapacity(10);
+        bool complete = tables && evidence && vpc && ec && metaCast("ThinkVPC") && getProperty("SafeMode") != kOSBooleanTrue;
+        unsigned total = 0;
+        if (complete) {
+            setPropertyNumber(evidence, "FanControlOffset", ReYogaControl::kThinkFanControlOffset, 32);
+            setPropertyNumber(evidence, "FanRPMOffset", ReYogaControl::kThinkFanRPMOffset, 32);
+            setPropertyNumber(evidence, "FanSelectorOffset", ReYogaControl::kThinkFanSelectorOffset, 32);
+            complete = getProperty("ACPIECPath") && getProperty("ACPIHKEYPath");
+        }
+        if (complete) {
+            for (unsigned index = 0; index <= 256; ++index) {
+                const OSData *table = vpc->getACPITableData(index ? "SSDT" : "DSDT", index ? index - 1 : 0);
+                if (!table) { if (!index) complete = false; break; }
+                if (index == 256 || table->getLength() < 36 || table->getLength() > 1024 * 1024 ||
+                    total + table->getLength() > 16 * 1024 * 1024) { complete = false; break; }
+                total += table->getLength();
+                if (!tables->setObject(const_cast<OSData *>(table))) { complete = false; break; }
+            }
+        }
+        if (complete) {
+            const char *helpers[] {"CSSI", "RE1B", "WE1B", "RECB", "WECB"};
+            for (unsigned i = 0; i < 5; ++i)
+                evidence->setObject(helpers[i], (i ? ec : vpc)->validateObject(helpers[i]) == kIOReturnSuccess ? kOSBooleanTrue : kOSBooleanFalse);
+            evidence->setObject("ECPath", getProperty("ACPIECPath"));
+            evidence->setObject("HKEYPath", getProperty("ACPIHKEYPath"));
+            if (auto capability = getProperty("EC Capability")) evidence->setObject("ECCapability", capability);
+            setProperty("ExportedACPITables", tables);
+            setProperty("ThinkPadACPIEvidence", evidence);
+        }
+        setProperty("ACPIExportStatus", static_cast<UInt32>(complete ? kIOReturnSuccess : kIOReturnNotReady), 32);
+        AlwaysLog("ACPI namespace export complete=%u tables=%u bytes=%u", complete, tables ? tables->getCount() : 0, total);
+        OSSafeReleaseNULL(tables);
+        OSSafeReleaseNULL(evidence);
+        return;
+    }
     if (auto requested = OSDynamicCast(OSBoolean, dict->getObject("ExportDSDT"))) {
         if (!requested->getValue()) { removeProperty("ExportedDSDT"); return; }
         const OSData *table = vpc ? vpc->getACPITableData("DSDT", 0) : nullptr;
@@ -903,6 +960,49 @@ IOReturn ReYogaVPC::evaluateIntegerParam(const char *objectName, UInt32 *resultI
     return ret;
 }
 
+static UInt64 thinkFanTimeMS() {
+    UInt64 absolute = 0, nanoseconds = 0;
+    clock_get_uptime(&absolute);
+    absolutetime_to_nanoseconds(absolute, &nanoseconds);
+    return nanoseconds / 1000000;
+}
+
+IOReturn ReYogaVPC::accessThinkFanCurve(UInt32 fan, UInt32 requested, UInt8 output[3]) {
+    if (!output || fan > 1 || !((requested >= 1 && requested <= 7) || requested == 0x47)) return kIOReturnBadArgument;
+    if (!metaCast("ThinkVPC") || !thinkFanWatchdog || getProperty("SafeMode") == kOSBooleanTrue) return kIOReturnUnsupported;
+    if (fan && getProperty("Dual fan") != kOSBooleanTrue) return kIOReturnUnsupported;
+    if (!commandGate || isInactive()) return kIOReturnNotReady;
+    struct Request { UInt32 fan, target; UInt8 *output; } request {fan, requested, output};
+    return commandGate->runAction([](OSObject *owner, void *context, void *, void *, void *) -> IOReturn {
+        auto self = static_cast<ReYogaVPC *>(owner);
+        auto request = static_cast<Request *>(context);
+        // Arm before the write: failed transport may still have changed the EC.
+        const bool running = self->thinkFanLease.active();
+        self->thinkFanLease.renew(request->fan, thinkFanTimeMS());
+        if (!running) self->thinkFanWatchdog->setTimeoutMS(1000);
+        return self->accessThinkFanGated(request->fan, request->target, request->output);
+    }, &request);
+}
+
+void ReYogaVPC::expireThinkFanCurve(OSObject *, IOTimerEventSource *) {
+    if (!commandGate) return;
+    commandGate->runAction([](OSObject *owner, void *, void *, void *, void *) -> IOReturn {
+        auto self = static_cast<ReYogaVPC *>(owner);
+        for (unsigned fan = 0; fan < 2; ++fan) {
+            if (!self->thinkFanLease.expired(fan, thinkFanTimeMS())) continue;
+            UInt8 output[3] {};
+            if (self->accessThinkFanGated(fan, 0x84, output) == kIOReturnSuccess) {
+                self->thinkFanLease.cancel(fan);
+                self->setProperty("ThinkFanCurveStatus", "Watchdog confirmed BIOS Auto");
+            } else {
+                self->setProperty("ThinkFanStatus", "Curve watchdog: automatic fan restoration pending");
+            }
+        }
+        if (self->thinkFanLease.active()) self->thinkFanWatchdog->setTimeoutMS(1000);
+        return kIOReturnSuccess;
+    });
+}
+
 IOReturn ReYogaVPC::accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]) {
     if (!output || fan > 1 || (requested != ReYogaControl::kThinkFanQueryRPM && !ReYogaControl::validThinkFanLevel(requested))) return kIOReturnBadArgument;
     if (!metaCast("ThinkVPC") || getProperty("SafeMode") == kOSBooleanTrue) return kIOReturnUnsupported;
@@ -913,7 +1013,10 @@ IOReturn ReYogaVPC::accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]
     return commandGate->runAction([](OSObject *owner, void *context, void *, void *, void *) -> IOReturn {
         auto self = static_cast<ReYogaVPC *>(owner);
         auto request = static_cast<Request *>(context);
-        return self->accessThinkFanGated(request->fan, request->target, request->output);
+        const IOReturn status = self->accessThinkFanGated(request->fan, request->target, request->output);
+        if (status == kIOReturnSuccess && request->target != ReYogaControl::kThinkFanQueryRPM)
+            self->thinkFanLease.cancel(request->fan);
+        return status;
     }, &request);
 }
 
@@ -1008,6 +1111,8 @@ void ReYogaVPC::restoreThinkFans() {
             // Cleanup also runs during stop(), after normal client access ends.
             if (self->accessThinkFanGated(fan, 0x84, output) != kIOReturnSuccess) {
                 status = kIOReturnIOError;
+            } else {
+                self->thinkFanLease.cancel(fan);
             }
         }
         if (status != kIOReturnSuccess)

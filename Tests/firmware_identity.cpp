@@ -144,6 +144,16 @@ static Identity identity(const char *machine, const char *bios) {
 }
 
 int main() {
+    ReYogaControl::ThinkFanLease lease;
+    assert(!lease.active() && !lease.expired(0, 10000));
+    lease.renew(0, 1000); lease.renew(1, 2000);
+    assert(!lease.expired(0, 6999) && lease.expired(0, 7000));
+    lease.renew(1, 6900);
+    assert(lease.expired(0, 7100) && !lease.expired(1, 7100));
+    lease.cancel(0);
+    assert(lease.active() && !lease.expired(0, 99999));
+    assert(lease.expired(1, 12900));
+    lease.cancel(1); assert(!lease.active());
     assert(ReYogaControl::thinkFanRPM(0x28, 0x1a) == 6696);
     assert(ReYogaControl::thinkFanRPM(0x19, 0x1a) == 6681);
     assert(ReYogaControl::thinkFanRPM(0x00, 0x1b) == 6912);

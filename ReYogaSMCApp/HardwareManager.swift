@@ -33,6 +33,10 @@ public final class HardwareManager: ObservableObject {
 
     @Published public var hasDualFan: Bool = false
     @Published public var hasPowerProfiles: Bool = false
+    @Published public var powerProfilesReady: Bool = false
+    @Published public var powerProfileError = ""
+    @Published public var thinkFanCurveSupported = false
+    private var cpuSampleTime: TimeInterval = 0
     @Published public var hasConservation: Bool = false
     @Published public var hasRapidCharge: Bool = false
     @Published public var hasOverDrive: Bool = false
@@ -56,6 +60,9 @@ public final class HardwareManager: ObservableObject {
     @Published public var providerClass = ""
     @Published public var acpiECPath = ""
     @Published public var acpiHKEYPath = ""
+    @Published public var acpiAnalysisBusy = false
+    @Published public var acpiAnalysisStatus = ""
+    @Published public var acpiAnalysisSupported = false
     @Published public var isFnLocked = false
     @Published public var keyboardBacklight = -1
     @Published public var chargeStartThreshold = -1
@@ -83,6 +90,11 @@ public final class HardwareManager: ObservableObject {
     private var connectionGeneration: UInt64 = 0
     public var service: io_service_t = 0 {
         didSet {
+            let fans = (NSApp.delegate as? AppDelegate)
+            fans?.fanHelper?.stopCurve(reason: "driver_connection_changed"); fans?.fanHelper2?.stopCurve(reason: "driver_connection_changed")
+            thinkFanCurveSupported = false; cpuSampleTime = 0
+            powerProfileError = ""
+            acpiAnalysisSupported = false; acpiAnalysisStatus = ""
             connectionGeneration &+= 1
             thinkFanTelemetrySupported = false
             lastThinkFanSampleTime = 0; lastThinkFanCommandTime = 0
@@ -115,7 +127,7 @@ public final class HardwareManager: ObservableObject {
                 driverVersion = "Unavailable"; profileMatchState = "Unavailable"; firmwareProfileID = ""
                 featurePollingSupported = false; lastFirmwareRefresh = .distantPast
                 fanLabels = ["Fan 1", "Fan 2"]
-                hasDualFan = false; hasPowerProfiles = false; hasConservation = false; hasRapidCharge = false
+                hasDualFan = false; hasPowerProfiles = false; powerProfilesReady = false; hasConservation = false; hasRapidCharge = false
                 hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasAlwaysOnUSB = false
                 preferenceIdentity = ""
                 modelName = detectedIdentity.name; modelSource = detectedIdentity.source; modelWarning = ""
@@ -235,8 +247,10 @@ public final class HardwareManager: ObservableObject {
                 self.publishThinkFans(ThinkFanReading(nil), ThinkFanReading(nil))
             }
             let delegate = NSApp.delegate as? AppDelegate
+            delegate?.fanHelper?.checkCurveFreshness(); delegate?.fanHelper2?.checkCurveFreshness()
+            let curveActive = delegate?.fanHelper?.curveEnabled == true || delegate?.fanHelper2?.curveEnabled == true
             let visible = delegate?.controlsWindow?.isVisible == true
-            if visible || !self.pendingFanChecks.isEmpty || Date().timeIntervalSince(self.lastBackgroundRefresh) >= 2 {
+            if curveActive || visible || !self.pendingFanChecks.isEmpty || Date().timeIntervalSince(self.lastBackgroundRefresh) >= 2 {
                 self.lastBackgroundRefresh = Date()
                 self.refreshSnapshot(full: false)
             }
@@ -247,6 +261,8 @@ public final class HardwareManager: ObservableObject {
     }
 
     public func stopMonitoring() {
+        let fans = NSApp.delegate as? AppDelegate
+        fans?.fanHelper?.stopCurve(reason: "monitoring_stopped"); fans?.fanHelper2?.stopCurve(reason: "monitoring_stopped")
         timer?.invalidate()
         timer = nil
     }
@@ -276,6 +292,11 @@ public final class HardwareManager: ObservableObject {
             let smcGPU = self.smcTemperatures.gpuTemperature()
             let cpuReason = self.smcTemperatures.cpuReason
             let smcReason = self.smcTemperatures.reason
+            let sampledAt = ProcessInfo.processInfo.systemUptime
+            let firmwareSampleTime = (snapshot?["SensorSampleTimeMS"] as? NSNumber)?.doubleValue ?? 0
+            let firmwareSampleSeconds = firmwareSampleTime / 1000
+            let cpuSampleTime = smcCPU != nil ? sampledAt :
+                (firmwareSampleSeconds.isFinite && firmwareSampleSeconds > 0 && firmwareSampleSeconds <= sampledAt ? firmwareSampleSeconds : 0)
             IOObjectRelease(handle)
             DispatchQueue.main.async {
                 guard generation == self.connectionGeneration, handle == self.service else { return }
@@ -318,9 +339,22 @@ public final class HardwareManager: ObservableObject {
                     self.publish(\.gpuTemperatureReason, smcReason)
                     if self.detailedLogging {
                         ReYogaDiagnostics.shared.record("driver_snapshot", ["registry": snapshot,
-                            "cpuSensorReason": cpuReason, "gpuSensorReason": smcReason])
+                            "cpuSensorReason": cpuReason, "gpuSensorReason": smcReason,
+                            "cpuC": self.cpuTemp, "gpuC": self.gpuTemp, "cpuSource": self.cpuTemperatureSource])
                     }
+                    self.cpuSampleTime = cpuSampleTime
                     self.accept(snapshot)
+                    let fans = NSApp.delegate as? AppDelegate
+                    for (index, fan) in [fans?.fanHelper, fans?.fanHelper2].enumerated() {
+                        guard let fan = fan else { continue }
+                        if !self.preferenceIdentity.isEmpty {
+                            fan.loadCurve(key: SavedHardwareSettings.storageKey(self.preferenceIdentity) + ".ThinkFanCurve.\(index)")
+                        }
+                        if self.thinkFanCurveSupported && cpuSampleTime > 0 && ProcessInfo.processInfo.systemUptime - cpuSampleTime <= 3 {
+                            fan.updateCurve(temperature: self.cpuTemp)
+                        }
+                        else { fan.stopCurve(reason: "capability_or_temperature_lost") }
+                    }
                 } else {
                     self.service = 0
                     self.setDriverState(.unavailable, message: "The hardware driver stopped responding. Retry the connection or check the driver log.")
@@ -365,11 +399,13 @@ public final class HardwareManager: ObservableObject {
         publish(\.providerClass, props["IOClass"] as? String ?? "")
         publish(\.acpiECPath, props["ACPIECPath"] as? String ?? "")
         publish(\.acpiHKEYPath, props["ACPIHKEYPath"] as? String ?? "")
+        publish(\.acpiAnalysisSupported, props["ThinkPadACPIAnalysisVersion"] as? Int == 1 && props["SafeMode"] as? Bool != true)
         publish(\.driverVersion, props["VersionInfo"] as? String ?? "Unavailable")
         publish(\.profileMatchState, props["ProfileMatchState"] as? String ?? "Not reported")
         publish(\.firmwareProfileID, props["HardwareProfile"] as? String ?? "")
         featurePollingSupported = props["FeaturePollingVersion"] as? Int == 1
         thinkFanTelemetrySupported = providerClass == "ThinkVPC" && props["ThinkFanTelemetryVersion"] as? Int == 1
+        publish(\.thinkFanCurveSupported, ThinkFanCurvePolicy.supported(props))
         publish(\.isFnLocked, props["FnlockMode"] as? Bool ?? false)
         publish(\.keyboardBacklight, props["BacklightLevel"] as? Int ?? -1)
         publish(\.chargeStartThreshold, props["ChargeStartThreshold"] as? Int ?? -1)
@@ -428,7 +464,7 @@ public final class HardwareManager: ObservableObject {
                     writesValidated: props["FanWritesValidated"] as? Bool == true)
             }
         }
-        let stateControls = ["SmartFanMode", "ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"]
+        let stateControls = ["ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"]
         for key in stateControls where availability[key]?.available == true && props[key] == nil {
             availability[key] = HardwareFeatureStatus(available: false,
                 reason: "The driver did not provide a current value for this control.", backend: availability[key]?.backend ?? "Unavailable")
@@ -492,7 +528,12 @@ public final class HardwareManager: ObservableObject {
         publish(\.hasConservation, supported("ConservationMode"))
         publish(\.hasRapidCharge, supported("RapidChargeMode"))
         publish(\.hasAlwaysOnUSB, supported("AlwaysOnUSBState"))
-        publish(\.hasPowerProfiles, supported("SmartFanMode"))
+        publish(\.hasPowerProfiles, descriptors["SmartFanMode"]?["Available"] as? Bool == true)
+        publish(\.powerProfilesReady, supported("SmartFanMode"))
+        let profileResult = props["LastControlResult"] as? [String: Any]
+        let profileFailed = profileResult?["Property"] as? String == "SmartFanMode" &&
+            (profileResult?["Status"] as? Int ?? 0) != 0
+        publish(\.powerProfileError, profileFailed ? profileResult?["Reason"] as? String ?? "Firmware call failed" : "")
         publish(\.hasOverDrive, supported("DisplayOverDrive"))
         publish(\.hasTouchpadLock, supported("TouchpadLock"))
         publish(\.hasYLogo, supported("YLogoStatus"))
@@ -591,6 +632,22 @@ public final class HardwareManager: ObservableObject {
             DispatchQueue.main.async { self.restoreNextControl() }
         }
     }
+    func startThinkFanCurve(_ fan: ThinkFanHelper) {
+        guard service != 0, driverState == .ready else {
+            ReYogaDiagnostics.shared.record("think_fan_curve_rejected", ["reason": "driver_not_ready",
+                "driverState": String(describing: driverState), "servicePresent": service != 0])
+            showOSDRaw("Curve unavailable: check fan access, temperature and configuration.")
+            return
+        }
+        guard cpuSampleTime > 0, ProcessInfo.processInfo.systemUptime - cpuSampleTime <= 3 else {
+            ReYogaDiagnostics.shared.record("think_fan_curve_rejected", ["reason": "temperature_not_fresh",
+                "source": cpuTemperatureSource, "sampleAgeSeconds": ProcessInfo.processInfo.systemUptime - cpuSampleTime])
+            showOSDRaw("Curve unavailable: check fan access, temperature and configuration.")
+            return
+        }
+        performThinkFanCommand(fan) { fan.startCurve(temperature: self.cpuTemp, supported: self.thinkFanCurveSupported) }
+    }
+
     private func publishThinkFans(_ main: ThinkFanReading, _ secondary: ThinkFanReading) {
         publish(\.fan1RPM, main.rpm ?? -1); publish(\.fan2RPM, secondary.rpm ?? -1)
         let delegate = NSApp.delegate as? AppDelegate
@@ -838,7 +895,16 @@ public final class HardwareManager: ObservableObject {
             "bundleID": Bundle.main.bundleIdentifier ?? "unknown", "installationPath": Bundle.main.bundlePath,
             "accessibility": AXIsProcessTrusted(), "inputMonitoring": CGPreflightListenEventAccess(),
             "rgbReason": rgbStatus.reason, "hotkeyProfile": hotkeyProfileID, "telemetry": telemetryStatus, "battery": batterySummary,
-            "batteryProviderFields": liveBattery?.rawFields ?? [:]]
+            "batteryProviderFields": liveBattery?.rawFields ?? [:],
+            "cpuTemperature": cpuTemp, "cpuTemperatureSource": cpuTemperatureSource,
+            "cpuSampleUptime": cpuSampleTime, "thinkFanCurveSupported": thinkFanCurveSupported,
+            "thinkFanCurves": [(NSApp.delegate as? AppDelegate)?.fanHelper, (NSApp.delegate as? AppDelegate)?.fanHelper2]
+                .compactMap { fan -> [String: Any]? in
+                    guard let fan = fan else { return nil }
+                    return ["fan": fan.main ? 0 : 1, "enabled": fan.curveEnabled, "status": fan.curveStatus,
+                        "accessReady": fan.enable, "requestedControl": fan.savedLevel, "rpm": fan.rpm ?? -1,
+                        "points": fan.curvePoints.map { ["temperature": $0.temperature, "level": $0.level] }]
+                }]
         let handle = service
         if handle != 0 { IOObjectRetain(handle) }
         hardwareQueue.async {
@@ -942,13 +1008,34 @@ public final class HardwareManager: ObservableObject {
         else { HardwareProfiles.exportBridge() }
     }
     public var canGenerateThinkPadSSDT: Bool {
-        service != 0 && providerClass == "ThinkVPC" &&
+        service != 0 && providerClass == "ThinkVPC" && acpiAnalysisSupported && !acpiAnalysisBusy &&
             HardwareProfiles.acpiNamespacePath(acpiECPath) != nil &&
             HardwareProfiles.acpiNamespacePath(acpiHKEYPath) != nil
     }
     public func generateThinkPadSSDT() {
         guard canGenerateThinkPadSSDT else { return }
-        HardwareProfiles.exportThinkPadSSDT(ecPath: acpiECPath, hkeyPath: acpiHKEYPath)
+        acpiAnalysisBusy = true
+        acpiAnalysisStatus = "Analyzing running ACPI tables…"
+        let generation = connectionGeneration
+        HardwareProfiles.exportThinkPadSSDT(service: service) { [weak self] message in
+            guard let self = self else { return }
+            self.acpiAnalysisBusy = false
+            guard self.connectionGeneration == generation else { self.acpiAnalysisStatus = "Driver connection changed; verify again."; return }
+            self.acpiAnalysisStatus = message
+            if !message.isEmpty { showOSDRaw(message, duration: 4000) }
+        }
+    }
+    public func verifyThinkPadSSDT() {
+        guard canGenerateThinkPadSSDT else { return }
+        acpiAnalysisBusy = true
+        acpiAnalysisStatus = "Checking loaded SSDT and EC helpers…"
+        let generation = connectionGeneration
+        HardwareProfiles.verifyThinkPadSSDT(service: service) { [weak self] message in
+            guard let self = self else { return }
+            self.acpiAnalysisBusy = false
+            guard self.connectionGeneration == generation else { self.acpiAnalysisStatus = "Driver connection changed; verify again."; return }
+            self.acpiAnalysisStatus = message
+        }
     }
     public func refreshPermissions() {
         let accessibility = AXIsProcessTrusted()
@@ -989,7 +1076,7 @@ public final class HardwareManager: ObservableObject {
         driverState = .missing
         driverMessage = "Firmware driver unavailable. Independent battery, SMC and USB RGB functions remain accessible."
         featureStatus = [:]
-        hasDualFan = false; hasPowerProfiles = false; hasConservation = false; hasRapidCharge = false
+        hasDualFan = false; hasPowerProfiles = false; powerProfilesReady = false; hasConservation = false; hasRapidCharge = false
         hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasAlwaysOnUSB = false
         fan1RPM = -1; fan2RPM = -1; powerProfile = 0
         telemetryStatus = "Independent sensors"
@@ -1214,6 +1301,8 @@ public final class HardwareManager: ObservableObject {
         }
     }
     public func shutdown() {
+        let fans = NSApp.delegate as? AppDelegate
+        fans?.fanHelper?.stopCurve(reason: "app_shutdown"); fans?.fanHelper2?.stopCurve(reason: "app_shutdown")
         hotkeys.stop()
         hardwareQueue.sync {
             self.stopRGBEffect()

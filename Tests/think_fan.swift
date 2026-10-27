@@ -3,6 +3,7 @@ typealias io_connect_t = UInt32
 let kIOReturnSuccess: Int32 = 0
 let kIOReturnIOError = Int32(bitPattern: 0xe00002ca)
 let kRYSMCUCThinkFan = 5
+let kRYSMCUCThinkFanCurve = 6
 let notReady = Int32(bitPattern: 0xe00002d8)
 enum ReYogaConstants {
     static let hardwareDefaults = UserDefaults(suiteName: "ReYogaFanTests-\(UUID().uuidString)")!
@@ -17,13 +18,17 @@ func localizedMessage(_ message: String) -> String { message }
 func showOSDRaw(_ message: String) { messages.append(message) }
 var responses: [(Int32, [UInt8], Int)] = []
 var requests: [UInt64] = []
+var selectors: [UInt32] = []
+var requestedFans: [UInt64] = []
 func IOConnectCallMethod(_ connection: UInt32, _ selector: UInt32,
                          _ input: UnsafePointer<UInt64>?, _ count: UInt32,
                          _ structure: UnsafeRawPointer?, _ structureSize: Int,
                          _ scalarOutput: UnsafeMutablePointer<UInt64>?, _ scalarCount: UnsafeMutablePointer<UInt32>?,
                          _ output: UnsafeMutableRawPointer?, _ size: UnsafeMutablePointer<Int>?) -> Int32 {
-    precondition(connection == 1 && selector == 5 && count == 2 && input![0] == 0)
+    precondition(connection == 1 && (selector == 5 || selector == 6) && count == 2 && input![0] <= 1)
+    requestedFans.append(input![0])
     requests.append(input![1])
+    selectors.append(selector)
     precondition(!responses.isEmpty, "Unexpected extra fan transaction")
     let response = responses.removeFirst()
     for (index, value) in response.1.enumerated() { output!.storeBytes(of: value, toByteOffset: index, as: UInt8.self) }
