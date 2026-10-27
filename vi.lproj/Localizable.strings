@@ -770,3 +770,7 @@
 "Curve stopped: fan status or CPU temperature is unavailable." = "Curve đã dừng: chưa có trạng thái quạt hoặc nhiệt độ CPU hợp lệ.";
 "Curve stopped: a fan command or its readback failed." = "Curve đã dừng: lệnh quạt hoặc bước đọc lại kết quả thất bại.";
 "Curve stopped: fan capability or fresh temperature is unavailable." = "Curve đã dừng: mất khả năng điều khiển quạt hoặc thiếu nhiệt độ mới.";
+"Single battery platform" = "Máy chỉ có một pin";
+"Unavailable while lap mode masks the thermal profile" = "Chưa đọc được profile nhiệt khi chế độ đặt máy trên đùi che trạng thái này";
+"Watchdog confirmed BIOS Auto" = "Watchdog đã xác nhận BIOS Auto";
+"State-control interface advertised" = "Firmware đã công bố giao diện điều khiển trạng thái";

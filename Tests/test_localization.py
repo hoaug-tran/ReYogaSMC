@@ -62,6 +62,16 @@ class LocalizationTests(unittest.TestCase):
                 if '\\(' not in raw and raw:
                     self.assertIn(json.loads('"' + raw + '"'), keys, f'{path.name}: raw display message missing from catalogs')
 
+    def test_fan_availability_and_recovery_keys_are_translated(self):
+        keys = set(dict(catalog('en')))
+        source = (ROOT / 'ReYogaSMCUtils/ThinkFanHelper.swift').read_text(encoding='utf-8')
+        policy = source.split('struct ThinkFanCurvePolicy', 1)[1].split('static let defaults', 1)[0]
+        reasons = re.findall(r'return "([^"\n]+)"', policy)
+        reasons += re.findall(r'(?:curveStatus|curveStopReason)\s*=\s*"([^"\n]+)"', source)
+        reasons += re.findall(r'explainCurveUnavailable\("([^"\n]+)"', source)
+        for reason in reasons:
+            self.assertIn(reason, keys, f'Fan UI reason missing from catalogs: {reason}')
+
     def test_builtin_event_and_legacy_osd_keys_are_localized(self):
         keys = set(dict(catalog('en')))
         paths = list((ROOT / 'ReYogaSMCApp').glob('*.swift')) + list((ROOT / 'ReYogaSMCUtils').glob('*.swift'))

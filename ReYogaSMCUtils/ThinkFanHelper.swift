@@ -232,10 +232,15 @@ class ThinkFanHelper: ObservableObject {
             ReYogaDiagnostics.shared.record("think_fan_curve_rejected", ["fan": main ? 0 : 1,
                 "supported": supported, "fanReady": enable, "validCurve": ThinkFanCurvePolicy.valid(curvePoints),
                 "temperature": temperature.isFinite ? temperature : -1])
-            explainCurveUnavailable(!supported ? "Custom Curve is not supported by this driver interface." :
-                !enable ? "Fan status is unavailable. Try Auto or reconnect the driver." :
-                !ThinkFanCurvePolicy.valid(curvePoints) ? "Use increasing temperatures and fan levels, ending in Full Speed by 95°C." :
-                "CPU temperature is unavailable or stale. Wait for a fresh reading before starting Custom Curve.")
+            if !supported {
+                explainCurveUnavailable("Custom Curve is not supported by this driver interface.")
+            } else if !enable {
+                explainCurveUnavailable("Fan status is unavailable. Try Auto or reconnect the driver.")
+            } else if !ThinkFanCurvePolicy.valid(curvePoints) {
+                explainCurveUnavailable("Use increasing temperatures and fan levels, ending in Full Speed by 95°C.")
+            } else {
+                explainCurveUnavailable("CPU temperature is unavailable or stale. Wait for a fresh reading before starting Custom Curve.")
+            }
             return
         }
         if let key = curveStorageKey, let data = try? JSONEncoder().encode(curvePoints) { defaults.set(data, forKey: key) }

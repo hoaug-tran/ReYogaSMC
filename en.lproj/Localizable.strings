@@ -768,3 +768,7 @@
 "Curve stopped: fan status or CPU temperature is unavailable." = "Curve stopped: fan status or CPU temperature is unavailable.";
 "Curve stopped: a fan command or its readback failed." = "Curve stopped: a fan command or its readback failed.";
 "Curve stopped: fan capability or fresh temperature is unavailable." = "Curve stopped: fan capability or fresh temperature is unavailable.";
+"Single battery platform" = "Single battery platform";
+"Unavailable while lap mode masks the thermal profile" = "Unavailable while lap mode masks the thermal profile";
+"Watchdog confirmed BIOS Auto" = "Watchdog confirmed BIOS Auto";
+"State-control interface advertised" = "State-control interface advertised";
