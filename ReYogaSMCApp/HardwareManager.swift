@@ -36,6 +36,8 @@ public final class HardwareManager: ObservableObject {
     @Published public var powerProfilesReady: Bool = false
     @Published public var powerProfileError = ""
     @Published public var thinkFanCurveSupported = false
+    @Published public var thinkFanCurveReason = ""
+    @Published public var thinkFanECNeedsHelpers = false
     private var cpuSampleTime: TimeInterval = 0
     @Published public var hasConservation: Bool = false
     @Published public var hasRapidCharge: Bool = false
@@ -93,6 +95,7 @@ public final class HardwareManager: ObservableObject {
             let fans = (NSApp.delegate as? AppDelegate)
             fans?.fanHelper?.stopCurve(reason: "driver_connection_changed"); fans?.fanHelper2?.stopCurve(reason: "driver_connection_changed")
             thinkFanCurveSupported = false; cpuSampleTime = 0
+            thinkFanCurveReason = ""; thinkFanECNeedsHelpers = false
             powerProfileError = ""
             acpiAnalysisSupported = false; acpiAnalysisStatus = ""
             connectionGeneration &+= 1
@@ -406,6 +409,9 @@ public final class HardwareManager: ObservableObject {
         featurePollingSupported = props["FeaturePollingVersion"] as? Int == 1
         thinkFanTelemetrySupported = providerClass == "ThinkVPC" && props["ThinkFanTelemetryVersion"] as? Int == 1
         publish(\.thinkFanCurveSupported, ThinkFanCurvePolicy.supported(props))
+        publish(\.thinkFanCurveReason, ThinkFanCurvePolicy.unavailableReason(props) ?? "")
+        publish(\.thinkFanECNeedsHelpers, providerClass == "ThinkVPC" && props["ThinkFanProtocolVersion"] as? Int == 1 &&
+            props["SafeMode"] as? Bool != true && props["EC Capability"] as? String != "RW")
         publish(\.isFnLocked, props["FnlockMode"] as? Bool ?? false)
         publish(\.keyboardBacklight, props["BacklightLevel"] as? Int ?? -1)
         publish(\.chargeStartThreshold, props["ChargeStartThreshold"] as? Int ?? -1)
@@ -636,13 +642,15 @@ public final class HardwareManager: ObservableObject {
         guard service != 0, driverState == .ready else {
             ReYogaDiagnostics.shared.record("think_fan_curve_rejected", ["reason": "driver_not_ready",
                 "driverState": String(describing: driverState), "servicePresent": service != 0])
-            showOSDRaw("Curve unavailable: check fan access, temperature and configuration.")
+            fan.explainCurveUnavailable("The driver connection is unavailable. Reconnect before starting Custom Curve.")
+            showOSDRaw(fan.curveStatus)
             return
         }
         guard cpuSampleTime > 0, ProcessInfo.processInfo.systemUptime - cpuSampleTime <= 3 else {
             ReYogaDiagnostics.shared.record("think_fan_curve_rejected", ["reason": "temperature_not_fresh",
                 "source": cpuTemperatureSource, "sampleAgeSeconds": ProcessInfo.processInfo.systemUptime - cpuSampleTime])
-            showOSDRaw("Curve unavailable: check fan access, temperature and configuration.")
+            fan.explainCurveUnavailable("CPU temperature is unavailable or stale. Wait for a fresh reading before starting Custom Curve.")
+            showOSDRaw(fan.curveStatus)
             return
         }
         performThinkFanCommand(fan) { fan.startCurve(temperature: self.cpuTemp, supported: self.thinkFanCurveSupported) }
@@ -901,7 +909,7 @@ public final class HardwareManager: ObservableObject {
             "thinkFanCurves": [(NSApp.delegate as? AppDelegate)?.fanHelper, (NSApp.delegate as? AppDelegate)?.fanHelper2]
                 .compactMap { fan -> [String: Any]? in
                     guard let fan = fan else { return nil }
-                    return ["fan": fan.main ? 0 : 1, "enabled": fan.curveEnabled, "status": fan.curveStatus,
+                    return ["fan": fan.main ? 0 : 1, "enabled": fan.curveEnabled, "status": fan.curveStatus, "stopReason": fan.curveStopReason,
                         "accessReady": fan.enable, "requestedControl": fan.savedLevel, "rpm": fan.rpm ?? -1,
                         "points": fan.curvePoints.map { ["temperature": $0.temperature, "level": $0.level] }]
                 }]

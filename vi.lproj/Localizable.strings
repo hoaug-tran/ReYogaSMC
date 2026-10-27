@@ -193,7 +193,7 @@
 "FAN_AUTO" = "Tự động";
 "FAN_FULL_SPEED" = "Tốc độ tối đa";
 "FAN_LEVEL_FORMAT" = "Mức %d";
-"FAN_INTERFACE_REQUIRED" = "Cần giao diện đọc/ghi EC ThinkPad để điều khiển quạt.";
+"FAN_INTERFACE_REQUIRED" = "Trong Chẩn đoán, chọn Tạo SSDT ThinkPad…. Kiểm tra bản phân tích, thêm AML đã biên dịch vào ACPI → Add của OpenCore rồi khởi động lại. Giữ các bản vá EC/pin đang dùng. Sau đó chọn Xác minh SSDT ThinkPad.";
 "CHARGE_THRESHOLDS" = "Ngưỡng sạc";
 "BATTERY_PRIMARY" = "Chính";
 "BATTERY_SECONDARY" = "Phụ";
@@ -710,8 +710,6 @@
 
 "Level %d" = "Mức %d";
 
-"Curve unavailable: check fan access, temperature and configuration." = "Không thể bật curve: kiểm tra quyền điều khiển quạt, nhiệt độ và cấu hình.";
-"Custom Curve requires a matching ThinkPad driver with EC write access and watchdog support. Other firmware interfaces keep their existing controls." = "Custom Curve cần driver ThinkPad tương thích, có quyền ghi EC và hỗ trợ watchdog. Các giao diện firmware khác tiếp tục dùng điều khiển hiện có.";
 
 "Verify ThinkPad SSDT" = "Xác minh SSDT ThinkPad";
 "Analyzing running ACPI tables…" = "Đang phân tích các bảng ACPI đang chạy…";
@@ -757,3 +755,18 @@
 "Fan selector recovery failed; automatic restoration remains pending" = "Khôi phục bộ chọn quạt thất bại; vẫn đang chờ khôi phục Auto";
 "Full Speed" = "Tốc độ tối đa";
 "Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off." = "Kết nối driver tương thích có hỗ trợ phân tích ACPI và đường dẫn EC/HKEY hợp lệ. Cần tắt Safe Mode.";
+"Custom Curve is not supported by this driver interface." = "Giao diện driver này không hỗ trợ Custom Curve.";
+"Safe Mode blocks fan control. Disable -reysafe and restart macOS." = "Safe Mode đang chặn điều khiển quạt. Bỏ -reysafe rồi khởi động lại macOS.";
+"Update the app and kext, then reconnect to enable ThinkPad fan control." = "Cập nhật app và kext, sau đó kết nối lại để bật điều khiển quạt ThinkPad.";
+"Manual fan control needs EC read/write helpers. Open Diagnostics → Generate ThinkPad SSDT… to check and add missing helpers." = "Điều khiển quạt thủ công cần helper đọc/ghi EC. Mở Chẩn đoán → Tạo SSDT ThinkPad… để kiểm tra và bổ sung helper còn thiếu.";
+"Fan access is paused pending selector recovery. Try Auto, then export diagnostics if recovery fails." = "Truy cập quạt đang tạm dừng để khôi phục bộ chọn quạt. Thử Auto; nếu thất bại, hãy xuất diagnostics.";
+"Custom Curve needs a driver watchdog. Update both the app and kext, then restart macOS." = "Custom Curve cần watchdog trong driver. Cập nhật cả app và kext rồi khởi động lại macOS.";
+"CPU temperature is unavailable or stale. Wait for a fresh reading before starting Custom Curve." = "Nhiệt độ CPU chưa có hoặc đã cũ. Chờ dữ liệu mới trước khi bật Custom Curve.";
+"The driver connection is unavailable. Reconnect before starting Custom Curve." = "Chưa có kết nối driver. Kết nối lại trước khi bật Custom Curve.";
+"Fan controls are disabled by saved app preferences." = "Điều khiển quạt đang bị tắt trong cấu hình app đã lưu.";
+"Reconnect the driver to initialize fan controls." = "Kết nối lại driver để khởi tạo điều khiển quạt.";
+"Open Diagnostics" = "Mở Chẩn đoán";
+"Curve stopped: CPU temperature updates timed out." = "Curve đã dừng: quá thời gian chờ cập nhật nhiệt độ CPU.";
+"Curve stopped: fan status or CPU temperature is unavailable." = "Curve đã dừng: chưa có trạng thái quạt hoặc nhiệt độ CPU hợp lệ.";
+"Curve stopped: a fan command or its readback failed." = "Curve đã dừng: lệnh quạt hoặc bước đọc lại kết quả thất bại.";
+"Curve stopped: fan capability or fresh temperature is unavailable." = "Curve đã dừng: mất khả năng điều khiển quạt hoặc thiếu nhiệt độ mới.";

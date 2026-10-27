@@ -59,9 +59,16 @@ struct ThinkFanCurvePoint: Codable, Equatable {
 
 struct ThinkFanCurvePolicy {
     static func supported(_ properties: NSDictionary) -> Bool {
-        properties["IOClass"] as? String == "ThinkVPC" && properties["ThinkFanCurveVersion"] as? Int == 1 &&
-            properties["ThinkFanProtocolVersion"] as? Int == 1 && properties["EC Capability"] as? String == "RW" &&
-            properties["ThinkFanAccessFailed"] as? Bool != true && properties["SafeMode"] as? Bool != true
+        unavailableReason(properties) == nil
+    }
+    static func unavailableReason(_ properties: NSDictionary) -> String? {
+        guard properties["IOClass"] as? String == "ThinkVPC" else { return "Custom Curve is not supported by this driver interface." }
+        guard properties["SafeMode"] as? Bool != true else { return "Safe Mode blocks fan control. Disable -reysafe and restart macOS." }
+        guard properties["ThinkFanProtocolVersion"] as? Int == 1 else { return "Update the app and kext, then reconnect to enable ThinkPad fan control." }
+        guard properties["EC Capability"] as? String == "RW" else { return "Manual fan control needs EC read/write helpers. Open Diagnostics → Generate ThinkPad SSDT… to check and add missing helpers." }
+        guard properties["ThinkFanAccessFailed"] as? Bool != true else { return "Fan access is paused pending selector recovery. Try Auto, then export diagnostics if recovery fails." }
+        guard properties["ThinkFanCurveVersion"] as? Int == 1 else { return "Custom Curve needs a driver watchdog. Update both the app and kext, then restart macOS." }
+        return nil
     }
     static let defaults = [ThinkFanCurvePoint(temperature: 50, level: 4),
         ThinkFanCurvePoint(temperature: 70, level: 5), ThinkFanCurvePoint(temperature: 80, level: 7),
@@ -97,6 +104,7 @@ class ThinkFanHelper: ObservableObject {
     @Published private(set) var enable = false
     @Published private(set) var curveEnabled = false
     @Published private(set) var curveStatus = ""
+    @Published private(set) var curveStopReason = ""
     @Published var curvePoints = ThinkFanCurvePolicy.defaults
     private var curvePolicy = ThinkFanCurvePolicy()
     private var curveSampleTime: TimeInterval = 0
@@ -203,6 +211,7 @@ class ThinkFanHelper: ObservableObject {
         }
         guard let sample = access(level: UInt64(target), operation: operation) else { return }
         curveRecoveryPending = false
+        curveStopReason = ""
         if !curveStatus.isEmpty { curveStatus = target & 0x80 != 0 ? "BIOS Auto" : "" }
         savedLevel = target
         acceptLevel(sample[2])
@@ -223,13 +232,17 @@ class ThinkFanHelper: ObservableObject {
             ReYogaDiagnostics.shared.record("think_fan_curve_rejected", ["fan": main ? 0 : 1,
                 "supported": supported, "fanReady": enable, "validCurve": ThinkFanCurvePolicy.valid(curvePoints),
                 "temperature": temperature.isFinite ? temperature : -1])
-            curveStatus = "Curve unavailable: check fan access, temperature and configuration."
+            explainCurveUnavailable(!supported ? "Custom Curve is not supported by this driver interface." :
+                !enable ? "Fan status is unavailable. Try Auto or reconnect the driver." :
+                !ThinkFanCurvePolicy.valid(curvePoints) ? "Use increasing temperatures and fan levels, ending in Full Speed by 95°C." :
+                "CPU temperature is unavailable or stale. Wait for a fresh reading before starting Custom Curve.")
             return
         }
         if let key = curveStorageKey, let data = try? JSONEncoder().encode(curvePoints) { defaults.set(data, forKey: key) }
         curvePolicy.reset(); curveWriteTime = 0; lastCurveTarget = nil
         curveSampleTime = ProcessInfo.processInfo.systemUptime
         curveEnabled = true
+        curveStopReason = ""
         curveRecoveryPending = false
         ReYogaDiagnostics.shared.record("think_fan_curve_started", ["fan": main ? 0 : 1,
             "points": curvePoints.map { ["temperature": $0.temperature, "level": $0.level] },
@@ -237,8 +250,19 @@ class ThinkFanHelper: ObservableObject {
         updateCurve(temperature: temperature)
     }
 
+    func explainCurveUnavailable(_ reason: String) {
+        curveStatus = reason
+    }
+
     func stopCurve(reason: String = "user_or_lifecycle") {
         guard curveEnabled else { return }
+        switch reason {
+        case "temperature_timeout": curveStopReason = "Curve stopped: CPU temperature updates timed out."
+        case "fan_or_temperature_unavailable": curveStopReason = "Curve stopped: fan status or CPU temperature is unavailable."
+        case "write_or_readback_failed": curveStopReason = "Curve stopped: a fan command or its readback failed."
+        case "capability_or_temperature_lost": curveStopReason = "Curve stopped: fan capability or fresh temperature is unavailable."
+        default: curveStopReason = ""
+        }
         curveEnabled = false
         curveGeneration &+= 1
         curveRequestPending = false

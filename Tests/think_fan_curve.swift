@@ -4,6 +4,16 @@ let curve = ThinkFanCurvePolicy.defaults
 let capability: [String: Any] = ["IOClass": "ThinkVPC", "ThinkFanCurveVersion": 1,
     "ThinkFanProtocolVersion": 1, "EC Capability": "RW"]
 precondition(ThinkFanCurvePolicy.supported(capability as NSDictionary))
+var missingHelpers = capability
+missingHelpers["EC Capability"] = "RO"
+precondition(ThinkFanCurvePolicy.unavailableReason(missingHelpers as NSDictionary)?.contains("Generate ThinkPad SSDT") == true)
+var oldDriver = capability
+oldDriver["ThinkFanCurveVersion"] = 0
+precondition(ThinkFanCurvePolicy.unavailableReason(oldDriver as NSDictionary)?.contains("watchdog") == true)
+var safeDriver = missingHelpers
+safeDriver["SafeMode"] = true
+precondition(ThinkFanCurvePolicy.unavailableReason(safeDriver as NSDictionary)?.hasPrefix("Safe Mode") == true,
+             "Safe Mode must not send the user to install an unnecessary SSDT")
 for (key, value) in [("IOClass", "IdeaVPC" as Any), ("IOClass", "UnknownVPC" as Any),
                      ("ThinkFanCurveVersion", 0 as Any), ("ThinkFanProtocolVersion", 0 as Any),
                      ("EC Capability", "RO" as Any), ("EC Capability", "Basic" as Any),
@@ -48,6 +58,7 @@ precondition(requests.count == previousCount, "Manual and wake restores must not
 responses = [(0, [0x88, 0x13, 0x84], 3)]
 curveFan.updateCurve(temperature: .nan)
 precondition(!curveFan.curveEnabled && requests.last == 0x84)
+precondition(!curveFan.curveStopReason.isEmpty, "Show why the curve stopped even after Auto recovers")
 curveFan.startCurve(temperature: 82, supported: false)
 precondition(!curveFan.curveEnabled)
 
@@ -88,4 +99,5 @@ waitForCurve(curveFan)
 responses = [(0, [0x88, 0x13, 0x84], 3)]
 curveFan.checkCurveFreshness(now: ProcessInfo.processInfo.systemUptime + 4)
 precondition(!curveFan.curveEnabled && curveFan.isAutomatic, "Missing temperature must return to Auto")
+precondition(curveFan.curveStopReason == "Curve stopped: CPU temperature updates timed out.")
 print("PASS real ThinkFan curve policy and recovery")

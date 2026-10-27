@@ -191,7 +191,7 @@
 "FAN_AUTO" = "Auto";
 "FAN_FULL_SPEED" = "Full speed";
 "FAN_LEVEL_FORMAT" = "Level %d";
-"FAN_INTERFACE_REQUIRED" = "Requires the ThinkPad EC read/write interface.";
+"FAN_INTERFACE_REQUIRED" = "In Diagnostics, choose Generate ThinkPad SSDT…. Review the analysis, add the compiled AML in OpenCore ACPI → Add and reboot. Keep existing EC/battery patches. Then choose Verify ThinkPad SSDT.";
 "CHARGE_THRESHOLDS" = "Charge thresholds";
 "BATTERY_PRIMARY" = "Primary";
 "BATTERY_SECONDARY" = "Secondary";
@@ -708,8 +708,6 @@
 
 "Level %d" = "Level %d";
 
-"Curve unavailable: check fan access, temperature and configuration." = "Curve unavailable: check fan access, temperature and configuration.";
-"Custom Curve requires a matching ThinkPad driver with EC write access and watchdog support. Other firmware interfaces keep their existing controls." = "Custom Curve requires a matching ThinkPad driver with EC write access and watchdog support. Other firmware interfaces keep their existing controls.";
 
 "Verify ThinkPad SSDT" = "Verify ThinkPad SSDT";
 "Analyzing running ACPI tables…" = "Analyzing running ACPI tables…";
@@ -755,3 +753,18 @@
 "Fan selector recovery failed; automatic restoration remains pending" = "Fan selector recovery failed; automatic restoration remains pending";
 "Full Speed" = "Full Speed";
 "Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off." = "Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off.";
+"Custom Curve is not supported by this driver interface." = "Custom Curve is not supported by this driver interface.";
+"Safe Mode blocks fan control. Disable -reysafe and restart macOS." = "Safe Mode blocks fan control. Disable -reysafe and restart macOS.";
+"Update the app and kext, then reconnect to enable ThinkPad fan control." = "Update the app and kext, then reconnect to enable ThinkPad fan control.";
+"Manual fan control needs EC read/write helpers. Open Diagnostics → Generate ThinkPad SSDT… to check and add missing helpers." = "Manual fan control needs EC read/write helpers. Open Diagnostics → Generate ThinkPad SSDT… to check and add missing helpers.";
+"Fan access is paused pending selector recovery. Try Auto, then export diagnostics if recovery fails." = "Fan access is paused pending selector recovery. Try Auto, then export diagnostics if recovery fails.";
+"Custom Curve needs a driver watchdog. Update both the app and kext, then restart macOS." = "Custom Curve needs a driver watchdog. Update both the app and kext, then restart macOS.";
+"CPU temperature is unavailable or stale. Wait for a fresh reading before starting Custom Curve." = "CPU temperature is unavailable or stale. Wait for a fresh reading before starting Custom Curve.";
+"The driver connection is unavailable. Reconnect before starting Custom Curve." = "The driver connection is unavailable. Reconnect before starting Custom Curve.";
+"Fan controls are disabled by saved app preferences." = "Fan controls are disabled by saved app preferences.";
+"Reconnect the driver to initialize fan controls." = "Reconnect the driver to initialize fan controls.";
+"Open Diagnostics" = "Open Diagnostics";
+"Curve stopped: CPU temperature updates timed out." = "Curve stopped: CPU temperature updates timed out.";
+"Curve stopped: fan status or CPU temperature is unavailable." = "Curve stopped: fan status or CPU temperature is unavailable.";
+"Curve stopped: a fan command or its readback failed." = "Curve stopped: a fan command or its readback failed.";
+"Curve stopped: fan capability or fresh temperature is unavailable." = "Curve stopped: fan capability or fresh temperature is unavailable.";

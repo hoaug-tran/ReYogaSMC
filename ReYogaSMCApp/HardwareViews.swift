@@ -986,7 +986,14 @@ private struct ThinkPadFanPanel: View {
                             Text(rpm >= 0 ? localizedMessage("%@ RPM", String(rpm)) : loc(.commonUnavailable))
                                 .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
                         }
-                        Text(loc(.fanInterfaceRequired)).font(.caption).foregroundColor(.secondary)
+                        let disabled = ReYogaConstants.hardwareDefaults.bool(forKey: "DisableFan") || ReYogaConstants.hardwareDefaults.bool(forKey: "HideIcon")
+                        Text(localizedMessage(disabled ? "Fan controls are disabled by saved app preferences." :
+                            manager.thinkFanCurveReason.isEmpty ? "Reconnect the driver to initialize fan controls." : manager.thinkFanCurveReason))
+                            .font(.caption).foregroundColor(.secondary)
+                        if manager.thinkFanECNeedsHelpers && !disabled {
+                            Text(loc(.fanInterfaceRequired)).font(.caption).foregroundColor(.secondary)
+                            Button(localizedMessage("Open Diagnostics")) { UserDefaults.standard.set(5, forKey: "ControlsPage") }
+                        }
                     }.padding(.vertical, 6)
                 }
             }
@@ -1075,8 +1082,15 @@ private struct ThinkPadFanControl: View {
                     Text(localizedMessage(fan.curveStatus)).font(.caption).foregroundColor(.secondary)
                 }
             } else {
-                Text(localizedMessage("Custom Curve requires a matching ThinkPad driver with EC write access and watchdog support. Other firmware interfaces keep their existing controls."))
+                Text(localizedMessage(manager.thinkFanCurveReason))
                     .font(.caption).foregroundColor(.secondary)
+                if manager.thinkFanECNeedsHelpers {
+                    Text(loc(.fanInterfaceRequired)).font(.caption).foregroundColor(.secondary)
+                    Button(localizedMessage("Open Diagnostics")) { UserDefaults.standard.set(5, forKey: "ControlsPage") }
+                }
+            }
+            if !fan.curveStopReason.isEmpty {
+                Text(localizedMessage(fan.curveStopReason)).font(.caption).foregroundColor(AppTheme.accent)
             }
             if !fan.enable {
                 Text(localizedMessage("Fan status is unavailable. Try Auto or reconnect the driver."))
