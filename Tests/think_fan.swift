@@ -32,6 +32,10 @@ func IOConnectCallMethod(_ connection: UInt32, _ selector: UInt32,
 }
 
 let fan = ThinkFanHelper(1, true)
+#if canImport(Combine)
+var publishedUpdates = 0
+let subscription = fan.objectWillChange.sink { publishedUpdates += 1 }
+#endif
 responses = [(notReady, [0, 0, 0], 3)]
 fan.setManualLevel(4)
 precondition(!fan.enable && fan.rpm == nil && messages.count == 1)
@@ -40,6 +44,7 @@ fan.update()
 precondition(!fan.enable && messages.count == 1, "Failed polls must stay quiet")
 fan.update()
 precondition(fan.enable && fan.rpm == 6696 && fan.savedLevel == 0x84, "Polling must recover without restarting the app")
+precondition(fan.isAutomatic && !fan.isFullSpeed && fan.canRecoverAutomatic)
 
 responses = [(notReady, [0, 0, 0], 3), (0, [0x7f, 0x09, 0x84], 3)]
 fan.setManualLevel(4)
@@ -71,6 +76,7 @@ fan.setFullSpeed()
 fan.setFanLevel()
 precondition(Array(requests.suffix(2)) == [0x47, 0x47], "Restore must preserve full-speed mode")
 precondition(fan.savedLevel == 0x47 && fan.level == 7)
+precondition(fan.isFullSpeed && !fan.isAutomatic)
 responses = [(0, [0x28, 0x1a, 0x04], 3), (0, [0x28, 0x1a, 0x84], 3)]
 fan.setAutomatic()
 precondition(!fan.enable && fan.savedLevel == 0x47, "A successful transport cannot confirm a mismatched Auto readback")
@@ -83,4 +89,7 @@ disconnected.update()
 disconnected.setAutomatic()
 precondition(requests.count == beforeDisconnect && !disconnected.enable)
 precondition(responses.isEmpty)
+#if canImport(Combine)
+precondition(publishedUpdates > 0, "Fan UI must observe helper status changes")
+#endif
 print("PASS real ThinkFanHelper: transient failure, polling recovery, Auto, missing RPM, invalid replies, restore")

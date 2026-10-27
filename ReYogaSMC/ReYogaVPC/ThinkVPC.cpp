@@ -179,6 +179,11 @@ bool ThinkVPC::setNotificationMask(UInt32 i, UInt32 all_mask, UInt32 offset, boo
 
 bool ThinkVPC::initVPC() {
     super::initVPC();
+    char path[512];
+    int length = sizeof(path);
+    if (ec->getPath(path, &length, gIOACPIPlane)) setProperty("ACPIECPath", path);
+    length = sizeof(path);
+    if (vpc->getPath(path, &length, gIOACPIPlane)) setProperty("ACPIHKEYPath", path);
     UInt32 version;
 
     if (vpc->evaluateInteger(getHKEYversion, &version) != kIOReturnSuccess)

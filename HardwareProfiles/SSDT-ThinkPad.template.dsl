@@ -1,3 +1,4 @@
+// EC thermal offsets are firmware-specific; sensor fields are not added here.
 DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 {
     External ({{ EC_PATH }}, DeviceObj)
@@ -55,7 +56,7 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 
             Method (RECB, 2, Serialized)
             {
-                ShiftRight (Arg1, 0x03, Local0)
+                Local0 = ((Arg1 + 0x07) >> 0x03)
                 Name (TEMP, Buffer (Local0) {})
                 Local1 = Zero
                 While ((Local1 < Local0))
@@ -69,7 +70,7 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 
             Method (WECB, 3, Serialized)
             {
-                ShiftRight (Arg1, 0x03, Local0)
+                Local0 = ((Arg1 + 0x07) >> 0x03)
                 Name (TEMP, Buffer (Local0) {})
                 TEMP = Arg2
                 Local1 = Zero

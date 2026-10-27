@@ -39,6 +39,14 @@ struct FanEC {
 
 static void checkThinkFans() {
     using namespace ReYogaControl;
+    ThinkFanState logging;
+    assert(!logging.pollStatusChanged(0, 0));
+    assert(logging.pollStatusChanged(0, 1));
+    assert(!logging.pollStatusChanged(0, 1));
+    assert(logging.pollStatusChanged(1, 1));
+    assert(logging.pollStatusChanged(0, 0));
+    assert(!logging.pollStatusChanged(0, 0));
+    assert(!logging.pollStatusChanged(2, 1));
     unsigned char output[3] {};
     ThinkFanState singleState;
     FanEC single;

@@ -30,6 +30,18 @@ do {
     try handle.truncate(atOffset: UInt64(HardwareProfiles.maxDSDTFileSize + 1))
     try handle.close()
     rejects("oversized DSL file") { _ = try HardwareProfiles.readDSDTSource(input) }
+    try source.write(to: input, atomically: true, encoding: .utf8)
+    let previousCompiler = UserDefaults.standard.object(forKey: "IASLPath")
+    defer { UserDefaults.standard.set(previousCompiler, forKey: "IASLPath") }
+    UserDefaults.standard.set("/usr/bin/false", forKey: "IASLPath")
+    rejects("failed SSDT compiler") { _ = try HardwareProfiles.compileSSDT(input) }
+    require(FileManager.default.fileExists(atPath: input.deletingPathExtension().appendingPathExtension("compile.log").path), "Compiler failure log was lost")
+    let preserved = try String(contentsOf: input, encoding: .utf8)
+    require(preserved == source, "Compiler failure changed the saved source")
+    let logURL = input.deletingPathExtension().appendingPathExtension("compile.log")
+    try FileManager.default.removeItem(at: logURL)
+    try FileManager.default.createDirectory(at: logURL, withIntermediateDirectories: true)
+    rejects("unwritable compiler log") { _ = try HardwareProfiles.compileSSDT(input) }
 } catch { fatalError("DSDT file fixture failed: \(error)") }
 require(profiles.allSatisfy { $0["schema_version"] as? Int == 1 }, "Unsupported profile schema")
 let legionIdentity = LaptopIdentity.resolve(strings: ["82N6CTO1WW"], pciIDs: [], lenovo: false)
@@ -48,6 +60,23 @@ require(LaptopIdentity.resolve(strings: ["20L5CTO1WW"], pciIDs: [], lenovo: fals
 require(LaptopIdentity.resolve(strings: ["20ZZ123456"], pciIDs: [], lenovo: false).name == "ThinkPad (20ZZ)", "Unknown ThinkPad fallback failed")
 require(LaptopIdentity.resolve(strings: ["82ZZ0046US"], pciIDs: [], lenovo: false).name == "Lenovo (82ZZ)", "Unknown Lenovo machine type fallback failed")
 require(LaptopIdentity.resolve(strings: ["82WK0046US"], pciIDs: [], lenovo: false).name == "Lenovo Legion Pro 5 16IRX8", "Legion machine type lookup failed")
+require(LaptopIdentity.resolve(strings: ["20R2CTO1WW"], pciIDs: ["17aa:2250"], lenovo: true).name == "Lenovo Laptop", "Conflicting catalog machine and PCI identities selected a model")
+require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:2250", "17aa:2292"], lenovo: true).name == "Lenovo Laptop", "Conflicting PCI identities selected an arbitrary model")
+require(LaptopIdentity.resolve(strings: ["20L5CTO1WW", "20R2CTO1WW"], pciIDs: [], lenovo: true).name == "Lenovo Laptop", "Conflicting machine identities selected the first model")
+require(LaptopIdentity.resolve(strings: ["20R2CTO1WW"], pciIDs: ["17AA:2292"], lenovo: true).name == "ThinkPad X1 Carbon Gen 7", "Matching catalog evidence did not converge")
+require(LaptopIdentity.resolve(strings: ["82N6CTO1WW"], pciIDs: ["17aa:2250"], lenovo: true).name == "Lenovo Laptop", "Catalog conflict was hidden by a reviewed profile")
+require(HardwareProfiles.acpiNamespacePath("IOACPIPlane:/_SB/PCI0@0/LPCB/EC/HKEY") == "\\_SB.PCI0.LPCB.EC.HKEY", "ACPI registry path conversion failed")
+require(HardwareProfiles.acpiNamespacePath("\\_SB.PC00.LPCB.H_EC") == "\\_SB.PC00.LPCB.H_EC", "Valid non-default ACPI path was rejected")
+for invalid in ["", "\\", "\\_SB..EC", "\\_SB.EC\n", "\\_SB.BADNAME.EC", "IOACPIPlane:/_SB//EC", "IOACPIPlane:/@/EC", "IOService:/EC", "\\_SB.EC) { Name (X, 1) }"] {
+    require(HardwareProfiles.acpiNamespacePath(invalid) == nil, "Invalid ACPI path was accepted: \(invalid)")
+    rejects("invalid SSDT path") { _ = try HardwareProfiles.renderThinkPadSSDT(ecPath: invalid, hkeyPath: "\\_SB.HKEY") }
+}
+do {
+    let generated = try HardwareProfiles.renderThinkPadSSDT(ecPath: "IOACPIPlane:/_SB/PC00/LPCB/H_EC", hkeyPath: "\\_SB.PC00.LPCB.H_EC.HKEY")
+    require(generated.contains("Scope (\\_SB.PC00.LPCB.H_EC)"), "Generator guessed a default EC path")
+    require(generated.contains("Scope (\\_SB.PC00.LPCB.H_EC.HKEY)"), "Generator guessed a default HKEY path")
+    require(!generated.contains("{{") && !generated.contains("EST0"), "Generator left placeholders or added unverified sensor fields")
+} catch { fatalError("ThinkPad SSDT rendering failed: \(error)") }
 var mockSMBIOS = Data([1, 8, 0, 0, 1, 2, 0, 3])
 mockSMBIOS.append(contentsOf: "ThinkPad T480\020L5CTO1WW\0SERIAL_SECRET_123\0\0".utf8)
 require(LaptopIdentity.parseSMBIOS(data: mockSMBIOS) == ["ThinkPad T480", "20L5CTO1WW"], "SMBIOS string parsing failed")

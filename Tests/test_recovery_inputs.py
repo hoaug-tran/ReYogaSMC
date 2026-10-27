@@ -60,7 +60,7 @@ class RecoveryInputTests(unittest.TestCase):
         backend = (ROOT / 'ReYogaSMCApp/HardwareSupport.swift').read_text(encoding='utf-8')
         self.assertNotIn('enable || automatic', helper)
         self.assertIn('guard confirmed else', helper)
-        self.assertIn('.disabled(helper(index)?.canRecoverAutomatic != true)', views)
+        self.assertTrue('.disabled(!fan.canRecoverAutomatic)' in views, 'Auto recovery must remain separate from manual availability')
         self.assertIn('rgbController.status.available && HardwareProfiles.lightingOwnedByRGB', manager)
         self.assertIn('read(upToCount: SavedRGBSettings.maximumImportBytes + 1)', manager)
         self.assertIn('guard data.count <= SavedRGBSettings.maximumImportBytes', backend)

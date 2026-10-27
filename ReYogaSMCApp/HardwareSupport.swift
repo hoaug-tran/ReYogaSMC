@@ -136,19 +136,27 @@ struct LaptopIdentity {
     static func resolve(strings: [String], pciIDs: Set<String>, lenovo: Bool,
                         profiles: [[String: Any]] = HardwareProfiles.all()) -> LaptopIdentity {
         let evidence = strings.map { $0.uppercased() }
+        let machineTypes = Set(evidence.flatMap { $0.components(separatedBy: CharacterSet.alphanumerics.inverted) }
+            .filter { $0.count >= 4 }.map { String($0.prefix(4)) })
+        let pciIDs = Set(pciIDs.map { $0.lowercased() })
         let models = profiles.filter { $0["kind"] as? String == "acpi" }
         let machineMatches = models.filter { profile in
-            (profile["machine_types"] as? [String] ?? []).contains { type in
-                evidence.contains { value in
-                    value.range(of: "(?<![A-Z0-9])" + NSRegularExpression.escapedPattern(for: type.uppercased()) + "[A-Z0-9]*(?![A-Z0-9])", options: .regularExpression) != nil
-                }
-            }
+            (profile["machine_types"] as? [String] ?? []).contains { machineTypes.contains($0.uppercased()) }
         }
         let pciMatches = models.filter { profile in
             (profile["pci_subsystem_ids"] as? [String] ?? []).contains { pciIDs.contains($0.lowercased()) }
         }
-        let machineNames = Set(machineMatches.compactMap { $0["name"] as? String })
-        let pciNames = Set(pciMatches.compactMap { $0["name"] as? String })
+        var machineNames = Set(machineMatches.compactMap { $0["name"] as? String })
+        var pciNames = Set(pciMatches.compactMap { $0["name"] as? String })
+        // Reviewed profiles supply canonical names for their catalog identifiers.
+        let profiledTypes = Set(machineMatches.flatMap { $0["machine_types"] as? [String] ?? [] }.map { $0.uppercased() })
+        let profiledPCI = Set(pciMatches.flatMap { $0["pci_subsystem_ids"] as? [String] ?? [] }.map { $0.lowercased() })
+        for type in machineTypes.subtracting(profiledTypes) {
+            if let name = catalog.machineTypes[type] { machineNames.insert(name) }
+        }
+        for pci in pciIDs.subtracting(profiledPCI) {
+            if let name = catalog.pciSubsystems[pci] { pciNames.insert(name) }
+        }
         let names = machineNames.union(pciNames)
         if names.count == 1, let name = names.first {
             let source = machineNames.isEmpty ? "PCI subsystem ID" : pciNames.isEmpty ? "Machine type" : "Machine type + PCI subsystem ID"
@@ -156,11 +164,6 @@ struct LaptopIdentity {
         }
         if names.count > 1 {
             return LaptopIdentity(name: "Lenovo Laptop", source: "Hardware identity")
-        }
-        for pci in pciIDs {
-            if let match = catalog.pciSubsystems[pci.lowercased()] {
-                return LaptopIdentity(name: match, source: "PCI subsystem ID")
-            }
         }
         let ignoredPrefixes = ["MACBOOK", "IMAC", "MACMINI", "MACPRO", "APPLE"]
         let ignoredExact: Set<String> = ["DEFAULT STRING", "NONE", "TO BE FILLED BY O.E.M.", "SYSTEM PRODUCT NAME", "SYSTEM MANUFACTURER", "LENOVO", "UNKNOWN"]
@@ -179,11 +182,6 @@ struct LaptopIdentity {
         }
         for str in validCandidates {
             let upper = str.uppercased()
-            for (type, model) in catalog.machineTypes {
-                if upper.range(of: "(?<![A-Z0-9])" + type + "[A-Z0-9]*(?![A-Z0-9])", options: .regularExpression) != nil {
-                    return LaptopIdentity(name: model, source: "Machine type")
-                }
-            }
             if let match = upper.range(of: "(?<![A-Z0-9])(2[01][A-Z0-9]{2})[A-Z0-9]*(?![A-Z0-9])", options: .regularExpression) {
                 let code = String(upper[match].prefix(4))
                 return LaptopIdentity(name: "ThinkPad (\(code))", source: "Machine type")
@@ -424,6 +422,23 @@ struct HardwareProfiles {
                      "/opt/homebrew/bin/iasl", "/usr/local/bin/iasl"]
         return paths.compactMap { $0 }.first(where: { FileManager.default.isExecutableFile(atPath: $0) }).map { URL(fileURLWithPath: $0) }
     }
+    static func compileSSDT(_ output: URL) throws -> Bool {
+        guard let compiler = compiler() else { return false }
+        let process = Process()
+        process.executableURL = compiler
+        process.arguments = ["-tc", output.path]
+        let logURL = output.deletingPathExtension().appendingPathExtension("compile.log")
+        guard FileManager.default.createFile(atPath: logURL.path, contents: nil) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        let handle = try FileHandle(forWritingTo: logURL)
+        defer { try? handle.close() }
+        process.standardOutput = handle; process.standardError = handle
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw SupportError.message("SSDT compilation failed. The source and compile.log are saved for inspection.") }
+        return true
+    }
     static func exportLiveBridge(service: io_service_t) {
         let save = NSSavePanel()
         save.allowedFileTypes = ["dsl"]
@@ -444,21 +459,11 @@ struct HardwareProfiles {
                 let source = try render(profile)
                 try source.write(to: output, atomically: true, encoding: .utf8)
                 var result = "ACPI bridge source saved. Install iasl to compile it."
-                if let compiler = compiler() {
-                    let process = Process()
-                    process.executableURL = compiler
-                    process.arguments = ["-tc", output.path]
-                    let logURL = output.deletingPathExtension().appendingPathExtension("compile.log")
-                    FileManager.default.createFile(atPath: logURL.path, contents: nil)
-                    let handle = try FileHandle(forWritingTo: logURL)
-                    defer { try? handle.close() }
-                    process.standardOutput = handle; process.standardError = handle
-                    try process.run()
-                    process.waitUntilExit()
-                    guard process.terminationStatus == 0 else { throw SupportError.message("SSDT compilation failed. The source and compile.log are saved for inspection.") }
+                let compiled = try compileSSDT(output)
+                if compiled {
                     result = "SSDT compiled — review it and add it to OpenCore before rebooting"
                 }
-                ReYogaDiagnostics.shared.record("live_acpi_generated", ["profile": profile["id"] ?? "unknown", "compiled": compiler() != nil])
+                ReYogaDiagnostics.shared.record("live_acpi_generated", ["profile": profile["id"] ?? "unknown", "compiled": compiled])
                 DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([output]); showOSDRaw(result, duration: 3000) }
             } catch {
                 ReYogaDiagnostics.shared.record("live_acpi_generation_failed", ["error": error.localizedDescription])
@@ -466,7 +471,23 @@ struct HardwareProfiles {
             }
         }
     }
+    static func acpiNamespacePath(_ path: String) -> String? {
+        let components: [String]
+        if path.hasPrefix("IOACPIPlane:/") {
+            components = path.dropFirst("IOACPIPlane:/".count).split(separator: "/", omittingEmptySubsequences: false)
+                .map { String($0.prefix { $0 != "@" }) }
+        } else if path.hasPrefix("\\") {
+            components = path.dropFirst().components(separatedBy: ".")
+        } else { return nil }
+        guard !components.isEmpty, components.allSatisfy({
+            $0.range(of: "^[A-Z_][A-Z0-9_]{0,3}\\z", options: .regularExpression) != nil
+        }) else { return nil }
+        return "\\" + components.joined(separator: ".")
+    }
     static func renderThinkPadSSDT(ecPath: String, hkeyPath: String) throws -> String {
+        guard let ecPath = acpiNamespacePath(ecPath), let hkeyPath = acpiNamespacePath(hkeyPath) else {
+            throw SupportError.message("The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT.")
+        }
         let directory = HardwareProfiles.directory ?? URL(fileURLWithPath: "HardwareProfiles")
         let templateURL = directory.appendingPathComponent("SSDT-ThinkPad.template.dsl")
         guard let source = try? String(contentsOf: templateURL, encoding: .utf8) else {
@@ -476,7 +497,7 @@ struct HardwareProfiles {
             .replacingOccurrences(of: "{{ EC_PATH }}", with: ecPath)
             .replacingOccurrences(of: "{{ HKEY_PATH }}", with: hkeyPath)
     }
-    static func exportThinkPadSSDT(service: io_service_t, ecPath: String, hkeyPath: String) {
+    static func exportThinkPadSSDT(ecPath: String, hkeyPath: String) {
         let save = NSSavePanel()
         save.allowedFileTypes = ["dsl"]
         save.nameFieldStringValue = "SSDT-ThinkPad.dsl"
@@ -487,21 +508,11 @@ struct HardwareProfiles {
                 let source = try renderThinkPadSSDT(ecPath: ecPath, hkeyPath: hkeyPath)
                 try source.write(to: output, atomically: true, encoding: .utf8)
                 var result = "ThinkPad ACPI source saved. Install iasl to compile it."
-                if let compiler = compiler() {
-                    let process = Process()
-                    process.executableURL = compiler
-                    process.arguments = ["-tc", output.path]
-                    let logURL = output.deletingPathExtension().appendingPathExtension("compile.log")
-                    FileManager.default.createFile(atPath: logURL.path, contents: nil)
-                    let handle = try FileHandle(forWritingTo: logURL)
-                    defer { try? handle.close() }
-                    process.standardOutput = handle; process.standardError = handle
-                    try process.run()
-                    process.waitUntilExit()
-                    guard process.terminationStatus == 0 else { throw SupportError.message("SSDT compilation failed. The source and compile.log are saved for inspection.") }
-                    result = "SSDT-ThinkPad compiled - review it and add it to OpenCore before rebooting"
+                let compiled = try compileSSDT(output)
+                if compiled {
+                    result = "SSDT compiled — review it and add it to OpenCore before rebooting"
                 }
-                ReYogaDiagnostics.shared.record("thinkpad_acpi_generated", ["ecPath": ecPath, "compiled": compiler() != nil])
+                ReYogaDiagnostics.shared.record("thinkpad_acpi_generated", ["ecPath": ecPath, "compiled": compiled])
                 DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([output]); showOSDRaw(result, duration: 3000) }
             } catch {
                 ReYogaDiagnostics.shared.record("thinkpad_acpi_generation_failed", ["error": error.localizedDescription])

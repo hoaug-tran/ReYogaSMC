@@ -8,22 +8,25 @@
 
 import AppKit
 import Foundation
+import Combine
 
-class ThinkFanHelper {
+class ThinkFanHelper: ObservableObject {
     let connect: io_connect_t
     let main: Bool
     let defaults = ReYogaConstants.hardwareDefaults
-    var enable = false
+    @Published private(set) var enable = false
     var canRecoverAutomatic: Bool { connect != 0 }
 
-    private(set) var level = 4
-    private(set) var rpm: Int?
+    @Published private(set) var level = 4
+    @Published private(set) var rpm: Int?
     var minimumLevel: Int { defaults.bool(forKey: "AllowFanStop") ? 0 : 1 }
     private static let automaticLevel: UInt8 = 0x84
     private static let fullSpeedLevel: UInt8 = 0x47
     private static let queryRPMLevel: UInt64 = 0x100
 
-    var savedLevel: UInt8 = 0x80
+    @Published private(set) var savedLevel: UInt8 = 0x80
+    var isAutomatic: Bool { savedLevel & 0x80 != 0 }
+    var isFullSpeed: Bool { savedLevel & 0x40 != 0 }
 
     init(_ connect: io_connect_t, _ main: Bool) {
         self.connect = connect

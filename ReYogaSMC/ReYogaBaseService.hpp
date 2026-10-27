@@ -130,10 +130,11 @@ protected:
      *
      *  @param offset EC field offset
      *  @param result EC field value
+     *  @param logFailure false when the caller logs the complete transaction
      *
      *  @return kIOReturnSuccess on success
      */
-    IOReturn method_re1b(UInt32 offset, UInt8 *result);
+    IOReturn method_re1b(UInt32 offset, UInt8 *result, bool logFailure = true);
 
     /**
      *  Wrapper for RECB
@@ -151,10 +152,11 @@ protected:
      *
      *  @param offset EC field offset
      *  @param value EC field value
+     *  @param logFailure false when the caller logs the complete transaction
      *
      *  @return kIOReturnSuccess on success
      */
-    IOReturn method_we1b(UInt32 offset, UInt8 value);
+    IOReturn method_we1b(UInt32 offset, UInt8 value, bool logFailure = true);
 
     /**
      *  Read custom field

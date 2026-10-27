@@ -49,6 +49,12 @@ struct ThinkFanState {
     unsigned modifiedMask {0};
     bool selectorRestorePending {false};
     unsigned char originalSelector {0};
+    unsigned pollStatus[2] {0, 0};
+    bool pollStatusChanged(unsigned fan, unsigned status) {
+        if (fan > 1 || pollStatus[fan] == status) return false;
+        pollStatus[fan] = status;
+        return true;
+    }
 };
 
 template <typename Read, typename Write>

@@ -1,7 +1,9 @@
+// Generated from HardwareProfiles/SSDT-ThinkPad.template.dsl; adapt paths to the target DSDT.
+// EC thermal offsets are firmware-specific; sensor fields are not added here.
 DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 {
-    External (_SB.PCI0.LPCB.EC, DeviceObj)
-    External (_SB.PCI0.LPCB.EC.HKEY, DeviceObj)
+    External (\_SB.PCI0.LPCB.EC, DeviceObj)
+    External (\_SB.PCI0.LPCB.EC.HKEY, DeviceObj)
     External (_SI_._SST, MethodObj)
     External (LNUX, IntObj)
     External (WNTF, IntObj)
@@ -55,15 +57,13 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 
             Method (RECB, 2, Serialized)
             {
-                Arg1 = ((Arg1 + 0x07) >> 0x03)
-                Name (TEMP, Buffer (Arg1) {})
-                Arg1 += Arg0
-                Local0 = Zero
-                While ((Arg0 < Arg1))
+                Local0 = ((Arg1 + 0x07) >> 0x03)
+                Name (TEMP, Buffer (Local0) {})
+                Local1 = Zero
+                While ((Local1 < Local0))
                 {
-                    TEMP [Local0] = RE1B (Arg0)
-                    Arg0++
-                    Local0++
+                    TEMP [Local1] = RE1B ((Arg0 + Local1))
+                    Local1++
                 }
 
                 Return (TEMP)
@@ -71,40 +71,15 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 
             Method (WECB, 3, Serialized)
             {
-                Arg1 = ((Arg1 + 0x07) >> 0x03)
-                Name (TEMP, Buffer (Arg1) {})
+                Local0 = ((Arg1 + 0x07) >> 0x03)
+                Name (TEMP, Buffer (Local0) {})
                 TEMP = Arg2
-                Arg1 += Arg0
-                Local0 = Zero
-                While ((Arg0 < Arg1))
+                Local1 = Zero
+                While ((Local1 < Local0))
                 {
-                    WE1B (Arg0, DerefOf (TEMP [Local0]))
-                    Arg0++
-                    Local0++
+                    WE1B ((Arg0 + Local1), DerefOf (TEMP [Local1]))
+                    Local1++
                 }
-            }
-
-            OperationRegion (ESEN, EmbeddedControl, Zero, 0x0100)
-            Field (ESEN, ByteAcc, NoLock, Preserve)
-            {
-                Offset (0x78), 
-                EST0, 8, 
-                EST1, 8, 
-                EST2, 8, 
-                EST3, 8, 
-                EST4, 8, 
-                EST5, 8, 
-                EST6, 8, 
-                EST7, 8, 
-                Offset (0xC0), 
-                EST8, 8, 
-                EST9, 8, 
-                ESTA, 8, 
-                ESTB, 8, 
-                ESTC, 8, 
-                ESTD, 8, 
-                ESTE, 8, 
-                ESTF, 8
             }
         }
     }

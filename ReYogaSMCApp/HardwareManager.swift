@@ -105,8 +105,8 @@ public final class HardwareManager: ObservableObject {
                 liveBattery = nil
                 featureStatus = [:]
                 providerClass = ""
-        acpiECPath = ""
-        acpiHKEYPath = ""
+                acpiECPath = ""
+                acpiHKEYPath = ""
                 driverVersion = "Unavailable"; profileMatchState = "Unavailable"; firmwareProfileID = ""
                 featurePollingSupported = false; lastFirmwareRefresh = .distantPast
                 fanLabels = ["Fan 1", "Fan 2"]
@@ -868,7 +868,7 @@ public final class HardwareManager: ObservableObject {
             }
         }
     }
-    private var isThinkPadDevice: Bool {
+    public var isThinkPadDevice: Bool {
         if providerClass == "ThinkVPC" { return true }
         if providerClass == "IdeaVPC" { return false }
         let name = modelName.isEmpty ? detectedIdentity.name : modelName
@@ -885,15 +885,13 @@ public final class HardwareManager: ObservableObject {
         else { HardwareProfiles.exportBridge() }
     }
     public var canGenerateThinkPadSSDT: Bool {
-        if providerClass == "ThinkVPC" { return true }
-        if providerClass == "IdeaVPC" { return false }
-        return isThinkPadDevice
+        service != 0 && providerClass == "ThinkVPC" &&
+            HardwareProfiles.acpiNamespacePath(acpiECPath) != nil &&
+            HardwareProfiles.acpiNamespacePath(acpiHKEYPath) != nil
     }
     public func generateThinkPadSSDT() {
         guard canGenerateThinkPadSSDT else { return }
-        let ec = acpiECPath.isEmpty ? "\\_SB.PCI0.LPCB.EC" : acpiECPath
-        let hkey = acpiHKEYPath.isEmpty ? "\(ec).HKEY" : acpiHKEYPath
-        HardwareProfiles.exportThinkPadSSDT(service: service, ecPath: ec, hkeyPath: hkey)
+        HardwareProfiles.exportThinkPadSSDT(ecPath: acpiECPath, hkeyPath: acpiHKEYPath)
     }
     public func refreshPermissions() {
         let accessibility = AXIsProcessTrusted()

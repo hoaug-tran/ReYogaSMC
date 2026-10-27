@@ -3,7 +3,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
 permissions:
   contents: read
@@ -35,7 +35,6 @@ jobs:
   build:
     name: Build and package
     needs: test
-    if: github.event_name != 'pull_request'
     runs-on: macos-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -75,6 +74,7 @@ jobs:
           build/Debug/ReYogaSMC.app/Contents/MacOS/ReYogaSMC --render-ui
           test "$(find build/ReYogaUIReview -name '*.png' | wc -l | tr -d ' ')" -eq 26
       - name: Package
+        if: github.event_name != 'pull_request'
         env:
           BUILD_VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -89,6 +89,7 @@ jobs:
             build/*.log
             build/ReYogaUIReview/*.png
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: github.event_name != 'pull_request'
         with:
           name: ReYogaSMC-development
           path: |

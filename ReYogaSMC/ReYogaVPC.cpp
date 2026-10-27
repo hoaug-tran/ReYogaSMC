@@ -922,34 +922,47 @@ IOReturn ReYogaVPC::accessThinkFanGated(UInt32 fan, UInt32 requested, UInt8 outp
     const bool hasSelector = getProperty("Dual fan") == kOSBooleanTrue;
     if (fan && !hasSelector) return kIOReturnUnsupported;
     IOReturn transport = kIOReturnSuccess;
+    unsigned failedOffset = 0;
+    const char *failedOperation = "readback";
     const auto result = ReYogaControl::transactThinkFan(fan, requested, output, hasSelector, thinkFans,
         [&](unsigned offset, UInt8 &value) {
-            const IOReturn status = method_re1b(offset, &value);
+            const IOReturn status = method_re1b(offset, &value, false);
             if (status != kIOReturnSuccess) {
                 transport = status;
-                AlwaysLog("ThinkFan %u target 0x%x read 0x%02x failed 0x%x", fan, requested, offset, status);
+                failedOffset = offset;
+                failedOperation = "read";
             }
             return status == kIOReturnSuccess;
         },
         [&](unsigned offset, UInt8 value) {
-            const IOReturn status = method_we1b(offset, value);
+            const IOReturn status = method_we1b(offset, value, false);
             if (status != kIOReturnSuccess) {
                 transport = status;
-                AlwaysLog("ThinkFan %u target 0x%x write 0x%02x @ 0x%02x failed 0x%x", fan, requested, value, offset, status);
+                failedOffset = offset;
+                failedOperation = "write";
             }
             return status == kIOReturnSuccess;
         });
     setProperty("ThinkFanAccessFailed", thinkFans.selectorRestorePending);
+    IOReturn status = kIOReturnSuccess;
     switch (result) {
         case ReYogaControl::ThinkFanResult::ok:
             removeProperty("ThinkFanStatus");
-            return kIOReturnSuccess;
-        case ReYogaControl::ThinkFanResult::invalid: return kIOReturnBadArgument;
+            break;
+        case ReYogaControl::ThinkFanResult::invalid: status = kIOReturnBadArgument; break;
         case ReYogaControl::ThinkFanResult::restoreFailed:
             setProperty("ThinkFanStatus", "Fan selector restoration pending; Auto recovery will retry with readback");
-            return kIOReturnIOError;
-        default: return transport != kIOReturnSuccess ? transport : kIOReturnIOError;
+            status = kIOReturnIOError; break;
+        default: status = transport != kIOReturnSuccess ? transport : kIOReturnIOError; break;
     }
+    const bool poll = requested == ReYogaControl::kThinkFanQueryRPM;
+    const bool changed = poll && thinkFans.pollStatusChanged(fan, static_cast<unsigned>(status));
+    if (status != kIOReturnSuccess && (!poll || changed))
+        AlwaysLog("ThinkFan %u target 0x%x failed 0x%x (transport 0x%x, %s @ 0x%02x, result %u)",
+                  fan, requested, status, transport, failedOperation, failedOffset, static_cast<unsigned>(result));
+    else if (changed)
+        AlwaysLog("ThinkFan %u polling recovered", fan);
+    return status;
 }
 
 IOReturn ReYogaVPC::readThinkFanRPM(UInt32 fan, UInt32 &rpm) {

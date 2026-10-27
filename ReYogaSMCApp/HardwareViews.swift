@@ -538,17 +538,22 @@ public struct HardwareControlsView: View {
                         if manager.canGenerateACPIBridge {
                             Button(loc(.diagnosticsGenerateBridge)) { manager.generateACPIBridge() }
                         }
-                        if manager.canGenerateThinkPadSSDT {
+                        if manager.isThinkPadDevice {
                             Button(loc(.diagnosticsGenerateThinkPadSSDT)) { manager.generateThinkPadSSDT() }
+                                .disabled(!manager.canGenerateThinkPadSSDT)
                         }
                     }
                     if manager.canGenerateACPIBridge {
                         Text(loc(.diagnosticsBridgeDesc))
                             .font(.system(size: 11)).foregroundColor(.secondary)
                     }
-                    if manager.canGenerateThinkPadSSDT {
+                    if manager.isThinkPadDevice {
                         Text(loc(.diagnosticsThinkPadSSDTDesc))
                             .font(.system(size: 11)).foregroundColor(.secondary)
+                        if !manager.canGenerateThinkPadSSDT {
+                            Text(localizedMessage("Connect a matching driver that reports the EC and HKEY ACPI paths before generating an SSDT."))
+                                .font(.caption).foregroundColor(.secondary)
+                        }
                     }
                 }
             }
@@ -942,83 +947,91 @@ public struct HardwareControlsView: View {
 
 private struct ThinkPadFanPanel: View {
     @ObservedObject var manager: HardwareManager
-    @State private var levels: [Double] = [4, 4]
 
     private func helper(_ index: Int) -> ThinkFanHelper? {
         let delegate = NSApp.delegate as? AppDelegate
         return index == 0 ? delegate?.fanHelper : delegate?.fanHelper2
     }
 
-    private func fanRPMText(_ index: Int) -> String {
-        guard let fan = helper(index), fan.enable else { return loc(.commonUnavailable) }
-        let rpm = index == 0 ? manager.fan1RPM : manager.fan2RPM
-        if rpm > 0 {
-            return localizedMessage("%@ RPM", String(rpm))
+    var body: some View {
+        ControlSection(loc(.thinkPadFans)) {
+            ForEach(0..<(manager.hasDualFan || helper(1) != nil ? 2 : 1), id: \.self) { index in
+                if let fan = helper(index) {
+                    ThinkPadFanControl(fan: fan)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(index == 0 ? loc(.mainFan) : loc(.secondaryFan))
+                            Spacer()
+                            let rpm = index == 0 ? manager.fan1RPM : manager.fan2RPM
+                            Text(rpm >= 0 ? localizedMessage("%@ RPM", String(rpm)) : loc(.commonUnavailable))
+                                .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
+                        }
+                        Text(loc(.fanInterfaceRequired)).font(.caption).foregroundColor(.secondary)
+                    }.padding(.vertical, 6)
+                }
+            }
         }
-        if let direct = fan.rpm, direct > 0 {
-            return localizedMessage("%@ RPM", String(direct))
-        }
-        return loc(.commonUnavailable)
+    }
+}
+
+private struct ThinkPadFanControl: View {
+    @ObservedObject var fan: ThinkFanHelper
+    @State private var level: Double = 4
+    // Parent telemetry redraws must not restart the polling interval.
+    @State private var timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+
+    private var title: String { fan.main ? loc(.mainFan) : loc(.secondaryFan) }
+    private var mode: String {
+        guard fan.enable else { return loc(.commonUnavailable) }
+        if fan.isFullSpeed { return loc(.fanFullSpeed) }
+        if fan.isAutomatic { return loc(.fanAuto) }
+        return String(format: loc(.fanLevelFormat), fan.level)
     }
 
     var body: some View {
-        ControlSection(loc(.thinkPadFans)) {
-            ForEach(0..<(helper(1) == nil ? 1 : 2), id: \.self) { index in
-                let fan = helper(index)
-                let isEnabled = fan?.enable == true
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(localizedMessage(index == 0 ? loc(.mainFan) : loc(.secondaryFan))).font(.system(size: 12, weight: .medium))
-                        Spacer()
-                        Text(localizedMessage(fanRPMText(index))).font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
-                    }
-                    HStack {
-                        Button(loc(.fanAuto)) { command(index) { $0.setAutomatic() } }
-                            .disabled(helper(index)?.canRecoverAutomatic != true)
-                        Button(loc(.fanFullSpeed)) { command(index) { $0.setFullSpeed() } }
-                            .disabled(!isEnabled)
-                        Spacer()
-                        if fan?.isFullSpeed == true {
-                            Text(loc(.fanFullSpeed)).font(.caption).foregroundColor(.orange)
-                        } else if fan?.isAutomatic == true {
-                            Text(loc(.fanAuto)).font(.caption).foregroundColor(.secondary)
-                        } else {
-                            Text(localizedMessage(String(format: loc(.fanLevelFormat), Int(levels[index])))).font(.caption)
-                        }
-                        Button(loc(.coolingApply)) {
-                            command(index) { targetFan in
-                                targetFan.setManualLevel(Int(levels[index]))
-                            }
-                }.disabled(!enabled[index])
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title).font(.system(size: 12, weight: .medium))
+                Spacer()
+                Text(fan.rpm.map { localizedMessage("%@ RPM", String($0)) } ?? loc(.commonUnavailable))
+                    .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
             }
-            Slider(value: $levels[index], in: Double(helper(index)?.minimumLevel ?? 1)...7, step: 1)
-                .disabled(!enabled[index]).accessibilityLabel(localizedMessage(index == 0 ? "Main fan level" : "Secondary fan level"))
-            if !enabled[index] {
-                Text(helper(index) == nil ? loc(.fanInterfaceRequired) :
-                     localizedMessage("Fan status is unavailable. Try Auto or reconnect the driver."))
+            HStack {
+                Button(loc(.fanAuto)) { command { fan.setAutomatic() } }
+                    .disabled(!fan.canRecoverAutomatic)
+                Button(loc(.fanFullSpeed)) { command { fan.setFullSpeed() } }
+                    .disabled(!fan.enable)
+                Spacer()
+                Text(mode).font(.caption).foregroundColor(.secondary)
+            }
+            HStack {
+                Slider(value: $level, in: Double(fan.minimumLevel)...7, step: 1)
+                    .disabled(!fan.enable)
+                    .accessibilityLabel(localizedMessage(fan.main ? "Main fan level" : "Secondary fan level"))
+                Text(String(format: loc(.fanLevelFormat), Int(level))).font(.caption)
+                Button(loc(.coolingApply)) { command { fan.setManualLevel(Int(level)) } }
+                    .disabled(!fan.enable)
+            }
+            if !fan.enable {
+                Text(localizedMessage("Fan status is unavailable. Try Auto or reconnect the driver."))
                     .font(.caption).foregroundColor(.secondary)
             }
         }.padding(.vertical, 6)
-        }
-        }.onAppear { refresh(readLevel: true) }
+            .onAppear {
+                guard !CommandLine.arguments.contains("--render-ui") else { return }
+                fan.update()
+                level = Double(max(fan.minimumLevel, fan.level))
+            }
+            .onReceive(timer) { _ in
+                guard !CommandLine.arguments.contains("--render-ui") else { return }
+                fan.update()
+            }
     }
 
-    private func command(_ index: Int, action: (ThinkFanHelper) -> Void) {
-        guard !CommandLine.arguments.contains("--render-ui"), let fan = helper(index) else { return }
-        action(fan)
-        refresh()
-    }
-
-    private func refresh(readLevel: Bool = false) {
+    private func command(_ action: () -> Void) {
         guard !CommandLine.arguments.contains("--render-ui") else { return }
-        for index in 0..<fans.count {
-            guard let fan = helper(index) else { continue }
-            fan.update()
-            enabled[index] = fan.enable
-            statuses[index] = fan.enable ? (fan.rpm.map { localizedMessage("%@ RPM", "\($0)") } ?? loc(.fanLevelAuto)) : loc(.fanDisabled)
-            manual[index] = fan.isManual
-            levels[index] = Double(fan.level)
-        }
+        action()
     }
 }
 

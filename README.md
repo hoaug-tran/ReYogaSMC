@@ -145,16 +145,16 @@ Sample patches live in [`ReYogaSMC/SSDTSample/`](ReYogaSMC/SSDTSample/). Most mo
 
 | SSDT | Target machines | Why it is needed |
 | :--- | :--- | :--- |
-| [`SSDT-ThinkPad.dsl`](ReYogaSMC/SSDTSample/SSDT-ThinkPad.dsl) | ThinkPad | Recommended all-in-one patch. Combines `RE1B`/`WE1B` EC read/write methods for fan control, `LNUX`/`WNTF` OS flags, `_SI._SST` LED proxy, and EC thermal sensor regions (`EST0`–`ESTF`). Safe on setups using `ECEnabler.kext`. |
+| [`SSDT-ThinkPad.dsl`](ReYogaSMC/SSDTSample/SSDT-ThinkPad.dsl) | ThinkPad | Combined EC access and OS compatibility sample, generated from the app template. Adds `RE1B`/`WE1B`/`RECB`/`WECB`, `LNUX`/`WNTF` flags and the `_SI._SST` LED proxy. It does not assume thermal sensor offsets; verify paths and existing methods before loading. |
 | [`SSDT-ECRW.dsl`](ReYogaSMC/SSDTSample/SSDT-ECRW.dsl) | ThinkPad (or any EC needing manual write) | Adds standalone `RE1B` and `WE1B` 8-bit read/write methods to the EC. Required for ThinkPad fan control (`0x2F`/`0x31` registers). Without it, the driver runs in read-only mode and fan controls stay disabled. Adjust the EC scope (`_SB.PCI0.LPCB.EC` vs `_SB.PCI0.LPCB.H_EC`) to match your DSDT and check for conflicts with existing battery patches. |
-| [`SSDT-THINK.dsl`](ReYogaSMC/SSDTSample/SSDT-THINK.dsl) | ThinkPad | Standalone sample for `LNUX`/`WNTF` OS flags, `_SI._SST` LED control via `CSSI`, and EC thermal registers (`EST0`–`ESTF`) under `ESEN`. |
+| [`SSDT-THINK.dsl`](ReYogaSMC/SSDTSample/SSDT-THINK.dsl) | ThinkPad | Legacy sample for OS flags, LED control and `EST0`–`ESTF` thermal fields. Use the thermal layout only after checking its offsets against your firmware; do not load overlapping methods alongside `SSDT-ThinkPad`. |
 | [`SSDT-RCSM.dsl`](ReYogaSMC/SSDTSample/SSDT-RCSM.dsl) | IdeaPad / Yoga | Adds the `RCSM` method to the EC device. Needed on older IdeaPad/Yoga laptops where firmware lacks native ACPI methods for Conservation Mode and Rapid Charge. |
 | [`SSDT-WMIS.dsl`](ReYogaSMC/SSDTSample/SSDT-WMIS.dsl) | IdeaPad / Legion | Adds the `WMIS` method under `_SB.PCI0.WMID` (or `_SB.WMID`). Needed when firmware has a WMI device but does not expose standard evaluation methods for performance modes or backlight. |
 | [`SSDT-YVPC.dsl`](ReYogaSMC/SSDTSample/SSDT-YVPC.dsl) | IdeaPad / Yoga | Declares a `VPC2004` device under `_SB.PCI0.LPCB`. Needed if DSDT lacks the `VPC2004` ACPI device entirely, which prevents `IdeaVPC` from attaching. |
 
 > [!NOTE]
 > - **IdeaPad and Legion:** If your model has a reviewed profile in `HardwareProfiles/`, the companion app exports a tailored `SSDT-ReYoga` bridge directly (**Diagnostics → Generate ACPI bridge…**).
-> - **ThinkPad:** The companion app detects your machine's exact ACPI EC path and exports an all-in-one `SSDT-ThinkPad` directly (**Diagnostics → Generate ThinkPad SSDT…**). This SSDT is optional: load it only if you want manual or full-speed fan control, or if your DSDT drops EC thermal sensors. Do not load it if your EFI already uses a legacy DSDT battery patch containing `RE1B`/`WE1B`.
+> - **ThinkPad:** With a matching driver connected, the app uses the EC and HKEY paths reported by the ACPI registry to export `SSDT-ThinkPad` (**Diagnostics → Generate ThinkPad SSDT…**). Export stays disabled when those paths are missing or invalid. Review the source against your DSDT before installation: compilation does not verify the target namespace. The patch is optional for EC fan access and does not add unverified thermal fields. Do not load it alongside battery or EC patches that already define its methods.
 
 
 <details>

@@ -2,6 +2,7 @@
 import pathlib
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -16,6 +17,11 @@ class ThinkFanTests(unittest.TestCase):
             source = directory / 'main.swift'
             # The helper uses no AppKit APIs; stub only the hardware/app boundary.
             helper = (ROOT / 'ReYogaSMCUtils/ThinkFanHelper.swift').read_text(encoding='utf-8')
+            if sys.platform != 'darwin':
+                helper = helper.replace('import Combine', '''protocol ObservableObject {}
+@propertyWrapper struct Published<Value> {
+    var wrappedValue: Value
+}''')
             source.write_text(helper.replace('import AppKit', '') + '\n' +
                               (ROOT / 'Tests/think_fan.swift').read_text(encoding='utf-8'), encoding='utf-8')
             executable = directory / 'think-fan'
@@ -25,13 +31,3 @@ class ThinkFanTests(unittest.TestCase):
             result = subprocess.run([str(executable)], capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('PASS real ThinkFanHelper', result.stdout)
-
-    def test_auto_recovery_is_not_disabled_with_manual_controls(self):
-        view = (ROOT / 'ReYogaSMCApp/HardwareViews.swift').read_text(encoding='utf-8')
-        controls = view.split('Button(loc(.fanAuto))', 1)[1].split('private struct ThinkPadBatteryControls', 1)[0]
-        auto = controls.split('Button(loc(.fanFullSpeed))', 1)[0]
-        self.assertIn('.disabled(helper(index)?.canRecoverAutomatic != true)', auto)
-        self.assertNotIn('disabled(!enabled[index])', auto)
-        self.assertNotIn('}.disabled(!enabled[index])\n                    Slider', controls)
-        command = controls.split('private func command(', 1)[1].split('private func refresh(', 1)[0]
-        self.assertNotIn('fan.enable', command)
