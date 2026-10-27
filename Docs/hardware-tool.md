@@ -48,7 +48,7 @@ Windows requires the signed [PawnIO driver](https://pawnio.eu/) installed separa
 
 `report.json` records the backend, timestamp, values and failures; complete snapshots also include `ec-*.bin`. These are sequential samples, not an atomic image. The standard space does not cover extended MMIO, indexed or banked vendor registers. A snapshot cannot establish which values safely control a feature. Compare exports from known operating states and review them with the ACPI declarations.
 
-The downloaded module is LGPL-2.1-or-later; its source and license are linked in `Scripts/pawnio.json`.
+The downloaded module is LGPL-2.1-or-later; its source and license are linked in `Scripts/pawnio.json`. Windows/Linux live collection still needs validation on those operating systems.
 
 ## Sharing a report
 

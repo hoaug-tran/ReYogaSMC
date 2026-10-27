@@ -109,18 +109,10 @@ class BootSafetyTests(unittest.TestCase):
         self.assertIn('case DYTC_FUNCTION_PSC:', parse_body)
         self.assertIn('setPropertyString(DYTCStatus, "PerfMode", "Quiet")', parse_body)
         self.assertIn('setPropertyString(DYTCStatus, "PerfMode", "Balance")', parse_body)
-        cql = parse_body.split('switch (readbackFunction)', 1)[1].split('case DYTC_FUNCTION_CQL:', 1)[1].split('case DYTC_FUNCTION_MMC:', 1)[0]
-        self.assertIn('Unavailable while lap mode masks the thermal profile', cql)
-        self.assertNotIn('"PerfMode", "Performance', cql)
-        fan_body = vpc.split('IOReturn ReYogaVPC::readThinkFanRPM(', 1)[1].split('\nvoid ReYogaVPC::restoreThinkFans(', 1)[0]
-        self.assertIn('ReYogaControl::thinkFanRPM(sample[0], sample[1])', fan_body)
-        self.assertNotIn('6000', fan_body)
         header = source('ReYogaSMC/ReYogaVPC.hpp')
         self.assertIn('BIT(DYTC_FUNCTION_MMC) | BIT(DYTC_FUNCTION_PSC)', header)
         think = source('ReYogaSMC/ReYogaVPC/ThinkVPC.cpp')
-        self.assertIn('status = setThermalProfile(target)', think)
-        self.assertIn('const bool useMMC = supportsMMCThermal();', vpc)
-        self.assertIn('add("CPUBoostPower", false, "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.");', think)
+        self.assertIn('useMMC ? DYTC_FUNCTION_MMC : DYTC_FUNCTION_PSC', think)
 
     def test_psc_mapping_tracks_revision_and_does_not_reset(self):
         header = source('ReYogaSMC/ReYogaVPC.hpp')
@@ -128,29 +120,14 @@ class BootSafetyTests(unittest.TestCase):
         self.assertIn('profile == 1 ? 1 : profile == 2 ? 3 : 4', header)
         self.assertIn('profile == 1 ? 3 : profile == 2 ? 5 : 7', header)
         setter = source('ReYogaSMC/ReYogaVPC.cpp').split('bool ReYogaVPC::setDYTC(', 1)[1].split('bool ReYogaVPC::dumpECOffset', 1)[0]
-        self.assertNotIn('dytc_reset_cmd', setter)
-        self.assertIn('funcmode == DYTC_FUNCTION_MMC && perfmode == DYTC_MODE_BALANCE', setter)
+        psc = setter.split('if (funcmode == DYTC_FUNCTION_PSC)', 1)[1].split('} else {', 1)[0]
+        self.assertNotIn('dytc_reset_cmd', psc)
         self.assertIn('return updateDYTC()', setter)
 
     def test_app_info_plist_declares_bluetooth_usage_description(self):
         plist = source('ReYogaSMCApp/Info.plist')
         self.assertIn('<key>NSBluetoothAlwaysUsageDescription</key>', plist)
 
-    def test_standalone_ssdtless_and_hotkey_migration(self):
-        kext_plist = source('ReYogaSMC/Info.plist')
-        self.assertIn('<string>VPC2004</string>', kext_plist)
-        vpc = source('ReYogaSMC/ReYogaVPC.cpp')
-        self.assertIn('ec->evaluateInteger("HSPD", &raw)', vpc)
-        control = source('ReYogaSMC/ControlValidation.hpp')
-        self.assertIn('if (hasSelector && !read(kThinkFanSelectorOffset, original))', control)
-        config = source('ReYogaSMCUtils/Configuration.swift')
-        self.assertIn('eid == TP_HKEY_EV_SETTING.rawValue && resolvedAction == .settings', config)
-        self.assertIn('resolvedAction = .systemsettings', config)
-        self.assertIn('resetDefaultEvents', config)
-        notify = source('ReYogaSMCApp/NotificationHandler.swift')
-        self.assertIn('com.apple.systempreferences', notify)
-
 
 if __name__ == '__main__':
     unittest.main()
-

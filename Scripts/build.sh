@@ -6,11 +6,7 @@ case "$configuration" in Debug|Release) ;; *) echo 'Usage: bash Scripts/build.sh
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ "${EUID:-$(id -u)}" -eq 0 ] && [ -n "${SUDO_USER:-}" ]; then
-    if [ -L "$root/build" ]; then
-        chown -h "$SUDO_USER" "$root/build" 2>/dev/null || true
-    elif [ -d "$root/build" ]; then
-        chown -R -P "$SUDO_USER" "$root/build" 2>/dev/null || true
-    fi
+    chown -R "$SUDO_USER" "$root/build" 2>/dev/null || true
     exec sudo -u "$SUDO_USER" bash "$0" "$@"
 fi
 
@@ -20,9 +16,10 @@ if [ -e "$build_dir" ] && [ ! -w "$build_dir" ]; then
     exit 1
 fi
 
-derived_data="${DERIVED_DATA_PATH:-$build_dir/DerivedData}"
-obj_root="${OBJROOT_PATH:-$build_dir/Intermediates}"
+derived_data="${DERIVED_DATA_PATH:-${TMPDIR%/}/ReYogaSMC-DerivedData}"
+obj_root="${OBJROOT_PATH:-${TMPDIR%/}/ReYogaSMC-Intermediates}"
 
+rm -rf "$build_dir/$configuration" "$derived_data" "$obj_root"
 mkdir -p "$build_dir"
 
 cd "$root"

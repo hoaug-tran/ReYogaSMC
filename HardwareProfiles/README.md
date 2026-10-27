@@ -1,6 +1,6 @@
 # Hardware profiles
 
-Hardware profiles declare model identity, firmware interfaces and validation evidence for Lenovo laptops that expose model-specific ACPI EC sensor fields or USB RGB layouts. Feature availability depends on the declared interface and validation flags.
+Hardware profiles declare model identity, firmware interfaces and validation evidence for Lenovo laptops that expose model-specific ACPI EC sensor fields or USB RGB layouts. A source link or identity entry is not proof that every feature has been tested on hardware.
 
 > [!NOTE]
 > ThinkPad laptops (such as T, X, X1, P, L and E series) and standard IdeaPad/Yoga ACPI features (`GBMD`/`SBMC` battery conservation, rapid charge, keyboard backlight, Fn Lock, Always-On USB and WMI thermal modes) use generic ACPI/WMI methods and do not require a JSON file in this directory.

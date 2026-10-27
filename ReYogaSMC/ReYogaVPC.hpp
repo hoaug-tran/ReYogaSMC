@@ -11,7 +11,6 @@
 #define ReYogaVPC_hpp
 
 #include "DYTC.h"
-#include "ControlValidation.hpp"
 #include "ReYogaBaseService.hpp"
 #include "ReYogaSMCUserClientPrivate.hpp"
 
@@ -135,8 +134,7 @@ protected:
      *  Vendor specific WMI support
      */
     bool vendorWMISupport {false};
-    ReYogaControl::ThinkFanState thinkFans;
-    IOReturn accessThinkFanGated(UInt32 fan, UInt32 requested, UInt8 output[3]);
+    UInt8 thinkFanModifiedMask {0};
 
     /**
      *  Initialize WMI
@@ -230,9 +228,6 @@ protected:
      *  Backlight poller
      */
     IOTimerEventSource* backlightPoller {nullptr};
-    IOTimerEventSource* thinkFanWatchdog {nullptr};
-    ReYogaControl::ThinkFanLease thinkFanLease;
-    void expireThinkFanCurve(OSObject *owner, IOTimerEventSource *timer);
 
     /**
      *  Action for backlight poller
@@ -301,7 +296,6 @@ protected:
      *  @return true if success
      */
     bool setDYTC(int funcmode, int perfmode);
-    bool setThermalProfile(UInt32 profile);
 
     /**
      *  Wrapper for single param integer evaluation
@@ -324,12 +318,13 @@ public:
     virtual IOReturn message(UInt32 type, IOService *provider, void *argument) APPLE_KEXT_OVERRIDE;
     virtual IOReturn setPowerState(unsigned long powerState, IOService * whatDevice) APPLE_KEXT_OVERRIDE;
 
+    /**
+     *  VPC UserClient
+     */
     ReYogaSMCUserClient *client {nullptr};
-    IOReturn accessThinkFanCurve(UInt32 fan, UInt32 requested, UInt8 output[3]);
     IOReturn accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]);
-    IOReturn readThinkFanRPM(UInt32 fan, UInt32 &rpm, UInt8 *control = nullptr);
     void restoreThinkFans();
     virtual void restoreUserControls() { restoreThinkFans(); }
 };
 
-#endif
+#endif /* ReYogaVPC_hpp */
