@@ -11,13 +11,11 @@ import Foundation
 import os.log
 
 enum EventAction: String {
-    // Userspace
     case nothing, script, launchapp, launchbundle
     case airplane, wireless, bluetooth, bluetoothdiscoverable
-    case settings, spotlight, search, siri, sleep, micmute
+    case settings, systemsettings, spotlight, search, siri, sleep, micmute
     case mission, launchpad, desktop, expose, controls, calculator, screenshot, displaysettings
     case mirror, camera, yoga
-    // Driver
     case backlight, fnlock, keyboard, thermal
 }
 
@@ -128,14 +126,14 @@ let thinkEvents: [UInt32: [UInt32: EventDesc]] = [
     TP_HKEY_EV_BRGHT_DOWN.rawValue: [0: EventDesc("Brightness Down", display: false)], // 0x1011
     TP_HKEY_EV_KBD_LIGHT.rawValue: [0: EventDesc("Keyboard Backlight", act: .backlight)], // 0x1012
     TP_HKEY_EV_MIC_MUTE.rawValue: [0: EventDesc("Mic Mute", act: .micmute)], // 0x101B
-    TP_HKEY_EV_SETTING.rawValue: [0: EventDesc("Settings", act: .settings, display: false)], // 0x101D
-    TP_HKEY_EV_SEARCH.rawValue: [0: EventDesc("Search", act: .siri, display: false)], // 0x101E
-    TP_HKEY_EV_MISSION.rawValue: [0: EventDesc("Mission Control", act: .mission, display: false)], // 0x101F
-    TP_HKEY_EV_APPS.rawValue: [0: EventDesc("Launchpad", act: .launchpad, display: false)], // 0x1020
+    TP_HKEY_EV_SETTING.rawValue: [0: EventDesc("Settings", act: .systemsettings, display: false)],
+    TP_HKEY_EV_SEARCH.rawValue: [0: EventDesc("Search", act: .siri, display: false)],
+    TP_HKEY_EV_MISSION.rawValue: [0: EventDesc("Mission Control", act: .mission, display: false)],
+    TP_HKEY_EV_APPS.rawValue: [0: EventDesc("Launchpad", act: .launchpad, display: false)],
     TP_HKEY_EV_STAR.rawValue: [
-        0: EventDesc("Settings", .kStar, act: .settings),
-        optionFlag: EventDesc("System Prefereces", .kStar, act: .launchbundle, opt: "com.apple.systempreferences")
-    ], // 0x1311
+        0: EventDesc("ReYogaSMC Controls", .kStar, act: .controls),
+        optionFlag: EventDesc("System Preferences", .kStar, act: .launchbundle, opt: "com.apple.systempreferences")
+    ],
     TP_HKEY_EV_BLUETOOTH.rawValue: [
         0: EventDesc("Bluetooth", act: .bluetooth),
         optionFlag: EventDesc("BT Discoverable", act: .bluetoothdiscoverable)
@@ -202,10 +200,14 @@ func loadEvents(_ conf: inout SharedConfig) {
                        (opt == "Unknown" || (opt == nil && name.hasPrefix("Event 0x"))) {
                         os_log("Override unknown event 0x%04x : %d", type: .info, eid, data)
                     } else {
+                        var resolvedAction = EventAction(rawValue: action) ?? .nothing
+                        if eid == TP_HKEY_EV_SETTING.rawValue && resolvedAction == .settings {
+                            resolvedAction = .systemsettings
+                        }
                         info[data] = EventDesc(
                             name,
                             event["image"] as? String,
-                            act: EventAction(rawValue: action) ?? .nothing,
+                            act: resolvedAction,
                             display: event["display"] as? Bool ?? true,
                             opt: opt)
                     }
@@ -246,4 +248,18 @@ func saveEvents(_ conf: inout SharedConfig) {
         dict[String(eid, radix: 16)] = events
     }
     ReYogaConstants.hardwareDefaults.setValue(dict, forKey: "Events")
+}
+
+func resetDefaultEvents(_ conf: inout SharedConfig, ioClass: String) {
+    ReYogaConstants.hardwareDefaults.removeObject(forKey: "Events")
+    switch ioClass {
+    case "IdeaVPC":
+        conf.events = ideaEvents
+    case "ThinkVPC":
+        conf.events = thinkEvents
+    case "ReYogaHIDD":
+        conf.events = HIDDEvents
+    default:
+        break
+    }
 }

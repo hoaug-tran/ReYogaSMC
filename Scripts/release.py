@@ -48,7 +48,8 @@ def shipped(path):
         return False
     if path.startswith(('ReYogaSMC/', 'ReYogaSMCApp/', 'ReYogaSMCUtils/', 'ReYogaSMCHelper/', 'HardwareProfiles/')):
         return True
-    return path in ('ReYoga.cmd', 'ReYoga.command', PROJECT.as_posix()) or (
+    return path in ('en.lproj/Localizable.strings', 'vi.lproj/Localizable.strings',
+                    'ReYoga.cmd', 'ReYoga.command', PROJECT.as_posix()) or (
         path.startswith('Scripts/') and pathlib.PurePosixPath(path).name not in ('release.py', 'generate_firmware_profiles.py'))
 
 
@@ -114,6 +115,8 @@ def verify_assets(folder, version=None):
     actual = {path.relative_to(folder).as_posix() for path in folder.rglob('*.zip')}
     if actual != expected:
         raise ValueError(f'Package mismatch; missing={sorted(expected - actual)}, extra={sorted(actual - expected)}')
+    if len({pathlib.Path(name).name for name in manifest}) != len(manifest):
+        raise ValueError('Package basenames must be unique')
     lines = []
     for name, required in sorted(manifest.items()):
         path = folder / name
@@ -130,7 +133,7 @@ def verify_assets(folder, version=None):
                         raise ValueError('Packaged version mismatch: ' + member)
             if archive.testzip() is not None:
                 raise ValueError('Corrupt ZIP: ' + name)
-        lines.append(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + name)
+        lines.append(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path.name)
     (folder / 'SHA256SUMS.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 

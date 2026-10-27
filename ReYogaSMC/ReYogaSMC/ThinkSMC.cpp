@@ -1,20 +1,9 @@
-//  SPDX-License-Identifier: GPL-2.0-only
-//
-//  ThinkSMC.cpp
-//  ReYogaSMC
-//
-//  Created by Zhen on 8/30/20.
-//  Copyright © 2020 Zhen. All rights reserved.
-//
-
 #include "ThinkSMC.hpp"
 #include "../ReYogaVPC.hpp"
 
 OSDefineMetaClassAndStructors(ThinkSMC, ReYogaSMC);
 
 void ThinkSMC::addVSMCKey() {
-    // Add message-based key
-
     VirtualSMCAPI::addKey(KeyFNum, vsmcPlugin.data, VirtualSMCAPI::valueWithUint8(dualFan ? 2 : 1, nullptr, SMC_KEY_ATTRIBUTE_CONST | SMC_KEY_ATTRIBUTE_READ));
     VirtualSMCAPI::addKey(KeyF0Ac(0), vsmcPlugin.data, VirtualSMCAPI::valueWithFp(0, SmcKeyTypeFpe2, new atomicFpKey(&currentSensor[0])));
     ++sensorCount;
@@ -28,13 +17,19 @@ void ThinkSMC::addVSMCKey() {
 
 void ThinkSMC::updateECVendor() {
     for (unsigned fan = 0; fan < (dualFan ? 2U : 1U); ++fan) {
-        UInt8 sample[3] = {};
-        const bool valid = sensorProvider && sensorProvider->accessThinkFan(fan, 0x100, sample) == kIOReturnSuccess;
-        const UInt32 rpm = valid ? static_cast<UInt32>(sample[0]) | static_cast<UInt32>(sample[1]) << 8 : UINT32_MAX;
-        atomic_store_explicit(&currentSensor[fan], rpm, memory_order_release);
+        UInt32 rpm = UINT32_MAX;
+        const bool valid = sensorProvider && sensorProvider->readThinkFanRPM(fan, rpm) == kIOReturnSuccess;
+        atomic_store_explicit(&currentSensor[fan], valid ? rpm : UINT32_MAX, memory_order_release);
+        if (sensorProvider) {
+            const char *property = fan == 0 ? "Fan1RPM" : "Fan2RPM";
+            if (valid) sensorProvider->setProperty(property, rpm, 32);
+            else sensorProvider->removeProperty(property);
+        }
     }
 }
 
 void ThinkSMC::getWMISensor(IOService *provider) {
     sensorProvider = OSDynamicCast(ReYogaVPC, provider);
+    dualFan = sensorProvider && sensorProvider->getProperty("Dual fan") == kOSBooleanTrue;
 }
+

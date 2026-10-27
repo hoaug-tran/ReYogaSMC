@@ -13,6 +13,36 @@ func rejects(_ name: String, _ action: () throws -> Void) {
 }
 let profiles = HardwareProfiles.all()
 require(!profiles.isEmpty, "Bundled profiles missing")
+do {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let input = directory.appendingPathComponent("DSDT.dsl")
+    let source = "Name (X, \"a b//c\") /* comment */\n"
+    try source.write(to: input, atomically: true, encoding: .utf8)
+    let decoded = try HardwareProfiles.readDSDTSource(input)
+    require(decoded == source, "DSDT file reader changed source data")
+    let repeated = String(repeating: source, count: 4096)
+    require(HardwareProfiles.normalizedDSDT(repeated) == String(repeating: "Name(X,\"a b//c\")", count: 4096), "Incremental normalization changed quoted data")
+    try Data([0xff]).write(to: input)
+    rejects("invalid UTF-8 DSL") { _ = try HardwareProfiles.readDSDTSource(input) }
+    let handle = try FileHandle(forWritingTo: input)
+    try handle.truncate(atOffset: UInt64(HardwareProfiles.maxDSDTFileSize + 1))
+    try handle.close()
+    rejects("oversized DSL file") { _ = try HardwareProfiles.readDSDTSource(input) }
+    try source.write(to: input, atomically: true, encoding: .utf8)
+    let previousCompiler = UserDefaults.standard.object(forKey: "IASLPath")
+    defer { UserDefaults.standard.set(previousCompiler, forKey: "IASLPath") }
+    UserDefaults.standard.set("/usr/bin/false", forKey: "IASLPath")
+    rejects("failed SSDT compiler") { _ = try HardwareProfiles.compileSSDT(input) }
+    require(FileManager.default.fileExists(atPath: input.deletingPathExtension().appendingPathExtension("compile.log").path), "Compiler failure log was lost")
+    let preserved = try String(contentsOf: input, encoding: .utf8)
+    require(preserved == source, "Compiler failure changed the saved source")
+    let logURL = input.deletingPathExtension().appendingPathExtension("compile.log")
+    try FileManager.default.removeItem(at: logURL)
+    try FileManager.default.createDirectory(at: logURL, withIntermediateDirectories: true)
+    rejects("unwritable compiler log") { _ = try HardwareProfiles.compileSSDT(input) }
+} catch { fatalError("DSDT file fixture failed: \(error)") }
 require(profiles.allSatisfy { $0["schema_version"] as? Int == 1 }, "Unsupported profile schema")
 let legionIdentity = LaptopIdentity.resolve(strings: ["82N6CTO1WW"], pciIDs: [], lenovo: false)
 require(legionIdentity.name == "Lenovo Legion 7 2021 16ACHg6", "Machine type identity failed")
@@ -21,6 +51,38 @@ require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:ffff"], lenovo: false
 let identityProfiles: [[String: Any]] = [["kind": "acpi", "name": "Test Lenovo", "pci_subsystem_ids": ["17aa:1234"]]]
 require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:1234"], lenovo: false, profiles: identityProfiles).name == "Test Lenovo", "PCI subsystem lookup failed")
 require(LaptopIdentity.resolve(strings: ["82N6", "82JQ"], pciIDs: [], lenovo: true).name == "Lenovo Laptop", "Ambiguous identity selected a model")
+require(LaptopIdentity.resolve(strings: ["20R20000US"], pciIDs: [], lenovo: false).name == "ThinkPad X1 Carbon Gen 7", "ThinkPad machine type lookup failed")
+require(LaptopIdentity.resolve(strings: ["ThinkPad X1 Carbon 7th"], pciIDs: [], lenovo: false).name == "ThinkPad X1 Carbon 7th", "ThinkPad brand name extraction failed")
+require(LaptopIdentity.resolve(strings: ["IdeaPad 5 15ARE05"], pciIDs: [], lenovo: false).name == "IdeaPad 5 15ARE05", "IdeaPad brand name extraction failed")
+require(LaptopIdentity.resolve(strings: ["Yoga Slim 7 14ARE05"], pciIDs: [], lenovo: false).name == "Yoga Slim 7 14ARE05", "Yoga brand name extraction failed")
+require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:2292"], lenovo: false).name == "ThinkPad X1 Carbon Gen 7", "PCI catalog lookup failed")
+require(LaptopIdentity.resolve(strings: ["20L5CTO1WW"], pciIDs: [], lenovo: false).name == "ThinkPad T480", "ThinkPad T480 lookup failed")
+require(LaptopIdentity.resolve(strings: ["20ZZ123456"], pciIDs: [], lenovo: false).name == "ThinkPad (20ZZ)", "Unknown ThinkPad fallback failed")
+require(LaptopIdentity.resolve(strings: ["82ZZ0046US"], pciIDs: [], lenovo: false).name == "Lenovo (82ZZ)", "Unknown Lenovo machine type fallback failed")
+require(LaptopIdentity.resolve(strings: ["82WK0046US"], pciIDs: [], lenovo: false).name == "Lenovo Legion Pro 5 16IRX8", "Legion machine type lookup failed")
+require(LaptopIdentity.resolve(strings: ["20R2CTO1WW"], pciIDs: ["17aa:2250"], lenovo: true).name == "Lenovo Laptop", "Conflicting catalog machine and PCI identities selected a model")
+require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:2250", "17aa:2292"], lenovo: true).name == "Lenovo Laptop", "Conflicting PCI identities selected an arbitrary model")
+require(LaptopIdentity.resolve(strings: ["20L5CTO1WW", "20R2CTO1WW"], pciIDs: [], lenovo: true).name == "Lenovo Laptop", "Conflicting machine identities selected the first model")
+require(LaptopIdentity.resolve(strings: ["20R2CTO1WW"], pciIDs: ["17AA:2292"], lenovo: true).name == "ThinkPad X1 Carbon Gen 7", "Matching catalog evidence did not converge")
+require(LaptopIdentity.resolve(strings: ["82N6CTO1WW"], pciIDs: ["17aa:2250"], lenovo: true).name == "Lenovo Laptop", "Catalog conflict was hidden by a reviewed profile")
+require(HardwareProfiles.acpiNamespacePath("IOACPIPlane:/_SB/PCI0@0/LPCB/EC/HKEY") == "\\_SB.PCI0.LPCB.EC.HKEY", "ACPI registry path conversion failed")
+require(HardwareProfiles.acpiNamespacePath("\\_SB.PC00.LPCB.H_EC") == "\\_SB.PC00.LPCB.H_EC", "Valid non-default ACPI path was rejected")
+for invalid in ["", "\\", "\\_SB..EC", "\\_SB.EC\n", "\\_SB.BADNAME.EC", "IOACPIPlane:/_SB//EC", "IOACPIPlane:/@/EC", "IOService:/EC", "\\_SB.EC) { Name (X, 1) }"] {
+    require(HardwareProfiles.acpiNamespacePath(invalid) == nil, "Invalid ACPI path was accepted: \(invalid)")
+}
+do {
+    var namespace = ThinkPadACPI()
+    try namespace.add("Device (EC0) { Name (_HID, EisaId (\"PNP0C09\")) Device (HKEY) {} }", table: "test")
+    rejects("unproven EC layout") {
+        _ = try namespace.plan(ecPath: "\\EC0", hkeyPath: "\\EC0.HKEY",
+            live: Dictionary(uniqueKeysWithValues: ThinkPadACPI.helpers.keys.map { ($0, false) }), protocolLayout: [:], template: "")
+    }
+} catch { fatalError("ThinkPad namespace parsing failed: \(error)") }
+var mockSMBIOS = Data([1, 8, 0, 0, 1, 2, 0, 3])
+mockSMBIOS.append(contentsOf: "ThinkPad T480\020L5CTO1WW\0SERIAL_SECRET_123\0\0".utf8)
+require(LaptopIdentity.parseSMBIOS(data: mockSMBIOS) == ["ThinkPad T480", "20L5CTO1WW"], "SMBIOS string parsing failed")
+require(!LaptopIdentity.parseSMBIOS(data: mockSMBIOS).contains("SERIAL_SECRET_123"), "Serial leaked from SMBIOS")
+require(LaptopIdentity.parseSMBIOS(data: Data([1, 4, 0, 0, 0, 0])).isEmpty, "Empty SMBIOS strings failed")
 print("PASS laptop model lookup, PCI identity, ambiguity and fallbacks")
 require(HardwareProfiles.normalizedDSDT("Name (X, \"a b//c\") /* comment */") == "Name(X,\"a b//c\")", "Quoted AML data changed during normalization")
 require(HardwareProfiles.normalizedDSDT("Name (X, \"a b\")") != HardwareProfiles.normalizedDSDT("Name (X, \"ab\")"), "Distinct AML strings share a fingerprint")
@@ -78,6 +140,7 @@ if !inputPaths.isEmpty {
     rejects("same vendor but changed firmware") { _ = try HardwareProfiles.matchingDSDT(source.replacingOccurrences(of: "0xFE00D400", with: "0xFE00E400")) }
     print("PASS reviewed DSDT hash, profile selection, and complete source generation")
 }
+rejects("oversized DSDT in matchingDSDT") { _ = try HardwareProfiles.matchingDSDT(String(repeating: " ", count: HardwareProfiles.maxDSDTFileSize + 1)) }
 rejects("truncated AML") { _ = try HardwareProfiles.matchingAML(Data("DSDT".utf8)) }
 rejects("unreviewed AML") { _ = try HardwareProfiles.matchingAML(Data("DSDT".utf8) + Data(repeating: 0, count: 64)) }
 if inputPaths.count > 1 {
@@ -147,6 +210,26 @@ let menuGlyph = ReYogaBrand.menuImage()
 require(menuGlyph.isTemplate && menuGlyph.size == NSSize(width: 18, height: 18), "Menu glyph must follow macOS template rendering")
 print("PASS persistent RGB, reset semantics, hardware isolation and template glyph")
 
+require(HardwareProfiles.maxDSDTFileSize == 16 * 1024 * 1024, "DSDT file size bound mismatch")
+let activeLogoSettings = SavedRGBSettings(profileID: "ite-c968-gen6", mode: "Static", colors: ["Logo": "#FFFFFF"], logoEnabled: true)
+require(HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: activeLogoSettings, activeProfileID: "ite-c968-gen6"), "Active USB RGB profile must own YLogoStatus")
+let factoryLogoSettings = SavedRGBSettings(profileID: "ite-c968-gen6", mode: "Factory", colors: ["Logo": "#FFFFFF"], logoEnabled: true)
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: factoryLogoSettings, activeProfileID: "ite-c968-gen6"), "Factory mode must release YLogoStatus to WMI")
+var malformedRGBSettings = activeLogoSettings; malformedRGBSettings.colors["Logo"] = "#xyz"
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: malformedRGBSettings, activeProfileID: "ite-c968-gen6"), "Invalid RGB settings must not own lighting")
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: nil, activeProfileID: "ite-c968-gen6"), "Nil RGB settings must not own lighting")
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: activeLogoSettings, activeProfileID: "other-profile"), "Mismatched RGB profile must not own lighting")
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: activeLogoSettings, activeProfileID: nil), "Missing USB RGB hardware must not own lighting")
+require(!HardwareProfiles.lightingOwnedByRGB(key: "PortLighting", settings: activeLogoSettings, activeProfileID: "ite-c968-gen6"), "Shipped ITE profile without PortLighting zone must not own PortLighting")
+let noLogoProfile: [[String: Any]] = [["kind": "rgb", "id": "test-no-logo", "zones": ["Keyboard": [:]]]]
+let noLogoSettings = SavedRGBSettings(profileID: "test-no-logo", mode: "Static", colors: ["Keyboard": "#FFFFFF"], logoEnabled: true)
+require(!HardwareProfiles.lightingOwnedByRGB(key: "YLogoStatus", settings: noLogoSettings, activeProfileID: "test-no-logo", profiles: noLogoProfile), "Profile missing Logo zone must not own YLogoStatus")
+let portZoneProfile: [[String: Any]] = [["kind": "rgb", "id": "test-port-zone", "zones": ["PortLighting": [:]]]]
+let portZoneSettings = SavedRGBSettings(profileID: "test-port-zone", mode: "Static", colors: ["PortLighting": "#FFFFFF"], logoEnabled: true)
+require(HardwareProfiles.lightingOwnedByRGB(key: "PortLighting", settings: portZoneSettings, activeProfileID: "test-port-zone", profiles: portZoneProfile), "Profile with PortLighting zone must own PortLighting")
+require(!HardwareProfiles.lightingOwnedByRGB(key: "SmartFanMode", settings: activeLogoSettings, activeProfileID: "ite-c968-gen6"), "Non-lighting controls must never be owned by USB RGB")
+print("PASS RGB lighting ownership predicate for active, factory, invalid, differentprofile and missingzone cases")
+
 let conservedBattery = LiveBatterySnapshot(properties: ["AppleRawCurrentCapacity": 4694, "AppleRawMaxCapacity": 4694,
     "ExternalConnected": true, "IsCharging": false, "InstantAmperage": 0])
 require(conservedBattery.percent == 100, "Conservation must not relabel full capacity as a lower percentage")
@@ -213,3 +296,27 @@ if let languageRoot = ProcessInfo.processInfo.environment["REYOGA_LOCALIZATION_R
     require(rawName.contains("Off") && rawName.contains("0x1234"), "Localization altered a runtime identifier")
     print("PASS English/Vietnamese firmware reasons, runtime values and error-code formatting")
 }
+
+var oversizedRGB = savedColors
+oversizedRGB.perKey = Data(repeating: 0, count: SavedRGBSettings.maximumImportBytes + 1)
+require(!oversizedRGB.isValid, "Oversized RGB preferences accepted")
+let boundedRGBController = LegionRGBController()
+rejects("oversized RGB parser input") {
+    try boundedRGBController.importColors(Data(repeating: 0, count: SavedRGBSettings.maximumImportBytes + 1))
+}
+
+let diagnosticSanitized = DiagnosticSnapshot.value(["SerialNumber": "private", "raw": Data([1, 2]), "missing": NSNull()]) as! [String: Any]
+require(diagnosticSanitized["SerialNumber"] as? String == "redacted", "Diagnostic serial was not redacted")
+require((diagnosticSanitized["raw"] as? [String: Any])?["bytes"] as? Int == 2, "Diagnostic binary length lost")
+
+let collectorFolder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+try FileManager.default.createDirectory(at: collectorFolder, withIntermediateDirectories: true)
+defer { try? FileManager.default.removeItem(at: collectorFolder) }
+let collectedEcho = try DiagnosticCollector.run("/bin/echo", ["diagnostic-check"], name: "echo", folder: collectorFolder)
+require(collectedEcho["state"] as? String == "completed", "Diagnostic collector did not capture success")
+let collectedMissing = try DiagnosticCollector.run("/nonexistent/reyoga", [], name: "missing", folder: collectorFolder)
+require(collectedMissing["state"] as? String == "launch_failed", "Diagnostic launch failure was hidden")
+let collectedTimeout = try DiagnosticCollector.run("/bin/sleep", ["5"], name: "timeout", folder: collectorFolder, timeout: 0.1)
+require(collectedTimeout["state"] as? String == "timeout", "Diagnostic command timeout failed")
+let nestedDiagnostic = DiagnosticSnapshot.value(["items": [["SerialNumber": "private"]]]) as! [String: Any]
+require((nestedDiagnostic["items"] as? [[String: Any]])?.first?["SerialNumber"] as? String == "redacted", "Nested diagnostic recursion failed")

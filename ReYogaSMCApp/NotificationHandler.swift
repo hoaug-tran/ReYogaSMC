@@ -189,6 +189,11 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
         CoreDockSendNotification("com.apple.launchpad.toggle" as CFString, nil)
     case .settings:
         (NSApp.delegate as? AppDelegate)?.showSettings()
+    case .systemsettings:
+        let opened = URL(string: "x-apple.systempreferences:").map { NSWorkspace.shared.open($0) } ?? false
+        if !opened, let appUrl = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.systempreferences") {
+            NSWorkspace.shared.openApplication(at: appUrl, configuration: .init(), completionHandler: nil)
+        }
     case .sleep:
         if desc.display {
             showOSDRes(desc.name, .kSleep)
@@ -200,8 +205,7 @@ func eventActuator(_ desc: EventDesc, _ data: UInt32, _ conf: inout SharedConfig
     case .spotlight:
         _ = scriptHelper(spotlightAS, desc.name)
     case .controls:
-        (NSApp.delegate as? AppDelegate)?.openControlsWindow(nil)
-        showOSD(desc.name)
+        (NSApp.delegate as? AppDelegate)?.toggleControlsWindow(nil)
     case .calculator, .screenshot, .siri:
         let bundle = desc.action == .siri ? "com.apple.Siri" : desc.action == .calculator ? "com.apple.calculator" : "com.apple.Screenshot"
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) {

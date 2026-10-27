@@ -41,6 +41,11 @@
 "SETTINGS_LOGGING_HEADER" = "Nhật ký và chẩn đoán";
 "SETTINGS_DETAILED_LOGGING" = "Ghi nhật ký chi tiết";
 "SETTINGS_DETAILED_LOGGING_DESC" = "Lưu thêm các mẫu dữ liệu phần cứng vào nhật ký chẩn đoán cục bộ của ứng dụng.";
+"SETTINGS_SHORTCUTS_HEADER" = "Phím tắt bàn phím";
+"SETTINGS_RESET_SHORTCUTS_TITLE" = "Khôi phục phím tắt mặc định";
+"SETTINGS_RESET_SHORTCUTS_DESC" = "Đặt lại toàn bộ ánh xạ phím Fn (như Fn+F9 mở Cài đặt hệ thống) về mặc định ban đầu.";
+"SETTINGS_RESET_SHORTCUTS_BUTTON" = "Khôi phục";
+"Shortcuts reset to defaults" = "Đã khôi phục phím tắt mặc định";
 
 "OVERVIEW_SECTION_TELEMETRY" = "Cảm biến";
 "OVERVIEW_SECTION_BATTERY" = "Pin";
@@ -71,6 +76,8 @@
 "COOLING_MANUAL_FAN_DESC" = "Thiết lập tốc độ quạt tối thiểu trên các thiết bị có giao diện firmware tương thích đã được xác thực.";
 "COOLING_LIVE_READINGS_NOTICE" = "Nhiệt độ, tốc độ quạt và chế độ hiệu năng được hiển thị trong mục Tổng quan.";
 "COOLING_WHY_UNAVAILABLE" = "Vì sao các tính năng này không khả dụng?";
+"COOLING_WHY_FAN_UNAVAILABLE" = "Vì sao điều khiển quạt không khả dụng?";
+"COOLING_WHY_POWER_UNAVAILABLE" = "Vì sao giới hạn công suất CPU không khả dụng?";
 "COOLING_RETRY" = "Thử lại";
 "COOLING_RESTORE_AUTO" = "Chuyển về tự động";
 "COOLING_APPLY" = "Áp dụng";
@@ -144,6 +151,8 @@
 "DIAGNOSTICS_OPEN_LOGS" = "Mở nhật ký";
 "DIAGNOSTICS_GENERATE_BRIDGE" = "Tạo ACPI Bridge…";
 "DIAGNOSTICS_BRIDGE_DESC" = "ACPI Bridge SSDT cho phép macOS truy cập trực tiếp các thanh ghi nhiệt độ và quạt của thiết bị khi cần.";
+"DIAGNOSTICS_GENERATE_THINKPAD_SSDT" = "Tạo SSDT ThinkPad…";
+"DIAGNOSTICS_THINKPAD_SSDT_DESC" = "Phân tích DSDT, SSDT và helper EC/HKEY đang chạy; dùng iasl để biên dịch phần còn thiếu. Giữ các bản vá EC/pin riêng và xác minh sau khởi động lại.";
 "DIAGNOSTICS_TOOLS_DESC" = "Kiểm tra các giao diện phần cứng đã được driver xác thực, xuất báo cáo chẩn đoán hoặc tạo ACPI Bridge SSDT.";
 "DIAGNOSTICS_IDENTITY_HEADER" = "Thông tin nhận diện và nguồn dữ liệu";
 "DIAGNOSTICS_FIRMWARE_DEVICE" = "Thiết bị firmware";
@@ -570,6 +579,7 @@
 "The driver did not provide a valid current power limit and adjustment range." = "Driver không cung cấp giới hạn công suất hiện tại và khoảng điều chỉnh hợp lệ.";
 "The driver did not provide a valid fan adjustment range and step." = "Driver không cung cấp khoảng điều chỉnh và bước tốc độ quạt hợp lệ.";
 "The driver exports DSDT locally. Only a reviewed profile can generate an SSDT; it is never installed automatically." = "Driver xuất DSDT trên máy. Chỉ hồ sơ đã kiểm tra mới tạo được SSDT; không tự cài đặt.";
+"Save the all-in-one ThinkPad ACPI patch source. If iasl is installed, it will be compiled automatically." = "Lưu mã nguồn bản vá ACPI ThinkPad đồng bộ. Nếu máy đã cài iasl, file sẽ được tự động biên dịch.";
 "The driver rejected the connection (0x%08x). Another copy of this app may already be running." = "Driver từ chối kết nối (0x%08x). Có thể một bản ứng dụng khác đang chạy.";
 "The driver snapshot is stale. Refresh the connection before changing firmware controls." = "Snapshot driver đã cũ. Làm mới kết nối trước khi thay đổi điều khiển firmware.";
 "The hardware driver disconnected. Retry the connection or restart with the matching kext." = "Driver phần cứng đã ngắt kết nối. Thử kết nối lại hoặc khởi động lại với kext tương ứng.";
@@ -667,3 +677,83 @@
 "PCI subsystem ID and DSDT OEM table matched" = "ID subsystem PCI và bảng OEM DSDT khớp";
 
 "Machine type and DSDT OEM table matched" = "Mã máy và bảng OEM DSDT khớp";
+"Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC." = "Điều khiển giới hạn công suất CPU trực tiếp chưa được triển khai hoặc xác minh cho ThinkPad này. Cấu hình hiệu năng do firmware quản lý có thể khả dụng qua DYTC.";
+"RGB JSON exceeds 256 KiB" = "JSON RGB vượt quá 256 KiB";
+"DSDT source is not valid UTF-8" = "Tệp nguồn DSDT không có mã hóa UTF-8 hợp lệ";
+"Fan status is unavailable. Try Auto or reconnect the driver." = "Chưa đọc được trạng thái quạt. Hãy thử Auto hoặc kết nối lại trình điều khiển.";
+"ACPI template SSDT-ThinkPad.template.dsl not found" = "Không tìm thấy mẫu ACPI SSDT-ThinkPad.template.dsl";
+
+
+"The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT." = "Driver chưa cung cấp đường dẫn ACPI hợp lệ của EC và HKEY. Kết nối lại bằng driver tương thích trước khi tạo SSDT.";
+
+"ThinkPad ACPI source saved. Install iasl to compile it." = "Đã lưu mã nguồn ACPI ThinkPad. Cài iasl để biên dịch.";
+
+"Power profile readback unavailable. Refresh to retry." = "Chưa đọc được chế độ nguồn. Làm mới để thử lại.";
+
+"Fan control mode" = "Chế độ điều khiển quạt";
+
+"BIOS Auto" = "BIOS tự động";
+
+"Manual" = "Thủ công";
+
+"Custom Curve" = "Đường cong tùy chỉnh";
+
+"CPU temperature curve" = "Đường cong theo nhiệt độ CPU";
+
+"Fan level" = "Mức quạt";
+
+"Use increasing temperatures and fan levels, ending in Full Speed by 95°C." = "Đặt nhiệt độ và mức quạt tăng dần, kết thúc ở tốc độ tối đa không quá 95°C.";
+
+"Curve is experimental. Full Speed uses disengaged mode; calibrate on your laptop. Restart after sleep or reconnect." = "Đường cong đang thử nghiệm. Tốc độ tối đa dùng chế độ disengaged; cần kiểm chứng trên máy. Bật lại sau khi ngủ hoặc kết nối lại.";
+
+"Curve stopped; automatic recovery pending" = "Đã dừng đường cong; đang chờ khôi phục tự động";
+
+"Level %d" = "Mức %d";
+
+"Curve unavailable: check fan access, temperature and configuration." = "Không thể bật curve: kiểm tra quyền điều khiển quạt, nhiệt độ và cấu hình.";
+"Custom Curve requires a matching ThinkPad driver with EC write access and watchdog support. Other firmware interfaces keep their existing controls." = "Custom Curve cần driver ThinkPad tương thích, có quyền ghi EC và hỗ trợ watchdog. Các giao diện firmware khác tiếp tục dùng điều khiển hiện có.";
+
+"Verify ThinkPad SSDT" = "Xác minh SSDT ThinkPad";
+"Analyzing running ACPI tables…" = "Đang phân tích các bảng ACPI đang chạy…";
+"Checking loaded SSDT and EC helpers…" = "Đang kiểm tra SSDT đã nạp và helper EC…";
+"Driver connection changed; verify again." = "Kết nối driver đã thay đổi; hãy xác minh lại.";
+"Analyze running ACPI tables and save only missing ThinkPad helpers. Requires iasl. Keep existing EC and battery patches." = "Phân tích các bảng ACPI đang chạy và chỉ bổ sung helper ThinkPad còn thiếu. Cần iasl. Giữ các bản vá EC và pin đang dùng.";
+"SSDT compiled. Review the analysis, install in OpenCore, reboot, then verify." = "Đã biên dịch SSDT. Kiểm tra bản phân tích, cài vào OpenCore, khởi động lại rồi xác minh.";
+"SSDT loaded, EC helpers and fan readback confirmed. Fan writes still require a hardware test." = "SSDT đã nạp, helper EC và dữ liệu đọc lại từ quạt đã được xác nhận. Cần thử lệnh điều khiển quạt trên máy thật.";
+"ACPI capture failed. Check driver permissions, Safe Mode and ACPIExportStatus." = "Không thu thập được ACPI. Kiểm tra quyền truy cập driver, Safe Mode và ACPIExportStatus.";
+"ACPI disassembly failed or timed out. Review the analysis report." = "Giải mã ACPI thất bại hoặc quá thời gian. Kiểm tra bản phân tích.";
+"ACPI parent path escapes the root" = "Đường dẫn cha ACPI vượt quá namespace gốc";
+"ACPI scope nesting exceeds the analysis limit" = "Độ lồng Scope ACPI vượt giới hạn phân tích";
+"ACPI source exceeds 16 MiB" = "Mã nguồn ACPI vượt 16 MiB";
+"ACPI table capture is empty or exceeds the analysis limit" = "Không có bảng ACPI được thu thập hoặc dữ liệu vượt giới hạn phân tích";
+"ACPI table length or checksum is invalid" = "Độ dài hoặc checksum của bảng ACPI không hợp lệ";
+"ACPI token count exceeds the analysis limit" = "Số token ACPI vượt giới hạn phân tích";
+"All ThinkPad helpers already exist; no SSDT is needed. Export diagnostics if fan access still fails." = "Đã có đủ helper ThinkPad; không cần thêm SSDT. Xuất diagnostics nếu vẫn không truy cập được quạt.";
+"Combined ACPI source exceeds the analysis limit" = "Tổng mã nguồn ACPI vượt giới hạn phân tích";
+"Conflicting object or method argument count at %@" = "Xung đột object hoặc số tham số method tại %@";
+"Generated SSDT is not loaded for this firmware. Check OpenCore ACPI Add and reboot." = "SSDT đã tạo chưa được nạp cho firmware này. Kiểm tra ACPI Add của OpenCore rồi khởi động lại.";
+"Inactive helper already exists in an ACPI table; review its condition and replace only the superseded helper table: %@" = "Helper đã được khai báo nhưng không hoạt động; kiểm tra điều kiện và chỉ thay bảng helper cũ đã bị thay thế: %@";
+"Install iasl or set IASLPath before analyzing ThinkPad ACPI." = "Cài iasl hoặc đặt IASLPath trước khi phân tích ACPI ThinkPad.";
+"Invalid ACPI namespace path: %@" = "Đường dẫn namespace ACPI không hợp lệ: %@";
+"Live helper is absent from captured tables: %@" = "Helper đang tồn tại nhưng không có trong các bảng đã thu thập: %@";
+"Live namespace evidence is missing for %@" = "Thiếu bằng chứng namespace đang chạy cho %@";
+"Missing ACPI declaration name" = "Thiếu tên khai báo ACPI";
+"No generated SSDT is recorded for this firmware." = "Chưa ghi nhận SSDT đã tạo cho firmware này.";
+"No unique EC/HKEY relationship matches the running driver" = "Không tìm được quan hệ EC/HKEY duy nhất khớp với driver đang chạy";
+"SSDT compilation failed. Review the analysis report." = "Biên dịch SSDT thất bại. Kiểm tra bản phân tích.";
+"SSDT helpers are loaded but fan readback is unavailable. Export diagnostics and inspect ThinkFanStatus." = "Helper SSDT đã nạp nhưng chưa đọc lại được dữ liệu quạt. Xuất diagnostics và kiểm tra ThinkFanStatus.";
+"SSDT is loaded but its helpers or EC write capability are unavailable. Export diagnostics." = "SSDT đã nạp nhưng thiếu helper hoặc khả năng ghi EC. Hãy xuất diagnostics.";
+"Selected EC is not identified as PNP0C09 in the captured tables" = "EC được chọn không có định danh PNP0C09 trong các bảng đã thu thập";
+"Unbalanced ACPI source: %@" = "Mã nguồn ACPI có dấu ngoặc không cân bằng: %@";
+"Unexpected ACPI table signature or size" = "Chữ ký hoặc kích thước bảng ACPI không đúng";
+"Unterminated ACPI string or comment" = "Chuỗi hoặc chú thích ACPI chưa được đóng";
+"Update the driver to capture the running ACPI tables and namespace evidence." = "Cập nhật driver để thu thập các bảng ACPI và bằng chứng namespace đang chạy.";
+
+"Firmware call failed" = "Lệnh gọi firmware thất bại";
+"Firmware identity" = "Định danh firmware";
+"Native HFSP/HSPD fields do not match the fan-control and RPM layout reported by the driver. Export diagnostics for firmware review." = "Các field HFSP/HSPD không khớp layout điều khiển và RPM quạt do driver cung cấp. Xuất diagnostics để kiểm tra firmware.";
+"Curve watchdog: automatic fan restoration pending" = "Watchdog curve: đang chờ khôi phục quạt về Auto";
+"Fan selector restoration pending; Auto recovery will retry with readback" = "Đang chờ khôi phục bộ chọn quạt; sẽ thử lại chế độ Auto và đọc lại kết quả";
+"Fan selector recovery failed; automatic restoration remains pending" = "Khôi phục bộ chọn quạt thất bại; vẫn đang chờ khôi phục Auto";
+"Full Speed" = "Tốc độ tối đa";
+"Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off." = "Kết nối driver tương thích có hỗ trợ phân tích ACPI và đường dẫn EC/HKEY hợp lệ. Cần tắt Safe Mode.";

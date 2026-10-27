@@ -167,8 +167,14 @@ bool ReYogaBaseService::findPNP(const char *id, IOACPIPlatformDevice **dev) {
             while (auto entry = iterator->getNextObject()) {
                 if (entry->compareName(pnp, nullptr)) {
                     DebugLog("found %s at %s", id, entry->getName());
-                    if ((*dev = OSDynamicCast(IOACPIPlatformDevice, entry)))
-                        break;
+                    if (auto candidate = OSDynamicCast(IOACPIPlatformDevice, entry)) {
+                        if (*dev) {
+                            AlwaysLog("Ambiguous %s devices; refusing an arbitrary EC selection", id);
+                            *dev = nullptr;
+                            break;
+                        }
+                        *dev = candidate;
+                    }
                 }
             }
             iterator->release();
@@ -238,7 +244,7 @@ IOReturn ReYogaBaseService::readECName(const char* name, UInt32 *result) {
     return ret;
 }
 
-IOReturn ReYogaBaseService::method_re1b(UInt32 offset, UInt8 *result) {
+IOReturn ReYogaBaseService::method_re1b(UInt32 offset, UInt8 *result, bool logFailure) {
     if (!ec || !(ECAccessCap & ECReadCap))
         return kIOReturnUnsupported;
 
@@ -252,7 +258,7 @@ IOReturn ReYogaBaseService::method_re1b(UInt32 offset, UInt8 *result) {
     IOReturn ret = ec->evaluateInteger(readECOneByte, &raw, params, 1);
     params[0]->release();
 
-    if (ret != kIOReturnSuccess)
+    if (ret != kIOReturnSuccess && logFailure)
         AlwaysLog("read 0x%02x failed", offset);
 
     if (ret == kIOReturnSuccess && raw > 0xff) return kIOReturnBadArgument;
@@ -312,7 +318,7 @@ IOReturn ReYogaBaseService::method_recb(UInt32 offset, UInt32 size, OSData **dat
     return ret;
 }
 
-IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value) {
+IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value, bool logFailure) {
     if (!ec || !(ECAccessCap & ECWriteCap))
         return kIOReturnUnsupported;
 
@@ -331,9 +337,9 @@ IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value) {
     params[0]->release();
     params[1]->release();
 
-    if (ret != kIOReturnSuccess)
+    if (ret != kIOReturnSuccess && logFailure)
         AlwaysLog("write 0x%02x @ 0x%02x failed", value, offset);
-    else
+    else if (ret == kIOReturnSuccess)
         DebugLog("write 0x%02x @ 0x%02x success", value, offset);
     return ret;
 }

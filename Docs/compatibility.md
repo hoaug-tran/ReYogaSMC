@@ -4,7 +4,7 @@
 
 - macOS 11 or newer, OpenCore, Lilu and VirtualSMC.
 - Matching ReYogaSMC app and kext versions.
-- Firmware interfaces for the requested feature. The deployment target does not establish runtime support on every macOS release.
+- Firmware interfaces for the requested feature.
 
 ## ThinkPad
 
@@ -12,11 +12,11 @@ ThinkPad uses HKEY methods and the EC interface, without IdeaPad/Legion JSON pro
 
 Charge thresholds use firmware capability/error bits and battery addressing. Start is 0–99%; stop is 1–100%. The driver checks ordering and reads back accepted requests. Secondary-battery selection requires individual addressing support.
 
-DYTC status polling is read-only. PSC uses Quiet/Balanced/Performance levels 3/5/7 before revision 9 and 1/3/4 from revision 9, following [thinkpad_acpi](https://github.com/torvalds/linux/blob/master/drivers/platform/x86/lenovo/thinkpad_acpi.c). Older MMC firmware can hide the active profile behind lap mode; the selector then reports unavailable. Some X1 Carbon Gen 6 firmware rejects Quiet.
+Thermal profiles are available when firmware exposes a supported DYTC interface. A firmware error or unavailable active profile is shown in the app; the driver does not change lap mode while polling.
 
-The T490 BIOS 1.85 DSDT confirms the PSC interface and SET-triggered `0x6032` notifications addressed by the fix. Thermal modes, Bluetooth, login registration, performance and sleep/wake still require testing with the updated build on that machine. A graphics panic is not declared fixed by removing the notification feedback path.
+Manual fan control requires the ThinkPad fan protocol and EC read/write helpers. Custom Curve additionally requires watchdog support, an available fan and fresh CPU temperature data, with Safe Mode off. These conditions apply to every supported ThinkPad; no model name enables the feature. Other Lenovo and HP fan interfaces do not currently support Custom Curve. BIOS Auto remains controlled by firmware.
 
-Fan control requires the correct EC read/write methods. Transactions restore the second-fan selector and verify requested levels. Failed selector restoration disables further access until reboot. Modified fans are returned to automatic mode when possible on sleep, client close or driver stop. Fan stop requires the app preference and `-reyfanstop`.
+Changing modes stops the active curve. Missing temperature data, sleep, disconnect or app shutdown requests automatic control. The watchdog requests Auto if updates stop; failed firmware writes remain errors. Fan stop requires both the app preference and `-reyfanstop`.
 
 ## IdeaPad, Yoga, Legion and LOQ
 
@@ -38,7 +38,7 @@ Only mapped sensor names are exported. Duplicate aliases cannot create duplicate
 
 ## Readings and unavailable controls
 
-The app prefers valid SMC temperatures and falls back to firmware. Fractional readings are preserved and shown with one decimal. Whole-degree firmware values appear as `55.0 °C`; formatting does not add sensor precision. Failed fan reads are unavailable, while a valid stopped fan remains zero RPM.
+The app prefers valid SMC temperatures and falls back to firmware. Failed fan reads are unavailable, while a valid stopped fan remains zero RPM.
 
 The visible dashboard refreshes every 500 ms. IdeaVPC feature state and background ThinkPad firmware state normally refresh every two seconds. Stale snapshots disable firmware controls. Missing current values, ranges or fan steps are not replaced with assumed limits.
 
@@ -50,7 +50,7 @@ An unavailable control is not enabled by adding another laptop's profile. Export
 
 Shortcut mapping requires Accessibility and Input Monitoring. Bluetooth actions may require Bluetooth approval. Grant access to the installed app in System Settings and reopen it if macOS requests a restart.
 
-Keep the app in `/Applications`. CI and local scripts ad-hoc sign the app, helper and embedded libraries; kexts remain unsigned. Replacing an ad-hoc build may require privacy approval again. Use the same signing identity for subsequent builds when available. Signing alone does not establish successful login registration on every macOS release.
+Keep the app in `/Applications`. CI and local scripts ad-hoc sign the app, helper and embedded libraries; kexts remain unsigned. Replacing an ad-hoc build may require privacy approval again. Use the same signing identity for subsequent builds when available.
 
 On macOS 13 and newer, Start with macOS uses `SMAppService.mainApp` and may require approval in Login Items. macOS 11/12 uses the embedded helper, which opens the app and exits. It neither installs nor loads a kext.
 
@@ -58,6 +58,4 @@ On macOS 13 and newer, Start with macOS uses `SMAppService.mainApp` and may requ
 
 Check controls and readback on AC and battery, sleep/wake and restoration after closing the app. Do not retry a command that caused shutdown or loss of cooling. An AML call hanging inside firmware cannot be cancelled by a user-space timeout. Keep a recovery EFI and use `-reysafe`, `-reynowmi` or `-reynobridge` to isolate the affected interface.
 
-Portable C++ tests cover profile selection, SMBIOS parsing, sensor bounds and fan transactions with injected failures. Swift tests cover support adapters and sensor decoding. Python tests cover profiles, tools, localization and packaging. ACPI samples compile in CI. Builds and fixture rendering verify integration; they do not replace booted hardware tests.
-
-`-reytrace` logs firmware calls, capped at 128 calls per WMI instance and four initial IdeaVPC refreshes/samples. Remove it after diagnosis. The app's Detailed logging setting controls additional samples; Debug builds also emit periodic telemetry summaries. Exported register keys and protocol values remain unchanged by UI translation.
+`-reytrace` logs firmware calls, capped at 128 calls per WMI instance and four initial IdeaVPC refreshes/samples. Remove it after diagnosis. The app's Detailed logging setting controls additional samples; Debug builds also emit periodic telemetry summaries.

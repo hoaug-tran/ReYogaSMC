@@ -39,6 +39,11 @@
 "SETTINGS_LOGGING_HEADER" = "Diagnostics & logging";
 "SETTINGS_DETAILED_LOGGING" = "Detailed logging";
 "SETTINGS_DETAILED_LOGGING_DESC" = "Saves additional hardware samples to the app’s local diagnostic logs.";
+"SETTINGS_SHORTCUTS_HEADER" = "Keyboard shortcuts";
+"SETTINGS_RESET_SHORTCUTS_TITLE" = "Reset shortcuts to defaults";
+"SETTINGS_RESET_SHORTCUTS_DESC" = "Restores all Fn hotkey mappings (such as Fn+F9 opening System Settings) back to factory defaults.";
+"SETTINGS_RESET_SHORTCUTS_BUTTON" = "Reset";
+"Shortcuts reset to defaults" = "Shortcuts reset to defaults";
 
 "OVERVIEW_SECTION_TELEMETRY" = "Sensors";
 "OVERVIEW_SECTION_BATTERY" = "Battery";
@@ -69,6 +74,8 @@
 "COOLING_MANUAL_FAN_DESC" = "Set a minimum fan speed when a verified firmware interface is available.";
 "COOLING_LIVE_READINGS_NOTICE" = "Live temperatures, fan readings and power profiles are in Overview.";
 "COOLING_WHY_UNAVAILABLE" = "Why are these unavailable?";
+"COOLING_WHY_FAN_UNAVAILABLE" = "Why is fan control unavailable?";
+"COOLING_WHY_POWER_UNAVAILABLE" = "Why are CPU power limits unavailable?";
 "COOLING_RETRY" = "Retry";
 "COOLING_RESTORE_AUTO" = "Restore auto";
 "COOLING_APPLY" = "Apply";
@@ -142,6 +149,8 @@
 "DIAGNOSTICS_OPEN_LOGS" = "Open logs";
 "DIAGNOSTICS_GENERATE_BRIDGE" = "Generate ACPI bridge…";
 "DIAGNOSTICS_BRIDGE_DESC" = "The ACPI Bridge SSDT routes native fan and thermal registers directly to macOS when required.";
+"DIAGNOSTICS_GENERATE_THINKPAD_SSDT" = "Generate ThinkPad SSDT…";
+"DIAGNOSTICS_THINKPAD_SSDT_DESC" = "Analyze DSDT, SSDTs and live EC/HKEY helpers; compile only missing helpers with iasl. Preserve custom EC/battery patches and verify after reboot.";
 "DIAGNOSTICS_TOOLS_DESC" = "Inspect which interfaces the driver has verified, export diagnostics, or generate an ACPI bridge SSDT.";
 "DIAGNOSTICS_IDENTITY_HEADER" = "Identity & source";
 "DIAGNOSTICS_FIRMWARE_DEVICE" = "Firmware device";
@@ -182,7 +191,7 @@
 "FAN_AUTO" = "Auto";
 "FAN_FULL_SPEED" = "Full speed";
 "FAN_LEVEL_FORMAT" = "Level %d";
-"FAN_INTERFACE_REQUIRED" = "Requires the ThinkPad EC read/write interface. No fan command is available.";
+"FAN_INTERFACE_REQUIRED" = "Requires the ThinkPad EC read/write interface.";
 "CHARGE_THRESHOLDS" = "Charge thresholds";
 "BATTERY_PRIMARY" = "Primary";
 "BATTERY_SECONDARY" = "Secondary";
@@ -568,6 +577,7 @@
 "The driver did not provide a valid current power limit and adjustment range." = "The driver did not provide a valid current power limit and adjustment range.";
 "The driver did not provide a valid fan adjustment range and step." = "The driver did not provide a valid fan adjustment range and step.";
 "The driver exports DSDT locally. Only a reviewed profile can generate an SSDT; it is never installed automatically." = "The driver exports DSDT locally. Only a reviewed profile can generate an SSDT; it is never installed automatically.";
+"Save the all-in-one ThinkPad ACPI patch source. If iasl is installed, it will be compiled automatically." = "Save the all-in-one ThinkPad ACPI patch source. If iasl is installed, it will be compiled automatically.";
 "The driver rejected the connection (0x%08x). Another copy of this app may already be running." = "The driver rejected the connection (0x%08x). Another copy of this app may already be running.";
 "The driver snapshot is stale. Refresh the connection before changing firmware controls." = "The driver snapshot is stale. Refresh the connection before changing firmware controls.";
 "The hardware driver disconnected. Retry the connection or restart with the matching kext." = "The hardware driver disconnected. Retry the connection or restart with the matching kext.";
@@ -665,3 +675,83 @@
 "PCI subsystem ID and DSDT OEM table matched" = "PCI subsystem ID and DSDT OEM table matched";
 
 "Machine type and DSDT OEM table matched" = "Machine type and DSDT OEM table matched";
+"Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC." = "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.";
+"RGB JSON exceeds 256 KiB" = "RGB JSON exceeds 256 KiB";
+"DSDT source is not valid UTF-8" = "DSDT source is not valid UTF-8";
+"Fan status is unavailable. Try Auto or reconnect the driver." = "Fan status is unavailable. Try Auto or reconnect the driver.";
+"ACPI template SSDT-ThinkPad.template.dsl not found" = "ACPI template SSDT-ThinkPad.template.dsl not found";
+
+
+"The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT." = "The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT.";
+
+"ThinkPad ACPI source saved. Install iasl to compile it." = "ThinkPad ACPI source saved. Install iasl to compile it.";
+
+"Power profile readback unavailable. Refresh to retry." = "Power profile readback unavailable. Refresh to retry.";
+
+"Fan control mode" = "Fan control mode";
+
+"BIOS Auto" = "BIOS Auto";
+
+"Manual" = "Manual";
+
+"Custom Curve" = "Custom Curve";
+
+"CPU temperature curve" = "CPU temperature curve";
+
+"Fan level" = "Fan level";
+
+"Use increasing temperatures and fan levels, ending in Full Speed by 95°C." = "Use increasing temperatures and fan levels, ending in Full Speed by 95°C.";
+
+"Curve is experimental. Full Speed uses disengaged mode; calibrate on your laptop. Restart after sleep or reconnect." = "Curve is experimental. Full Speed uses disengaged mode; calibrate on your laptop. Restart after sleep or reconnect.";
+
+"Curve stopped; automatic recovery pending" = "Curve stopped; automatic recovery pending";
+
+"Level %d" = "Level %d";
+
+"Curve unavailable: check fan access, temperature and configuration." = "Curve unavailable: check fan access, temperature and configuration.";
+"Custom Curve requires a matching ThinkPad driver with EC write access and watchdog support. Other firmware interfaces keep their existing controls." = "Custom Curve requires a matching ThinkPad driver with EC write access and watchdog support. Other firmware interfaces keep their existing controls.";
+
+"Verify ThinkPad SSDT" = "Verify ThinkPad SSDT";
+"Analyzing running ACPI tables…" = "Analyzing running ACPI tables…";
+"Checking loaded SSDT and EC helpers…" = "Checking loaded SSDT and EC helpers…";
+"Driver connection changed; verify again." = "Driver connection changed; verify again.";
+"Analyze running ACPI tables and save only missing ThinkPad helpers. Requires iasl. Keep existing EC and battery patches." = "Analyze running ACPI tables and save only missing ThinkPad helpers. Requires iasl. Keep existing EC and battery patches.";
+"SSDT compiled. Review the analysis, install in OpenCore, reboot, then verify." = "SSDT compiled. Review the analysis, install in OpenCore, reboot, then verify.";
+"SSDT loaded, EC helpers and fan readback confirmed. Fan writes still require a hardware test." = "SSDT loaded, EC helpers and fan readback confirmed. Fan writes still require a hardware test.";
+"ACPI capture failed. Check driver permissions, Safe Mode and ACPIExportStatus." = "ACPI capture failed. Check driver permissions, Safe Mode and ACPIExportStatus.";
+"ACPI disassembly failed or timed out. Review the analysis report." = "ACPI disassembly failed or timed out. Review the analysis report.";
+"ACPI parent path escapes the root" = "ACPI parent path escapes the root";
+"ACPI scope nesting exceeds the analysis limit" = "ACPI scope nesting exceeds the analysis limit";
+"ACPI source exceeds 16 MiB" = "ACPI source exceeds 16 MiB";
+"ACPI table capture is empty or exceeds the analysis limit" = "ACPI table capture is empty or exceeds the analysis limit";
+"ACPI table length or checksum is invalid" = "ACPI table length or checksum is invalid";
+"ACPI token count exceeds the analysis limit" = "ACPI token count exceeds the analysis limit";
+"All ThinkPad helpers already exist; no SSDT is needed. Export diagnostics if fan access still fails." = "All ThinkPad helpers already exist; no SSDT is needed. Export diagnostics if fan access still fails.";
+"Combined ACPI source exceeds the analysis limit" = "Combined ACPI source exceeds the analysis limit";
+"Conflicting object or method argument count at %@" = "Conflicting object or method argument count at %@";
+"Generated SSDT is not loaded for this firmware. Check OpenCore ACPI Add and reboot." = "Generated SSDT is not loaded for this firmware. Check OpenCore ACPI Add and reboot.";
+"Inactive helper already exists in an ACPI table; review its condition and replace only the superseded helper table: %@" = "Inactive helper already exists in an ACPI table; review its condition and replace only the superseded helper table: %@";
+"Install iasl or set IASLPath before analyzing ThinkPad ACPI." = "Install iasl or set IASLPath before analyzing ThinkPad ACPI.";
+"Invalid ACPI namespace path: %@" = "Invalid ACPI namespace path: %@";
+"Live helper is absent from captured tables: %@" = "Live helper is absent from captured tables: %@";
+"Live namespace evidence is missing for %@" = "Live namespace evidence is missing for %@";
+"Missing ACPI declaration name" = "Missing ACPI declaration name";
+"No generated SSDT is recorded for this firmware." = "No generated SSDT is recorded for this firmware.";
+"No unique EC/HKEY relationship matches the running driver" = "No unique EC/HKEY relationship matches the running driver";
+"SSDT compilation failed. Review the analysis report." = "SSDT compilation failed. Review the analysis report.";
+"SSDT helpers are loaded but fan readback is unavailable. Export diagnostics and inspect ThinkFanStatus." = "SSDT helpers are loaded but fan readback is unavailable. Export diagnostics and inspect ThinkFanStatus.";
+"SSDT is loaded but its helpers or EC write capability are unavailable. Export diagnostics." = "SSDT is loaded but its helpers or EC write capability are unavailable. Export diagnostics.";
+"Selected EC is not identified as PNP0C09 in the captured tables" = "Selected EC is not identified as PNP0C09 in the captured tables";
+"Unbalanced ACPI source: %@" = "Unbalanced ACPI source: %@";
+"Unexpected ACPI table signature or size" = "Unexpected ACPI table signature or size";
+"Unterminated ACPI string or comment" = "Unterminated ACPI string or comment";
+"Update the driver to capture the running ACPI tables and namespace evidence." = "Update the driver to capture the running ACPI tables and namespace evidence.";
+
+"Firmware call failed" = "Firmware call failed";
+"Firmware identity" = "Firmware identity";
+"Native HFSP/HSPD fields do not match the fan-control and RPM layout reported by the driver. Export diagnostics for firmware review." = "Native HFSP/HSPD fields do not match the fan-control and RPM layout reported by the driver. Export diagnostics for firmware review.";
+"Curve watchdog: automatic fan restoration pending" = "Curve watchdog: automatic fan restoration pending";
+"Fan selector restoration pending; Auto recovery will retry with readback" = "Fan selector restoration pending; Auto recovery will retry with readback";
+"Fan selector recovery failed; automatic restoration remains pending" = "Fan selector recovery failed; automatic restoration remains pending";
+"Full Speed" = "Full Speed";
+"Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off." = "Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off.";

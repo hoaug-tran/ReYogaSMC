@@ -187,13 +187,9 @@ private:
      */
     bool setNotificationMask(UInt32 i, UInt32 all_mask, UInt32 offset, bool enable=true);
 
-    /**
-     *  Get notification mask
-     *
-     *  @param index index of notification group
-     *  @param KBDPresent dictionary for current settings
-     */
     void getNotificationMask(UInt32 index, OSDictionary *KBDPresent);
+    void updateNotificationMask();
+    void updateFans();
 
     bool initVPC() APPLE_KEXT_OVERRIDE;
     void setPropertiesGated(OSObject* props) APPLE_KEXT_OVERRIDE;

@@ -128,7 +128,7 @@ private struct ProfileSelector: View {
                     .accessibilityValue(localizedMessage(manager.powerProfile == mode.0 ? "Selected" : "Not selected"))
             }
         }
-            .disabled(!manager.hasPowerProfiles || manager.applyingControl == "SmartFanMode")
+            .disabled(!manager.powerProfilesReady || manager.applyingControl == "SmartFanMode")
     }
     private func background(_ mode: Int) -> some View {
         RoundedRectangle(cornerRadius: 10)
@@ -435,6 +435,20 @@ public struct HardwareControlsView: View {
                         .fixedSize(horizontal: false, vertical: true).padding(.leading, 20)
                 }.padding(.vertical, 4)
             }
+            ControlSection(loc(.settingsShortcutsHeader)) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(loc(.settingsResetShortcutsTitle)).font(.system(size: 12, weight: .medium))
+                        Text(loc(.settingsResetShortcutsDesc)).font(.caption).foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Button(loc(.settingsResetShortcutsButton)) {
+                        (NSApp.delegate as? AppDelegate)?.resetShortcutsToDefaults()
+                        showOSDRaw(localizedMessage("Shortcuts reset to defaults"))
+                    }
+                }.padding(.vertical, 4)
+            }
         }
     }
     private let columns = [GridItem(.adaptive(minimum: 270), spacing: 12, alignment: .top)]
@@ -469,7 +483,17 @@ public struct HardwareControlsView: View {
                     }.font(.system(size: 10)).foregroundColor(.secondary)
                 }
             }
-            if manager.hasPowerProfiles { profile }
+            if manager.hasPowerProfiles {
+                profile
+                if !manager.powerProfileError.isEmpty {
+                    Text(localizedMessage(manager.powerProfileError)).font(.caption).foregroundColor(.orange)
+                }
+                if !manager.powerProfilesReady || manager.powerProfile == 0 || !manager.powerProfileError.isEmpty {
+                    Text(localizedMessage("Power profile readback unavailable. Refresh to retry."))
+                        .font(.caption).foregroundColor(.secondary)
+                    Button(localizedMessage("Retry")) { manager.refreshAll() }
+                }
+            }
         }
     }
     private var diagnosticsPage: some View {
@@ -524,10 +548,31 @@ public struct HardwareControlsView: View {
                         if manager.canGenerateACPIBridge {
                             Button(loc(.diagnosticsGenerateBridge)) { manager.generateACPIBridge() }
                         }
+                        if manager.isThinkPadDevice {
+                            Button(loc(.diagnosticsGenerateThinkPadSSDT)) { manager.generateThinkPadSSDT() }
+                                .disabled(!manager.canGenerateThinkPadSSDT)
+                        }
                     }
                     if manager.canGenerateACPIBridge {
                         Text(loc(.diagnosticsBridgeDesc))
                             .font(.system(size: 11)).foregroundColor(.secondary)
+                    }
+                    if manager.isThinkPadDevice {
+                        HStack {
+                            Button(localizedMessage("Verify ThinkPad SSDT")) { manager.verifyThinkPadSSDT() }
+                                .disabled(!manager.canGenerateThinkPadSSDT)
+                            if manager.acpiAnalysisBusy { ProgressView() }
+                        }
+                        if !manager.acpiAnalysisStatus.isEmpty {
+                            Text(localizedMessage(manager.acpiAnalysisStatus)).font(.caption).foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Text(loc(.diagnosticsThinkPadSSDTDesc))
+                            .font(.system(size: 11)).foregroundColor(.secondary)
+                        if !manager.canGenerateThinkPadSSDT && !manager.acpiAnalysisBusy {
+                            Text(localizedMessage("Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off."))
+                                .font(.caption).foregroundColor(.secondary)
+                        }
                     }
                 }
             }
@@ -542,11 +587,17 @@ public struct HardwareControlsView: View {
         }
     }
     private func thermalTile(_ title: String, value: Double, source: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let isGPU = title == "GPU"
+        let unavailableText = isGPU ? "N/A" : "—"
+        return VStack(alignment: .leading, spacing: 8) {
             SymbolLabel(title, systemImage: "thermometer").font(.system(size: 11)).foregroundColor(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(localizedMessage(value > 0 ? String(format: "%.1f", value) : "—")).font(.system(size: 23, weight: .semibold, design: .rounded))
-                Text(localizedMessage("°C")).font(.system(size: 10)).foregroundColor(.secondary)
+                Text(value > 0 ? String(format: "%.1f", value) : unavailableText).font(.system(size: value > 0 ? 23 : 18, weight: .semibold, design: .rounded))
+                if value > 0 {
+                    Text(localizedMessage("°C")).font(.system(size: 10)).foregroundColor(.secondary)
+                } else if isGPU {
+                    Text("iGPU").font(.system(size: 10)).foregroundColor(.secondary)
+                }
             }.foregroundColor(value >= 80 ? .orange : .primary)
         }.frame(maxWidth: .infinity, alignment: .leading).padding(10)
             .background(Color.primary.opacity(0.025)).cornerRadius(8).help(localizedMessage(source))
@@ -877,26 +928,32 @@ public struct HardwareControlsView: View {
                 unavailableCoolingCard(loc(.coolingSectionCpuPower), icon: "bolt.fill",
                     detail: loc(.coolingCpuPowerCardDesc), tint: AppTheme.gpu)
             }
-            if manager.providerClass == "ThinkVPC" { ThinkPadFanPanel() }
-            if !hasFanControls || !hasCPUPowerControls {
+            if manager.providerClass == "ThinkVPC" { ThinkPadFanPanel(manager: manager) }
+            let showFanUnavailable = !hasFanControls && manager.providerClass != "ThinkVPC"
+            let showPowerUnavailable = !hasCPUPowerControls
+            if showFanUnavailable || showPowerUnavailable {
+                let whyTitle: LocalizedKey = (showFanUnavailable && showPowerUnavailable)
+                    ? .coolingWhyUnavailable
+                    : (showFanUnavailable ? .coolingWhyFanUnavailable : .coolingWhyPowerUnavailable)
                 DisclosureGroup {
                     VStack(alignment: .leading, spacing: 12) {
-                        if !hasFanControls && manager.providerClass != "ThinkVPC" {
+                        if showFanUnavailable {
                             coolingReason(loc(.coolingSectionManualFan), reason: manager.featureStatus["Fan1TargetRPM"]?.reason ?? "No verified manual fan interface")
                         }
-                        if !hasCPUPowerControls {
+                        if showPowerUnavailable {
                             coolingReason(loc(.coolingSectionCpuPower), reason: manager.featureStatus["CPUBoostPower"]?.reason ?? "No verified CPU power interface")
                         }
                         Text(loc(.coolingLiveReadingsNotice))
                             .font(.system(size: 11)).foregroundColor(.secondary)
                     }.padding(.top, 10)
                 } label: {
-                    SymbolLabel(loc(.coolingWhyUnavailable), systemImage: "info.circle")
+                    SymbolLabel(loc(whyTitle), systemImage: "info.circle")
                         .font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
                 }.padding(12).background(AppTheme.surface).cornerRadius(10)
             }
         }
     }
+
     private func coolingReason(_ title: String, reason: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(localizedMessage(title)).font(.system(size: 11, weight: .semibold))
@@ -908,59 +965,133 @@ public struct HardwareControlsView: View {
 }
 
 private struct ThinkPadFanPanel: View {
-    @State private var readings: [String] = ["Unavailable", "Unavailable"]
-    @State private var enabled = [false, false]
-    @State private var levels: [Double] = [4, 4]
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @ObservedObject var manager: HardwareManager
+
     private func helper(_ index: Int) -> ThinkFanHelper? {
         let delegate = NSApp.delegate as? AppDelegate
         return index == 0 ? delegate?.fanHelper : delegate?.fanHelper2
     }
+
     var body: some View {
         ControlSection(loc(.thinkPadFans)) {
-            ForEach(0..<(helper(1) == nil ? 1 : 2), id: \.self) { index in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(localizedMessage(index == 0 ? loc(.mainFan) : loc(.secondaryFan))).font(.system(size: 12, weight: .medium))
-                        Spacer()
-                        Text(localizedMessage(readings[index])).font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
-                    }
-                    HStack {
-                        Button(loc(.fanAuto)) { command(index) { $0.setAutomatic() } }
-                        Button(loc(.fanFullSpeed)) { command(index) { $0.setFullSpeed() } }
-                        Spacer()
-                        Text(localizedMessage(String(format: loc(.fanLevelFormat), Int(levels[index])))).font(.caption)
-                        Button(loc(.coolingApply)) {
-                            command(index) { fan in
-                                fan.setManualLevel(Int(levels[index]))
+            ForEach(0..<(manager.hasDualFan || helper(1) != nil ? 2 : 1), id: \.self) { index in
+                if let fan = helper(index) {
+                    ThinkPadFanControl(manager: manager, fan: fan)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(index == 0 ? loc(.mainFan) : loc(.secondaryFan))
+                            Spacer()
+                            let rpm = index == 0 ? manager.fan1RPM : manager.fan2RPM
+                            Text(rpm >= 0 ? localizedMessage("%@ RPM", String(rpm)) : loc(.commonUnavailable))
+                                .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
+                        }
+                        Text(loc(.fanInterfaceRequired)).font(.caption).foregroundColor(.secondary)
+                    }.padding(.vertical, 6)
+                }
+            }
+        }
+    }
+}
+
+private struct ThinkPadFanControl: View {
+    @ObservedObject var manager: HardwareManager
+    @ObservedObject var fan: ThinkFanHelper
+    @State private var level: Double = 4
+
+    private var title: String { fan.main ? loc(.mainFan) : loc(.secondaryFan) }
+    private var mode: String {
+        guard fan.enable else { return loc(.commonUnavailable) }
+        if fan.curveEnabled { return localizedMessage("Custom Curve") }
+        if fan.isFullSpeed { return loc(.fanFullSpeed) }
+        if fan.isAutomatic { return loc(.fanAuto) }
+        return String(format: loc(.fanLevelFormat), fan.level)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title).font(.system(size: 12, weight: .medium))
+                Spacer()
+                let rpm = fan.main ? manager.fan1RPM : manager.fan2RPM
+                Text(rpm >= 0 ? localizedMessage("%@ RPM", String(rpm)) : loc(.commonUnavailable))
+                    .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
+            }
+            HStack {
+                Button(loc(.fanAuto)) { command { fan.setAutomatic() } }
+                    .disabled(!fan.canRecoverAutomatic)
+                Button(loc(.fanFullSpeed)) { command { fan.setFullSpeed() } }
+                    .disabled(!fan.enable || fan.curveEnabled)
+                Spacer()
+                Text(mode).font(.caption).foregroundColor(.secondary)
+            }
+            HStack {
+                Slider(value: $level, in: Double(fan.minimumLevel)...7, step: 1)
+                    .disabled(!fan.enable || fan.curveEnabled)
+                    .accessibilityLabel(localizedMessage(fan.main ? "Main fan level" : "Secondary fan level"))
+                Text(String(format: loc(.fanLevelFormat), Int(level))).font(.caption)
+                Button(loc(.coolingApply)) { command { fan.setManualLevel(Int(level)) } }
+                    .disabled(!fan.enable || fan.curveEnabled)
+            }
+            if manager.thinkFanCurveSupported {
+                Divider()
+                Picker(localizedMessage("Fan control mode"), selection: Binding(
+                    get: { fan.curveEnabled ? 2 : fan.isAutomatic ? 0 : 1 },
+                    set: { value in
+                        if value == 2 { manager.startThinkFanCurve(fan) }
+                        else if value == 0 { command { fan.setAutomatic() } }
+                        else { command { fan.stopCurve(); fan.setManualLevel(Int(level)) } }
+                    })) {
+                    Text(localizedMessage("BIOS Auto")).tag(0)
+                    Text(localizedMessage("Manual")).tag(1)
+                    Text(localizedMessage("Custom Curve")).tag(2)
+                }.pickerStyle(SegmentedPickerStyle())
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(localizedMessage("CPU temperature curve")).font(.caption).bold()
+                    ForEach(fan.curvePoints.indices, id: \.self) { index in
+                        HStack {
+                            Stepper(value: $fan.curvePoints[index].temperature, in: 30...95) {
+                                Text("\(fan.curvePoints[index].temperature) °C").font(.caption)
+                            }
+                            Picker(localizedMessage("Fan level"), selection: $fan.curvePoints[index].level) {
+                                ForEach(1...7, id: \.self) { value in
+                                    Text(String(format: loc(.fanLevelFormat), value)).tag(value)
+                                }
+                                Text(loc(.fanFullSpeed)).tag(0x47)
                             }
                         }
-                    }.disabled(!enabled[index])
-                    Slider(value: $levels[index], in: Double(helper(index)?.minimumLevel ?? 1)...7, step: 1)
-                        .disabled(!enabled[index]).accessibilityLabel(localizedMessage(index == 0 ? "Main fan level" : "Secondary fan level"))
-                    if !enabled[index] {
-                        Text(loc(.fanInterfaceRequired))
-                            .font(.caption).foregroundColor(.secondary)
                     }
-                }.padding(.vertical, 6)
+                }.disabled(fan.curveEnabled)
+                if !ThinkFanCurvePolicy.valid(fan.curvePoints) {
+                    Text(localizedMessage("Use increasing temperatures and fan levels, ending in Full Speed by 95°C."))
+                        .font(.caption).foregroundColor(AppTheme.accent)
+                }
+                Text(localizedMessage("Curve is experimental. Full Speed uses disengaged mode; calibrate on your laptop. Restart after sleep or reconnect."))
+                    .font(.caption).foregroundColor(.secondary)
+                Text(localizedMessage(manager.cpuTemperatureSource) + " · " +
+                     (manager.cpuTemp > 0 ? String(format: "%.1f °C", manager.cpuTemp) : loc(.commonUnavailable)))
+                    .font(.caption).foregroundColor(.secondary)
+                if !fan.curveStatus.isEmpty {
+                    Text(localizedMessage(fan.curveStatus)).font(.caption).foregroundColor(.secondary)
+                }
+            } else {
+                Text(localizedMessage("Custom Curve requires a matching ThinkPad driver with EC write access and watchdog support. Other firmware interfaces keep their existing controls."))
+                    .font(.caption).foregroundColor(.secondary)
             }
-        }.onAppear { refresh(readLevel: true) }
-            .onReceive(timer) { _ in refresh(readLevel: false) }
+            if !fan.enable {
+                Text(localizedMessage("Fan status is unavailable. Try Auto or reconnect the driver."))
+                    .font(.caption).foregroundColor(.secondary)
+            }
+        }.padding(.vertical, 6)
+            .onAppear {
+                guard !CommandLine.arguments.contains("--render-ui") else { return }
+                level = Double(max(fan.minimumLevel, fan.level))
+            }
     }
-    private func command(_ index: Int, action: (ThinkFanHelper) -> Void) {
-        guard !CommandLine.arguments.contains("--render-ui"), let fan = helper(index), fan.enable else { return }
-        action(fan)
-        refresh(readLevel: true)
-    }
-    private func refresh(readLevel: Bool) {
+
+    private func command(_ action: () -> Void) {
         guard !CommandLine.arguments.contains("--render-ui") else { return }
-        for index in 0...1 {
-            guard let fan = helper(index) else { enabled[index] = false; continue }
-            fan.update(readLevel)
-            enabled[index] = fan.enable
-            readings[index] = fan.enable ? fan.rpm.map { localizedMessage("%@ RPM", String(describing: $0)) } ?? loc(.commonUnavailable) : loc(.commonUnavailable)
-            if readLevel { levels[index] = Double(fan.level) }
-        }
+        manager.performThinkFanCommand(fan, action: action)
     }
 }
 
@@ -970,7 +1101,7 @@ private struct ThinkPadBatteryControls: View {
     @State private var stop = ""
     var body: some View {
         ControlSection(loc(.chargeThresholds)) {
-            if manager.batteryIndividualAddressing {
+            if manager.batteryIndividualAddressing && manager.featureStatus["BatteryIndex"]?.available == true {
                 Picker(loc(.sidebarTabBattery), selection: Binding(get: { manager.batteryIndex }, set: { manager.selectBattery($0) })) {
                     Text(loc(.batteryPrimary)).tag(1); Text(loc(.batterySecondary)).tag(2)
                 }.disabled(manager.isApplying)

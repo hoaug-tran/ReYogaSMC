@@ -1,11 +1,20 @@
 # Releases
 
+## 2.1.1
+
+- Add Custom Curve on ThinkPads with EC fan control, fresh CPU temperature and driver watchdog support.
+- Analyze running ACPI tables before generating ThinkPad helpers and verify the installed SSDT after reboot.
+- Keep power-profile errors visible for retry and separate manual fan levels, Full Speed and Auto.
+- Synchronize Overview and Cooling fan readings, preserve slider selections and reject stale samples.
+- Validate laptop identity and EC/HKEY paths before offering hardware controls.
+- Complete English/Vietnamese fan-control and ACPI messages.
+
 ## 2.1.0
 
 ### Driver
 
-- Fix the DYTC notification feedback path on ThinkPad T490 (20N3, BIOS 1.85): reading status no longer issues SET commands that generate further `0x6032` notifications. Read current state after writes.
-- Add PSC thermal profiles when firmware advertises PSC without MMC, including T490 BIOS 1.85. Use Quiet/Balanced/Performance levels 3/5/7 before DYTC revision 9 and 1/3/4 from revision 9; preserve lap mode and set PSC Balanced without resetting other thermal functions.
+- Keep ThinkPad thermal-profile polling read-only and refresh state after profile changes.
+- Support advertised PSC thermal profiles alongside MMC and preserve lap mode during polling.
 - Serialize ThinkPad fan transactions, restore the second-fan selector, verify accepted levels and attempt automatic-mode restoration on sleep, client close or driver stop. Fan level zero requires `-reyfanstop`.
 - Restore ThinkPad hotkey state and masks after wake, serialize ACPI notifications with control requests, and check ACPI parameter allocations before issuing commands.
 - Serialize user-client requests, block firmware access in safe mode and disable the legacy raw EC write interfaces.

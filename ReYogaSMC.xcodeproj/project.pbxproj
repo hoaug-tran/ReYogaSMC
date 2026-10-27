@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        A20000000000000000000001 /* ThinkPadACPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ThinkPadACPI.swift */; };
         A10000000000000000000001 /* HardwareSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* HardwareSupport.swift */; };
         A10000000000000000000003 /* HardwareProfiles in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000004 /* HardwareProfiles */; };
 		6F0095B525455F02002C8E1F /* IOBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F8611CD253AA2FA008FB857 /* IOBluetooth.framework */; };
@@ -151,6 +152,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+        A20000000000000000000002 /* ThinkPadACPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkPadACPI.swift; sourceTree = "<group>"; };
         A10000000000000000000002 /* HardwareSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSupport.swift; sourceTree = "<group>"; };
         A10000000000000000000004 /* HardwareProfiles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = HardwareProfiles; sourceTree = SOURCE_ROOT; };
 		6F05D7E0252E35A000471F57 /* ReYogaSMCUserClient.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaSMCUserClient.cpp; sourceTree = "<group>"; };
@@ -365,6 +367,7 @@
 				6F0A987925343357002F9F65 /* AppDelegate.swift */,
 				6F0A989C25343357002F9F65 /* HardwareManager.swift */,
                 A10000000000000000000002 /* HardwareSupport.swift */,
+                A20000000000000000000002 /* ThinkPadACPI.swift */,
                 A10000000000000000000004 /* HardwareProfiles */,
 				6F0A989D25343357002F9F65 /* HardwareViews.swift */,
                 A10000000000000000000006 /* LocalizedKey.swift */,
@@ -764,6 +767,7 @@
 				6F0A987A25343357002F9F65 /* AppDelegate.swift in Sources */,
 				6F0A989A25343357002F9F65 /* HardwareManager.swift in Sources */,
                 A10000000000000000000001 /* HardwareSupport.swift in Sources */,
+                A20000000000000000000001 /* ThinkPadACPI.swift in Sources */,
 				6F0A989B25343357002F9F65 /* HardwareViews.swift in Sources */,
                 A10000000000000000000005 /* LocalizedKey.swift in Sources */,
                 A10000000000000000000007 /* AppTheme.swift in Sources */,
@@ -857,7 +861,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2.1.0;
+				CURRENT_PROJECT_VERSION = 2.1.1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -922,7 +926,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2.1.0;
+				CURRENT_PROJECT_VERSION = 2.1.1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_NS_ASSERTIONS = NO;

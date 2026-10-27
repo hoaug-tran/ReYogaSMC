@@ -1,8 +1,9 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
+    branches: [main, develop]
   workflow_dispatch:
 permissions:
   contents: read
@@ -52,7 +53,7 @@ jobs:
         run: |
           mkdir -p build
           cp -R HardwareProfiles build/HardwareProfiles
-          swiftc ReYogaSMCApp/LocalizedKey.swift ReYogaSMCApp/HardwareSupport.swift ReYogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
+          swiftc -import-objc-header ReYogaSMCUtils/ReYogaSMC-Bridging-Header.h ReYogaSMCApp/LocalizedKey.swift ReYogaSMCApp/HardwareSupport.swift ReYogaSMCApp/ThinkPadACPI.swift ReYogaSMCApp/AppTheme.swift ReYogaSMCUtils/PropertyHelper.swift ReYogaSMCUtils/ThinkFanHelper.swift ReYogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
           REYOGA_LOCALIZATION_ROOT="$PWD" build/SupportTests
           clang++ -std=c++14 -fsyntax-only Tests/control_validation.cpp
       - name: Build Debug and Release
@@ -73,6 +74,7 @@ jobs:
           build/Debug/ReYogaSMC.app/Contents/MacOS/ReYogaSMC --render-ui
           test "$(find build/ReYogaUIReview -name '*.png' | wc -l | tr -d ' ')" -eq 26
       - name: Package
+        if: github.event_name != 'pull_request'
         env:
           BUILD_VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -87,6 +89,7 @@ jobs:
             build/*.log
             build/ReYogaUIReview/*.png
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: github.event_name != 'pull_request'
         with:
           name: ReYogaSMC-development
           path: |
