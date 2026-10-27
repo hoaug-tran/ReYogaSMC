@@ -178,3 +178,5 @@ class ReleaseTests(unittest.TestCase):
                 git('add', 'ReYogaSMC/driver.cpp')
                 git('commit', '-m', 'feat(driver): add control')
                 self.assertEqual(release.plan()['version'], '2.1.0')
+                (root / release.PROJECT).write_text('CURRENT_PROJECT_VERSION = 2.0.1;', encoding='utf-8')
+                self.assertEqual(release.plan()['version'], '2.0.1', 'An explicit patch version must override automatic feature bumps')

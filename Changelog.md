@@ -1,5 +1,12 @@
 # Releases
 
+## 2.1.1
+
+- Fix ThinkPad fan recovery, RPM decoding and DYTC profile readback; keep manual levels, Full Speed and Auto separate.
+- Synchronize Overview and Cooling fan telemetry, preserve manual slider selections and reject stale samples after control commands.
+- Correct laptop identity handling and validate driver-reported EC/HKEY paths before generating ThinkPad SSDTs.
+- Fix app compilation, keep generated SSDT samples aligned with their template, reduce repeated polling errors and run native builds for pull requests.
+
 ## 2.1.0
 
 ### Driver
