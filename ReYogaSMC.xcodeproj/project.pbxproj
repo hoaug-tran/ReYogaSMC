@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        A30000000000000000000001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000002 /* InfoPlist.strings */; };
         A20000000000000000000001 /* ThinkPadACPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ThinkPadACPI.swift */; };
         A10000000000000000000001 /* HardwareSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* HardwareSupport.swift */; };
         A10000000000000000000003 /* HardwareProfiles in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000004 /* HardwareProfiles */; };
@@ -152,6 +153,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+        A30000000000000000000003 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+        A30000000000000000000004 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
         A20000000000000000000002 /* ThinkPadACPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkPadACPI.swift; sourceTree = "<group>"; };
         A10000000000000000000002 /* HardwareSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSupport.swift; sourceTree = "<group>"; };
         A10000000000000000000004 /* HardwareProfiles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = HardwareProfiles; sourceTree = SOURCE_ROOT; };
@@ -307,6 +310,7 @@
 				6F70425F24D2CF5200FD5659 /* Docs */,
 				6F1C709E251473CC007D1DFC /* Frameworks */,
 				6F53F83A2564C51F00CC4140 /* Localizable.strings */,
+                A30000000000000000000002 /* InfoPlist.strings */,
 				6F83586324D0BFEE0031512F /* SDK */,
 				6F08ACE624746B8B00681A63 /* ReYogaSMC */,
 				6F0A987825343357002F9F65 /* ReYogaSMCApp */,
@@ -673,6 +677,7 @@
 			files = (
 				6F8B2303253C4241005BEC5D /* Mic.pdf in Resources */,
                 A10000000000000000000003 /* HardwareProfiles in Resources */,
+                A30000000000000000000001 /* InfoPlist.strings in Resources */,
 				6F3DA5CF2586C14A00A498C9 /* CapslockOff.pdf in Resources */,
 				6F861215253AF7E4008FB857 /* BacklightLow.pdf in Resources */,
 				6F3DA5D02586C14A00A498C9 /* CapslockOn.pdf in Resources */,
@@ -804,6 +809,15 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
+        A30000000000000000000002 /* InfoPlist.strings */ = {
+            isa = PBXVariantGroup;
+            children = (
+                A30000000000000000000003 /* en */,
+                A30000000000000000000004 /* vi */,
+            );
+            name = InfoPlist.strings;
+            sourceTree = "<group>";
+        };
 		6F0A987F25343359002F9F65 /* Main.storyboard */ = {
 			isa = PBXVariantGroup;
 			children = (

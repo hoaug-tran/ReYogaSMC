@@ -87,6 +87,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Application
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
+        for item in NSApp.mainMenu?.items.first?.submenu?.items ?? [] {
+            if item.action == #selector(openAboutPanel(_:)) { item.title = loc(.sidebarAboutApp) }
+            if item.action == #selector(NSApplication.terminate(_:)) { item.title = loc(.sidebarQuitApp) }
+        }
         #if DEBUG
         if CommandLine.arguments.contains("--render-ui") { renderUIReview(); return }
         if CommandLine.arguments.contains("--check-missing-driver") {

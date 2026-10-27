@@ -2,6 +2,7 @@
 import io
 import json
 import pathlib
+import plistlib
 import re
 import unittest
 from unittest.mock import patch
@@ -18,6 +19,26 @@ def catalog(language):
 
 
 class LocalizationTests(unittest.TestCase):
+    def test_permission_prompts_are_localized_and_included_in_app_resources(self):
+        info = plistlib.loads((ROOT / 'ReYogaSMCApp/Info.plist').read_bytes())
+        expected = {key for key in info if key.endswith('UsageDescription')}
+        project = (ROOT / 'ReYogaSMC.xcodeproj/project.pbxproj').read_text(encoding='utf-8')
+        self.assertIn('InfoPlist.strings in Resources', project)
+        for language in ('en', 'vi'):
+            path = f'{language}.lproj/InfoPlist.strings'
+            pairs = [(json.loads('"' + key + '"'), json.loads('"' + value + '"'))
+                     for key, value in ENTRY.findall((ROOT / path).read_text(encoding='utf-8'))]
+            values = dict(pairs)
+            self.assertEqual(len(pairs), len(values))
+            self.assertEqual(set(values), expected)
+            self.assertIn(path, project)
+            for key, value in values.items():
+                self.assertTrue(value.strip())
+                if language == 'en':
+                    self.assertEqual(value, info[key])
+                else:
+                    self.assertNotEqual(value, info[key])
+
     def test_vietnamese_catalog_with_windows_default_encoding(self):
         original_open = io.open
 

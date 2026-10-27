@@ -66,6 +66,11 @@ jobs:
         run: |
           bash Scripts/sign-app.sh - build/Debug
           bash Scripts/sign-app.sh - build/Release
+          for configuration in Debug Release; do
+            for language in en vi; do
+              test -f "build/$configuration/ReYogaSMC.app/Contents/Resources/$language.lproj/InfoPlist.strings"
+            done
+          done
       - name: Render interface
         timeout-minutes: 3
         run: |
