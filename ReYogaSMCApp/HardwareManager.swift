@@ -26,6 +26,9 @@ public final class HardwareManager: ObservableObject {
         Bundle.main.object(forInfoDictionaryKey: "ReYogaGitRevision") as? String ?? localizedMessage("Unknown revision")
     }
     private var featurePollingSupported = false
+    private var thinkFanTelemetrySupported = false
+    private var lastThinkFanSampleTime: TimeInterval = 0
+    private var lastThinkFanCommandTime: TimeInterval = 0
     private var lastFirmwareRefresh = Date.distantPast
 
     @Published public var hasDualFan: Bool = false
@@ -81,6 +84,8 @@ public final class HardwareManager: ObservableObject {
     public var service: io_service_t = 0 {
         didSet {
             connectionGeneration &+= 1
+            thinkFanTelemetrySupported = false
+            lastThinkFanSampleTime = 0; lastThinkFanCommandTime = 0
             refreshInFlight = false
             isApplying = false; applyingControl = nil
             isConnected = service != 0
@@ -225,6 +230,10 @@ public final class HardwareManager: ObservableObject {
         stopMonitoring()
         let poll = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self = self else { return }
+            if self.thinkFanTelemetrySupported, self.lastThinkFanSampleTime > 0,
+               ProcessInfo.processInfo.systemUptime - self.lastThinkFanSampleTime > ThinkFanSnapshot.maximumAge {
+                self.publishThinkFans(ThinkFanReading(nil), ThinkFanReading(nil))
+            }
             let delegate = NSApp.delegate as? AppDelegate
             let visible = delegate?.controlsWindow?.isVisible == true
             if visible || !self.pendingFanChecks.isEmpty || Date().timeIntervalSince(self.lastBackgroundRefresh) >= 2 {
@@ -256,8 +265,11 @@ public final class HardwareManager: ObservableObject {
             ((providerClass == "ThinkVPC" || !featurePollingSupported) &&
              Date().timeIntervalSince(lastFirmwareRefresh) >= 2)
         if refreshFirmware { lastFirmwareRefresh = Date() }
+        let refreshThinkFans = providerClass == "ThinkVPC" && thinkFanTelemetrySupported
+        let refreshLegacyThinkFans = providerClass == "ThinkVPC" && !thinkFanTelemetrySupported && refreshFirmware
         hardwareQueue.async {
             if refreshFirmware { _ = sendBoolean("Update", true, handle) }
+            else if refreshThinkFans { _ = sendBoolean("UpdateFans", true, handle) }
             let snapshot = getProperties(handle)
             let battery = LiveBatterySnapshot.read()
             let smcCPU = self.smcTemperatures.cpuTemperature()
@@ -269,6 +281,11 @@ public final class HardwareManager: ObservableObject {
                 guard generation == self.connectionGeneration, handle == self.service else { return }
                 self.refreshInFlight = false
                 if let snapshot = snapshot {
+                    // Older kexts have no combined snapshot; keep their recovery polling on the shared clock.
+                    if refreshLegacyThinkFans, snapshot["ThinkFanTelemetryVersion"] as? Int != 1 {
+                        let delegate = NSApp.delegate as? AppDelegate
+                        delegate?.fanHelper?.update(); delegate?.fanHelper2?.update()
+                    }
                     let batteryStatus = battery?.summary ?? ""
                     if self.batterySummary != batteryStatus {
                         self.publish(\.batterySummary, batteryStatus)
@@ -352,6 +369,7 @@ public final class HardwareManager: ObservableObject {
         publish(\.profileMatchState, props["ProfileMatchState"] as? String ?? "Not reported")
         publish(\.firmwareProfileID, props["HardwareProfile"] as? String ?? "")
         featurePollingSupported = props["FeaturePollingVersion"] as? Int == 1
+        thinkFanTelemetrySupported = providerClass == "ThinkVPC" && props["ThinkFanTelemetryVersion"] as? Int == 1
         publish(\.isFnLocked, props["FnlockMode"] as? Bool ?? false)
         publish(\.keyboardBacklight, props["BacklightLevel"] as? Int ?? -1)
         publish(\.chargeStartThreshold, props["ChargeStartThreshold"] as? Int ?? -1)
@@ -479,9 +497,15 @@ public final class HardwareManager: ObservableObject {
         publish(\.hasTouchpadLock, supported("TouchpadLock"))
         publish(\.hasYLogo, supported("YLogoStatus"))
         publish(\.hasPortLighting, supported("PortLighting"))
-        publish(\.hasDualFan, number("Fan number") >= 0 ? number("Fan number") >= 2 : HardwareSnapshot.fanRPM(props["Fan2RPM"]) > 0)
-        publish(\.fan1RPM, HardwareSnapshot.fanRPM(props["Fan1RPM"]))
-        publish(\.fan2RPM, HardwareSnapshot.fanRPM(props["Fan2RPM"]))
+        let declaredDualFan = providerClass == "ThinkVPC" ? props["Dual fan"] as? Bool : nil
+        publish(\.hasDualFan, declaredDualFan ?? (number("Fan number") >= 0 ?
+            number("Fan number") >= 2 : HardwareSnapshot.fanRPM(props["Fan2RPM"]) >= 0))
+        if thinkFanTelemetrySupported {
+            acceptThinkFanSnapshot(props["ThinkFanTelemetry"] as? [String: Any])
+        } else {
+            publish(\.fan1RPM, HardwareSnapshot.fanRPM(props["Fan1RPM"]))
+            publish(\.fan2RPM, HardwareSnapshot.fanRPM(props["Fan2RPM"]))
+        }
         if !cpuUsesSMC { publish(\.cpuTemp, HardwareSnapshot.temperature(props["CPUTemp"])) }
         if !gpuUsesSMC {
             publish(\.gpuTemp, HardwareSnapshot.temperature(props["GPUTemp"]))
@@ -567,6 +591,39 @@ public final class HardwareManager: ObservableObject {
             DispatchQueue.main.async { self.restoreNextControl() }
         }
     }
+    private func publishThinkFans(_ main: ThinkFanReading, _ secondary: ThinkFanReading) {
+        publish(\.fan1RPM, main.rpm ?? -1); publish(\.fan2RPM, secondary.rpm ?? -1)
+        let delegate = NSApp.delegate as? AppDelegate
+        delegate?.fanHelper?.acceptSnapshot(main); delegate?.fanHelper2?.acceptSnapshot(secondary)
+    }
+
+    private func acceptThinkFanSnapshot(_ properties: [String: Any]?) {
+        let uptime = ProcessInfo.processInfo.systemUptime
+        guard let sample = ThinkFanSnapshot(properties) else {
+            publishThinkFans(ThinkFanReading(nil), ThinkFanReading(nil))
+            return
+        }
+        let previous = max(lastThinkFanSampleTime, lastThinkFanCommandTime)
+        guard sample.sampledAt >= previous else { return }
+        guard sample.isCurrent(at: uptime, after: previous) else {
+            publishThinkFans(ThinkFanReading(nil), ThinkFanReading(nil))
+            return
+        }
+        lastThinkFanSampleTime = sample.sampledAt
+        publishThinkFans(sample.main, sample.secondary)
+    }
+
+    func performThinkFanCommand(_ fan: ThinkFanHelper, action: () -> Void) {
+        guard !CommandLine.arguments.contains("--render-ui"), service != 0, driverState == .ready,
+              let delegate = NSApp.delegate as? AppDelegate,
+              fan === (fan.main ? delegate.fanHelper : delegate.fanHelper2) else { return }
+        action()
+        lastThinkFanCommandTime = ProcessInfo.processInfo.systemUptime
+        lastThinkFanSampleTime = lastThinkFanCommandTime
+        publish(fan.main ? \.fan1RPM : \.fan2RPM, fan.rpm ?? -1)
+        refreshMetrics()
+    }
+
     private func loadHardwareSettings() -> SavedHardwareSettings {
         let key = SavedHardwareSettings.storageKey(preferenceIdentity)
         if let data = UserDefaults.standard.data(forKey: key),

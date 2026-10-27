@@ -9,6 +9,45 @@
 import AppKit
 import Foundation
 import Combine
+import CoreFoundation
+
+struct ThinkFanReading {
+    let rpm: Int?
+    let control: UInt8?
+
+    init(_ properties: [String: Any]?) {
+        func number(_ key: String) -> Int? {
+            guard let value = properties?[key] as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID(),
+                  value.doubleValue.isFinite, value.doubleValue == Double(value.intValue) else { return nil }
+            return value.intValue
+        }
+        rpm = number("RPM").flatMap { (0..<0xffff).contains($0) ? $0 : nil }
+        control = number("Control").flatMap { Self.validControl($0) ? UInt8($0) : nil }
+    }
+
+    static func validControl(_ raw: Int) -> Bool {
+        (0...7).contains(raw) || (0x40...0x47).contains(raw) || (0x80...0x87).contains(raw)
+    }
+}
+
+struct ThinkFanSnapshot {
+    static let maximumAge: TimeInterval = 3
+    let sampledAt: TimeInterval
+    let main: ThinkFanReading
+    let secondary: ThinkFanReading
+
+    init?(_ properties: [String: Any]?) {
+        guard let time = properties?["SensorSampleTimeMS"] as? NSNumber,
+              CFGetTypeID(time) != CFBooleanGetTypeID(), time.doubleValue.isFinite, time.doubleValue >= 0 else { return nil }
+        sampledAt = time.doubleValue / 1000
+        main = ThinkFanReading(properties?["Fan1"] as? [String: Any])
+        secondary = ThinkFanReading(properties?["Fan2"] as? [String: Any])
+    }
+
+    func isCurrent(at uptime: TimeInterval, after previous: TimeInterval) -> Bool {
+        sampledAt >= previous && sampledAt <= uptime && uptime - sampledAt <= Self.maximumAge
+    }
+}
 
 class ThinkFanHelper: ObservableObject {
     let connect: io_connect_t
@@ -21,7 +60,7 @@ class ThinkFanHelper: ObservableObject {
     @Published private(set) var rpm: Int?
     var minimumLevel: Int { defaults.bool(forKey: "AllowFanStop") ? 0 : 1 }
     private static let automaticLevel: UInt8 = 0x84
-    private static let fullSpeedLevel: UInt8 = 0x47
+    private static let fullSpeedLevel: UInt8 = 0x40 | 7
     private static let queryRPMLevel: UInt64 = 0x100
 
     @Published private(set) var savedLevel: UInt8 = 0x80
@@ -48,7 +87,6 @@ class ThinkFanHelper: ObservableObject {
     }
 
     private func access(level requested: UInt64 = queryRPMLevel, operation: String = "poll") -> [UInt8]? {
-        // A failed sample must not prevent the next poll or an explicit Auto recovery.
         guard connect != 0 else { return nil }
         let input: [UInt64] = [main ? 0 : 1, requested]
         var output = [UInt8](repeating: 0, count: 3)
@@ -60,7 +98,7 @@ class ThinkFanHelper: ObservableObject {
             }
         }
         let raw = output[2]
-        let validMode = raw <= 7 || raw & 0xf8 == 0x40 || raw & 0xf8 == 0x80
+        let validMode = ThinkFanReading.validControl(Int(raw))
         let automatic = requested == 0x80 || requested == 0x84
         let matched = requested == Self.queryRPMLevel ||
             (automatic ? raw & 0x80 != 0 : requested == 0x47 ? raw & 0x40 != 0 : UInt64(raw) == requested)
@@ -101,15 +139,20 @@ class ThinkFanHelper: ObservableObject {
     }
 
     private func acceptLevel(_ raw: UInt8) {
-        if raw & 0x40 != 0 { savedLevel = Self.fullSpeedLevel; level = 7 }
-        else if raw & 0x80 != 0 { savedLevel = Self.automaticLevel; level = 4 }
+        if raw & 0x40 != 0 { savedLevel = Self.fullSpeedLevel }
+        else if raw & 0x80 != 0 { savedLevel = Self.automaticLevel }
         else if raw <= 7 { savedLevel = raw; level = Int(raw) }
         else { enable = false; rpm = nil }
     }
 
     func update() {
         guard let sample = access() else { return }
-        // Keep the restore mode in sync even when the slider is not being refreshed.
         acceptLevel(sample[2])
+    }
+
+    func acceptSnapshot(_ reading: ThinkFanReading) {
+        rpm = reading.rpm
+        enable = connect != 0 && reading.control != nil
+        if enable, let control = reading.control { acceptLevel(control) }
     }
 }

@@ -965,10 +965,12 @@ IOReturn ReYogaVPC::accessThinkFanGated(UInt32 fan, UInt32 requested, UInt8 outp
     return status;
 }
 
-IOReturn ReYogaVPC::readThinkFanRPM(UInt32 fan, UInt32 &rpm) {
+IOReturn ReYogaVPC::readThinkFanRPM(UInt32 fan, UInt32 &rpm, UInt8 *control) {
+    if (control) *control = 0xff;
     UInt8 sample[3] {};
     const IOReturn status = accessThinkFan(fan, ReYogaControl::kThinkFanQueryRPM, sample);
     if (status == kIOReturnSuccess) {
+        if (control) *control = sample[2];
         rpm = ReYogaControl::thinkFanRPM(sample[0], sample[1]);
         return rpm != 0xffff ? kIOReturnSuccess : kIOReturnUnderrun;
     }

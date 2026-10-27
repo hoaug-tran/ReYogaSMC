@@ -22,8 +22,11 @@ class ThinkFanTests(unittest.TestCase):
 @propertyWrapper struct Published<Value> {
     var wrappedValue: Value
 }''')
+            manager = (ROOT / 'ReYogaSMCApp/HardwareManager.swift').read_text(encoding='utf-8')
+            methods = manager[manager.index('    private func publishThinkFans('):manager.index('    private func loadHardwareSettings(')]
+            synchronization = (ROOT / 'Tests/think_fan_sync.swift').read_text(encoding='utf-8').replace('// MANAGER_IMPLEMENTATION', methods)
             source.write_text(helper.replace('import AppKit', '') + '\n' +
-                              (ROOT / 'Tests/think_fan.swift').read_text(encoding='utf-8'), encoding='utf-8')
+                              (ROOT / 'Tests/think_fan.swift').read_text(encoding='utf-8') + '\n' + synchronization, encoding='utf-8')
             executable = directory / 'think-fan'
             build = subprocess.run(['swiftc', '-swift-version', '5', str(source), '-o', str(executable)],
                                    capture_output=True, text=True, timeout=60)
@@ -31,3 +34,4 @@ class ThinkFanTests(unittest.TestCase):
             result = subprocess.run([str(executable)], capture_output=True, text=True, timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('PASS real ThinkFanHelper', result.stdout)
+            self.assertIn('PASS shared fan telemetry', result.stdout)

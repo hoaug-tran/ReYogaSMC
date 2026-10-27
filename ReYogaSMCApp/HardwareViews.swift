@@ -957,7 +957,7 @@ private struct ThinkPadFanPanel: View {
         ControlSection(loc(.thinkPadFans)) {
             ForEach(0..<(manager.hasDualFan || helper(1) != nil ? 2 : 1), id: \.self) { index in
                 if let fan = helper(index) {
-                    ThinkPadFanControl(fan: fan)
+                    ThinkPadFanControl(manager: manager, fan: fan)
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -976,10 +976,9 @@ private struct ThinkPadFanPanel: View {
 }
 
 private struct ThinkPadFanControl: View {
+    @ObservedObject var manager: HardwareManager
     @ObservedObject var fan: ThinkFanHelper
     @State private var level: Double = 4
-    // Parent telemetry redraws must not restart the polling interval.
-    @State private var timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     private var title: String { fan.main ? loc(.mainFan) : loc(.secondaryFan) }
     private var mode: String {
@@ -994,7 +993,8 @@ private struct ThinkPadFanControl: View {
             HStack {
                 Text(title).font(.system(size: 12, weight: .medium))
                 Spacer()
-                Text(fan.rpm.map { localizedMessage("%@ RPM", String($0)) } ?? loc(.commonUnavailable))
+                let rpm = fan.main ? manager.fan1RPM : manager.fan2RPM
+                Text(rpm >= 0 ? localizedMessage("%@ RPM", String(rpm)) : loc(.commonUnavailable))
                     .font(.system(size: 11, design: .monospaced)).foregroundColor(.secondary)
             }
             HStack {
@@ -1020,18 +1020,13 @@ private struct ThinkPadFanControl: View {
         }.padding(.vertical, 6)
             .onAppear {
                 guard !CommandLine.arguments.contains("--render-ui") else { return }
-                fan.update()
                 level = Double(max(fan.minimumLevel, fan.level))
-            }
-            .onReceive(timer) { _ in
-                guard !CommandLine.arguments.contains("--render-ui") else { return }
-                fan.update()
             }
     }
 
     private func command(_ action: () -> Void) {
         guard !CommandLine.arguments.contains("--render-ui") else { return }
-        action()
+        manager.performThinkFanCommand(fan, action: action)
     }
 }
 

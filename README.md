@@ -73,6 +73,8 @@ CPU/GPU sensor plugins are optional temperature sources. Load them after their d
 
 The app has Overview, Device, Cooling, Battery, Lighting and Diagnostics pages, plus Settings. English and Vietnamese are available. Battery, SMC and supported USB RGB access remain usable without the VPC kext connection. Update checks notify you of releases; installation is manual. Saved RGB settings are reapplied when the app opens; software-driven Breathing and Spectrum effects run while it is open.
 
+ThinkPad fan levels 1–7, Full Speed and Auto are separate modes. Full Speed uses the `0x40` mode bit with level 7 as a firmware fallback (`0x47`); it is not manual level 7 (`0x07`). With a matching driver, Overview and Cooling share timestamped RPM/mode readings, sampled every 500 ms while the window is visible and every 2 seconds in the background. Command readback updates the display immediately; older snapshots cannot overwrite it, and readings expire after 3 seconds without a fresh sample. Actual update latency depends on firmware and system load. Older kexts retain the 2-second compatibility polling path.
+
 <details>
 <summary>App screenshots - click an image to view it at full size</summary>
 

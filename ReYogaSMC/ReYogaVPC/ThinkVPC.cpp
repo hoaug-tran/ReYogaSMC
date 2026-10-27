@@ -26,13 +26,33 @@ void ThinkVPC::updateNotificationMask() {
 
 void ThinkVPC::updateFans() {
     const unsigned count = getProperty("Dual fan") == kOSBooleanTrue ? 2 : 1;
+    auto telemetry = OSDictionary::withCapacity(3);
     for (unsigned fan = 0; fan < count; ++fan) {
         UInt32 rpm = 0;
+        UInt8 control = 0xff;
         const char *property = fan == 0 ? "Fan1RPM" : "Fan2RPM";
-        if (readThinkFanRPM(fan, rpm) == kIOReturnSuccess)
+        const bool validRPM = readThinkFanRPM(fan, rpm, &control) == kIOReturnSuccess;
+        if (validRPM)
             setProperty(property, rpm, 32);
         else
             removeProperty(property);
+        auto reading = OSDictionary::withCapacity(2);
+        if (reading) {
+            if (validRPM) setPropertyNumber(reading, "RPM", rpm, 32);
+            if (control != 0xff) setPropertyNumber(reading, "Control", control, 8);
+            if (telemetry) telemetry->setObject(fan == 0 ? "Fan1" : "Fan2", reading);
+            reading->release();
+        }
+    }
+    if (telemetry) {
+        UInt64 uptime, ns;
+        clock_get_uptime(&uptime);
+        absolutetime_to_nanoseconds(uptime, &ns);
+        setPropertyNumber(telemetry, "SensorSampleTimeMS", ns / 1000000, 64);
+        setProperty("ThinkFanTelemetry", telemetry);
+        telemetry->release();
+    } else {
+        removeProperty("ThinkFanTelemetry");
     }
 }
 
@@ -244,6 +264,7 @@ bool ThinkVPC::initVPC() {
     setMicMuteLEDStatus(0);
     setProperty("ControlProtocolVersion", 1, 32);
     setProperty("ThinkFanProtocolVersion", 1, 32);
+    setProperty("ThinkFanTelemetryVersion", 1, 32);
     return true;
 }
 
@@ -450,6 +471,11 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
     OSDictionary *dict = OSDynamicCast(OSDictionary, props);
     if (!dict)
         return;
+
+    if (auto update = OSDynamicCast(OSBoolean, dict->getObject("UpdateFans"))) {
+        if (update->getValue()) updateFans();
+        return;
+    }
 
     if (auto request = OSDynamicCast(OSDictionary, dict->getObject("ControlRequest"))) {
         controlRequest(request);

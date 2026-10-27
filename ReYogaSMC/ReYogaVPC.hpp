@@ -323,7 +323,7 @@ public:
 
     ReYogaSMCUserClient *client {nullptr};
     IOReturn accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]);
-    IOReturn readThinkFanRPM(UInt32 fan, UInt32 &rpm);
+    IOReturn readThinkFanRPM(UInt32 fan, UInt32 &rpm, UInt8 *control = nullptr);
     void restoreThinkFans();
     virtual void restoreUserControls() { restoreThinkFans(); }
 };

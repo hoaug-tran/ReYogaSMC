@@ -39,6 +39,12 @@ struct FanEC {
 
 static void checkThinkFans() {
     using namespace ReYogaControl;
+    FanEC modes;
+    ThinkFanState modeState;
+    unsigned char modeSample[3] {};
+    assert(modes.access(0, 7, modeSample, modeState) == ThinkFanResult::ok && modeSample[2] == 0x07);
+    assert(modes.access(0, 0x47, modeSample, modeState) == ThinkFanResult::ok && (modeSample[2] & 0x40));
+    assert(modes.access(0, 0x84, modeSample, modeState) == ThinkFanResult::ok && (modeSample[2] & 0x80));
     ThinkFanState logging;
     assert(!logging.pollStatusChanged(0, 0));
     assert(logging.pollStatusChanged(0, 1));
