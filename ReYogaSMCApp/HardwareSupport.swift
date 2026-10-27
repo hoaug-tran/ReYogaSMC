@@ -1,7 +1,7 @@
-
+// SPDX-License-Identifier: GPL-2.0-only
+// ReYogaSMC support adapters. Physical addresses and device layouts live in profiles.
 import AppKit
 import Foundation
-import Darwin
 import IOKit
 import IOKit.hid
 import ApplicationServices
@@ -30,8 +30,6 @@ struct SavedHardwareSettings: Codable, Equatable {
 }
 
 struct SavedRGBSettings: Codable, Equatable {
-    static let maximumImportBytes = 256 * 1024
-    static let maximumSavedBytes = 512 * 1024
     var version = 1
     var profileID: String
     var mode: String
@@ -41,7 +39,6 @@ struct SavedRGBSettings: Codable, Equatable {
     var isValid: Bool {
         version == 1 && !profileID.isEmpty && ["Factory", "Static", "Breathing", "Spectrum", "Per-key"].contains(mode)
             && colors.values.allSatisfy { Self.bytes($0) != nil }
-            && (perKey?.count ?? 0) <= Self.maximumImportBytes
             && (mode != "Per-key" || perKey != nil)
     }
     static func bytes(_ text: String) -> (UInt8, UInt8, UInt8)? {
@@ -104,7 +101,7 @@ struct HardwareSnapshot {
         let unavailable = HardwareFeatureStatus(available: false,
             reason: "The active driver has no validated manual fan control for this firmware.", backend: feature?.backend ?? "Unavailable")
         guard let feature = feature else { return unavailable }
-
+        // Bridge requirements belong to this adapter, not every fan backend.
         guard feature.backend == "ACPI profile" else { return feature }
         guard feature.available, bridgeVersion >= 2 else { return unavailable }
         if key != "FanControlMode" && !writesValidated {
@@ -115,145 +112,41 @@ struct HardwareSnapshot {
     }
 }
 
+// Display identity is independent of firmware control eligibility.
 struct LaptopIdentity {
     let name: String
     let source: String
 
-    private static let catalog: (machineTypes: [String: String], pciSubsystems: [String: String]) = loadCatalog()
-
-    private static func loadCatalog() -> (machineTypes: [String: String], pciSubsystems: [String: String]) {
-        let directory = HardwareProfiles.directory ?? URL(fileURLWithPath: "HardwareProfiles")
-        let url = directory.appendingPathComponent("catalogs").appendingPathComponent("models.json")
-        guard let data = try? Data(contentsOf: url),
-              let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
-            return ([:], [:])
-        }
-        let machines = json["machine_types"] as? [String: String] ?? [:]
-        let pcis = json["pci_subsystems"] as? [String: String] ?? [:]
-        return (machines, pcis)
-    }
-
     static func resolve(strings: [String], pciIDs: Set<String>, lenovo: Bool,
                         profiles: [[String: Any]] = HardwareProfiles.all()) -> LaptopIdentity {
         let evidence = strings.map { $0.uppercased() }
-        let machineTypes = Set(evidence.flatMap { $0.components(separatedBy: CharacterSet.alphanumerics.inverted) }
-            .filter { $0.count >= 4 }.map { String($0.prefix(4)) })
-        let pciIDs = Set(pciIDs.map { $0.lowercased() })
         let models = profiles.filter { $0["kind"] as? String == "acpi" }
         let machineMatches = models.filter { profile in
-            (profile["machine_types"] as? [String] ?? []).contains { machineTypes.contains($0.uppercased()) }
+            (profile["machine_types"] as? [String] ?? []).contains { type in
+                evidence.contains { value in
+                    value.range(of: "(?<![A-Z0-9])" + NSRegularExpression.escapedPattern(for: type.uppercased()) + "[A-Z0-9]*(?![A-Z0-9])", options: .regularExpression) != nil
+                }
+            }
         }
         let pciMatches = models.filter { profile in
             (profile["pci_subsystem_ids"] as? [String] ?? []).contains { pciIDs.contains($0.lowercased()) }
         }
-        var machineNames = Set(machineMatches.compactMap { $0["name"] as? String })
-        var pciNames = Set(pciMatches.compactMap { $0["name"] as? String })
-        // Reviewed profiles supply canonical names for their catalog identifiers.
-        let profiledTypes = Set(machineMatches.flatMap { $0["machine_types"] as? [String] ?? [] }.map { $0.uppercased() })
-        let profiledPCI = Set(pciMatches.flatMap { $0["pci_subsystem_ids"] as? [String] ?? [] }.map { $0.lowercased() })
-        for type in machineTypes.subtracting(profiledTypes) {
-            if let name = catalog.machineTypes[type] { machineNames.insert(name) }
-        }
-        for pci in pciIDs.subtracting(profiledPCI) {
-            if let name = catalog.pciSubsystems[pci] { pciNames.insert(name) }
-        }
+        let machineNames = Set(machineMatches.compactMap { $0["name"] as? String })
+        let pciNames = Set(pciMatches.compactMap { $0["name"] as? String })
         let names = machineNames.union(pciNames)
         if names.count == 1, let name = names.first {
             let source = machineNames.isEmpty ? "PCI subsystem ID" : pciNames.isEmpty ? "Machine type" : "Machine type + PCI subsystem ID"
             return LaptopIdentity(name: name, source: source)
         }
-        if names.count > 1 {
-            return LaptopIdentity(name: "Lenovo Laptop", source: "Hardware identity")
-        }
-        let ignoredPrefixes = ["MACBOOK", "IMAC", "MACMINI", "MACPRO", "APPLE"]
-        let ignoredExact: Set<String> = ["DEFAULT STRING", "NONE", "TO BE FILLED BY O.E.M.", "SYSTEM PRODUCT NAME", "SYSTEM MANUFACTURER", "LENOVO", "UNKNOWN"]
-        let validCandidates = strings.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { str in
-            let upper = str.uppercased()
-            if upper.isEmpty || ignoredExact.contains(upper) { return false }
-            if ignoredPrefixes.contains(where: { upper.hasPrefix($0) }) { return false }
-            return true
-        }
-        for str in validCandidates {
-            let upper = str.uppercased()
-            if upper.contains("THINKPAD") || upper.contains("LEGION") || upper.contains("IDEAPAD") ||
-               upper.contains("YOGA") || upper.contains("THINKBOOK") || upper.contains("LOQ") || upper.contains("XIAOXIN") {
-                return LaptopIdentity(name: str, source: "Firmware identity")
-            }
-        }
-        for str in validCandidates {
-            let upper = str.uppercased()
-            if let match = upper.range(of: "(?<![A-Z0-9])(2[01][A-Z0-9]{2})[A-Z0-9]*(?![A-Z0-9])", options: .regularExpression) {
-                let code = String(upper[match].prefix(4))
-                return LaptopIdentity(name: "ThinkPad (\(code))", source: "Machine type")
-            }
-            if let match = upper.range(of: "(?<![A-Z0-9])(8[0-4][A-Z0-9]{2})[A-Z0-9]*(?![A-Z0-9])", options: .regularExpression) {
-                let code = String(upper[match].prefix(4))
-                return LaptopIdentity(name: "Lenovo (\(code))", source: "Machine type")
-            }
-        }
         let isLenovo = lenovo || !machineNames.isEmpty || pciIDs.contains { $0.hasPrefix("17aa:") } ||
             evidence.contains { $0.contains("LENOVO") }
-        if isLenovo {
-            return LaptopIdentity(name: "Lenovo Laptop", source: "Hardware identity")
-        }
-        return LaptopIdentity(name: "Unknown Laptop", source: "Hardware identity")
+        return LaptopIdentity(name: isLenovo ? "Lenovo Laptop" : "Unknown Laptop", source: "Hardware identity")
     }
 
     static func text(_ value: Any?) -> String? {
         if let string = value as? String { return String(string.prefix(256)) }
         guard let data = value as? Data, data.count <= 256 else { return nil }
         return String(data: data, encoding: .utf8)?.replacingOccurrences(of: "\0", with: " ")
-    }
-
-    static func parseSMBIOS(data: Data) -> [String] {
-        guard data.count >= 4 else { return [] }
-        let bytes = [UInt8](data)
-        var result: [String] = []
-        var offset = 0
-        while offset + 4 <= bytes.count {
-            if bytes[offset] == 127 { break }
-            let structureType = bytes[offset]
-            let length = Int(bytes[offset + 1])
-            if length < 4 || offset + length > bytes.count { break }
-            var strings: [String] = []
-            var stringOffset = offset + length
-            while stringOffset < bytes.count {
-                if bytes[stringOffset] == 0 {
-                    if stringOffset == offset + length {
-                        stringOffset += (stringOffset + 1 < bytes.count && bytes[stringOffset + 1] == 0) ? 2 : 1
-                    } else {
-                        stringOffset += 1
-                    }
-                    break
-                }
-                var end = stringOffset
-                while end < bytes.count && bytes[end] != 0 { end += 1 }
-                if let str = String(bytes: bytes[stringOffset..<end], encoding: .utf8) ??
-                             String(bytes: bytes[stringOffset..<end], encoding: .ascii) {
-                    let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
-                    strings.append(trimmed)
-                }
-                stringOffset = end + 1
-            }
-            let allowedOffsets: [Int]
-            switch structureType {
-            case 1: allowedOffsets = [0x04, 0x05, 0x06, 0x1A]
-            case 2: allowedOffsets = [0x04, 0x05, 0x06]
-            default: allowedOffsets = []
-            }
-            for fieldOffset in allowedOffsets where fieldOffset < length {
-                let strIdx = Int(bytes[offset + fieldOffset])
-                if strIdx > 0 && strIdx <= strings.count {
-                    let candidate = strings[strIdx - 1]
-                    if !candidate.isEmpty && !result.contains(candidate) {
-                        result.append(candidate)
-                    }
-                }
-            }
-            guard stringOffset > offset else { break }
-            offset = stringOffset
-        }
-        return result
     }
 
     static func read() -> LaptopIdentity {
@@ -286,11 +179,6 @@ struct LaptopIdentity {
             while case let entry = IOIteratorNext(iterator), entry != 0 {
                 defer { IOObjectRelease(entry) }
                 if IOObjectConformsTo(entry, "IOPlatformExpertDevice") != 0 { collect(entry) }
-                if IOObjectConformsTo(entry, "AppleSMBIOS") != 0 {
-                    if let value = IORegistryEntryCreateCFProperty(entry, "SMBIOS" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Data {
-                        strings.append(contentsOf: parseSMBIOS(data: value))
-                    }
-                }
                 guard IOObjectConformsTo(entry, "IOPCIDevice") != 0 else { continue }
                 func number(_ key: String) -> UInt32? {
                     let value = IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
@@ -308,14 +196,7 @@ struct LaptopIdentity {
 }
 
 struct HardwareProfiles {
-    static var directory: URL? {
-        if let bundleDir = Bundle.main.resourceURL?.appendingPathComponent("HardwareProfiles", isDirectory: true),
-           FileManager.default.fileExists(atPath: bundleDir.path) {
-            return bundleDir
-        }
-        let fallback = URL(fileURLWithPath: "HardwareProfiles")
-        return FileManager.default.fileExists(atPath: fallback.path) ? fallback : nil
-    }
+    static var directory: URL? { Bundle.main.resourceURL?.appendingPathComponent("HardwareProfiles", isDirectory: true) }
     private static let cachedProfiles = loadProfiles()
     static func all() -> [[String: Any]] { cachedProfiles }
     private static func loadProfiles() -> [[String: Any]] {
@@ -333,53 +214,16 @@ struct HardwareProfiles {
             ($0["matchProfiles"] as? [String])?.contains(profileID) == true
         }
     }
-    static func lightingOwnedByRGB(key: String, settings: SavedRGBSettings?, activeProfileID: String?, profiles: [[String: Any]] = HardwareProfiles.all()) -> Bool {
-        guard let zone = ["YLogoStatus": "Logo", "PortLighting": "PortLighting"][key],
-              let settings = settings,
-              settings.isValid,
-              settings.mode != "Factory",
-              let activeID = activeProfileID,
-              !activeID.isEmpty,
-              settings.profileID == activeID,
-              let profile = profiles.first(where: { $0["id"] as? String == activeID && $0["kind"] as? String == "rgb" }),
-              let zones = profile["zones"] as? [String: Any],
-              zones[zone] != nil else {
-            return false
-        }
-        return true
-    }
-    static let maxDSDTFileSize = 16 * 1024 * 1024
-    static func readDSDTSource(_ input: URL) throws -> String {
-        let attributes = try FileManager.default.attributesOfItem(atPath: input.path)
-        guard let size = (attributes[.size] as? NSNumber)?.int64Value,
-              size >= 0, size <= Int64(maxDSDTFileSize) else {
-            throw SupportError.message("DSDT source exceeds the supported size")
-        }
-        let handle = try FileHandle(forReadingFrom: input)
-        defer { try? handle.close() }
-        var data = Data()
-        while let chunk = try handle.read(upToCount: min(65536, maxDSDTFileSize + 1 - data.count)), !chunk.isEmpty {
-            data.append(chunk)
-            guard data.count <= maxDSDTFileSize else { throw SupportError.message("DSDT source exceeds the supported size") }
-        }
-        guard let source = String(data: data, encoding: .utf8) else { throw SupportError.message("DSDT source is not valid UTF-8") }
-        return source
-    }
     static func normalizedDSDT(_ source: String) -> String {
         let pattern = #""(?:\\.|[^"\\])*"|/\*.*?\*/|//[^\n]*|[^\s]"#
         guard let expression = try? NSRegularExpression(pattern: pattern, options: .dotMatchesLineSeparators) else { return source }
         let text = source as NSString
-        var normalized = ""
-        normalized.reserveCapacity(source.utf8.count)
-        expression.enumerateMatches(in: source, range: NSRange(location: 0, length: text.length)) { match, _, _ in
-            guard let match = match else { return }
-            let token = text.substring(with: match.range)
-            if !token.hasPrefix("/*") && !token.hasPrefix("//") { normalized.append(token) }
-        }
-        return normalized
+        return expression.matches(in: source, range: NSRange(location: 0, length: text.length)).map {
+            text.substring(with: $0.range)
+        }.filter { !$0.hasPrefix("/*") && !$0.hasPrefix("//") }.joined()
     }
     static func matchingDSDT(_ source: String) throws -> [String: Any] {
-        guard source.utf8.count <= maxDSDTFileSize else { throw SupportError.message("DSDT source exceeds the supported size") }
+        guard source.utf8.count <= 16 * 1024 * 1024 else { throw SupportError.message("DSDT source exceeds the supported size") }
         let normalized = normalizedDSDT(source)
         let digest = SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
         let exactMatches = all().filter { item in
@@ -422,23 +266,6 @@ struct HardwareProfiles {
                      "/opt/homebrew/bin/iasl", "/usr/local/bin/iasl"]
         return paths.compactMap { $0 }.first(where: { FileManager.default.isExecutableFile(atPath: $0) }).map { URL(fileURLWithPath: $0) }
     }
-    static func compileSSDT(_ output: URL) throws -> Bool {
-        guard let compiler = compiler() else { return false }
-        let process = Process()
-        process.executableURL = compiler
-        process.arguments = ["-tc", output.path]
-        let logURL = output.deletingPathExtension().appendingPathExtension("compile.log")
-        guard FileManager.default.createFile(atPath: logURL.path, contents: nil) else {
-            throw CocoaError(.fileWriteUnknown)
-        }
-        let handle = try FileHandle(forWritingTo: logURL)
-        defer { try? handle.close() }
-        process.standardOutput = handle; process.standardError = handle
-        try process.run()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { throw SupportError.message("SSDT compilation failed. The source and compile.log are saved for inspection.") }
-        return true
-    }
     static func exportLiveBridge(service: io_service_t) {
         let save = NSSavePanel()
         save.allowedFileTypes = ["dsl"]
@@ -459,175 +286,25 @@ struct HardwareProfiles {
                 let source = try render(profile)
                 try source.write(to: output, atomically: true, encoding: .utf8)
                 var result = "ACPI bridge source saved. Install iasl to compile it."
-                let compiled = try compileSSDT(output)
-                if compiled {
+                if let compiler = compiler() {
+                    let process = Process()
+                    process.executableURL = compiler
+                    process.arguments = ["-tc", output.path]
+                    let logURL = output.deletingPathExtension().appendingPathExtension("compile.log")
+                    FileManager.default.createFile(atPath: logURL.path, contents: nil)
+                    let handle = try FileHandle(forWritingTo: logURL)
+                    defer { try? handle.close() }
+                    process.standardOutput = handle; process.standardError = handle
+                    try process.run()
+                    process.waitUntilExit()
+                    guard process.terminationStatus == 0 else { throw SupportError.message("SSDT compilation failed. The source and compile.log are saved for inspection.") }
                     result = "SSDT compiled — review it and add it to OpenCore before rebooting"
                 }
-                ReYogaDiagnostics.shared.record("live_acpi_generated", ["profile": profile["id"] ?? "unknown", "compiled": compiled])
+                ReYogaDiagnostics.shared.record("live_acpi_generated", ["profile": profile["id"] ?? "unknown", "compiled": compiler() != nil])
                 DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([output]); showOSDRaw(result, duration: 3000) }
             } catch {
                 ReYogaDiagnostics.shared.record("live_acpi_generation_failed", ["error": error.localizedDescription])
                 DispatchQueue.main.async { showOSDRaw(error.localizedDescription, duration: 3500) }
-            }
-        }
-    }
-    static func acpiNamespacePath(_ path: String) -> String? {
-        let components: [String]
-        if path.hasPrefix("IOACPIPlane:/") {
-            components = path.dropFirst("IOACPIPlane:/".count).split(separator: "/", omittingEmptySubsequences: false)
-                .map { String($0.prefix { $0 != "@" }) }
-        } else if path.hasPrefix("\\") {
-            components = path.dropFirst().components(separatedBy: ".")
-        } else { return nil }
-        guard !components.isEmpty, components.allSatisfy({
-            $0.range(of: "^[A-Z_][A-Z0-9_]{0,3}\\z", options: .regularExpression) != nil
-        }) else { return nil }
-        return "\\" + components.joined(separator: ".")
-    }
-    static func captureThinkPadACPI(service: io_service_t) throws -> (tables: [Data], evidence: [String: Any]) {
-        guard getNumber("ThinkPadACPIAnalysisVersion", service) == 1 else {
-            throw SupportError.message("Update the driver to capture the running ACPI tables and namespace evidence.")
-        }
-        let status = IORegistryEntrySetCFProperty(service, "ExportACPITables" as CFString, kCFBooleanTrue)
-        defer {
-            let cleanup = IORegistryEntrySetCFProperty(service, "ExportACPITables" as CFString, kCFBooleanFalse)
-            if cleanup != kIOReturnSuccess { ReYogaDiagnostics.shared.record("acpi_capture_cleanup_failed", ["status": cleanup]) }
-        }
-        guard status == kIOReturnSuccess,
-              let tables = IORegistryEntryCreateCFProperty(service, "ExportedACPITables" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? [Data],
-              let evidence = IORegistryEntryCreateCFProperty(service, "ThinkPadACPIEvidence" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? [String: Any] else {
-            ReYogaDiagnostics.shared.record("acpi_capture_failed", ["transportStatus": status,
-                "driverStatus": getNumber("ACPIExportStatus", service), "safeMode": getBoolean("SafeMode", service)])
-            throw SupportError.message("ACPI capture failed. Check driver permissions, Safe Mode and ACPIExportStatus.")
-        }
-        try ThinkPadACPI.validateTables(tables)
-        return (tables, evidence)
-    }
-    static func acpiDigest(_ data: Data) -> String {
-        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-    }
-    static func exportThinkPadSSDT(service: io_service_t, completion: @escaping (String) -> Void) {
-        let save = NSSavePanel()
-        save.allowedFileTypes = ["dsl"]
-        save.nameFieldStringValue = "SSDT-ThinkPad.dsl"
-        save.message = localizedMessage("Analyze running ACPI tables and save only missing ThinkPad helpers. Requires iasl. Keep existing EC and battery patches.")
-        guard save.runModal() == .OK, let output = save.url else { completion(""); return }
-        IOObjectRetain(service)
-        DispatchQueue.global(qos: .utility).async {
-            defer { IOObjectRelease(service) }
-            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("ReYogaACPI-" + UUID().uuidString)
-            defer { try? FileManager.default.removeItem(at: folder) }
-            var report: [String: Any] = ["schemaVersion": 1, "stage": "capture"]
-            let reportURL = output.deletingPathExtension().appendingPathExtension("analysis.json")
-            do {
-                guard let compiler = compiler() else { throw SupportError.message("Install iasl or set IASLPath before analyzing ThinkPad ACPI.") }
-                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-                let captured = try captureThinkPadACPI(service: service)
-                guard let ec = captured.evidence["ECPath"] as? String, let hkey = captured.evidence["HKEYPath"] as? String,
-                      let ecPath = acpiNamespacePath(ec), let hkeyPath = acpiNamespacePath(hkey) else {
-                    throw SupportError.message("The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT.")
-                }
-                report["liveEvidence"] = captured.evidence
-                report["tables"] = captured.tables.enumerated().map { ["index": $0.offset, "sha256": acpiDigest($0.element), "bytes": $0.element.count] }
-                var inputs: [String] = []
-                for (index, table) in captured.tables.enumerated() {
-                    let input = folder.appendingPathComponent(String(format: "table-%03d.aml", index))
-                    try table.write(to: input); inputs.append(input.path)
-                }
-                report["stage"] = "disassembly"
-                var namespace = ThinkPadACPI(), totalSource = 0
-                var disassemblies: [[String: Any]] = []
-                let disassemblyStarted = ProcessInfo.processInfo.systemUptime
-                for (index, input) in inputs.enumerated() {
-                    let remaining = 60 - (ProcessInfo.processInfo.systemUptime - disassemblyStarted)
-                    guard remaining > 0 else { throw SupportError.message("ACPI disassembly failed or timed out. Review the analysis report.") }
-                    let context = inputs.filter { $0 != input }
-                    let arguments = ["-dl"] + (context.isEmpty ? [] : ["-e"] + context) + ["-d", input]
-                    let name = String(format: "disassembly-%03d", index)
-                    var disassembly = try DiagnosticCollector.run(compiler.path, arguments,
-                        name: name, folder: folder, timeout: min(15, remaining), maximumBytes: 256 * 1024)
-                    disassembly["stdoutText"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".txt"), encoding: .utf8)) ?? ""
-                    disassembly["stderrText"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".stderr.txt"), encoding: .utf8)) ?? ""
-                    disassemblies.append(disassembly); report["disassembly"] = disassemblies
-                    guard disassembly["state"] as? String == "completed" else { throw SupportError.message("ACPI disassembly failed or timed out. Review the analysis report.") }
-                    let source = try readDSDTSource(URL(fileURLWithPath: input).deletingPathExtension().appendingPathExtension("dsl"))
-                    totalSource += source.utf8.count
-                    guard totalSource <= 64 * 1024 * 1024 else { throw SupportError.message("Combined ACPI source exceeds the analysis limit") }
-                    try namespace.add(source, table: URL(fileURLWithPath: input).lastPathComponent)
-                }
-                report["stage"] = "namespace"
-                report["namespace"] = namespace.objects.map { ["path": "\\" + $0.path, "kind": $0.kind,
-                    "table": $0.table, "line": $0.line, "arguments": $0.arguments ?? -1] }
-                let template = try String(contentsOf: (HardwareProfiles.directory ?? URL(fileURLWithPath: "HardwareProfiles"))
-                    .appendingPathComponent("SSDT-ThinkPad.template.dsl"), encoding: .utf8)
-                let live = captured.evidence.compactMapValues { $0 as? Bool }
-                let protocolLayout = captured.evidence.compactMapValues { $0 as? Int }
-                let plan = try namespace.plan(ecPath: ecPath, hkeyPath: hkeyPath, live: live, protocolLayout: protocolLayout, template: template)
-                report.merge(plan.report) { _, new in new }
-                let sourceURL = folder.appendingPathComponent("SSDT-ThinkPad.dsl")
-                try plan.source.write(to: sourceURL, atomically: true, encoding: .utf8)
-                report["stage"] = "compile"
-                let compilation = try DiagnosticCollector.run(compiler.path, ["-tc", sourceURL.path], name: "compile", folder: folder, timeout: 30)
-                report["compilation"] = compilation
-                for name in ["compile", "disassembly"] {
-                    for suffix in [".txt", ".stderr.txt"] {
-                        let file = folder.appendingPathComponent(name + suffix)
-                        report[name + suffix] = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
-                    }
-                }
-                guard compilation["state"] as? String == "completed" else { throw SupportError.message("SSDT compilation failed. Review the analysis report.") }
-                let aml = try Data(contentsOf: sourceURL.deletingPathExtension().appendingPathExtension("aml"))
-                try ThinkPadACPI.validateTables([captured.tables[0], aml])
-                report["stage"] = "compiled_not_installed"
-                report["generatedSHA256"] = acpiDigest(aml)
-                report["normalizedSHA256"] = acpiDigest(ThinkPadACPI.normalizedAML(aml))
-                try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: reportURL, options: .atomic)
-                try plan.source.write(to: output, atomically: true, encoding: .utf8)
-                try aml.write(to: output.deletingPathExtension().appendingPathExtension("aml"), options: .atomic)
-                ReYogaConstants.hardwareDefaults.set(["amlSHA256": acpiDigest(aml), "normalizedSHA256": acpiDigest(ThinkPadACPI.normalizedAML(aml)), "helpers": plan.report["added"] ?? []],
-                    forKey: "ThinkPadACPI." + acpiDigest(captured.tables[0]))
-                ReYogaDiagnostics.shared.record("thinkpad_acpi_generated", report)
-                DispatchQueue.main.async {
-                    NSWorkspace.shared.activateFileViewerSelecting([output, reportURL])
-                    completion("SSDT compiled. Review the analysis, install in OpenCore, reboot, then verify.")
-                }
-            } catch {
-                report["error"] = error.localizedDescription
-                for name in ["compile", "disassembly"] {
-                    report[name + "Log"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".stderr.txt"), encoding: .utf8)) ?? ""
-                    report[name + "Output"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".txt"), encoding: .utf8)) ?? ""
-                }
-                try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: reportURL, options: .atomic)
-                ReYogaDiagnostics.shared.record("thinkpad_acpi_generation_failed", report)
-                DispatchQueue.main.async { completion(error.localizedDescription) }
-            }
-        }
-    }
-    static func verifyThinkPadSSDT(service: io_service_t, completion: @escaping (String) -> Void) {
-        IOObjectRetain(service)
-        DispatchQueue.global(qos: .utility).async {
-            defer { IOObjectRelease(service) }
-            do {
-                let captured = try captureThinkPadACPI(service: service)
-                let expected = ReYogaConstants.hardwareDefaults.dictionary(forKey: "ThinkPadACPI." + acpiDigest(captured.tables[0]))
-                let hashes = captured.tables.dropFirst().map { acpiDigest(ThinkPadACPI.normalizedAML($0)) }
-                try ThinkPadACPI.verify(expectedDigest: expected?["normalizedSHA256"] as? String, loadedDigests: hashes, live: captured.evidence)
-                let refresh = IORegistryEntrySetCFProperty(service, "UpdateFans" as CFString, kCFBooleanTrue)
-                guard refresh == kIOReturnSuccess else {
-                    ReYogaDiagnostics.shared.record("acpi_verification_readback_denied", ["transportStatus": refresh])
-                    throw SupportError.message("SSDT helpers are loaded but fan readback is unavailable. Export diagnostics and inspect ThinkFanStatus.")
-                }
-                let telemetry = IORegistryEntryCreateCFProperty(service, "ThinkFanTelemetry" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? [String: Any]
-                guard let sample = ThinkFanSnapshot(telemetry), sample.isCurrent(at: ProcessInfo.processInfo.systemUptime, after: 0),
-                      sample.main.control != nil, sample.main.rpm != nil else {
-                    throw SupportError.message("SSDT helpers are loaded but fan readback is unavailable. Export diagnostics and inspect ThinkFanStatus.")
-                }
-                ReYogaDiagnostics.shared.record("thinkpad_acpi_verified", ["expected": expected ?? [:], "evidence": captured.evidence,
-                    "fanControl": sample.main.control ?? 0xff, "rpm": sample.main.rpm ?? -1])
-                DispatchQueue.main.async { completion("SSDT loaded, EC helpers and fan readback confirmed. Fan writes still require a hardware test.") }
-            } catch {
-                ReYogaDiagnostics.shared.record("thinkpad_acpi_verification_failed", ["error": error.localizedDescription])
-                DispatchQueue.main.async { completion(error.localizedDescription) }
             }
         }
     }
@@ -648,31 +325,22 @@ struct HardwareProfiles {
         chooser.allowedFileTypes = ["dsl"]
         chooser.message = localizedMessage("Select a disassembled DSDT. A bridge is generated only when a reviewed profile matches.")
         guard chooser.runModal() == .OK, let input = chooser.url else { return }
-        DispatchQueue.global(qos: .utility).async {
-            do {
-                let source = try readDSDTSource(input)
-                let profile = try matchingDSDT(source)
-                let generated = try render(profile)
-                DispatchQueue.main.async {
-                    let save = NSSavePanel()
-                    save.nameFieldStringValue = bridgeFilename(profile)
-                    save.allowedFileTypes = ["dsl"]
-                    save.message = localizedMessage("Save ACPI source for review and compilation with iasl. It will not be installed.")
-                    guard save.runModal() == .OK, let output = save.url else { return }
-                    do {
-                        try generated.write(to: output, atomically: true, encoding: .utf8)
-                        ReYogaDiagnostics.shared.record("acpi_generated", ["profile": profile["id"] ?? "unknown", "validation": profile["validation"] ?? "unknown"])
-                        NSWorkspace.shared.activateFileViewerSelecting([output])
-                        showOSDRaw("ACPI bridge source saved — compile and review before booting", duration: 3000)
-                    } catch {
-                        ReYogaDiagnostics.shared.record("acpi_generation_failed", ["error": error.localizedDescription])
-                        showOSDRaw(error.localizedDescription, duration: 3500)
-                    }
-                }
-            } catch {
-                ReYogaDiagnostics.shared.record("acpi_generation_failed", ["error": error.localizedDescription])
-                DispatchQueue.main.async { showOSDRaw(error.localizedDescription, duration: 3500) }
-            }
+        do {
+            let source = try String(contentsOf: input, encoding: .utf8)
+            let profile = try matchingDSDT(source)
+            let generated = try render(profile)
+            let save = NSSavePanel()
+            save.nameFieldStringValue = bridgeFilename(profile)
+            save.allowedFileTypes = ["dsl"]
+            save.message = localizedMessage("Save ACPI source for review and compilation with iasl. It will not be installed.")
+            guard save.runModal() == .OK, let output = save.url else { return }
+            try generated.write(to: output, atomically: true, encoding: .utf8)
+            ReYogaDiagnostics.shared.record("acpi_generated", ["profile": profile["id"] ?? "unknown", "validation": profile["validation"] ?? "unknown"])
+            NSWorkspace.shared.activateFileViewerSelecting([output])
+            showOSDRaw("ACPI bridge source saved — compile and review before booting", duration: 3000)
+        } catch {
+            ReYogaDiagnostics.shared.record("acpi_generation_failed", ["error": error.localizedDescription])
+            showOSDRaw(error.localizedDescription, duration: 3500)
         }
     }
 }
@@ -682,6 +350,8 @@ enum SupportError: LocalizedError {
     var errorDescription: String? { if case .message(let text) = self { return localizedMessage(text) }; return nil }
 }
 
+// Wire format derived from OpenRGB's LenovoUSBController (Cooper Hall/geobot19,
+// GPL-2.0-or-later). Each supported USB VID/PID and LED map is data, not a guess.
 final class LegionRGBController {
     private var manager: IOHIDManager?
     private var device: IOHIDDevice?
@@ -774,11 +444,6 @@ final class LegionRGBController {
               let report = profile["reportID"] as? Int,
               bytes.count == profile["reportSize"] as? Int else { throw SupportError.message("RGB device disconnected or profile invalid") }
         let ret = bytes.withUnsafeBufferPointer { IOHIDDeviceSetReport(device, kIOHIDReportTypeFeature, CFIndex(report), $0.baseAddress!, bytes.count) }
-        if ret != kIOReturnSuccess || UserDefaults.standard.bool(forKey: "DetailedLogging") {
-            ReYogaDiagnostics.shared.record("rgb_transport", ["reportID": report, "bytes": bytes.count,
-                "command": bytes.count > 1 ? Int(bytes[1]) : -1, "status": ret,
-                "profile": matchedProfileID ?? "unmatched", "acknowledgement": "Transport only; not physical color readback"])
-        }
         guard ret == kIOReturnSuccess else { throw SupportError.message(String(format: localizedMessage("RGB feature report failed: 0x%08x"), ret)) }
     }
     private func instruction(_ code: Int) throws {
@@ -787,7 +452,7 @@ final class LegionRGBController {
         data[0] = UInt8(report); data[1] = UInt8(code)
         try send(data)
     }
-
+    // Read-only device information request; no software-mode or LED-state change.
     func inspectLayout() throws -> Int {
         guard let profile = profile, let device = device, let query = profile["layoutQuery"] as? Int,
               let report = profile["reportID"] as? Int, let size = profile["reportSize"] as? Int else { throw SupportError.message("RGB information interface unavailable") }
@@ -863,10 +528,9 @@ final class LegionRGBController {
         for packet in try Self.reports(profile: profile, bank: bank, colors: colors) { try send(packet) }
     }
     func importColors(_ data: Data) throws {
-        guard data.count <= SavedRGBSettings.maximumImportBytes else { throw SupportError.message("RGB JSON exceeds 256 KiB") }
         guard let values = try JSONSerialization.jsonObject(with: data) as? [String: [String: String]],
               let zones = profile?["zones"] as? [String: [String: Any]] else { throw SupportError.message("Expected JSON: zone -> LED name or ID -> #RRGGBB") }
-
+        // Validate the complete input before issuing any LED write.
         var batches: [(Int, [(Int, UInt8, UInt8, UInt8)])] = []
         for (name, colors) in values {
             guard let zone = zones[name == "Keyboard" ? layout : name], let bank = zone["bank"] as? Int,
@@ -1004,6 +668,8 @@ struct PowerLimitInput {
     }
 }
 
+// Read-only AppleSMC user-client adapter. Wire offsets describe its 80-byte
+// ABI, not any laptop's EC layout. Key names are discovered from the service.
 final class SMCTemperatureReader {
     struct Reading { let celsius: Double; let key: String; let source: String }
     private var connection: io_connect_t = 0
@@ -1099,7 +765,8 @@ final class SMCTemperatureReader {
             if key.range(of: "^TG[0-9A-F][DP]$", options: .regularExpression) != nil { keys.append(key) }
         }
         keys.sort()
-
+        // Multiple GPU indices need an explicit identity association. Never
+        // silently label the first GPU as the active iGPU on a multi-GPU host.
         let amd = providerExists("SMCProcessorAMD")
         cpuProvider = amd ? "SMCProcessorAMD" : "SMC"
         gpuProvider = providerExists("SMCRadeonSensors") ? "SMCRadeonSensors" : "SMC"
@@ -1244,7 +911,7 @@ public struct LiveBatterySnapshot: Equatable {
             guard let value = (properties[key] ?? nested[key]) as? String, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
             return value
         }
-
+        // MaxCapacity=100 may be a normalized percentage, not a physical mAh value.
         let rawCurrent = capacity("AppleRawCurrentCapacity")
         let rawMaximum = capacity("AppleRawMaxCapacity").flatMap { $0 > 0 ? $0 : nil }
         let normalCurrent = capacity("CurrentCapacity")
@@ -1262,7 +929,7 @@ public struct LiveBatterySnapshot: Equatable {
         fullyCharged = properties["FullyCharged"] as? Bool
         installed = properties["BatteryInstalled"] as? Bool
         let amperage = number("InstantAmperage") ?? number("Amperage")
-
+        // Some providers encode a signed current in an unsigned 16/32-bit register.
         let signed = amperage.map { value -> Double in
             if (32768.0...65535.0).contains(value) { return value - 65536 }
             if (2147483648.0...4294967295.0).contains(value) { return value - 4294967296 }
@@ -1270,7 +937,7 @@ public struct LiveBatterySnapshot: Equatable {
         }
         milliamps = signed.flatMap { (-100_000...100_000).contains($0) ? Int($0) : nil }
         voltage = number("Voltage").flatMap { (1...100_000).contains($0) ? $0 / 1000 : nil }
-
+        // Smart Battery Temperature uses tenths of a kelvin.
         temperatureCelsius = number("Temperature").flatMap { value in
             let celsius = value / 10 - 273.15
             return (-40...120).contains(celsius) ? celsius : nil
@@ -1318,142 +985,5 @@ public struct LiveBatterySnapshot: Equatable {
         guard IORegistryEntryCreateCFProperties(service, &values, kCFAllocatorDefault, 0) == kIOReturnSuccess,
               let properties = values?.takeRetainedValue() as NSDictionary? as? [String: Any] else { return nil }
         return LiveBatterySnapshot(properties: properties)
-    }
-}
-
-enum DiagnosticSnapshot {
-    static func value(_ value: Any) -> Any {
-        if let data = value as? Data {
-            guard data.count <= 1024 * 1024 else { return ["bytes": data.count, "omitted": "Binary exceeds diagnostic field limit"] }
-            return ["encoding": "base64", "bytes": data.count, "data": data.base64EncodedString()]
-        }
-        if let dictionary = value as? NSDictionary {
-            var result: [String: Any] = [:]
-            for (key, item) in dictionary {
-                guard let name = key as? String else { continue }
-                if name == "ExportedDSDT" { continue }
-                if name.localizedCaseInsensitiveContains("serial") || name == "IOPlatformUUID" {
-                    result[name] = "redacted"
-                } else { result[name] = Self.value(item) }
-            }
-            return result
-        }
-        if let array = value as? [Any] { return array.map(Self.value) }
-        if value is String || value is NSNumber { return value }
-        return ["unsupportedType": String(describing: type(of: value))]
-    }
-}
-
-enum DiagnosticCollector {
-    static func run(_ executable: String, _ arguments: [String], name: String, folder: URL,
-                    timeout: TimeInterval = 15, maximumBytes: Int = 4 * 1024 * 1024) throws -> [String: Any] {
-        let output = folder.appendingPathComponent(name + ".txt")
-        let errors = folder.appendingPathComponent(name + ".stderr.txt")
-        guard FileManager.default.createFile(atPath: output.path, contents: nil),
-              FileManager.default.createFile(atPath: errors.path, contents: nil) else {
-            throw CocoaError(.fileWriteUnknown)
-        }
-        let stdout = try FileHandle(forWritingTo: output)
-        defer { try? stdout.close() }
-        let stderr = try FileHandle(forWritingTo: errors)
-        defer { try? stderr.close() }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        process.standardInput = FileHandle.nullDevice
-        process.standardOutput = stdout
-        process.standardError = stderr
-        let start = ProcessInfo.processInfo.systemUptime
-        var result: [String: Any] = ["executable": executable, "arguments": arguments,
-            "startedAt": ISO8601DateFormatter().string(from: Date()), "timeoutSeconds": timeout,
-            "maximumBytesPerStream": maximumBytes, "privileged": false]
-        do { try process.run() }
-        catch {
-            result["state"] = "launch_failed"
-            result["error"] = error.localizedDescription
-            return result
-        }
-        var stopped: String?
-        while process.isRunning {
-            let elapsed = ProcessInfo.processInfo.systemUptime - start
-            let outputSize = (try? output.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            let errorSize = (try? errors.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            if elapsed >= timeout || max(outputSize, errorSize) > maximumBytes {
-                stopped = elapsed >= timeout ? "timeout" : "output_limit"
-                process.terminate()
-                let deadline = ProcessInfo.processInfo.systemUptime + 1
-                while process.isRunning && ProcessInfo.processInfo.systemUptime < deadline {
-                    Thread.sleep(forTimeInterval: 0.02)
-                }
-                if process.isRunning { kill(process.processIdentifier, SIGKILL) }
-                break
-            }
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-        process.waitUntilExit()
-        var truncatedStreams: [String] = []
-        for file in [output, errors] {
-            let handle = try FileHandle(forWritingTo: file)
-            defer { try? handle.close() }
-            if try handle.seekToEnd() > UInt64(maximumBytes) {
-                try handle.truncate(atOffset: UInt64(maximumBytes))
-                truncatedStreams.append(file.lastPathComponent)
-            }
-        }
-        result["state"] = stopped ?? (process.terminationStatus == 0 ? "completed" : "command_failed")
-        result["truncatedStreams"] = truncatedStreams
-        result["exitStatus"] = process.terminationStatus
-        result["terminationReason"] = process.terminationReason.rawValue
-        result["elapsedSeconds"] = ProcessInfo.processInfo.systemUptime - start
-        result["stdout"] = output.lastPathComponent
-        result["stderr"] = errors.lastPathComponent
-        return result
-    }
-    static func collectPrivileged(to folder: URL) throws -> [String: Any] {
-        let commands: [(String, String)] = [
-            ("dmesg", "/sbin/dmesg"),
-            ("kernel-reyoga", "/usr/bin/log show --last 30m --style compact --info --debug --predicate 'process == \"kernel\" AND eventMessage CONTAINS[c] \"RYSMC\"'"),
-            ("loaded-kexts", "/usr/bin/kmutil showloaded"),
-            ("thermal", "/usr/bin/pmset -g therm"),
-            ("cpu-power", "/usr/bin/powermetrics --samplers cpu_power -i 1000 -n 5")
-        ]
-        let command = commands.map { name, executable in
-            "printf '\\n=== " + name + " ===\\n'; " + executable + " 2>&1; result=$?; printf '\\nexitStatus=%s\\n' \"$result\""
-        }.joined(separator: "; ")
-        let escaped = command.replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-        let script = "do shell script \"" + escaped + "\" with administrator privileges"
-        var result = try run("/usr/bin/osascript", ["-e", script], name: "administrator-collection",
-            folder: folder, timeout: 180, maximumBytes: 8 * 1024 * 1024)
-        result["privileged"] = true
-        result["authorization"] = "macOS administrator dialog; password never read or stored by app"
-        result["scope"] = commands.map { $0.0 }
-        result["limitations"] = "powermetrics is a five-second export-time sample, not a benchmark trace. Individual command failures are retained in output. Cancellation or authorization failure leaves unprivileged diagnostics available."
-        return result
-    }
-    static func collect(to folder: URL) throws {
-        let commands: [(String, String, [String])] = [
-            ("kernel-reyoga", "/usr/bin/log", ["show", "--last", "30m", "--style", "compact", "--info", "--debug", "--predicate", "process == \"kernel\" AND eventMessage CONTAINS[c] \"RYSMC\""]),
-            ("dmesg", "/sbin/dmesg", []),
-            ("boot-args", "/usr/sbin/sysctl", ["kern.bootargs"]),
-            ("system", "/usr/sbin/sysctl", ["kern.osrelease", "kern.osversion", "hw.model", "hw.memsize", "hw.ncpu", "machdep.cpu.brand_string"]),
-            ("loaded-kexts", "/usr/bin/kmutil", ["showloaded"]),
-            ("power-settings", "/usr/bin/pmset", ["-g", "custom"]),
-            ("power-assertions", "/usr/bin/pmset", ["-g", "assertions"]),
-            ("sip", "/usr/bin/csrutil", ["status"])
-        ]
-        var manifest: [[String: Any]] = []
-        for (name, executable, arguments) in commands {
-            manifest.append(try run(executable, arguments, name: name, folder: folder))
-        }
-        for provider in ["ThinkVPC", "IdeaVPC", "DYVPC", "ReYogaHIDD", "ReYogaSMC"] {
-            manifest.append(try run("/usr/sbin/ioreg", ["-a", "-r", "-c", provider],
-                name: "registry-" + provider, folder: folder))
-        }
-        manifest.append(try collectPrivileged(to: folder))
-        let data = try PropertyListSerialization.data(fromPropertyList: ["schemaVersion": 2,
-            "policy": "Fixed read-only commands. Administrator collection requires macOS authorization. No user-provided executable or output path is passed to root. Review output for identifiers before sharing. Empty registry output can mean provider absent.",
-            "commands": manifest], format: .xml, options: 0)
-        try data.write(to: folder.appendingPathComponent("collection-manifest.plist"))
     }
 }

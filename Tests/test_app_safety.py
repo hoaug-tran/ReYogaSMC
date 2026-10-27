@@ -60,18 +60,4 @@ class AppSafetyTests(unittest.TestCase):
     def test_async_results_are_bound_to_connection_generation(self):
         body = read('ReYogaSMCApp/HardwareManager.swift')
         self.assertEqual(body.count('guard generation == self.connectionGeneration, handle == self.service'), 2)
-
-    def test_export_bridge_bounds_size_and_offloads_to_utility_queue(self):
-        body = read('ReYogaSMCApp/HardwareSupport.swift')
-        export = body.split('static func exportBridge()', 1)[1].split('enum SupportError', 1)[0]
-        self.assertIn('DispatchQueue.global(qos: .utility).async', export)
-        self.assertLess(export.index('DispatchQueue.global(qos: .utility).async'), export.index('readDSDTSource(input)'))
-        self.assertLess(export.index('DispatchQueue.global(qos: .utility).async'), export.index('matchingDSDT('))
-
-    def test_restore_next_control_uses_rgb_lighting_ownership_predicate(self):
-        body = read('ReYogaSMCApp/HardwareManager.swift')
-        restore = body.split('private func restoreNextControl()', 1)[1].split('public func restoreAfterWake()', 1)[0]
-        self.assertIn('HardwareProfiles.lightingOwnedByRGB', restore)
-        self.assertNotIn('key == "YLogoStatus" || key == "PortLighting"', restore)
-
 if __name__ == '__main__': unittest.main()

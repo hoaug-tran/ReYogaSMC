@@ -1,10 +1,19 @@
+//  SPDX-License-Identifier: GPL-2.0-only
+//
+//  ThinkVPC.cpp
+//  ReYogaSMC
+//
+//  Created by Zhen on 7/12/20.
+//  Copyright © 2020 Zhen. All rights reserved.
+//
+
 #include "ControlValidation.hpp"
 #include "ThinkEvents.h"
 #include "ThinkVPC.hpp"
 
 OSDefineMetaClassAndStructors(ThinkVPC, ReYogaVPC);
 
-void ThinkVPC::updateNotificationMask() {
+void ThinkVPC::updateAll() {
     if (hotkey_legacy) {
         OSObject *result = nullptr;
         if (vpc->evaluateObject(getHKEYmask, &result) != kIOReturnSuccess)
@@ -22,42 +31,6 @@ void ThinkVPC::updateNotificationMask() {
             KBDPresent->release();
         }
     }
-}
-
-void ThinkVPC::updateFans() {
-    const unsigned count = getProperty("Dual fan") == kOSBooleanTrue ? 2 : 1;
-    auto telemetry = OSDictionary::withCapacity(3);
-    for (unsigned fan = 0; fan < count; ++fan) {
-        UInt32 rpm = 0;
-        UInt8 control = 0xff;
-        const char *property = fan == 0 ? "Fan1RPM" : "Fan2RPM";
-        const bool validRPM = readThinkFanRPM(fan, rpm, &control) == kIOReturnSuccess;
-        if (validRPM)
-            setProperty(property, rpm, 32);
-        else
-            removeProperty(property);
-        auto reading = OSDictionary::withCapacity(2);
-        if (reading) {
-            if (validRPM) setPropertyNumber(reading, "RPM", rpm, 32);
-            if (control != 0xff) setPropertyNumber(reading, "Control", control, 8);
-            if (telemetry) telemetry->setObject(fan == 0 ? "Fan1" : "Fan2", reading);
-            reading->release();
-        }
-    }
-    if (telemetry) {
-        UInt64 uptime, ns;
-        clock_get_uptime(&uptime);
-        absolutetime_to_nanoseconds(uptime, &ns);
-        setPropertyNumber(telemetry, "SensorSampleTimeMS", ns / 1000000, 64);
-        setProperty("ThinkFanTelemetry", telemetry);
-        telemetry->release();
-    } else {
-        removeProperty("ThinkFanTelemetry");
-    }
-}
-
-void ThinkVPC::updateAll() {
-    updateNotificationMask();
     updateBattery(BAT_ANY);
     updateFnLock();
     updateMutestatus();
@@ -66,7 +39,6 @@ void ThinkVPC::updateAll() {
     updateKBDLocale();
     updateVPC();
     updateYogaMode();
-    updateFans();
     super::updateAll();
     updateControlStatus();
 }
@@ -199,12 +171,6 @@ bool ThinkVPC::setNotificationMask(UInt32 i, UInt32 all_mask, UInt32 offset, boo
 
 bool ThinkVPC::initVPC() {
     super::initVPC();
-    setProperty("ThinkPadACPIAnalysisVersion", 1, 32);
-    char path[512];
-    int length = sizeof(path);
-    if (ec->getPath(path, &length, gIOACPIPlane)) setProperty("ACPIECPath", path);
-    length = sizeof(path);
-    if (vpc->getPath(path, &length, gIOACPIPlane)) setProperty("ACPIHKEYPath", path);
     UInt32 version;
 
     if (vpc->evaluateInteger(getHKEYversion, &version) != kIOReturnSuccess)
@@ -265,7 +231,6 @@ bool ThinkVPC::initVPC() {
     setMicMuteLEDStatus(0);
     setProperty("ControlProtocolVersion", 1, 32);
     setProperty("ThinkFanProtocolVersion", 1, 32);
-    setProperty("ThinkFanTelemetryVersion", 1, 32);
     return true;
 }
 
@@ -385,31 +350,19 @@ void ThinkVPC::updateControlStatus() {
         const bool orderingKnown = counterpart != nullptr && ReYogaControl::validThresholdState(counterpart->unsigned32BitValue(), i == 0);
         add(keys[i], supported && orderingKnown, "Battery threshold capability, setter or paired threshold unavailable");
     }
-    UInt32 secSample = 0;
-    const bool secondaryExists = vpc->validateObject(getCMstart) == kIOReturnSuccess &&
-        evaluateIntegerParam(getCMstart, &secSample, BAT_SECONDARY) == kIOReturnSuccess &&
-        !(secSample & BIT(31));
-    const bool individual = secondaryExists;
-    if (!individual && batnum != BAT_PRIMARY) {
-        batnum = BAT_PRIMARY;
-    }
+    auto startRaw = battery ? OSDynamicCast(OSNumber, battery->getObject(getCMstart)) : nullptr;
+    const bool individual = startRaw && (startRaw->unsigned32BitValue() & BIT(9));
     setProperty("BatteryIndividualAddressing", individual);
-    add("BatteryIndex", individual, "Single battery platform");
+    add("BatteryIndex", true, "");
     setProperty("BatteryIndex", batnum, 32);
     auto thermal = OSDynamicCast(OSDictionary, getProperty("DYTC"));
     auto mode = thermal ? OSDynamicCast(OSString, thermal->getObject("PerfMode")) : nullptr;
     UInt32 profile = mode && mode->isEqualTo("Quiet") ? 1 : mode && mode->isEqualTo("Balance") ? 2 :
         mode && (!strncmp(mode->getCStringNoCopy(), "Performance", 11)) ? 3 : 0;
-    const bool thermalSupported = supportsThermalProfiles();
+    const bool thermalSupported = supportsThermalProfiles() && profile != 0;
     add("SmartFanMode", thermalSupported, "DYTC desk thermal profiles unavailable");
-    if (thermalSupported && profile != 0) {
-        setProperty("SmartFanMode", profile, 32);
-    } else {
-        removeProperty("SmartFanMode");
-    }
-    add("CPUBoostPower", false, "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.");
-    add("CPUSustainedPower", false, "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.");
-    add("CPUPowerReset", false, "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.");
+    if (thermalSupported) setProperty("SmartFanMode", profile, 32);
+    else removeProperty("SmartFanMode");
     setProperty("FeatureStatus", features);
     features->release();
 }
@@ -436,7 +389,11 @@ void ThinkVPC::controlRequest(OSDictionary *request) {
                 batnum = target;
                 status = kIOReturnSuccess;
             } else if (key->isEqualTo("SmartFanMode") && target >= 1 && target <= 3) {
-                status = setThermalProfile(target) ? kIOReturnSuccess : kIOReturnIOError;
+                const bool useMMC = supportsMMCThermal();
+                const int func = useMMC ? DYTC_FUNCTION_MMC : DYTC_FUNCTION_PSC;
+                const int mode = useMMC ? (target == 1 ? DYTC_MODE_QUIET :
+                    target == 2 ? DYTC_MODE_BALANCE : DYTC_MODE_PERFORM) : pscThermalMode(target);
+                status = setDYTC(func, mode) ? kIOReturnSuccess : kIOReturnIOError;
             } else if (key->isEqualTo(backlightPrompt) && target <= 2)
                 status = setBacklight(target) ? kIOReturnSuccess : kIOReturnIOError;
             else if (key->isEqualTo("ChargeStartThreshold") || key->isEqualTo("ChargeStopThreshold")) {
@@ -472,11 +429,6 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
     OSDictionary *dict = OSDynamicCast(OSDictionary, props);
     if (!dict)
         return;
-
-    if (auto update = OSDynamicCast(OSBoolean, dict->getObject("UpdateFans"))) {
-        if (update->getValue()) updateFans();
-        return;
-    }
 
     if (auto request = OSDynamicCast(OSDictionary, dict->getObject("ControlRequest"))) {
         controlRequest(request);
@@ -600,16 +552,11 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
             } else if (key->isEqualTo(fanSpeedPrompt)) {
                 OSNumber *value;
                 getPropertyNumber(fanSpeedPrompt);
-                if (value->unsigned64BitValue() > 0xff) {
-                    AlwaysLog(valueInvalid, fanSpeedPrompt);
-                    continue;
-                }
                 UInt8 speed = value->unsigned8BitValue();
                 if (speed > 7) {
                     speed = speed < 0x80 ? 0x47 : 0x84;
                 }
-                UInt8 sample[3] {};
-                ret = accessThinkFan(0, speed, sample);
+                ret = method_we1b(0x2f, speed);
                 if (ret == kIOReturnSuccess)
                     DebugLog(updateSuccess, fanSpeedPrompt, speed);
                 else

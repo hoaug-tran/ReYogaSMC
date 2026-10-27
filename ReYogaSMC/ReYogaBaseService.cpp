@@ -167,14 +167,8 @@ bool ReYogaBaseService::findPNP(const char *id, IOACPIPlatformDevice **dev) {
             while (auto entry = iterator->getNextObject()) {
                 if (entry->compareName(pnp, nullptr)) {
                     DebugLog("found %s at %s", id, entry->getName());
-                    if (auto candidate = OSDynamicCast(IOACPIPlatformDevice, entry)) {
-                        if (*dev) {
-                            AlwaysLog("Ambiguous %s devices; refusing an arbitrary EC selection", id);
-                            *dev = nullptr;
-                            break;
-                        }
-                        *dev = candidate;
-                    }
+                    if ((*dev = OSDynamicCast(IOACPIPlatformDevice, entry)))
+                        break;
                 }
             }
             iterator->release();
@@ -244,7 +238,7 @@ IOReturn ReYogaBaseService::readECName(const char* name, UInt32 *result) {
     return ret;
 }
 
-IOReturn ReYogaBaseService::method_re1b(UInt32 offset, UInt8 *result, bool logFailure) {
+IOReturn ReYogaBaseService::method_re1b(UInt32 offset, UInt8 *result) {
     if (!ec || !(ECAccessCap & ECReadCap))
         return kIOReturnUnsupported;
 
@@ -258,7 +252,7 @@ IOReturn ReYogaBaseService::method_re1b(UInt32 offset, UInt8 *result, bool logFa
     IOReturn ret = ec->evaluateInteger(readECOneByte, &raw, params, 1);
     params[0]->release();
 
-    if (ret != kIOReturnSuccess && logFailure)
+    if (ret != kIOReturnSuccess)
         AlwaysLog("read 0x%02x failed", offset);
 
     if (ret == kIOReturnSuccess && raw > 0xff) return kIOReturnBadArgument;
@@ -318,7 +312,7 @@ IOReturn ReYogaBaseService::method_recb(UInt32 offset, UInt32 size, OSData **dat
     return ret;
 }
 
-IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value, bool logFailure) {
+IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value) {
     if (!ec || !(ECAccessCap & ECWriteCap))
         return kIOReturnUnsupported;
 
@@ -337,9 +331,9 @@ IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value, bool logFail
     params[0]->release();
     params[1]->release();
 
-    if (ret != kIOReturnSuccess && logFailure)
+    if (ret != kIOReturnSuccess)
         AlwaysLog("write 0x%02x @ 0x%02x failed", value, offset);
-    else if (ret == kIOReturnSuccess)
+    else
         DebugLog("write 0x%02x @ 0x%02x success", value, offset);
     return ret;
 }

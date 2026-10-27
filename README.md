@@ -73,14 +73,6 @@ CPU/GPU sensor plugins are optional temperature sources. Load them after their d
 
 The app has Overview, Device, Cooling, Battery, Lighting and Diagnostics pages, plus Settings. English and Vietnamese are available. Battery, SMC and supported USB RGB access remain usable without the VPC kext connection. Update checks notify you of releases; installation is manual. Saved RGB settings are reapplied when the app opens; software-driven Breathing and Spectrum effects run while it is open.
 
-### Fan control
-
-Cooling offers **BIOS Auto**, **Manual** and **Custom Curve** on ThinkPad devices whose driver exposes the ThinkPad fan protocol, EC read/write access and a recovery watchdog. Custom Curve also requires a working fan connection and a fresh CPU temperature. Support is checked per interface and fan, not by model name. RPM monitoring or a full-speed toggle alone does not provide Custom Curve support.
-
-Custom Curve selects level 1–7 or Full Speed from editable temperature points. Manual controls are disabled while it runs. The app must remain open; selecting another mode stops the curve. Lost temperature data, sleep, disconnect or app shutdown requests BIOS Auto. The driver also requests Auto when curve updates stop. Saved points do not automatically activate the curve after restart. Full Speed is a firmware mode; its RPM depends on the hardware.
-
-IdeaPad, Yoga, Legion, LOQ and HP retain the controls their firmware exposes. Their RPM or thermal-profile interfaces do not currently provide this Custom Curve backend.
-
 <details>
 <summary>App screenshots - click an image to view it at full size</summary>
 
@@ -141,27 +133,16 @@ The entries below match the JSON catalog. They do not certify every listed machi
 
 The driver checks DSDT identity and a unique machine-type or declared PCI subsystem match. Conflicting identities disable model-specific reads; independently available ACPI/WMI controls remain usable. See [compatibility](Docs/compatibility.md) for matching rules, sensor formats and failure behavior.
 
-### ACPI patches and SSDT samples
+Known limits:
 
-Sample patches live in [`ReYogaSMC/SSDTSample/`](ReYogaSMC/SSDTSample/). Most models do not need them, but specific hardware features require ACPI methods that OEM firmware leaves out:
-
-| SSDT | Target machines | Why it is needed |
-| :--- | :--- | :--- |
-| [`SSDT-ThinkPad.dsl`](ReYogaSMC/SSDTSample/SSDT-ThinkPad.dsl) | ThinkPad | Combined EC access and OS compatibility sample, generated from the app template. Adds `RE1B`/`WE1B`/`RECB`/`WECB`, `LNUX`/`WNTF` flags and the `_SI._SST` LED proxy. It does not assume thermal sensor offsets; verify paths and existing methods before loading. |
-| [`SSDT-ECRW.dsl`](ReYogaSMC/SSDTSample/SSDT-ECRW.dsl) | ThinkPad (or any EC needing manual write) | Adds standalone `RE1B` and `WE1B` 8-bit read/write methods to the EC. Needed when the EC lacks the read/write helpers required for fan control. Adjust the EC scope (`_SB.PCI0.LPCB.EC` vs `_SB.PCI0.LPCB.H_EC`) to match your DSDT and check for conflicts with existing battery patches. |
-| [`SSDT-THINK.dsl`](ReYogaSMC/SSDTSample/SSDT-THINK.dsl) | ThinkPad | Legacy sample for OS flags, LED control and `EST0`–`ESTF` thermal fields. Use the thermal layout only after checking its offsets against your firmware; do not load overlapping methods alongside `SSDT-ThinkPad`. |
-| [`SSDT-RCSM.dsl`](ReYogaSMC/SSDTSample/SSDT-RCSM.dsl) | IdeaPad / Yoga | Adds the `RCSM` method to the EC device. Needed on older IdeaPad/Yoga laptops where firmware lacks native ACPI methods for Conservation Mode and Rapid Charge. |
-| [`SSDT-WMIS.dsl`](ReYogaSMC/SSDTSample/SSDT-WMIS.dsl) | IdeaPad / Legion | Adds the `WMIS` method under `_SB.PCI0.WMID` (or `_SB.WMID`). Needed when firmware has a WMI device but does not expose standard evaluation methods for performance modes or backlight. |
-| [`SSDT-YVPC.dsl`](ReYogaSMC/SSDTSample/SSDT-YVPC.dsl) | IdeaPad / Yoga | Declares a `VPC2004` device under `_SB.PCI0.LPCB`. Needed if DSDT lacks the `VPC2004` ACPI device entirely, which prevents `IdeaVPC` from attaching. |
-
-> [!NOTE]
-> - **IdeaPad and Legion:** If your model has a reviewed profile in `HardwareProfiles/`, the companion app exports a tailored `SSDT-ReYoga` bridge directly (**Diagnostics → Generate ACPI bridge…**).
-> - **ThinkPad:** Use **Diagnostics → Generate ThinkPad SSDT…** with a matching driver and local `iasl`. The app checks captured ACPI tables and existing helpers, then exports DSL, compiled AML and an analysis file. Keep required EC and battery patches. Review the result, add the AML to OpenCore, reboot and select **Verify ThinkPad SSDT**. Unsupported or conflicting declarations are reported instead of guessed.
-
-
+- T490 BIOS 1.85 uses the PSC thermal interface addressed by the fix. The updated build still needs on-machine validation of thermal modes, Fn+F10, login registration, performance and sleep/wake.
+- Some X1 Carbon Gen 6 firmware rejects Quiet. Older MMC firmware may hide its active profile during lap mode; polling does not change lap mode to reveal it.
+- A missing firmware interface cannot be supplied by reusing another laptop's register offsets. Removing the DYTC event feedback path does not establish the cause of a graphics panic.
 
 <details>
 <summary>Temperature sources and optional sensor plugins</summary>
+
+The app preserves fractional readings and displays one decimal, such as `55.5 °C`. A sensor that reports only whole degrees appears as `55.0 °C`.
 
 The app prefers valid CPU/GPU readings from `AppleSMC` and falls back to driver firmware readings (`CPUT`, `GPUT` or Game Zone WMI). Available sources include:
 
@@ -177,12 +158,6 @@ A powered-off GPU may have no valid temperature source. Zero or invalid readings
 See [compatibility](Docs/compatibility.md#readings-and-unavailable-controls) for stale readings and unavailable sensors.
 
 </details>
-
-## Uninstall
-
-Select BIOS Auto, confirm the fan status and quit ReYogaSMC. Disable its login item, remove `/Applications/ReYogaSMC.app`, then remove `ReYogaSMC.kext` and its `Kernel → Add` entry from OpenCore before rebooting. Remove an exported SSDT only after checking whether another patch depends on its helpers.
-
-Preferences remain in `org.reyoga.ReYogaSMC`; logs remain in `~/Library/Logs/ReYogaSMC`. Remove them only if you want to discard saved settings and diagnostics. Custom Curve installs no additional service.
 
 ## Troubleshooting
 
@@ -224,10 +199,10 @@ Preferences remain in `org.reyoga.ReYogaSMC`; logs remain in `~/Library/Logs/ReY
 <details>
 <summary>ThinkPad fan control and ACPI bridge generation</summary>
 
-- ThinkPad laptops do not use `HardwareProfiles/*.json` or `SSDT-ReYoga` bridges. When connected to a matching ThinkVPC driver, **Generate ThinkPad SSDT…** analyzes the running ACPI namespace and exports a checked patch for missing helpers, with an analysis report. If all helpers already exist, it reports that no extra SSDT is needed.
-- ThinkPad fan speeds and manual levels (`Auto`, `Full Speed`, and levels `1`–`7`) are controlled in **Cooling → ThinkPad Fans** through `ThinkFanProtocolVersion = 1` user client (`kRYSMCUCThinkFan`), which requires a `PNP0C09` EC device with `RW` access.
-- If EC access is Basic or RO, check the real EC path and the `RE1B`/`WE1B` methods. You can export `SSDT-ThinkPad.dsl` directly from the app or adapt [SSDT-ThinkPad.dsl](ReYogaSMC/SSDTSample/SSDT-ThinkPad.dsl) after checking existing battery patches for field/method conflicts. ECEnabler alone does not add these methods.
-- If fan access fails, select Auto and export diagnostics. Keep your working EFI until control and recovery have been checked.
+- ThinkPad laptops do not use `HardwareProfiles/*.json` or `SSDT-ReYoga` bridges. The app hides **Generate ACPI bridge** when connected to ThinkVPC.
+- ThinkPad fan speeds and manual levels (`Auto`, `Full Speed`, and levels `1`–`7`) are controlled in **Cooling → ThinkPad Fans** through the `ThinkFanProtocolVersion = 1` user client (`kRYSMCUCThinkFan`), which requires a `PNP0C09` EC device with `RW` access.
+- If EC access is Basic or RO, check the real EC path and the `RE1B`/`WE1B` methods. Adapt [SSDT-ECRW.dsl](ReYogaSMC/SSDTSample/SSDT-ECRW.dsl) only after checking existing battery patches for field/method conflicts. ECEnabler alone does not add these methods.
+- On dual-fan ThinkPads, the driver writes EC register `0x31` to select the second fan and restores `0x31` before finishing. If restoring `0x31` fails during a transaction, the driver sets `ThinkFanAccessFailed = true` and disables further fan access until reboot so later EC reads cannot hit the wrong bank.
 
 </details>
 
@@ -243,7 +218,7 @@ Preferences remain in `org.reyoga.ReYogaSMC`; logs remain in `~/Library/Logs/ReY
 <details>
 <summary>Start with macOS shows Approve ReYogaSMC in System Settings → Login Items</summary>
 
-- Keep the app in `/Applications` and approve ReYogaSMC in **System Settings → General → Login Items**. If registration fails, export diagnostics.
+- On macOS 13 and newer, `SMAppService` registers the login item and waits for user approval in **System Settings → General → Login Items**. `Scripts/build.sh` and `Scripts/package.sh` ad-hoc sign `ReYogaSMC.app` to avoid shipping an unsigned bundle. Ad-hoc signing alone does not establish that login registration or permission persistence works on every macOS release. If registration still fails, install the app in `/Applications`, check Login Items approval, and collect diagnostics; use `Scripts/sign-app.sh` with a persistent signing identity for updates.
 
 </details>
 

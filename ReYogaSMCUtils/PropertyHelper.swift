@@ -7,7 +7,6 @@
 //
 
 import Foundation
-import IOKit
 
 // from https://github.com/LinusHenze/Fugu/blob/master/USB/IOKitUSB.swift
 // IOIteratorNext, Swift Style

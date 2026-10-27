@@ -39,15 +39,8 @@ IOReturn ReYogaSMCUserClient::externalMethod(uint32_t selector, IOExternalMethod
         { [](OSObject *object, void *, IOExternalMethodArguments *args) -> IOReturn {
             auto self = static_cast<ReYogaSMCUserClient *>(object);
             if (!self->fProvider->isOpen(self)) return kIOReturnNotOpen;
-            if (args->scalarInput[0] > 1 || args->scalarInput[1] > ReYogaControl::kThinkFanQueryRPM) return kIOReturnBadArgument;
+            if (args->scalarInput[0] > 1 || args->scalarInput[1] > 0x100) return kIOReturnBadArgument;
             return self->fProvider->accessThinkFan(static_cast<UInt32>(args->scalarInput[0]),
-                static_cast<UInt32>(args->scalarInput[1]), static_cast<UInt8 *>(args->structureOutput));
-        }, 2, 0, 0, 3 },
-        { [](OSObject *object, void *, IOExternalMethodArguments *args) -> IOReturn {
-            auto self = static_cast<ReYogaSMCUserClient *>(object);
-            if (!self->fProvider->isOpen(self)) return kIOReturnNotOpen;
-            if (args->scalarInput[0] > 1 || args->scalarInput[1] > 0x47) return kIOReturnBadArgument;
-            return self->fProvider->accessThinkFanCurve(static_cast<UInt32>(args->scalarInput[0]),
                 static_cast<UInt32>(args->scalarInput[1]), static_cast<UInt8 *>(args->structureOutput));
         }, 2, 0, 0, 3 }
     };

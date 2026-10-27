@@ -11,7 +11,7 @@ let keys = [
     "FanControlMode", "FanWritesValidated", "FanFullSpeed", "FanFullSpeedRaw",
     "FanFullSpeedECResult", "FanFullSpeedCommandBackend",
     "CPUTemp", "GPUTemp", "CPUBoostPower", "CPUSustainedPower", "CPUPowerModified",
-    "DYTC", "LastDYTCCommand", "LastDYTCMutation", "DYTCBusyRejected", "PowerLimitRanges", "SmartFanMode", "YLogoStatus", "YLogoRawState", "YLogoRawBrightness",
+    "PowerLimitRanges", "SmartFanMode", "YLogoStatus", "YLogoRawState", "YLogoRawBrightness",
     "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage",
     "PortLighting", "PortLightingRawState", "PortLightingRawBrightness"
 ]
