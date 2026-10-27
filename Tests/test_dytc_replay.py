@@ -38,7 +38,7 @@ class DYTCReplayTests(unittest.TestCase):
                                     *sanitizers, '-I', str(folder), '-I', str(ROOT), str(source), '-o', str(executable)],
                                    capture_output=True, text=True, timeout=60)
             self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
-            for case in ('x1-profiles', 'capability-recovery', 'balanced-no-reset', 'masked-readback', 't490-profiles', 'transport-recovery', 'invalid-input'):
+            for case in ('x1-profiles', 'capability-recovery', 'balanced-no-reset', 'masked-readback', 't490-profiles', 'transport-recovery', 'invalid-input', 'csc-balance'):
                 with self.subTest(case=case):
                     result = subprocess.run([str(executable), case], capture_output=True, text=True, timeout=10)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -117,6 +117,16 @@ protected:
             (profile == 1 ? 3 : profile == 2 ? 5 : 7);
     }
     bool supportsMMCThermal() const { return (DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0; }
+    bool evaluateNamedThermalMode(const char *name, UInt32 *out) const {
+        if (!vpc || !name || !out) return false;
+        char path[16];
+        if (vpc->evaluateInteger(name, out) == kIOReturnSuccess) return true;
+        snprintf(path, sizeof(path), "\\%s", name);
+        if (vpc->evaluateInteger(path, out) == kIOReturnSuccess) return true;
+        snprintf(path, sizeof(path), "^%s", name);
+        return vpc->evaluateInteger(path, out) == kIOReturnSuccess;
+    }
+    UInt32 activeThermalProfile {0};
 
     /**
      *  VPC device

@@ -402,8 +402,10 @@ void ThinkVPC::updateControlStatus() {
         mode && (!strncmp(mode->getCStringNoCopy(), "Performance", 11)) ? 3 : 0;
     const bool thermalSupported = supportsThermalProfiles();
     add("SmartFanMode", thermalSupported, "DYTC desk thermal profiles unavailable");
-    if (thermalSupported && profile != 0) {
-        setProperty("SmartFanMode", profile, 32);
+    if (thermalSupported) {
+        if (profile == 0 && activeThermalProfile != 0) profile = activeThermalProfile;
+        if (profile != 0) setProperty("SmartFanMode", profile, 32);
+        else removeProperty("SmartFanMode");
     } else {
         removeProperty("SmartFanMode");
     }

@@ -30,14 +30,14 @@ void setPropertyBoolean(OSDictionary *d, const char *key, bool value) { d->numbe
 
 // Replay the SET/GET rules and values from the supplied Lenovo ACPI tables.
 struct Firmware {
-    bool lap = true, mmc = false, psc = false, dptf = false, fieldsAvailable = true;
+    bool lap = true, mmc = false, psc = false, csc = false, dptf = false, fieldsAvailable = true;
     bool transportFailure = false;
     unsigned mmcMode = 0, pscMode = 0, otherActive = BIT(0), resets = 0;
     std::vector<unsigned> commands;
     int evaluateInteger(const char *name, UInt32 *out) {
         if (!fieldsAvailable) return kIOReturnUnsupported;
-        if (!strcmp(name, "\\SMMC")) *out = mmcMode;
-        else if (!strcmp(name, "\\SPSC")) *out = pscMode;
+        if (!strcmp(name, "\\SMMC") || !strcmp(name, "SMMC") || !strcmp(name, "^SMMC")) *out = mmcMode;
+        else if (!strcmp(name, "\\SPSC") || !strcmp(name, "SPSC") || !strcmp(name, "^SPSC")) *out = pscMode;
         else return kIOReturnUnsupported;
         return kIOReturnSuccess;
     }
@@ -46,12 +46,12 @@ struct Firmware {
         if (transportFailure) { transportFailure = false; return kIOReturnUnsupported; }
         const unsigned command = raw & 0x1ff;
         if (command == DYTC_CMD_GET) {
-            const unsigned function = lap ? 1 : mmc ? 11 : psc ? 13 : 0;
+            const unsigned function = lap ? 1 : mmc ? 11 : psc ? 13 : csc ? 14 : 0;
             const unsigned mode = lap ? 15 : mmc ? mmcMode : psc ? pscMode : 15;
-            const unsigned active = otherActive | (lap ? BIT(1) : 0) | (mmc ? BIT(11) : 0) | (psc ? BIT(13) : 0);
+            const unsigned active = otherActive | (lap ? BIT(1) : 0) | (mmc ? BIT(11) : 0) | (psc ? BIT(13) : 0) | (csc ? BIT(14) : 0);
             *out = 1 | (function << 8) | (mode << 12) | (active << 16);
         } else if (command == DYTC_CMD_RESET) {
-            ++resets; lap = mmc = psc = false; otherActive = BIT(0); *out = 1;
+            ++resets; lap = mmc = psc = csc = false; otherActive = BIT(0); *out = 1;
         } else if (command == DYTC_CMD_SET) {
             const unsigned function = (raw >> 12) & 15, mode = (raw >> 16) & 15;
             const bool enabled = (raw & BIT(20)) != 0;
@@ -155,6 +155,13 @@ int main(int argc, char **argv) {
         assert(!device.setDYTC(11, 16) && !device.setDYTC(11, -1));
         assert(!device.setDYTC(16, 3) && !device.setDYTC(-1, 3));
         assert(device.firmware.commands.empty());
+    } else if (test == "csc-balance") {
+        device.firmware.lap = false;
+        device.firmware.mmc = false;
+        device.firmware.csc = true;
+        assert(device.updateDYTC());
+        assert(device.published.strings["PerfMode"] == "Balance");
+        assert(device.published.strings["FuncMode"] == "Custom");
     } else return 2;
     puts("PASS production DYTC replay");
 }

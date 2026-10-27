@@ -717,6 +717,12 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
                     setPropertyBoolean(functionStatus, "PSC", func_status);
                     break;
 
+                case DYTC_FUNCTION_CSC:
+                    if (func_status)
+                        DebugLog("DYTC_FUNCTION_CSC on");
+                    setPropertyBoolean(functionStatus, "CSC", func_status);
+                    break;
+
                 default:
                     if (func_status)
                         AlwaysLog("Unknown DYTC Function 0x%X on", func_bit);
@@ -736,18 +742,25 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
         const bool mmcActive = (result.get.func_sta & DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0;
         const bool pscActive = (result.get.func_sta & DYTCCap & BIT(DYTC_FUNCTION_PSC)) != 0;
         UInt32 mode = 0;
-        // Lenovo exposes the masked desk mode as a named ACPI field on these firmwares.
-        if (mmcActive && vpc->evaluateInteger("\\SMMC", &mode) == kIOReturnSuccess &&
+        if (mmcActive && evaluateNamedThermalMode("SMMC", &mode) &&
             (mode == 0 || mode == DYTC_MODE_PERFORM || mode == DYTC_MODE_QUIET || mode == DYTC_MODE_BALANCE)) {
             readbackFunction = DYTC_FUNCTION_MMC;
             result.get.perfmode = mode;
             setPropertyString(DYTCStatus, "ReadbackSource", "ACPI SMMC");
-        } else if (!mmcActive && pscActive && vpc->evaluateInteger("\\SPSC", &mode) == kIOReturnSuccess &&
+        } else if (!mmcActive && pscActive && evaluateNamedThermalMode("SPSC", &mode) &&
                    (DYTCRevision < 9 ? mode >= 1 && mode <= 8 :
                     mode == 1 || mode == 3 || mode == 4)) {
             readbackFunction = DYTC_FUNCTION_PSC;
             result.get.perfmode = mode;
             setPropertyString(DYTCStatus, "ReadbackSource", "ACPI SPSC");
+        } else if (mmcActive && activeThermalProfile >= 1 && activeThermalProfile <= 3) {
+            readbackFunction = DYTC_FUNCTION_MMC;
+            result.get.perfmode = activeThermalProfile == 1 ? DYTC_MODE_QUIET : activeThermalProfile == 3 ? DYTC_MODE_PERFORM : DYTC_MODE_BALANCE;
+            setPropertyString(DYTCStatus, "ReadbackSource", "Driver cached profile");
+        } else if (pscActive && activeThermalProfile >= 1 && activeThermalProfile <= 3) {
+            readbackFunction = DYTC_FUNCTION_PSC;
+            result.get.perfmode = pscThermalMode(activeThermalProfile);
+            setPropertyString(DYTCStatus, "ReadbackSource", "Driver cached profile");
         } else if (!mmcActive && !pscActive) {
             readbackFunction = DYTC_FUNCTION_STD;
             setPropertyString(DYTCStatus, "ReadbackSource", "DYTC function status");
@@ -810,6 +823,25 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
             }
             break;
 
+        case DYTC_FUNCTION_CSC:
+            setPropertyString(DYTCStatus, "FuncMode", "Custom");
+            switch (result.get.perfmode) {
+                case DYTC_MODE_PERFORM:
+                    setPropertyString(DYTCStatus, "PerfMode", lapmode ? "Performance (Reduced as lapmode active)" : "Performance");
+                    break;
+
+                case DYTC_MODE_QUIET:
+                    setPropertyString(DYTCStatus, "PerfMode", "Quiet");
+                    break;
+
+                case 0:
+                case DYTC_MODE_BALANCE:
+                default:
+                    setPropertyString(DYTCStatus, "PerfMode", "Balance");
+                    break;
+            }
+            break;
+
         default:
             AlwaysLog(valueUnknown, DYTCFuncPrompt, result.get.funcmode);
             AlwaysLog(valueUnknown, DYTCPerfPrompt, result.get.perfmode);
@@ -846,7 +878,9 @@ bool ReYogaVPC::setThermalProfile(UInt32 profile) {
     const int func = useMMC ? DYTC_FUNCTION_MMC : DYTC_FUNCTION_PSC;
     const int mode = useMMC ? (profile == 1 ? DYTC_MODE_QUIET :
         profile == 2 ? DYTC_MODE_BALANCE : DYTC_MODE_PERFORM) : pscThermalMode(profile);
-    return setDYTC(func, mode);
+    const bool ok = setDYTC(func, mode);
+    if (ok) activeThermalProfile = profile;
+    return ok;
 }
 
 bool ReYogaVPC::setDYTC(int funcmode, int perfmode) {
