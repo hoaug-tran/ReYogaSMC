@@ -55,7 +55,7 @@ print("PASS production ACPI connection generations and stale completions")
             main.write_text(fixture, encoding='utf-8')
             executable = main.with_suffix('.exe')
             build = subprocess.run(['swiftc', '-swift-version', '5', str(main), '-o', str(executable)],
-                                   capture_output=True, text=True, timeout=60)
+                                   capture_output=True, text=True, timeout=120)
             self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
             result = subprocess.run([str(executable)], capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

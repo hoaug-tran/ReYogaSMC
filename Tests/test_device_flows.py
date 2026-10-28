@@ -36,6 +36,7 @@ class DeviceFlowTests(unittest.TestCase):
         methods = '\n'.join(function(manager, signature) for signature in signatures)
         # Replace only persistence and IOKit boundaries, not the rules being exercised.
         methods = methods.replace('UserDefaults.standard', 'Fixture.defaults').replace(' as CFString', '')
+        methods = methods.replace('IOObjectRelease(', 'fixtureReleaseService(')
         declarations = []
         for line in manager.splitlines():
             match = re.match(r'    @Published.*?\bvar (\w+)(.*)', line)

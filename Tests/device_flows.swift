@@ -52,7 +52,7 @@ enum Fixture {
     }
 }
 @discardableResult func IOObjectRetain(_ service: UInt32) -> Int32 { precondition(service == 1); Fixture.references += 1; return 0 }
-func IOObjectRelease(_ service: UInt32) { precondition(service == 1 && Fixture.references > 0); Fixture.references -= 1 }
+func fixtureReleaseService(_ service: UInt32) { precondition(service == 1 && Fixture.references > 0); Fixture.references -= 1 }
 func getProperties(_ service: UInt32) -> NSDictionary? { precondition(service == 1); return Fixture.snapshot as NSDictionary }
 func IORegistryEntrySetCFProperty(_ service: UInt32, _ name: String, _ value: NSDictionary) -> Int32 {
     precondition(service == 1 && name == "ControlRequest")
