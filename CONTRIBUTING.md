@@ -1,53 +1,86 @@
-# Contributing to ReYogaSMC
+# Contributing
 
-Include the affected model, firmware version, observed behavior and validation results.
+## Report a device problem
 
-## Device support
+Use the app's Diagnostics export or the [hardware tool](Docs/hardware-tool.md). Review files before sharing them. Include the model, BIOS, OS, app/kext versions, failing action and expected result. Note AC/battery and sleep/wake differences.
 
-Start with `python3 Scripts/hardware_support.py --acpi /path/to/tables`. Review the report and tables before sharing them. Include the exact model, BIOS version, macOS version, loaded driver version and the feature you want to support.
+Report private security details through [SECURITY.md](SECURITY.md).
 
-A profile must identify its source evidence, interfaces, units, capability requirements and validation status. Raw-offset bridges also require reviewed firmware fingerprints and addresses. Native named-field telemetry does not require a bridge fingerprint. Similar models are not evidence for shared EC layouts. Do not copy another model's offsets or weaken firmware matching to make an unknown device pass.
+## Change device support
 
-Keep hardware values in profiles. Keep wire-format constants in their protocol adapter. Separate sensor support from writable control support. `verified_writes` stays zero until a maintainer has reviewed successful hardware validation and restoration behavior. A DSDT hash match alone never validates a write.
+Read the relevant firmware methods and upstream protocol code before changing controls. Record units, allowed values, response format and failure behavior. Similar model names do not prove shared EC layouts.
 
-For writable interfaces, record requested and actual values, allowed range/step, failure behavior, reset, power-mode changes, AC/battery and sleep/wake. Never retry a command that caused shutdown or loss of cooling. Document what remains unverified.
+Keep device-specific values in [hardware profiles](HardwareProfiles/README.md) or their backend. Sensor support and write permission are separate. Raw-offset bridges need reviewed fingerprints and addresses. `verified_writes` stays zero until writes, readback and recovery have been checked on the target firmware.
 
-## Code changes
+For a writable control, check range/step, rejection, reset, power-profile changes, AC/battery and sleep/wake. Stop testing a command that caused shutdown or loss of cooling.
 
-Preserve upstream authorship and license notices. Explain the final behavior and any ABI changes. Changes to service names or bundle IDs need a migration. A product rename must also update packaging, helper lookup and release scripts.
+## Code layout
 
-Do not add machine-specific fallbacks to shared code. Avoid optimistic hardware state, silent failed calls and success messages based only on transport acknowledgement. Errors should say which stage failed, what was requested, what was observed and the next useful action.
+Use names that describe the file's main type or job. Keep stable IDs, persisted keys, wire formats, licenses and upstream credits unchanged during renaming.
 
-Build the affected targets and run relevant checks. A firmware change needs a booted hardware result; an ad-hoc signed build does not validate permission persistence across updates. Runtime testing on one macOS version does not establish support for every version.
+| Directory | Contents |
+| --- | --- |
+| `ReYogaSMC/Platform/` | Firmware backends, lifecycle, telemetry and controls |
+| `ReYogaSMC/SMC/`, `ReYogaSMC/WMI/` | VirtualSMC keys and WMI interfaces |
+| `ReYogaSMC/ACPIExamples/` | ACPI samples for manual review |
+| `ReYogaSMCApp/Application/` | App lifecycle, windows and driver connection ownership |
+| `ReYogaSMCApp/Hardware/` | Device state, capability checks and hardware transactions |
+| `ReYogaSMCApp/Views/` | UI, dialogs, formatting and HUD |
+| `ReYogaSMCApp/Events/`, `Preferences/`, `Diagnostics/`, `System/` | Event mappings, app settings, report collection and macOS actions |
 
-Useful checks:
+Views receive state and actions explicitly. Hardware code must not locate `AppDelegate` or open dialogs. Keep one owner for each connection, queue and mutable state. Update Xcode groups, target membership, script inputs and tests when moving a source file.
+
+Translate UI labels, errors and status messages in both `en.lproj` and `vi.lproj`. Existing English message keys may be returned by services and translated where displayed. Keep format arguments, firmware keys, ACPI names and log identifiers unchanged.
+
+## Build and test
+
+Use macOS with Xcode for app/kext builds. Read [Scripts/dependencies.json](Scripts/dependencies.json) before replacing dependencies. Bootstrap rejects changed SDK files and mismatched cached bundles.
 
 ```sh
-python3 -B -m unittest discover -s Tests -v
-python3 Scripts/generate_firmware_profiles.py --check
+bash Scripts/bootstrap.sh
+python3 -B -m unittest discover -s Tests -p "test_*.py" -v
+python3 -B Scripts/generate_firmware_profiles.py --check
+python3 -B Scripts/check_format.py
+bash Scripts/test-support.sh
 bash Scripts/build.sh Debug
 bash Scripts/build.sh Release
+git diff --check
+```
+
+When profile JSON changes, run `python3 Scripts/generate_firmware_profiles.py` before `--check`. Do not edit the generated header by hand.
+
+Tests should execute production logic with independent inputs. A source-wiring check does not replace a runtime test. Report skipped tests and missing tools.
+
+### Device flows
+
+```sh
+python3 -B Scripts/check_device_flows.py
+python3 -B Scripts/check_device_flows.py --native
+```
+
+The first command needs macOS/Linux, Swift, a C++ compiler, `iasl` and `acpiexec`. It runs device/control replays and writes logs, source hashes and a feature matrix to `build/device-flows/`. Missing tools or incomplete results fail the run.
+
+`--native` also requires macOS/Xcode. It runs support checks, Debug/Release builds and UI fixture renders in English and Vietnamese. Tests use sanitized or synthetic snapshots; they do not install a kext or certify physical device behavior. Check hardware changes on the target machine before calling them verified.
+
+### Signing and packages
+
+```sh
+bash Scripts/sign-app.sh 'Developer ID Application: Your Name (TEAMID)' build/Release
 bash Scripts/package.sh Debug
 bash Scripts/package.sh Release
 python3 Scripts/release.py verify-assets
 ```
 
-The Python suite skips ACPI compilation without `iasl`; CI installs it on Linux. Native sanitizer tests require clang++ on macOS/Linux, and PowerShell parser checks require Windows. Document skipped checks.
+Keep the same signing identity across app updates when possible. Ad-hoc builds may need privacy approval again. Signing does not sign the kext or test firmware behavior.
+
+Builds record source hashes. Packaging rejects source changes after a build and mismatched Debug/Release snapshots. Archives include source manifests; `BUILD_PROVENANCE.json` and `SHA256SUMS.txt` describe the packaged files.
 
 ## Pull requests
 
-Use the PR template. Keep changes focused and attach reproducible evidence. State which checks ran and which hardware or OS versions remain untested. Include compiler output only when it explains a failure.
+Use the PR template. Describe the problem, resulting behavior, relevant tests and remaining target checks. Keep logs, device dumps, build products, credentials and task notes out of commits.
 
-Source control should contain source, profiles, useful documentation and maintained tests. Keep build products, logs, device dumps, credentials, personal notes out of commits. Do not remove legitimate protocol terms or author credits during cleanup.
+Use Conventional Commits, such as `fix(driver): ...`, `feat(app): ...`, `docs: ...` or `test: ...`. Add notes to the pending version in [Changelog.md](Changelog.md); leave published release entries unchanged.
 
-## Working together
+The main workflow tests all platforms before building and packaging. Pull requests run native checks without publishing. Release preparation requires clean source. Shipped changes can trigger a release; documentation, tests and CI changes alone do not. A manually increased project version takes precedence over the calculated version.
 
-Discuss the behavior and evidence. Respect contributors, explain disagreements and avoid personal attacks. Report security issues through the process in SECURITY.md.
-
-## Commits and releases
-
-Use Conventional Commits: `fix(driver): ...`, `feat(app): ...`, `docs: ...`, `test: ...` or `ci: ...`. Add release notes under `## Unreleased` in Changelog.md.
-
-A successful main build releases changes to shipped driver, app, profiles or tools. Breaking changes (`!` or a `BREAKING CHANGE:` footer) bump the major version; `feat` bumps minor; other shipped changes bump patch. Documentation, tests and CI changes alone do not create a release. A manually increased project version takes precedence.
-
-The workflow runs the platform test matrix first, then builds and packages Debug and Release, and publishes only after those checks pass. Test-platform failures do not cancel the other test jobs. It commits only the version/changelog metadata, tags that commit and uses the changelog section as the GitHub Release description. Release assets are the kext and app, each in DEBUG and RELEASE ZIPs, plus SHA256SUMS.txt. Collection scripts stay in the source repository. Existing tags must match the built source and expected metadata before a rerun can update assets.
+Release notes come from the versioned changelog section. Publishing creates the metadata commit, tag and release assets only after checks pass. Existing tags must match the expected source before a rerun can replace assets.

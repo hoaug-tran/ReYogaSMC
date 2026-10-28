@@ -4,17 +4,17 @@ Describe the problem and resulting behavior.
 
 ## Evidence
 
-Model and BIOS, if hardware-related:
-Protocol or firmware source:
-Requested and observed values:
+- Model and BIOS, if hardware-related:
+- Protocol or firmware source:
+- Requested and observed values:
 
 ## Validation
 
-Builds / checks run:
-Booted macOS versions:
-AC/battery, sleep/wake and reset results:
-Unverified behavior:
+- Builds and checks run:
+- macOS versions tested:
+- AC/battery, sleep/wake and reset results:
+- Behavior not yet tested:
 
 ## Compatibility
 
-Profile, ABI, packaging or permission-identity changes:
+List changes to profiles, ABI, packages or app signing identity.

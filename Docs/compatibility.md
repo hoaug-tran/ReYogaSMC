@@ -1,61 +1,86 @@
 # Compatibility
 
-## Requirements
-
-- macOS 11 or newer, OpenCore, Lilu and VirtualSMC.
-- Matching ReYogaSMC app and kext versions.
-- Firmware interfaces for the requested feature.
+ReYogaSMC supports firmware interfaces, not every feature on every laptop. Check Diagnostics for the driver, sensor sources and reasons for unavailable controls.
 
 ## ThinkPad
 
-ThinkPad uses HKEY methods and the EC interface, without IdeaPad/Legion JSON profiles. Battery thresholds, hotkeys, backlight, thermal profiles and fan access are checked separately.
+ThinkPad uses HKEY and EC methods. It does not need a Lenovo JSON profile for hotkeys, backlight, charge thresholds or supported DYTC power profiles.
 
-Charge thresholds use firmware capability/error bits and battery addressing. Start is 0–99%; stop is 1–100%. The driver checks ordering and reads back accepted requests. Secondary-battery selection requires individual addressing support.
+| Feature | Requirements and limits |
+| --- | --- |
+| Charge thresholds | Start: 0–99%; stop: 1–100%. Firmware must support the operation and accept the ordering. |
+| Battery selection | Shown only when firmware supports individual battery addressing. |
+| Power profiles | A supported DYTC MMC/PSC interface and a readable current mode. Polling preserves lap mode. |
+| Fan RPM | A supported EC/helper or native fan-reading method. Failed readings show unavailable. |
+| Manual/Full Speed | ThinkPad fan protocol and EC read/write access. Requests must pass mode readback. |
+| Custom Curve | Manual control requirements, a driver watchdog and fresh CPU temperature. Other fan backends do not use this curve engine. |
 
-Thermal profiles are available when firmware exposes a supported DYTC interface. A firmware error or unavailable active profile is shown in the app; the driver does not change lap mode while polling.
+The driver never substitutes a previously requested profile for a missing firmware reading. CQL/CSC states use available read methods; if those methods fail, the current mode stays unavailable.
 
-Manual fan control requires the ThinkPad fan protocol and EC read/write helpers. Custom Curve additionally requires watchdog support, an available fan and fresh CPU temperature data, with Safe Mode off. These conditions apply to every supported ThinkPad; no model name enables the feature. Other Lenovo and HP fan interfaces do not currently support Custom Curve. BIOS Auto remains controlled by firmware.
+Fan level 0 requires both the app's fan-stop preference and `-reyfanstop`. BIOS Auto and Full Speed are separate firmware modes. Full Speed does not promise a specific RPM.
 
-Changing modes stops the active curve. Missing temperature data, sleep, disconnect or app shutdown requests automatic control. The watchdog requests Auto if updates stop; failed firmware writes remain errors. Fan stop requires both the app preference and `-reyfanstop`.
+Curves request Auto when data becomes stale, the app closes, the driver disconnects or the system sleeps. A watchdog requests Auto when updates stop. Failed restoration remains an error. Curves require an explicit restart after wake/reconnect. Saved startup fan modes are opt-in and tied to the firmware identity.
 
 ## IdeaPad, Yoga, Legion and LOQ
 
-Generic battery, keyboard and USB controls use advertised ACPI methods; Game Zone WMI is not required for those controls. Conservation mode uses a firmware-defined charge target, not a universal percentage.
+Generic battery, keyboard and USB controls use available ACPI methods. Game Zone WMI is not required for these controls. Conservation mode uses the firmware's charge target; the percentage varies by model.
 
-Native sensor profiles require a valid Lenovo DSDT and a unique machine-type or declared PCI subsystem match together with the OEM table ID. An available BIOS family must agree. Preserved OEM properties and Lenovo SMBIOS records supply identity; spoofed Apple records are excluded. Contradictory or ambiguous evidence disables model-specific access. An OEM table ID or similarly named EC fields alone cannot identify a model.
+Native ACPI sensors use the [profile catalog](../HardwareProfiles/README.md). Matching requires a valid Lenovo DSDT, OEM table ID and a unique machine-type or declared PCI subsystem match. A reported BIOS family must agree. Conflicting identities disable model-specific access.
 
-`ProfileMatchState=identity_matched`, `pci_matched` or `exact` can supply a display name. `exact` additionally requires a reviewed AML fingerprint. None certifies every firmware version or grants write permission. Each sensor is checked independently for transport failure, overflow and invalid values, with per-sensor WMI fallback.
+Each sensor is checked separately. Failed native reads may use a supported WMI source. A model match does not enable raw-offset writes. Bridge generation needs a reviewed firmware fingerprint and complete bridge data; manual fan writes need separate write/recovery validation. Current ACPI profiles keep those writes disabled.
 
-Raw-offset bridge generation requires a unique reviewed source or AML fingerprint and complete bridge data. Installed bridges must match reviewed AML identity. Manual fan writes require separate hardware validation; all current ACPI profiles leave them disabled. A BIOS update or ACPI patch can invalidate a fingerprint. Never reuse another model's offsets merely to obtain a match.
+Legion Game Zone controls vary by firmware. CPU power access is disabled by default, including getters. `-reycpupower` enables supported requests; range, step and readback checks still apply. Saved limits stay associated with the power profile that was edited.
 
-CPU power-limit access is disabled by default because even firmware getters can initialize hardware state. `-reycpupower` enables it; range, step and readback checks still apply. If the thermal profile changes after an edit, saved limits remain associated with the modified profile. Return to that profile to restore them; another profile does not receive its limits.
+## HP and Intel HID
 
-## HP sensors
+HP WMI exports mapped numeric sensors and supported events. It handles legacy/modern sensor packages, decimal modifiers, Celsius/Fahrenheit/Kelvin temperatures, RPM and length-prefixed UTF-16LE strings. Invalid lengths, encodings, state lists, sensor types and units are rejected.
 
-HP WMI supports the old and new numeric-sensor package layouts, decimal modifiers, Celsius/Fahrenheit/Kelvin temperatures and RPM readings. The formats are described in [hp-wmi-sensors](https://github.com/torvalds/linux/blob/master/drivers/hwmon/hp-wmi-sensors.c).
+Only mapped sensor names are exported. This does not cover every HP model. The separate Elite x2 brightness interface is not implemented. Intel HID support is limited to the events handled by the driver.
 
-Only mapped sensor names are exported. Duplicate aliases cannot create duplicate SMC keys, and fan indices are consecutive. Fault states, changed sensor types, malformed records, unknown units and rate-based values are unavailable. Buffer-encoded WMI strings and the separate Elite x2 brightness interface are not implemented. These interfaces do not establish support for every HP model or EC layout.
+## Temperatures and lighting
 
-## Readings and unavailable controls
+The app prefers valid AppleSMC temperatures and falls back to driver firmware readings. Common optional providers are:
 
-The app prefers valid SMC temperatures and falls back to firmware. Failed fan reads are unavailable, while a valid stopped fan remains zero RPM.
+| Hardware | Optional provider |
+| --- | --- |
+| AMD Ryzen CPU | [SMCProcessorAMD](https://github.com/trulyspinach/SMCAMDProcessor) |
+| Intel CPU | [SMCProcessor](https://github.com/acidanthera/VirtualSMC) |
+| Supported AMD GPU | [SMCRadeonSensors](https://github.com/ChefKissInc/SMCRadeonSensors) |
 
-The visible dashboard refreshes every 500 ms. IdeaVPC feature state and background ThinkPad firmware state normally refresh every two seconds. Stale snapshots disable firmware controls. Missing current values, ranges or fan steps are not replaced with assumed limits.
+An iGPU does not always expose a separate GPU temperature. A failed fan read is unavailable; a valid stopped fan is zero RPM.
 
-If the kext is missing, in safe mode or lacks a compatible control interface, independent battery, SMC and supported USB RGB access remains available. Multiple matching RGB controllers disable control rather than selecting one arbitrarily. Reconnection clears pending requests and rejects results from the previous connection.
+The ITE c968 backend requires the expected USB/HID interfaces and report sizes. Multiple matching controllers leave control unavailable. Sent RGB reports confirm USB transport, not the physical LED color. Breathing and Spectrum effects need the app to remain open.
 
-An unavailable control is not enabled by adding another laptop's profile. Export diagnostics with the model, BIOS, macOS, installed versions, requested value and observed result.
+Visible readings refresh every 500 ms. Background firmware refreshes normally run every two seconds. Stale snapshots disable firmware controls while independent battery, SMC and USB sources remain available.
 
-## Permissions and signing
+## ACPI patches
 
-Shortcut mapping requires Accessibility and Input Monitoring. Bluetooth actions may require Bluetooth approval. Grant access to the installed app in System Settings and reopen it if macOS requests a restart.
+Use [ThinkPad helper generation](../README.md#thinkpad-acpi-helpers) when possible. These files are examples for manual review, not universal patches.
 
-Keep the app in `/Applications`. CI and local scripts ad-hoc sign the app, helper and embedded libraries; kexts remain unsigned. Replacing an ad-hoc build may require privacy approval again. Use the same signing identity for subsequent builds when available.
+| Sample | Purpose |
+| --- | --- |
+| [SSDT-ThinkPad.dsl](../ReYogaSMC/ACPIExamples/SSDT-ThinkPad.dsl) | ThinkPad EC helpers and OS compatibility declarations |
+| [SSDT-ECRW.dsl](../ReYogaSMC/ACPIExamples/SSDT-ECRW.dsl) | Standalone EC byte read/write helpers |
+| [SSDT-THINK.dsl](../ReYogaSMC/ACPIExamples/SSDT-THINK.dsl) | Legacy ThinkPad OS flags, LEDs and thermal fields |
+| [SSDT-RCSM.dsl](../ReYogaSMC/ACPIExamples/SSDT-RCSM.dsl) | IdeaPad/Yoga lid-query switch; requires the correct renamed firmware query |
+| [SSDT-WMIS.dsl](../ReYogaSMC/ACPIExamples/SSDT-WMIS.dsl) | Return a missing WMI wrapper result in the shown namespace |
+| [SSDT-YVPC.dsl](../ReYogaSMC/ACPIExamples/SSDT-YVPC.dsl) | Add a VPC matching device under the reviewed EC path |
 
-On macOS 13 and newer, Start with macOS uses `SMAppService.mainApp` and may require approval in Login Items. macOS 11/12 uses the embedded helper, which opens the app and exits. It neither installs nor loads a kext.
+Check paths, offsets and existing methods before loading an example. Do not combine overlapping helpers or remove required battery patches to make a sample compile.
 
-## Verification and recovery
+## Boot arguments
 
-Check controls and readback on AC and battery, sleep/wake and restoration after closing the app. Do not retry a command that caused shutdown or loss of cooling. An AML call hanging inside firmware cannot be cancelled by a user-space timeout. Keep a recovery EFI and use `-reysafe`, `-reynowmi` or `-reynobridge` to isolate the affected interface.
+Add only the arguments needed for your setup or diagnosis.
 
-`-reytrace` logs firmware calls, capped at 128 calls per WMI instance and four initial IdeaVPC refreshes/samples. Remove it after diagnosis. The app's Detailed logging setting controls additional samples; Debug builds also emit periodic telemetry summaries.
+| Argument | Effect |
+| --- | --- |
+| `-reysafe` | Skip ACPI/WMI hardware probes and block firmware writes |
+| `-reynobridge` | Disable native profile matching and RYID bridge discovery; keep generic interfaces |
+| `-reynowmi` | Disable vendor WMI probing |
+| `-reycpupower` | Allow supported Legion CPU power-limit access |
+| `-reyfanstop` | Allow ThinkPad manual level 0 when the app also allows fan stop |
+| `-reytrace` | Log firmware call entry/exit; limited to 128 calls per WMI instance and initial IdeaVPC samples |
+
+Remove tracing arguments after diagnosis. A user-space timeout cannot cancel an ACPI method stuck inside firmware.
+
+For installation, permissions and error reports, see the [README](../README.md).
