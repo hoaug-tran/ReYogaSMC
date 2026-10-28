@@ -4,10 +4,10 @@
   "id": "legion7-16achg6-gkcn",
   "name": "Lenovo Legion 7 2021 16ACHg6",
   "sources": [
-    "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
+    "https://github.com/johnfanv2/LenovoLegionLinux/blob/ff72e4c2b437ec605d5f2e34c5b34111c57c9cc0/kernel_module/legion-laptop.c",
     "https://psref.lenovo.com/syspool/Sys/PDF/Legion/Legion_7_16ACHg6/Legion_7_16ACHg6_Spec.pdf",
-    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs",
-    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Features/BatteryFeature.cs",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/0bb045be29c4fd772ba9887a3507b6a9b0b56d58/LenovoLegionToolkit.Lib/Utils/Compatibility.cs",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/0bb045be29c4fd772ba9887a3507b6a9b0b56d58/LenovoLegionToolkit.Lib/Features/BatteryFeature.cs",
     "https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1012794;msg=2"
   ],
   "machine_types": [

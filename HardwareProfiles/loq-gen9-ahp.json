@@ -4,17 +4,15 @@
   "id": "loq-gen9-ahp",
   "name": "Lenovo LOQ 15AHP9",
   "machine_types": [
-    "83DX",
-    "83DV",
-    "83JC"
+    "83DX"
   ],
   "bios_families": [
-    "NECN"
+    "NZCN"
   ],
   "oem_table_ids": [
     "CB-01"
   ],
-  "ec_path": "\\_SB.PCI0.LPC0.EC0",
+  "ec_path": "\\_SB.PC00.LPCB.EC0",
   "ec_base": "0xFE0B0F00",
   "ec_size": "0x600",
   "rpm_scale": 100,
@@ -39,7 +37,7 @@
     }
   ],
   "sources": [
-    "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
-    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
+    "https://github.com/johnfanv2/LenovoLegionLinux/blob/ff72e4c2b437ec605d5f2e34c5b34111c57c9cc0/kernel_module/legion-laptop.c",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/0bb045be29c4fd772ba9887a3507b6a9b0b56d58/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
   ]
 }

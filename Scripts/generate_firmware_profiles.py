@@ -54,6 +54,7 @@ def _validate_profiles(profiles):
     ids = set()
     identities = set()
     pci_owners = {}
+    machine_owners = {}
     hash_owners = {}
     for profile in profiles:
         if not isinstance(profile, dict) or type(profile.get("schema_version")) is not int or profile.get("schema_version") != 1:
@@ -65,6 +66,9 @@ def _validate_profiles(profiles):
             raise ValueError(f"duplicate profile id: {profile_id}")
         ids.add(profile_id)
         for machine in machine_types:
+            if machine in machine_owners and machine_owners[machine] != profile["name"]:
+                raise ValueError(f"ambiguous machine type: {machine}")
+            machine_owners[machine] = profile["name"]
             for bios in bios_families:
                 identity = (machine, bios, oem_id)
                 if identity in identities:
@@ -156,7 +160,7 @@ def main():
             raise SystemExit("ReYogaFirmwareProfiles.hpp is out of date. Run python3 Scripts/generate_firmware_profiles.py")
         print("Firmware profile table is up to date.")
         return
-    OUTPUT.write_text(result, encoding="utf-8")
+    OUTPUT.write_text(result, encoding="utf-8", newline="\n")
     print(f"Generated {OUTPUT}")
 
 

@@ -71,6 +71,15 @@ class FirmwareProfilesTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             generator.render([self.profile, other])
 
+    def test_shared_machine_type_cannot_name_two_models(self):
+        other = copy.deepcopy(self.profile)
+        other.update(id="other-model", name="Other Lenovo", bios_families=["ZZCN"],
+                     reviewed_aml_hashes=[], reviewed_dsdt_hashes=[], pci_subsystem_ids=[])
+        with self.assertRaisesRegex(ValueError, 'machine type'):
+            generator.render([self.profile, other])
+        other['name'] = self.profile['name']
+        self.assertIn('other-model', generator.render([self.profile, other]))
+
     def test_write_validation_cannot_be_inferred_from_truthy_metadata(self):
         for value in (True, "1", 2, -1):
             bad = copy.deepcopy(self.profile)

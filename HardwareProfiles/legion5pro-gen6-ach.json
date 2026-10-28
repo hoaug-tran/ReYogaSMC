@@ -38,7 +38,7 @@
     }
   ],
   "sources": [
-    "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
-    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
+    "https://github.com/johnfanv2/LenovoLegionLinux/blob/ff72e4c2b437ec605d5f2e34c5b34111c57c9cc0/kernel_module/legion-laptop.c",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/0bb045be29c4fd772ba9887a3507b6a9b0b56d58/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
   ]
 }

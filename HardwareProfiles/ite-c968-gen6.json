@@ -4,8 +4,8 @@
   "id": "ite-c968-gen6",
   "name": "Legion 7 Gen 6 RGB",
   "sources": [
-    "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/LenovoControllers/LenovoUSBController/LenovoUSBController.cpp",
-    "https://github.com/CalcProgrammer1/OpenRGB/blob/master/Controllers/LenovoControllers/LenovoDevices.h"
+    "https://github.com/CalcProgrammer1/OpenRGB/blob/aac7e5511439e020ddae88e78bd400c71b8d4a9c/Controllers/LenovoControllers/LenovoUSBController/LenovoUSBController.cpp",
+    "https://github.com/CalcProgrammer1/OpenRGB/blob/aac7e5511439e020ddae88e78bd400c71b8d4a9c/Controllers/LenovoControllers/LenovoDevices.h"
   ],
   "vendorID": 1165,
   "productID": 51560,
@@ -287,7 +287,10 @@
         },
         {
           "id": 77,
-          "name": "Key:"
+          "name": "Key: }",
+          "legacyNames": [
+            "Key:"
+          ]
         },
         {
           "id": 78,
@@ -367,7 +370,10 @@
         },
         {
           "id": 95,
-          "name": "Key: \\"
+          "name": "Key: \"",
+          "legacyNames": [
+            "Key: \\"
+          ]
         },
         {
           "id": 96,
@@ -688,7 +694,7 @@
         },
         {
           "id": 22,
-          "name": "Key: \u00ac"
+          "name": "Key: ¬"
         },
         {
           "id": 23,
@@ -696,11 +702,14 @@
         },
         {
           "id": 24,
-          "name": "Key: \\"
+          "name": "Key: \"",
+          "legacyNames": [
+            "Key: \\"
+          ]
         },
         {
           "id": 25,
-          "name": "Key: \u00a3"
+          "name": "Key: £"
         },
         {
           "id": 26,
@@ -864,7 +873,10 @@
         },
         {
           "id": 77,
-          "name": "Key:"
+          "name": "Key: }",
+          "legacyNames": [
+            "Key:"
+          ]
         },
         {
           "id": 78,
@@ -1273,7 +1285,10 @@
         },
         {
           "id": 24,
-          "name": "Key: \\"
+          "name": "Key: \"",
+          "legacyNames": [
+            "Key: \\"
+          ]
         },
         {
           "id": 25,
@@ -1549,7 +1564,10 @@
         },
         {
           "id": 119,
-          "name": "Key:"
+          "name": "Key: }",
+          "legacyNames": [
+            "Key:"
+          ]
         },
         {
           "id": 120,
@@ -2669,5 +2687,6 @@
       ]
     }
   },
-  "credits": "OpenRGB, Cooper Hall (geobot19), GPL-2.0-or-later"
+  "credits": "OpenRGB, Cooper Hall (geobot19), GPL-2.0-or-later",
+  "usage": 7
 }
