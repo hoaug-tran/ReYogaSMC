@@ -185,6 +185,7 @@ class HardwareSupportTests(unittest.TestCase):
         fixture['required_patterns'] = [r'Method \(GBMD, 0']
         fixture['reviewed_dsdt_hashes'] = [support.normalized_hash(synthetic_source)]
         fixture['verified_writes'] = 0
+        fixture['bridge_kind'] = 'raw-offsets'
 
         telemetry = json.loads((ROOT / 'HardwareProfiles/ideapad-gaming3-gen5.json').read_text(encoding='utf-8'))
 
@@ -223,6 +224,27 @@ class HardwareSupportTests(unittest.TestCase):
                     write_pos = body.find(unsafe)
                     self.assertNotEqual(write_pos, -1)
                     self.assertLess(gate_pos, write_pos)
+
+    def test_legion_review_exports_only_named_field_reads(self):
+        profile = next(p for p in support.profiles() if p['id'] == 'legion7-16achg6-gkcn')
+        digest = 'c803c21a14bd4063c7dd29ff3a11f3ac04c3aeb8552b89c075bbfff9899e1ed1'
+        source = ' '.join(['OEM ID "LENOVO"',
+                           'OperationRegion (ERAX, SystemMemory, 0xFE00D400, 0xFF)',
+                           'Method (WMB2, 3, NotSerialized)', 'Method (GBMD, 0, NotSerialized)',
+                           'Method (SBMC, 1, NotSerialized)',
+                           'QCBX, 1 QCHO, 1 BTSM, 1 CPUT, 8 GPUT, 8 FANS, 8 FA2S, 8 SPMO, 4'])
+        self.assertEqual(support.match_profile(source, [profile]), profile)
+        with self.assertRaises(ValueError):
+            support.match_profile('OEM ID "OTHER"', [profile])
+        bridge = support.render(profile)
+        for token in ('OperationRegion', 'RYFS', 'RYFA', 'RYFF', 'NCMD', '0xFE00D400'):
+            self.assertNotIn(token, bridge)
+        self.assertIn('Return (0x52590101)', bridge)
+        for field in ('FANS', 'FA2S', 'CPUT', 'GPUT'):
+            self.assertIn('.' + field + ', FieldUnitObj)', bridge)
+        self.assertIn('Return (FANS * 100)', bridge)
+        with self.assertRaises(ValueError):
+            support.render(dict(profile, verified_writes=1))
 
     def test_unknown_device_and_bad_compiler_still_export_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:

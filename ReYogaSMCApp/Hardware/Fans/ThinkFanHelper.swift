@@ -151,6 +151,15 @@ class ThinkFanHelper: ObservableObject {
         enable = connect != 0
     }
 
+#if DEBUG
+    func loadUIReview(rpm: Int, curve: Bool) {
+        guard CommandLine.arguments.contains("--render-ui"), connect == 0 else { return }
+        self.rpm = rpm; enable = true; curveEnabled = curve
+        savedLevel = curve ? 5 : Self.automaticLevel
+        curveStatus = curve ? "Level 5" : "BIOS Auto"
+    }
+#endif
+
     func setAutomatic() {
         stopCurve()
         setFanLevel(Self.automaticLevel, operation: "auto")

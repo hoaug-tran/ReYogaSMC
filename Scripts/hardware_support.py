@@ -28,7 +28,9 @@ def profiles():
         item = json.loads(path.read_text(encoding='utf-8'))
         if item.get('schema_version') != 1 or item.get('kind') != 'acpi':
             continue
-        if not item.get('required_patterns') or not (item.get('reviewed_dsdt_hashes') or item.get('reviewed_aml_hashes')) or not item.get('offsets'):
+        if not item.get('required_patterns') or not item.get('offsets'):
+            continue
+        if item.get('verified_writes', 0) != 0 and not (item.get('reviewed_dsdt_hashes') or item.get('reviewed_aml_hashes')):
             continue
         result.append(item)
     return result
@@ -82,10 +84,17 @@ def normalized_hash(source):
 
 def match_profile(source, candidates, aml_hashes=()):
     digest = normalized_hash(source)
-    matches = [p for p in candidates
-               if (digest in p.get('reviewed_dsdt_hashes', []) or
-                   any(h in p.get('reviewed_aml_hashes', []) for h in aml_hashes))
-               and all(re.search(pattern, source) for pattern in p['required_patterns'])]
+    matches = []
+    for p in candidates:
+        if not all(re.search(pattern, source) for pattern in p['required_patterns']):
+            continue
+        dsdt_hashes = p.get('reviewed_dsdt_hashes')
+        aml_h = p.get('reviewed_aml_hashes')
+        if dsdt_hashes is not None or aml_h is not None:
+            if digest in (dsdt_hashes or []) or any(h in (aml_h or []) for h in aml_hashes):
+                matches.append(p)
+        elif p.get('verified_writes', 0) == 0 and p.get('native_telemetry'):
+            matches.append(p)
     if len(matches) != 1:
         raise ValueError('No unique reviewed firmware profile matched. The report is ready for a device-support issue.')
     return matches[0]
@@ -94,7 +103,16 @@ def match_profile(source, candidates, aml_hashes=()):
 def render(profile):
     values = dict(profile, profile_name=profile['name'], **profile['offsets'])
     values['verified_writes'] = 1 if profile.get('verified_writes') == 1 else 0
-    source = (ROOT / 'HardwareProfiles/SSDT-ReYoga.template.dsl').read_text(encoding='utf-8')
+    kind = profile.get('bridge_kind')
+    if not kind:
+        kind = 'named-fields-readonly' if profile.get('native_telemetry') else 'raw-offsets'
+    templates = {'raw-offsets': 'SSDT-ReYoga.template.dsl',
+                 'named-fields-readonly': 'SSDT-ReYoga-readonly.template.dsl'}
+    if kind not in templates:
+        raise ValueError('Unsupported bridge kind')
+    if kind == 'named-fields-readonly' and profile.get('verified_writes', 0) != 0:
+        raise ValueError('Read-only bridge cannot validate writes')
+    source = (ROOT / 'HardwareProfiles' / templates[kind]).read_text(encoding='utf-8')
     for key, value in values.items():
         source = source.replace('{{' + key + '}}', str(value))
     if '{{' in source:

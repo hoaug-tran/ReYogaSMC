@@ -773,3 +773,7 @@
 "Choose a different output file to preserve the original DSDT source." = "Choose a different output file to preserve the original DSDT source.";
 "The driver did not provide a valid current value for this control." = "The driver did not provide a valid current value for this control.";
 "Firmware readback did not match before the retry limit." = "Firmware readback did not match before the retry limit.";
+
+"Read-only bridge cannot validate writes" = "Read-only bridge cannot validate writes";
+"Unsupported bridge kind" = "Unsupported bridge kind";
+"ACPI bridge / firmware RPM resolution" = "ACPI bridge / firmware RPM resolution";

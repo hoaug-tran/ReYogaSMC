@@ -775,3 +775,7 @@
 "Choose a different output file to preserve the original DSDT source." = "Chọn file đầu ra khác để giữ nguyên mã nguồn DSDT gốc.";
 "The driver did not provide a valid current value for this control." = "Driver không cung cấp giá trị hiện tại hợp lệ cho điều khiển này.";
 "Firmware readback did not match before the retry limit." = "Giá trị đọc lại từ firmware vẫn không khớp sau số lần thử cho phép.";
+
+"Read-only bridge cannot validate writes" = "Cầu nối chỉ đọc không thể xác nhận quyền ghi";
+"Unsupported bridge kind" = "Loại cầu nối không được hỗ trợ";
+"ACPI bridge / firmware RPM resolution" = "Cầu nối ACPI / độ phân giải RPM của firmware";

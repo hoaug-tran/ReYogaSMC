@@ -716,3 +716,22 @@ print("All support tests passed")
 try probeRGB()
 probeSMC()
 probeIdentity()
+
+let reviewedLegion = HardwareProfiles.all().first { $0["id"] as? String == "legion7-16achg6-gkcn" }!
+let reviewedBridge = try HardwareProfiles.render(reviewedLegion)
+require(reviewedBridge.contains("Return (0x52590101)"), "Named-field bridge must remain v1")
+for unsafe in ["OperationRegion", "RYFS", "RYFA", "RYFF", "NCMD"] {
+    require(!reviewedBridge.contains(unsafe), "Read-only bridge contains a write or raw memory interface")
+}
+var invalidReadOnly = reviewedLegion
+invalidReadOnly["verified_writes"] = 1
+rejects("read-only write validation") { _ = try HardwareProfiles.render(invalidReadOnly) }
+if let path = ProcessInfo.processInfo.environment["REYOGA_TEST_DSDT"] {
+    let aml = try Data(contentsOf: URL(fileURLWithPath: path))
+    let matched = try HardwareProfiles.matchingAML(aml)
+    require(matched["id"] as? String == "legion7-16achg6-gkcn", "Live firmware did not select reviewed profile")
+    let source = try String(contentsOfFile: URL(fileURLWithPath: path).deletingPathExtension().appendingPathExtension("dsl").path, encoding: .utf8)
+    let matchedSource = try HardwareProfiles.matchingDSDT(source)
+    require(matchedSource["id"] as? String == "legion7-16achg6-gkcn", "Source/AML match disagree")
+    print("PASS live DSDT AML/source matching and read-only rendering")
+}

@@ -515,7 +515,7 @@ void IdeaVPC::updateTelemetry() {
         setProperty("SensorSources", sources);
         sources->release();
     }
-    setProperty("TelemetrySource", legionBridge ? "ACPI bridge / precise EC RPM" : nativeProfile ? "Native ACPI / reviewed field units"
+    setProperty("TelemetrySource", legionBridge ? (legionBridgeVersion >= 2 ? "ACPI bridge / precise EC RPM" : "ACPI bridge / firmware RPM resolution") : nativeProfile ? "Native ACPI / reviewed field units"
                                                                                                  : "WMI / firmware RPM resolution");
     if (legionBridge) {
         UInt32 value = 0;
