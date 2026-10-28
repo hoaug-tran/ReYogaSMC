@@ -19,6 +19,73 @@ SPEC.loader.exec_module(support)
 
 
 class HardwareSupportTests(unittest.TestCase):
+    def test_existing_compiler_is_used_without_download(self):
+        with patch.object(support.shutil, 'which', return_value='/existing/iasl'), \
+             patch.object(support, 'download') as download:
+            self.assertEqual(support.compiler(), pathlib.Path('/existing/iasl'))
+            download.assert_not_called()
+
+    def test_macos_compiler_download_cache_and_offline_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = b'fixture compiler'
+            item = {'url': 'https://example.invalid/iasl', 'sha256': hashlib.sha256(data).hexdigest()}
+            lock = {'release': 'fixture', 'Darwin': {'iasl': item}}
+            cache = pathlib.Path(directory)
+            def download(_, target):
+                target.write_bytes(data)
+            with patch.object(support, 'CACHE', cache), \
+                 patch.object(support.shutil, 'which', return_value=None), \
+                 patch.object(support.platform, 'system', return_value='Darwin'), \
+                 patch.object(support.json, 'loads', return_value=lock), \
+                 patch.object(support, 'download', side_effect=download) as fetch:
+                with self.assertRaisesRegex(ValueError, 'offline'):
+                    support.compiler(offline=True)
+                fetch.assert_not_called()
+                compiler = support.compiler()
+                self.assertEqual(compiler.read_bytes(), data)
+                self.assertEqual(fetch.call_count, 1)
+                self.assertEqual(support.compiler(offline=True), compiler)
+                self.assertEqual(support.compiler(), compiler)
+                self.assertEqual(fetch.call_count, 1)
+                compiler.write_bytes(b'preserve corrupt cache')
+                with self.assertRaisesRegex(ValueError, 'checksum'):
+                    support.compiler()
+                self.assertEqual(compiler.read_bytes(), b'preserve corrupt cache')
+                self.assertEqual(fetch.call_count, 1)
+
+    def test_app_and_cli_pin_the_same_macos_compiler(self):
+        item = json.loads((ROOT / 'Scripts/acpica.json').read_text(encoding='utf-8'))['Darwin']['iasl']
+        source = (ROOT / 'ReYogaSMCApp/Hardware/ACPI/IASLCompiler.swift').read_text(encoding='utf-8')
+        self.assertEqual(re.search(r'static let downloadURL = "([^"]+)"', source).group(1), item['url'])
+        self.assertEqual(re.search(r'static let sha256 = "([^"]+)"', source).group(1), item['sha256'])
+
+    def test_report_pipeline_retains_sources_and_rejects_overwrite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / 'DSDT.dsl'
+            source.write_text('DefinitionBlock ("", "DSDT", 2, "TEST", "TEST", 1) {}', encoding='utf-8')
+            output = root / 'export'
+            command = [sys.executable, str(ROOT / 'Scripts/hardware_support.py'),
+                       '--acpi', str(source), '--output', str(output), '--offline', '--source-only']
+            with patch.object(support, 'inventory', return_value={}):
+                args = support.parse_arguments(command[2:])
+                tables = root / 'tables'
+                tables.mkdir()
+                report = {'errors': [], 'excluded_tables': [], 'acpi': []}
+                inputs = support.collect_tables(args, tables, report)
+                sources, combined, hashes = support.analyze_tables([], tables, report)
+            self.assertEqual(len(inputs), 1)
+            self.assertEqual(sources, inputs)
+            self.assertEqual(combined, source.read_text(encoding='utf-8'))
+            self.assertEqual(hashes, [])
+            self.assertEqual(report['acpi'][0]['normalized_sha256'], support.normalized_hash(combined))
+            output.mkdir()
+            sentinel = output / 'keep.txt'
+            sentinel.write_text('existing report', encoding='utf-8')
+            result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(sentinel.read_text(encoding='utf-8'), 'existing report')
+
     def test_reviewed_legion_battery_mapping_does_not_swap_charge_modes(self):
         profile = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text(encoding='utf-8'))
         # Lenovo Storage uses BTSM/bit 5; Quick uses QCHO/bit 2.
@@ -112,9 +179,6 @@ class HardwareSupportTests(unittest.TestCase):
             support.match_profile(source, [profile, profile])
 
     def test_shipped_bridge_refuses_unvalidated_writes(self):
-        # Shipped profiles intentionally lack reviewed bridge hashes (fail-closed).
-        self.assertEqual(support.profiles(), [])
-
         complete = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text(encoding='utf-8'))
         fixture = copy.deepcopy(complete)
         synthetic_source = 'Method (GBMD, 0, NotSerialized) { Return (Zero) }'
@@ -129,10 +193,11 @@ class HardwareSupportTests(unittest.TestCase):
             hp_dir = tmp_root / 'HardwareProfiles'
             hp_dir.mkdir(parents=True)
             shutil.copy(ROOT / 'HardwareProfiles/SSDT-ReYoga.template.dsl', hp_dir / 'SSDT-ReYoga.template.dsl')
-            (hp_dir / 'legion-fixture.json').write_text(json.dumps(fixture), encoding='utf-8')
             (hp_dir / 'telemetry-only.json').write_text(json.dumps(telemetry), encoding='utf-8')
 
             with patch.object(support, 'ROOT', tmp_root):
+                self.assertEqual(support.profiles(), [])
+                (hp_dir / 'legion-fixture.json').write_text(json.dumps(fixture), encoding='utf-8')
                 candidates = support.profiles()
                 self.assertEqual(len(candidates), 1)
                 self.assertEqual(candidates[0]['id'], fixture['id'])

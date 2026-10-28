@@ -46,7 +46,9 @@ class PawnEC:
             'DeviceIoControl': ([w.HANDLE, w.DWORD, w.LPVOID, w.DWORD, w.LPVOID, w.DWORD, ctypes.POINTER(w.DWORD), w.LPVOID], w.BOOL),
         }
         for name, (arguments, result) in signatures.items():
-            fn = getattr(self.api, name); fn.argtypes = arguments; fn.restype = result
+            function = getattr(self.api, name)
+            function.argtypes = arguments
+            function.restype = result
         try:
             self.handle = self.api.CreateFileW(r'\\?\GLOBALROOT\Device\PawnIO', 3, 3, None, 3, 0x80, None)
             if self.handle == ctypes.c_void_p(-1).value:
@@ -61,7 +63,8 @@ class PawnEC:
                 raise RuntimeError('EC mutex unavailable or abandoned; snapshot cancelled')
             self.ioctl(0x821, module, 0)
         except Exception:
-            self.close(); raise
+            self.close()
+            raise
 
     def ioctl(self, code, data, count):
         source = ctypes.create_string_buffer(data)
@@ -87,11 +90,13 @@ class PawnEC:
 
     def close(self):
         if self.locked:
-            self.api.ReleaseMutex(self.mutex); self.locked = False
+            self.api.ReleaseMutex(self.mutex)
+            self.locked = False
         for name in ('mutex', 'handle'):
             value = getattr(self, name, None)
             if value:
-                self.api.CloseHandle(value); setattr(self, name, None)
+                self.api.CloseHandle(value)
+                setattr(self, name, None)
 
 
 def module_binary(offline):
@@ -132,14 +137,16 @@ def collect(output, source, enabled=False, offline=False):
                     data = handle.read(256)
                 if len(data) != 256:
                     raise IOError(f'{path}: expected 256 bytes, received {len(data)}')
-                name = f'ec-{index}.bin'; (output / name).write_bytes(data)
+                name = f'ec-{index}.bin'
+                (output / name).write_bytes(data)
                 result['controllers'].append({'source': str(path), 'file': name, 'sha256': hashlib.sha256(data).hexdigest(), 'bytes': list(data)})
         elif platform.system() == 'Windows':
             result['backend'] = 'PawnIO LpcACPIEC'
             if 'PNP0C09' not in source or not all(re.search(r'0x0*' + x + r'\b', source, re.I) for x in ('62', '66')):
                 raise ValueError('A complete disassembled ACPI EC declaration with ports 0x62/0x66 is required for this backend')
             backend = PawnEC(module_binary(offline))
-            values = []; failures = []
+            values = []
+            failures = []
             for offset in range(256):
                 try:
                     value = read_byte(backend.read_port, backend.write_port, offset)
@@ -152,7 +159,9 @@ def collect(output, source, enabled=False, offline=False):
                     break  # Do not continue after an uncertain controller transaction.
             controller = {'bytes': values, 'failures': failures}
             if not failures:
-                data = bytes(values); name = 'ec-0.bin'; (output / name).write_bytes(data)
+                data = bytes(values)
+                name = 'ec-0.bin'
+                (output / name).write_bytes(data)
                 controller.update(file=name, sha256=hashlib.sha256(data).hexdigest())
             result['controllers'] = [controller]
             result['status'] = 'partial' if failures else 'collected'

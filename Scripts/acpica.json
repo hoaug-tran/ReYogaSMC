@@ -4,6 +4,12 @@
     "url": "https://github.com/open-acpica/acpica/releases/download/20260408/acpica-unix-20260408.tar.gz",
     "sha256": "e66ceb26d6d514ce164fe22f5a4f7ca165cc38349d7a97f41a21f19b364647a2"
   },
+  "Darwin": {
+    "iasl": {
+      "url": "https://raw.githubusercontent.com/acidanthera/MaciASL/97ed950d2811b0b4cc802abc337316e16dd6aeeb/Dist/iasl-stable",
+      "sha256": "93f1f48e6f1ea26b14b45f4a0b6e65a660c1cc6f14969348ec9411ae6b969c12"
+    }
+  },
   "Windows": {
     "iasl": {
       "url": "https://github.com/open-acpica/acpica/releases/download/20260408/iasl.exe",
