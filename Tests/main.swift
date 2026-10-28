@@ -441,6 +441,14 @@ func testDiagnostics() throws {
     let limitedErrors = try Data(contentsOf: collectorFolder.appendingPathComponent("limited.stderr.txt"))
     require(limitedOutput == Data("12345678".utf8) && limitedErrors == Data("abcdefgh".utf8),
             "Diagnostic output must preserve each bounded stream")
+    let exitedLimited = try DiagnosticCollector.run("/bin/sh", ["-c", "printf '123456789'"],
+        name: "exited-limited", folder: collectorFolder, maximumBytes: 8)
+    require(exitedLimited["state"] as? String == "output_limit", "Exited command hid oversized output")
+    require(exitedLimited["truncatedStreams"] as? [String] == ["exited-limited.txt"],
+            "Exited command truncation lost stream identity")
+    let exactOutput = try DiagnosticCollector.run("/bin/sh", ["-c", "printf '12345678'"],
+        name: "exact", folder: collectorFolder, maximumBytes: 8)
+    require(exactOutput["state"] as? String == "completed", "Exact output limit was rejected")
     let nestedDiagnostic = DiagnosticSnapshot.value(["items": [["SerialNumber": "private"]]]) as! [String: Any]
     require((nestedDiagnostic["items"] as? [[String: Any]])?.first?["SerialNumber"] as? String == "redacted", "Nested diagnostic recursion failed")
 }

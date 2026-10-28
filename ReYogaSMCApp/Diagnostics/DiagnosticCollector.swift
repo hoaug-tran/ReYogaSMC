@@ -56,8 +56,8 @@ enum DiagnosticCollector {
         var stopped: String?
         while process.isRunning {
             let elapsed = ProcessInfo.processInfo.systemUptime - start
-            let outputSize = (try? output.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-            let errorSize = (try? errors.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+            let outputSize = (try? FileManager.default.attributesOfItem(atPath: output.path)[.size] as? NSNumber)?.intValue ?? 0
+            let errorSize = (try? FileManager.default.attributesOfItem(atPath: errors.path)[.size] as? NSNumber)?.intValue ?? 0
             if elapsed >= timeout || max(outputSize, errorSize) > maximumBytes {
                 stopped = elapsed >= timeout ? "timeout" : "output_limit"
                 process.terminate()
@@ -80,7 +80,8 @@ enum DiagnosticCollector {
                 truncatedStreams.append(file.lastPathComponent)
             }
         }
-        result["state"] = stopped ?? (process.terminationStatus == 0 ? "completed" : "command_failed")
+        result["state"] = stopped ?? (!truncatedStreams.isEmpty ? "output_limit" :
+            process.terminationStatus == 0 ? "completed" : "command_failed")
         result["truncatedStreams"] = truncatedStreams
         result["exitStatus"] = process.terminationStatus
         result["terminationReason"] = process.terminationReason.rawValue
