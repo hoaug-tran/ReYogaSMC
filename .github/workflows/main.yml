@@ -19,10 +19,10 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
         with:
           python-version: '3.11'
       - name: Install ACPI compiler
@@ -32,6 +32,8 @@ jobs:
           sudo apt-get install --no-install-recommends -y acpica-tools
       - name: Test support tools and release policy
         run: python -B -m unittest discover -s Tests -p "test_*.py"
+      - name: Check shared formatting rules
+        run: python -B Scripts/check_format.py
   build:
     name: Build and package
     needs: test
@@ -40,7 +42,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       publish: ${{ steps.version.outputs.publish }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -55,7 +57,9 @@ jobs:
         env:
           BUILD_VERSION: ${{ steps.version.outputs.version }}
         run: |
+          python3 Scripts/release.py snapshot --snapshot build/Debug-source.json
           xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Debug CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO > build/debug.log 2>&1 || { tail -n 100 build/debug.log; exit 1; }
+          python3 Scripts/release.py snapshot --snapshot build/Release-source.json
           xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Release CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO > build/release.log 2>&1 || { tail -n 100 build/release.log; exit 1; }
       - name: Sign and verify apps
         run: |
@@ -69,10 +73,12 @@ jobs:
       - name: Render interface
         timeout-minutes: 3
         run: |
-          export REYOGA_UI_REVIEW_DIR="$PWD/build"
           export REYOGA_UI_FIXTURE="$PWD/Tests/ui-fixture.json"
-          build/Debug/ReYogaSMC.app/Contents/MacOS/ReYogaSMC --render-ui
-          test "$(find build/ReYogaUIReview -name '*.png' | wc -l | tr -d ' ')" -eq 26
+          for language in en vi; do
+            export REYOGA_UI_REVIEW_DIR="$PWD/build/ui-$language"
+            build/Debug/ReYogaSMC.app/Contents/MacOS/ReYogaSMC --render-ui -AppleLanguages "($language)"
+            test "$(find "$REYOGA_UI_REVIEW_DIR/ReYogaUIReview" -name '*.png' | wc -l | tr -d ' ')" -eq 26
+          done
       - name: Package
         if: github.event_name != 'pull_request'
         env:
@@ -81,14 +87,14 @@ jobs:
           bash Scripts/package.sh Debug
           bash Scripts/package.sh Release
           python3 Scripts/release.py verify-assets --version "$BUILD_VERSION"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         if: always()
         with:
           name: build-logs-and-ui
           path: |
             build/*.log
-            build/ReYogaUIReview/*.png
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+            build/ui-*/ReYogaUIReview/*.png
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         if: github.event_name != 'pull_request'
         with:
           name: ReYogaSMC-development
@@ -108,7 +114,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: ReYogaSMC-development
           path: build/
@@ -133,7 +139,7 @@ jobs:
             git tag -a "$tag" -m "$tag"
             git push --atomic origin HEAD:main "refs/tags/$tag"
           fi
-          assets=(build/packages/Debug/*.zip build/packages/Release/*.zip build/packages/SHA256SUMS.txt)
+          assets=(build/packages/Debug/*.zip build/packages/Release/*.zip build/packages/SHA256SUMS.txt build/packages/BUILD_PROVENANCE.json)
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "${assets[@]}" --clobber
             gh release edit "$tag" --notes-file build/release-notes.md

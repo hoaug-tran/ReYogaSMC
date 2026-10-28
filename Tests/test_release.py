@@ -1,4 +1,5 @@
 import hashlib
+import json
 import importlib.util
 import pathlib
 import plistlib
@@ -15,6 +16,35 @@ spec.loader.exec_module(release)
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_source_snapshot_detects_changed_and_untracked_inputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            def git(*args):
+                return subprocess.check_output(['git', *args], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
+            git('init')
+            (root / '.gitignore').write_text('/build/\n')
+            (root / 'driver.cpp').write_text('int initial;')
+            git('add', '.')
+            git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-m', 'baseline')
+            with patch.object(release, 'ROOT', root):
+                release.require_clean_source()
+                snapshot = release.source_snapshot()
+                output = root / 'build/source.json'
+                output.parent.mkdir()
+                output.write_text(json.dumps(snapshot))
+                self.assertEqual(release.verify_snapshot(output), snapshot)
+                (root / 'driver.cpp').write_text('int changed;')
+                with self.assertRaisesRegex(ValueError, 'Source changed'):
+                    release.verify_snapshot(output)
+                with self.assertRaisesRegex(ValueError, 'uncommitted'):
+                    release.require_clean_source()
+                (root / 'driver.cpp').write_text('int initial;')
+                (root / 'new.cpp').write_text('int untracked;')
+                with self.assertRaisesRegex(ValueError, 'Source changed'):
+                    release.verify_snapshot(output)
+                with self.assertRaisesRegex(ValueError, 'uncommitted'):
+                    release.require_clean_source()
+
     def test_semantic_bump_precedence(self):
         self.assertEqual(release.bump('2.0.0', ['fix(driver): bound EC reads']), '2.0.1')
         self.assertEqual(release.bump('2.0.0', ['fix: bounds', 'feat(app): keyboard controls']), '2.1.0')
@@ -22,9 +52,9 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(release.bump('2.0.0', ['fix: protocol\n\nBREAKING CHANGE: new selectors']), '3.0.0')
 
     def test_shipped_changes_only(self):
-        for path in ['ReYogaSMC/WMI.cpp', 'ReYogaSMCApp/HardwareViews.swift', 'Scripts/dependencies.json']:
+        for path in ['ReYogaSMC/WMI.cpp', 'ReYogaSMCApp/Views/Controls/HardwareControlsView.swift', 'Scripts/dependencies.json']:
             self.assertTrue(release.shipped(path), path)
-        for path in ['README.md', 'Tests/test_release.py', '.github/workflows/main.yml', 'HardwareProfiles/README.md', 'Scripts/release.py']:
+        for path in ['README.md', 'Tests/test_release.py', '.github/workflows/main.yml', 'HardwareProfiles/README.md', 'Scripts/release.py', 'Scripts/check_format.py', 'Scripts/test-support.sh']:
             self.assertFalse(release.shipped(path), path)
 
     def test_changelog_body_is_release_body(self):
@@ -59,6 +89,17 @@ class ReleaseTests(unittest.TestCase):
                         archive.writestr(member, plistlib.dumps({'CFBundleShortVersionString': '2.0.0'})
                                          if member.endswith('/Info.plist') else b'content')
             release.verify_assets(root, '2.0.0')
+
+            provenance = {'revision': 'fixture-sha', 'files': {'driver.cpp': 'fixture-hash'}}
+            for mode in ('Debug', 'Release'):
+                (root / mode / 'source-manifest.json').write_text(json.dumps(provenance))
+            release.verify_assets(root, '2.0.0', require_provenance=True)
+            emitted = json.loads((root / 'BUILD_PROVENANCE.json').read_text())
+            self.assertEqual(len(emitted['artifacts']), 4)
+            self.assertEqual(emitted['sources']['Debug'], provenance)
+            (root / 'Release/source-manifest.json').write_text(json.dumps({**provenance, 'files': {'driver.cpp': 'different'}}))
+            with self.assertRaisesRegex(ValueError, 'different source snapshots'):
+                release.verify_assets(root, '2.0.0', require_provenance=True)
             checksum_lines = (root / 'SHA256SUMS.txt').read_text(encoding='utf-8').splitlines()
             self.assertEqual(len(checksum_lines), 4)
             for line in checksum_lines:

@@ -58,6 +58,9 @@ class BuildSafetyTests(unittest.TestCase):
 
         shutil.copy2(ROOT / "Scripts/build.sh", scripts / "build.sh")
         shutil.copy2(ROOT / "Scripts/clean-build.sh", scripts / "clean-build.sh")
+        shutil.copy2(ROOT / "Scripts/release.py", scripts / "release.py")
+        (repo / '.gitignore').write_text('/build/\n', encoding='utf-8')
+        subprocess.run(['git', 'init', '--quiet'], cwd=repo, check=True)
 
         bin_dir = pathlib.Path(temp_dir) / "bin"
         bin_dir.mkdir()
@@ -72,6 +75,9 @@ class BuildSafetyTests(unittest.TestCase):
         with fake_sign.open('w', encoding='utf-8', newline='\n') as handle:
             handle.write(f"#!/bin/sh\necho \"$@\" >> \"{sign_log.as_posix()}\"\nexit 0\n")
         fake_sign.chmod(0o777)
+        subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid',
+                        'commit', '--quiet', '-m', 'fixture'], cwd=repo, check=True)
 
         env = os.environ.copy()
         env["PATH"] = f"{bin_dir.as_posix()}{os.pathsep}{env.get('PATH', '')}"

@@ -13,6 +13,10 @@ if [ "$(git -C "$bootstrap_root/MacKernelSDK" rev-parse HEAD)" != "$bootstrap_re
     echo 'MacKernelSDK differs from the dependency lock. Preserve local changes and select the locked revision explicitly.' >&2
     exit 1
 fi
+if [ -n "$(git -C "$bootstrap_root/MacKernelSDK" status --porcelain --untracked-files=all)" ]; then
+    echo 'MacKernelSDK has local changes. Preserve them before using the locked build dependencies.' >&2
+    exit 1
+fi
 for bootstrap_name in Lilu VirtualSMC; do
     bootstrap_version="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]]["version"])' "$bootstrap_root/Scripts/dependencies.json" "$bootstrap_name")"
     bootstrap_sha="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]]["sha256"])' "$bootstrap_root/Scripts/dependencies.json" "$bootstrap_name")"
@@ -26,6 +30,10 @@ for bootstrap_name in Lilu VirtualSMC; do
     if [ -d "$bootstrap_root/$bootstrap_name.kext" ]; then
         bootstrap_installed="$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$bootstrap_root/$bootstrap_name.kext/Contents/Info.plist")"
         if [ "$bootstrap_installed" != "$bootstrap_version" ]; then echo "Existing $bootstrap_name.kext differs; preserve it before replacing the SDK." >&2; exit 1; fi
+        if ! diff -qr "$bootstrap_root/$bootstrap_name.kext" "$bootstrap_source" >/dev/null; then
+            echo "Existing $bootstrap_name.kext bytes differ from the locked archive. Preserve local changes before replacing the SDK." >&2
+            exit 1
+        fi
     else
         cp -R "$bootstrap_source" "$bootstrap_root/"
     fi

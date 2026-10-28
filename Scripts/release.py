@@ -25,6 +25,27 @@ def version_tuple(value):
     return tuple(map(int, value.split('.')))
 
 
+def require_clean_source():
+    changed = git('diff', '--name-only', 'HEAD').splitlines()
+    untracked = git('ls-files', '--others', '--exclude-standard').splitlines()
+    if any(path not in METADATA for path in changed + untracked):
+        raise ValueError('Release source has uncommitted files; commit the reviewed source before preparing a release')
+
+
+def source_snapshot():
+    paths = git('ls-files', '--cached', '--others', '--exclude-standard', '-z').split('\0')
+    files = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+             for name in sorted(set(paths)) if name and (ROOT / name).is_file()}
+    return {'revision': git('rev-parse', 'HEAD'), 'files': files}
+
+
+def verify_snapshot(path):
+    snapshot = json.loads(pathlib.Path(path).read_text(encoding='utf-8'))
+    if snapshot['files'] != source_snapshot()['files']:
+        raise ValueError('Source changed after build; rebuild before packaging')
+    return snapshot
+
+
 def project_version(text):
     values = set(re.findall(r'CURRENT_PROJECT_VERSION = ([0-9.]+);', text))
     if len(values) != 1:
@@ -46,11 +67,11 @@ def bump(version, messages):
 def shipped(path):
     if path.endswith('.md'):
         return False
-    if path.startswith(('ReYogaSMC/', 'ReYogaSMCApp/', 'ReYogaSMCUtils/', 'ReYogaSMCHelper/', 'HardwareProfiles/')):
+    if path.startswith(('ReYogaSMC/', 'ReYogaSMCApp/', 'ReYogaSMCHelper/', 'HardwareProfiles/')):
         return True
     return path in ('en.lproj/Localizable.strings', 'vi.lproj/Localizable.strings',
                     'ReYoga.cmd', 'ReYoga.command', PROJECT.as_posix()) or (
-        path.startswith('Scripts/') and pathlib.PurePosixPath(path).name not in ('release.py', 'generate_firmware_profiles.py'))
+        path.startswith('Scripts/') and pathlib.PurePosixPath(path).name not in ('release.py', 'generate_firmware_profiles.py', 'check_format.py', 'test-support.sh'))
 
 
 def section(text, heading):
@@ -107,7 +128,7 @@ def package_manifest(version):
             for mode in ('Debug', 'Release') for product, members in executables.items()}
 
 
-def verify_assets(folder, version=None):
+def verify_assets(folder, version=None, require_provenance=False):
     folder = pathlib.Path(folder)
     version = version or os.environ.get('BUILD_VERSION') or project_version((ROOT / PROJECT).read_text(encoding='utf-8'))
     manifest = package_manifest(version)
@@ -135,15 +156,31 @@ def verify_assets(folder, version=None):
                 raise ValueError('Corrupt ZIP: ' + name)
         lines.append(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path.name)
     (folder / 'SHA256SUMS.txt').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    if require_provenance:
+        sources = {mode: json.loads((folder / mode / 'source-manifest.json').read_text(encoding='utf-8'))
+                   for mode in ('Debug', 'Release')}
+        if sources['Debug']['files'] != sources['Release']['files']:
+            raise ValueError('Debug and Release were built from different source snapshots')
+        provenance = {'sources': sources, 'artifacts': {line.split('  ', 1)[1]: line.split('  ', 1)[0] for line in lines}}
+        (folder / 'BUILD_PROVENANCE.json').write_text(json.dumps(provenance, indent=2) + '\n', encoding='utf-8')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('plan', 'prepare', 'verify-assets', 'verify-tag'))
+    parser.add_argument('command', choices=('plan', 'prepare', 'verify-assets', 'verify-tag', 'snapshot', 'verify-snapshot'))
+    parser.add_argument('--snapshot', default='build/source-manifest.json')
     parser.add_argument('--plan', default='build/release-plan.json')
     parser.add_argument('--assets', default='build/packages')
     parser.add_argument('--version')
     args = parser.parse_args()
+    if args.command in ('snapshot', 'verify-snapshot'):
+        path = pathlib.Path(args.snapshot)
+        if args.command == 'snapshot':
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(source_snapshot(), indent=2) + '\n', encoding='utf-8')
+        else:
+            verify_snapshot(path)
+        return
     if args.command == 'plan':
         result = plan()
         path = ROOT / args.plan
@@ -154,8 +191,9 @@ def main():
                 output.write(f"version={result['version']}\npublish={str(result['publish']).lower()}\n")
         print(json.dumps({key: result[key] for key in ('version', 'publish', 'revision')}))
     elif args.command == 'verify-assets':
-        verify_assets(ROOT / args.assets, args.version)
+        verify_assets(ROOT / args.assets, args.version, require_provenance=True)
     else:
+        require_clean_source()
         result = json.loads((ROOT / args.plan).read_text(encoding='utf-8'))
         version = result['version']
         version_tuple(version)

@@ -26,6 +26,7 @@ obj_root="${OBJROOT_PATH:-$build_dir/Intermediates}"
 mkdir -p "$build_dir"
 
 cd "$root"
+python3 Scripts/release.py snapshot --snapshot "$build_dir/$configuration-source.json"
 xcodebuild -project ReYogaSMC.xcodeproj \
     -scheme BuildAll \
     -configuration "$configuration" \
