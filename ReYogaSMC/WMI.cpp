@@ -27,17 +27,16 @@
 #include <libkern/OSAtomic.h>
 #include <pexpert/pexpert.h>
 
-#define kWMIMethod      "_WDG"
+#define kWMIMethod "_WDG"
 
-#define ACPINotifyName  "_WED" // Arg0 = notification code
-#define ACPIBufferName  "WQ%s" // MOF
+#define ACPINotifyName "_WED"  // Arg0 = notification code
+#define ACPIBufferName "WQ%s"  // MOF
 #define ACPIDataSetName "WS%s" // Arg0 = index, Arg1 = buffer
-#define ACPIMethodName  "WM%s" // ACPI_WMI_METHOD, Arg0 = index, Arg1 = ID, Arg2 = input
-#define ACPIEventName   "WE%02X" // ACPI_WMI_EXPENSIVE, Arg0 = 0 to disable and 1 to enable
+#define ACPIMethodName "WM%s"  // ACPI_WMI_METHOD, Arg0 = index, Arg1 = ID, Arg2 = input
+#define ACPIEventName "WE%02X" // ACPI_WMI_EXPENSIVE, Arg0 = 0 to disable and 1 to enable
 #define ACPICollectName "WC%s" // Arg0 = 0 to disable and 1 to enable
 
-struct __attribute__((packed)) WMI_DATA
-{
+struct __attribute__((packed)) WMI_DATA {
     uuid_t guid;
     union {
         char object_id[2];
@@ -52,61 +51,56 @@ struct __attribute__((packed)) WMI_DATA
 
 #define WMI_DATA_SIZE sizeof(WMI_DATA)
 
-extern "C" int ds_dec(void* pin,int lin, void* pout, int lout, int flg);
+extern "C" int ds_dec(void *pin, int lin, void *pout, int lout, int flg);
 
 // Convert UUID to little endian
-void le_uuid_dec(uuid_t *in, uuid_t *out)
-{
-    *(reinterpret_cast<uint32_t *>(out) + 0) = OSSwapInt32(*(reinterpret_cast<uint32_t *>(in) + 0));
-    *(reinterpret_cast<uint16_t *>(out) + 2) = OSSwapInt16(*(reinterpret_cast<uint16_t *>(in) + 2));
-    *(reinterpret_cast<uint16_t *>(out) + 3) = OSSwapInt16(*(reinterpret_cast<uint16_t *>(in) + 3));
-    *(reinterpret_cast<uint64_t *>(out) + 1) =            (*(reinterpret_cast<uint64_t *>(in) + 1));
+void le_uuid_dec(uuid_t *in, uuid_t *out) {
+    auto source = reinterpret_cast<const UInt8 *>(in);
+    auto destination = reinterpret_cast<UInt8 *>(out);
+    for (unsigned i = 0; i < 4; ++i)
+        destination[i] = source[3 - i];
+    destination[4] = source[5]; destination[5] = source[4];
+    destination[6] = source[7]; destination[7] = source[6];
+    memcpy(destination + 8, source + 8, 8);
 }
 
 // parseWMIFlags - Parse WMI flags to a string
-OSString * parseWMIFlags(UInt8 flags)
-{
+OSString *parseWMIFlags(UInt8 flags) {
     char output[80];
 
     memset(&output, 0, sizeof(output));
 
-    if (flags != 0)
-    {
-        if (flags & ACPI_WMI_EXPENSIVE)
-        {
+    if (flags != 0) {
+        if (flags & ACPI_WMI_EXPENSIVE) {
             strlcat(output, "ACPI_WMI_EXPENSIVE ", 80);
         }
-        
-        if (flags & ACPI_WMI_METHOD)
-        {
+
+        if (flags & ACPI_WMI_METHOD) {
             strlcat(output, "ACPI_WMI_METHOD ", 80);
         }
-        
-        if (flags & ACPI_WMI_STRING)
-        {
+
+        if (flags & ACPI_WMI_STRING) {
             strlcat(output, "ACPI_WMI_STRING ", 80);
         }
-        
-        if (flags & ACPI_WMI_EVENT)
-        {
+
+        if (flags & ACPI_WMI_EVENT) {
             strlcat(output, "ACPI_WMI_EVENT ", 80);
         }
-    }
-    else
-    {
+    } else {
         strlcat(output, "NONE ", 6);
     }
 
     return (OSString::withCString(output));
 }
 
-bool WMI::traceFirmwareCall()
-{
-    if (!firmwareTrace) return false;
+bool WMI::traceFirmwareCall() {
+    if (!firmwareTrace)
+        return false;
     UInt32 calls = firmwareTraceCalls;
     while (calls < 128) {
         if (OSCompareAndSwap(calls, calls + 1, &firmwareTraceCalls)) {
-            if (calls == 127) AlwaysLog("Firmware trace limit reached; suppressing subsequent calls");
+            if (calls == 127)
+                AlwaysLog("Firmware trace limit reached; suppressing subsequent calls");
             return true;
         }
         calls = firmwareTraceCalls;
@@ -114,8 +108,7 @@ bool WMI::traceFirmwareCall()
     return false;
 }
 
-bool WMI::initialize()
-{
+bool WMI::initialize() {
     if (!mDevice)
         return false;
 
@@ -133,24 +126,25 @@ bool WMI::initialize()
     return true;
 }
 
-WMI::~WMI()
-{
+WMI::~WMI() {
     OSSafeReleaseNULL(mData);
     OSSafeReleaseNULL(mEvent);
 }
 
 // Parse the _WDG method output for WMI data blocks
-bool WMI::extractData()
-{
+bool WMI::extractData() {
     OSObject *wdg = nullptr;
     OSData *data;
 
     const bool trace = traceFirmwareCall();
-    if (trace) AlwaysLog("Firmware begin: ACPI=%s", kWMIMethod);
+    if (trace)
+        AlwaysLog("Firmware begin: ACPI=%s", kWMIMethod);
     const IOReturn status = mDevice->evaluateObject(kWMIMethod, &wdg);
-    if (trace) AlwaysLog("Firmware end: ACPI=%s status=0x%x", kWMIMethod, status);
+    if (trace)
+        AlwaysLog("Firmware end: ACPI=%s status=0x%x", kWMIMethod, status);
     if (status != kIOReturnSuccess) {
         AlwaysLog("Failed to evaluate ACPI object %s", kWMIMethod);
+        OSSafeReleaseNULL(wdg);
         return false;
     }
 
@@ -169,69 +163,76 @@ bool WMI::extractData()
     }
     int count = data->getLength() / WMI_DATA_SIZE;
 
-    for (int i = 0; i < count; i++)
-        parseWDGEntry((struct WMI_DATA*)data->getBytesNoCopy(i * WMI_DATA_SIZE, WMI_DATA_SIZE));
+    for (int i = 0; i < count; i++) {
+        if (!parseWDGEntry((struct WMI_DATA *)data->getBytesNoCopy(i * WMI_DATA_SIZE, WMI_DATA_SIZE))) {
+            data->release();
+            return false;
+        }
+    }
 
     data->release();
     return true;
 }
 
 // Parse WDG datablock into an OSArray
-void WMI::parseWDGEntry(struct WMI_DATA* block)
-{
+bool WMI::parseWDGEntry(struct WMI_DATA *block) {
+    if (!block)
+        return false;
     char guid_string[37];
     char notify_id_string[3];
     char object_id_string[3];
     OSDictionary *dict = OSDictionary::withCapacity(7);
-    OSObject *value;
+    if (!dict)
+        return false;
+    OSObject *value = parseWMIFlags(block->flags);
+    if (!value) {
+        dict->release();
+        return false;
+    }
 
     uuid_t hostUUID;
 
     le_uuid_dec(&block->guid, &hostUUID);
     uuid_unparse_lower(hostUUID, guid_string);
 
-    setPropertyString(dict, kWMIGuid, guid_string);
+    bool complete = ReYogaProperty::setString(dict, kWMIGuid, guid_string);
 
     if (block->flags & ACPI_WMI_EVENT) {
-        setPropertyNumber(dict, kWMINotifyId, block->notify_id, 8);
+        complete = ReYogaProperty::setNumber(dict, kWMINotifyId, block->notify_id, 8) && complete;
         snprintf(notify_id_string, 3, "%2x", block->notify_id);
-        mEvent->setObject(notify_id_string, dict);
     } else {
         snprintf(object_id_string, 3, "%c%c", block->object_id[0], block->object_id[1]);
-        setPropertyString(dict, kWMIObjectId, object_id_string);
+        complete = ReYogaProperty::setString(dict, kWMIObjectId, object_id_string) && complete;
     }
 
-    setPropertyNumber(dict, kWMIInstanceCount, block->instance_count, 8);
-    setPropertyNumber(dict, kWMIFlags, block->flags, 8);
-    value = parseWMIFlags(block->flags);
-    dict->setObject(kWMIFlagsText, value);
+    complete = ReYogaProperty::setNumber(dict, kWMIInstanceCount, block->instance_count, 8) && complete;
+    complete = ReYogaProperty::setNumber(dict, kWMIFlags, block->flags, 8) && complete;
+    const bool flagsStored = dict->setObject(kWMIFlagsText, value);
     value->release();
 #ifdef DEBUG
-    setPropertyBytes(dict, "raw", block, WMI_DATA_SIZE);
+    ReYogaProperty::setBytes(dict, "raw", block, WMI_DATA_SIZE);
 #endif
-    mData->setObject(guid_string, dict);
+    const bool stored = complete && flagsStored && mData->setObject(guid_string, dict) &&
+                        (!(block->flags & ACPI_WMI_EVENT) || mEvent->setObject(notify_id_string, dict));
     dict->release();
+    return stored;
 }
 
-OSDictionary* WMI::getMethod(const char * guid, UInt8 flg, bool mute)
-{
-    if (mData && mData->getCount() > 0)
-    {
+OSDictionary *WMI::getMethod(const char *guid, UInt8 flg, bool mute) {
+    if (mData && mData->getCount() > 0) {
         OSDictionary *entry = OSDynamicCast(OSDictionary, mData->getObject(guid));
         if (!entry)
             return nullptr;
-
 
         OSNumber *flags = OSDynamicCast(OSNumber, entry->getObject(kWMIFlags));
         if (flags && (!flg || (flags->unsigned32BitValue() & flg)))
             return entry;
     }
-    
+
     return nullptr;
 }
 
-bool WMI::hasMethod(const char * guid, UInt8 flg)
-{
+bool WMI::hasMethod(const char *guid, UInt8 flg) {
     OSDictionary *method = getMethod(guid, flg);
 
     if (!method)
@@ -252,15 +253,16 @@ bool WMI::hasMethod(const char * guid, UInt8 flg)
     return false;
 }
 
-bool WMI::executeMethod(const char * guid, OSObject ** result, OSObject * params[], IOItemCount paramCount, bool mute)
-{
+bool WMI::executeMethod(const char *guid, OSObject **result, OSObject *params[], IOItemCount paramCount, bool mute) {
     char methodName[5];
 
     OSDictionary *method = getMethod(guid, 0, mute);
-    if (!method) return false;
+    if (!method)
+        return false;
 
     OSNumber *flags = OSDynamicCast(OSNumber, method->getObject(kWMIFlags));
-    if (flags == nullptr) return false;
+    if (flags == nullptr)
+        return false;
 
     OSString *objectId = OSDynamicCast(OSString, method->getObject(kWMIObjectId));
     OSNumber *notifyId = OSDynamicCast(OSNumber, method->getObject(kWMINotifyId));
@@ -290,17 +292,18 @@ bool WMI::executeMethod(const char * guid, OSObject ** result, OSObject * params
     if (!mute)
         DebugLog("Calling method %s", methodName);
     const bool trace = traceFirmwareCall();
-    if (trace) AlwaysLog("Firmware begin: ACPI=%s guid=%s", methodName, guid);
+    if (trace)
+        AlwaysLog("Firmware begin: ACPI=%s guid=%s", methodName, guid);
     const IOReturn status = mDevice->evaluateObject(methodName, result, params, paramCount);
-    if (trace) AlwaysLog("Firmware end: ACPI=%s guid=%s status=0x%x", methodName, guid, status);
+    if (trace)
+        AlwaysLog("Firmware end: ACPI=%s guid=%s status=0x%x", methodName, guid, status);
     if (status != kIOReturnSuccess)
         return false;
 
     return true;
 }
 
-bool WMI::executeInteger(const char * guid, UInt32 * result, OSObject * params[], IOItemCount paramCount, bool mute)
-{
+bool WMI::executeInteger(const char *guid, UInt32 *result, OSObject *params[], IOItemCount paramCount, bool mute) {
     bool ret = false;
     OSObject *obj = nullptr;
     if (executeMethod(guid, &obj, params, paramCount, mute)) {
@@ -310,15 +313,18 @@ bool WMI::executeInteger(const char * guid, UInt32 * result, OSObject * params[]
             *result = num->unsigned32BitValue();
         }
     }
-    if (obj) obj->release();
+    if (obj)
+        obj->release();
     return ret;
 }
 
-bool WMI::enableEvent(const char * guid, bool enable)
-{
+bool WMI::enableEvent(const char *guid, bool enable) {
     OSObject *params[] = {
         OSNumber::withNumber(enable, 8),
     };
+
+    if (!params[0])
+        return false;
 
     bool ret = executeMethod(guid, nullptr, params, 1);
     params[0]->release();
@@ -326,11 +332,16 @@ bool WMI::enableEvent(const char * guid, bool enable)
     return ret;
 }
 
-bool WMI::getEventData(UInt32 event, OSObject **result)
-{
+bool WMI::getEventData(UInt32 event, OSObject **result) {
+    if (!result)
+        return false;
+    *result = nullptr;
     OSObject *params[] = {
         OSNumber::withNumber(event, 32),
     };
+
+    if (!params[0])
+        return false;
 
     IOReturn ret = mDevice->evaluateObject(ACPINotifyName, result, params, 1);
     params[0]->release();
@@ -338,8 +349,7 @@ bool WMI::getEventData(UInt32 event, OSObject **result)
     return (ret == kIOReturnSuccess);
 }
 
-UInt8 WMI::getInstanceCount(const char *guid)
-{
+UInt8 WMI::getInstanceCount(const char *guid) {
     OSDictionary *method = getMethod(guid, 0);
 
     if (!method)
@@ -352,16 +362,14 @@ UInt8 WMI::getInstanceCount(const char *guid)
     return instanceCount->unsigned8BitValue();
 }
 
-void WMI::start()
-{
+void WMI::start() {
     AlwaysLog("Boot stage: parsing WMI BMF");
     parseBMF();
     AlwaysLog("Boot stage: WMI BMF parsing finished");
     mDevice->setProperty("WDG", mData);
 }
 
-bool WMI::parseBMF()
-{
+bool WMI::parseBMF() {
     OSObject *bmf = nullptr;
     if (!executeMethod(BMF_DATA_WMI_BUFFER, &bmf)) {
         AlwaysLog("Failed to evaluate BMF data");
@@ -383,14 +391,14 @@ bool WMI::parseBMF()
     }
 
     uint32_t *pin = (uint32_t *)(data->getBytesNoCopy());
-    if (pin[0] != 0x424D4F46 || pin[1] != 0x01 || pin[2] != len-16) {
+    if (pin[0] != 0x424D4F46 || pin[1] != 0x01 || pin[2] != len - 16) {
         AlwaysLog("BMF format invalid");
         data->release();
         return false;
     }
 
 #ifdef DEBUG
-    mDevice->setProperty("BMF size", data->getLength(), sizeof(unsigned int)*8);
+    mDevice->setProperty("BMF size", data->getLength(), sizeof(unsigned int) * 8);
 #endif
     uint32_t size = pin[3];
     // Bounded diagnostic metadata cannot exhaust kernel memory on malformed firmware.
@@ -400,8 +408,11 @@ bool WMI::parseBMF()
         return false;
     }
     char *pout = new char[size];
-    if (!pout) { data->release(); return false; }
-    if (ds_dec((char *)pin+16, len-16, pout, size, 0) != size) {
+    if (!pout) {
+        data->release();
+        return false;
+    }
+    if (ds_dec((char *)pin + 16, len - 16, pout, size, 0) != size) {
         AlwaysLog("BMF Decompress failed");
         delete[] pout;
         data->release();
@@ -409,13 +420,14 @@ bool WMI::parseBMF()
     }
     pin = nullptr;
 #ifdef DEBUG
-    mDevice->setProperty("MOF size", size, sizeof(uint32_t)*8);
+    mDevice->setProperty("MOF size", size, sizeof(uint32_t) * 8);
 #endif
     MOF mof(pout, size, mData, iname);
     mDevice->removeProperty("MOF");
 
     OSObject *result = mof.parse_bmf();
-    if (result) mDevice->setProperty("MOF", result);
+    if (result)
+        mDevice->setProperty("MOF", result);
     if (!mof.parsed) {
         mDevice->setProperty("BMF data", data);
         AlwaysLog("WMI BMF metadata incomplete; continuing with _WDG descriptors");
@@ -427,14 +439,16 @@ bool WMI::parseBMF()
     return true;
 }
 
-IOReturn WMI::evaluateMethod(const char *guid, UInt8 instance, UInt32 methodId, OSObject ** result, OSObject * input, bool mute) {
+IOReturn WMI::evaluateMethod(const char *guid, UInt8 instance, UInt32 methodId, OSObject **result, OSObject *input, bool mute) {
     IOReturn ret;
 
     OSDictionary *method = getMethod(guid, ACPI_WMI_METHOD, mute);
-    if (!method) return kIOReturnNotFound;
+    if (!method)
+        return kIOReturnNotFound;
 
     OSString *objectId = OSDynamicCast(OSString, method->getObject(kWMIObjectId));
-    if (!objectId) return kIOReturnNotFound;
+    if (!objectId)
+        return kIOReturnNotFound;
 
     OSNumber *instanceCount = OSDynamicCast(OSNumber, method->getObject(kWMIInstanceCount));
     if (instanceCount == nullptr || instanceCount->unsigned8BitValue() <= instance)
@@ -443,11 +457,10 @@ IOReturn WMI::evaluateMethod(const char *guid, UInt8 instance, UInt32 methodId, 
     char methodName[5];
     snprintf(methodName, 5, ACPIMethodName, objectId->getCStringNoCopy());
 
-    OSObject* params[3] = {
+    OSObject *params[3] = {
         OSNumber::withNumber(instance, 8),
         OSNumber::withNumber(methodId, 32),
-        input
-    };
+        input};
 
     if (!params[0] || !params[1]) {
         OSSafeReleaseNULL(params[0]);
@@ -457,16 +470,22 @@ IOReturn WMI::evaluateMethod(const char *guid, UInt8 instance, UInt32 methodId, 
     OSData *emptyInput = nullptr;
     if (!input) {
         emptyInput = OSData::withCapacity(0);
-        if (!emptyInput) { params[0]->release(); params[1]->release(); return kIOReturnNoMemory; }
+        if (!emptyInput) {
+            params[0]->release();
+            params[1]->release();
+            return kIOReturnNoMemory;
+        }
         params[2] = emptyInput;
     }
     const bool trace = traceFirmwareCall();
-    if (trace) AlwaysLog("Firmware begin: ACPI=%s guid=%s method=%u instance=%u", methodName, guid, methodId, instance);
+    if (trace)
+        AlwaysLog("Firmware begin: ACPI=%s guid=%s method=%u instance=%u", methodName, guid, methodId, instance);
     // ACPI WMI WMxx methods take instance, method ID and input buffer. Firmware
     // may dereference Arg2 even for read operations; use an empty buffer, never
     // omit the third argument.
     ret = mDevice->evaluateObject(methodName, result, params, 3);
-    if (trace) AlwaysLog("Firmware end: ACPI=%s guid=%s method=%u instance=%u status=0x%x", methodName, guid, methodId, instance, ret);
+    if (trace)
+        AlwaysLog("Firmware end: ACPI=%s guid=%s method=%u instance=%u status=0x%x", methodName, guid, methodId, instance, ret);
     if (ret != kIOReturnSuccess)
         AlwaysLog("WMI guid=%s method=%u instance=%u ACPI=%s status=0x%x", guid, methodId, instance, methodName, ret);
     OSSafeReleaseNULL(emptyInput);
@@ -476,11 +495,12 @@ IOReturn WMI::evaluateMethod(const char *guid, UInt8 instance, UInt32 methodId, 
     return ret;
 }
 
-IOReturn WMI::evaluateInteger(const char * guid, UInt8 instance, UInt32 methodId, UInt32 * result, OSObject * input, bool mute) {
+IOReturn WMI::evaluateInteger(const char *guid, UInt8 instance, UInt32 methodId, UInt32 *result, OSObject *input, bool mute) {
     IOReturn ret;
     OSObject *obj = nullptr;
 
-    if (!result) return kIOReturnBadArgument;
+    if (!result)
+        return kIOReturnBadArgument;
     ret = evaluateMethod(guid, instance, methodId, &obj, input, mute);
     if (ret == kIOReturnSuccess) {
         OSNumber *num = OSDynamicCast(OSNumber, obj);
@@ -490,18 +510,21 @@ IOReturn WMI::evaluateInteger(const char * guid, UInt8 instance, UInt32 methodId
             ret = kIOReturnBadArgument;
     }
 
-    if (obj) obj->release();
+    if (obj)
+        obj->release();
     return ret;
 }
 
-IOReturn WMI::queryBlock(const char *guid, UInt8 instance, OSObject ** result, bool mute) {
+IOReturn WMI::queryBlock(const char *guid, UInt8 instance, OSObject **result, bool mute) {
     IOReturn ret;
 
     OSDictionary *method = getMethod(guid, 0, mute);
-    if (!method) return kIOReturnNotFound;
+    if (!method)
+        return kIOReturnNotFound;
 
     OSString *objectId = OSDynamicCast(OSString, method->getObject(kWMIObjectId));
-    if (!objectId) return kIOReturnNotFound;
+    if (!objectId)
+        return kIOReturnNotFound;
 
     OSNumber *instanceCount = OSDynamicCast(OSNumber, method->getObject(kWMIInstanceCount));
     if (instanceCount == nullptr || instanceCount->unsigned8BitValue() <= instance)
@@ -514,15 +537,18 @@ IOReturn WMI::queryBlock(const char *guid, UInt8 instance, OSObject ** result, b
     char methodName[5];
     snprintf(methodName, 5, ACPIBufferName, objectId->getCStringNoCopy());
 
-    OSObject* params[1] = {
+    OSObject *params[1] = {
         OSNumber::withNumber(instance, 8),
     };
 
-    if (!params[0]) return kIOReturnNoMemory;
+    if (!params[0])
+        return kIOReturnNoMemory;
     const bool trace = traceFirmwareCall();
-    if (trace) AlwaysLog("Firmware begin: ACPI=%s guid=%s instance=%u", methodName, guid, instance);
+    if (trace)
+        AlwaysLog("Firmware begin: ACPI=%s guid=%s instance=%u", methodName, guid, instance);
     ret = mDevice->evaluateObject(methodName, result, params, 1);
-    if (trace) AlwaysLog("Firmware end: ACPI=%s guid=%s instance=%u status=0x%x", methodName, guid, instance, ret);
+    if (trace)
+        AlwaysLog("Firmware end: ACPI=%s guid=%s instance=%u status=0x%x", methodName, guid, instance, ret);
     params[0]->release();
 
     return ret;

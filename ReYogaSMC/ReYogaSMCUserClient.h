@@ -1,37 +1,64 @@
+// SPDX-License-Identifier: GPL-2.0-only
 //
-//  ReYogaSMCUserClient.h
-//  ReYogaSMC
+// ReYogaSMCUserClient.h
+// Shared kernel/userspace wire protocol. Keep this header C-compatible.
 //
-//  Created by Zhen on 10/9/20.
-//  Copyright © 2020 Zhen. All rights reserved.
-//
+// Original work: Copyright (c) 2020 Zhen.
 
-#ifndef ReYogaSMCUserClient_h
-#define ReYogaSMCUserClient_h
+#ifndef REYOGA_SMC_USER_CLIENT_H
+#define REYOGA_SMC_USER_CLIENT_H
 
-#include <libkern/OSTypes.h>
 #include <mach/message.h>
+#include <stdint.h>
+#include <stddef.h>
 
-#ifndef IOKIT
-typedef uint64_t io_user_reference_t;
+#ifdef __cplusplus
+extern "C" {
 #endif
 
+// These selector numbers are part of the public ABI. Never reorder them.
 enum {
-    kRYSMCUCOpen,            // ScalarIScalarO
-    kRYSMCUCClose,           // ScalarIScalarO
-    kRYSMCUCReadEC,          // ScalarIStructO
-    kRYSMCUCWriteEC,         // ScalarIStructI
-    kRYSMCUCReadECName,      // ScalarIScalarO
-    kRYSMCUCThinkFan,         // Two scalar inputs (fan, level or 0x100 to read), 3 output bytes.
-    kRYSMCUCThinkFanCurve,    // Watchdog-protected level 1-7 or 0x47; same output as ThinkFan.
-    kRYSMCUCNumMethods
+    kRYSMCUCOpen = 0,          // No inputs or outputs.
+    kRYSMCUCClose = 1,         // No inputs or outputs.
+    kRYSMCUCReadEC = 2,        // Scalar input: offset; variable structure output.
+    kRYSMCUCWriteEC = 3,       // Reserved: disabled; variable structure input.
+    kRYSMCUCReadECName = 4,    // Reserved pending a verified ACPI read allowlist.
+    kRYSMCUCThinkFan = 5,      // Scalar inputs: fan, command; 3-byte structure output.
+    kRYSMCUCThinkFanCurve = 6, // Same shape; watchdog-controlled levels.
+    kRYSMCUCNumMethods = 7
 };
 
-typedef struct {
+// User-client protocol values. These are NOT raw EC register offsets.
+enum {
+    kRYSMCMaxFanIndex = 1,
+    kRYSMCFanReplySize = 3,
+    kRYSMCFanQueryRPM = 0x100,
+    kRYSMCFanCurveFullSpeed = 0x47,
+    kRYSMCNotificationType = 0
+};
+
+// Wire layout, shared between kernel and userspace.
+// 'ref' is explicitly 64-bit; do not depend on SDK typedef differences.
+typedef struct SMCNotificationMessage {
     mach_msg_header_t header;
-    UInt32 event;
-    UInt32 data;
-    io_user_reference_t ref;
+    uint32_t event;
+    uint32_t data;
+    uint64_t ref;
 } SMCNotificationMessage;
 
-#endif /* ReYogaSMCUserClient_h */
+#ifdef __cplusplus
+} // extern "C"
+
+#if defined(__LP64__)
+// Kernel port fields are pointers; userspace port fields are 32-bit names.
+// The Mach send path translates the header; payload layout stays identical.
+static_assert(offsetof(SMCNotificationMessage, event) == sizeof(mach_msg_header_t) &&
+                  offsetof(SMCNotificationMessage, data) == sizeof(mach_msg_header_t) + 4 &&
+                  offsetof(SMCNotificationMessage, ref) == sizeof(mach_msg_header_t) + 8,
+              "SMCNotificationMessage ABI offsets have changed");
+static_assert(sizeof(SMCNotificationMessage) == sizeof(mach_msg_header_t) + 16,
+              "SMCNotificationMessage ABI layout has changed");
+#endif
+#endif
+
+#endif // REYOGA_SMC_USER_CLIENT_H

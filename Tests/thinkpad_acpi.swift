@@ -10,7 +10,7 @@ do {
         print(String(data: try JSONSerialization.data(withJSONObject: ["text": value]), encoding: .utf8)!)
     } else if let check = input["verify"] as? [String: Any] {
         try ThinkPadACPI.verify(expectedDigest: check["expected"] as? String,
-            loadedDigests: check["loaded"] as? [String] ?? [], live: check["live"] as? [String: Any] ?? [:])
+            loadedDigests: (check["loaded"] as? [String]) ?? [], live: (check["live"] as? [String: Any]) ?? [:])
         print("{\"valid\":true}")
     } else if let tables = input["normalize"] as? [String] {
         let result = tables.map { ThinkPadACPI.normalizedAML(Data(base64Encoded: $0)!).base64EncodedString() }
@@ -22,7 +22,7 @@ do {
         var namespace = ThinkPadACPI()
         for table in input["tables"] as! [[String: String]] { try namespace.add(table["source"]!, table: table["name"]!) }
         let plan = try namespace.plan(ecPath: input["ec"] as! String, hkeyPath: input["hkey"] as! String,
-            live: input["live"] as! [String: Bool], protocolLayout: input["protocolLayout"] as? [String: Int] ?? [:], template: input["template"] as! String)
+            live: input["live"] as! [String: Bool], protocolLayout: (input["protocolLayout"] as? [String: Int]) ?? [:], template: input["template"] as! String)
         let result: [String: Any] = ["source": plan.source, "report": plan.report]
         print(String(data: try JSONSerialization.data(withJSONObject: result, options: .sortedKeys), encoding: .utf8)!)
     }

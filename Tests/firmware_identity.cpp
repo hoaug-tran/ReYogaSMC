@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <vector>
+#include <utility>
 using namespace ReYogaFirmware;
 
 struct FanEC {
@@ -161,6 +162,13 @@ int main() {
     for (unsigned rpm = 0; rpm <= 0xffff; ++rpm)
         assert(ReYogaControl::thinkFanRPM(rpm & 0xff, rpm >> 8) == rpm);
     constexpr size_t count = sizeof(ReYogaNativeProfiles) / sizeof(ReYogaNativeProfiles[0]);
+    auto loq = select(ReYogaNativeProfiles, count, identity("83DX", "NZCN99WW"), "CB-01", "");
+    assert(loq.profile && !strcmp(loq.profile->id, "loq-gen9-ahp"));
+    for (const auto &pair : {std::pair<const char *, const char *>("83DX", "NECN99WW"),
+                            {"83DV", "NECN99WW"}, {"83JC", "PQCN99WW"}}) {
+        auto match = select(ReYogaNativeProfiles, count, identity(pair.first, pair.second), "CB-01", "");
+        assert(!match.profile || strcmp(match.profile->id, "loq-gen9-ahp"));
+    }
     for (const auto &profile : ReYogaNativeProfiles) {
         char version[16] {};
         snprintf(version, sizeof(version), "%s99WW", profile.biosFamily);

@@ -5,6 +5,10 @@ import subprocess
 import sys
 import tempfile
 import unittest
+try:
+    from .source_tools import kernel_sources, function
+except ImportError:
+    from source_tools import kernel_sources, function
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -12,17 +16,16 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 class DYTCReplayTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('g++') or shutil.which('clang++'), 'C++ compiler required')
     def test_profile_selection_readback_and_recovery(self):
-        production = (ROOT / 'ReYogaSMC/ReYogaVPC.cpp').read_text(encoding='utf-8')
+        production = kernel_sources('ReYogaVPC')
         bodies = []
-        for name in ('DYTCCommand', 'parseDYTC', 'updateDYTC', 'setThermalProfile', 'setDYTC'):
-            start = production.index('bool ReYogaVPC::' + name + '(')
-            end = production.index('\n}', start) + 2
-            bodies.append(production[start:end])
+        for name in ('DYTCCommand', 'parseDYTC', 'updateDYTC', 'setThermalProfile', 'setDYTC', 'evaluateNamedThermalMode'):
+            bodies.append(function(production, 'bool ReYogaVPC::' + name + '('))
         fixture = (ROOT / 'Tests/dytc_replay.cpp').read_text(encoding='utf-8')
         fixture = fixture.replace('// Production method bodies are inserted here by test_dytc_replay.py.', '\n'.join(bodies))
         header = (ROOT / 'ReYogaSMC/ReYogaVPC.hpp').read_text(encoding='utf-8')
-        start = header.index('    bool supportsThermalProfiles()')
-        helpers = header[start:header.index('\n\n', start)]
+        helpers = '\n'.join(function(header, signature) for signature in (
+            'bool supportsThermalProfiles(', 'int pscThermalMode(',
+            'bool supportsMMCThermal('))
         fixture = fixture.replace('// Production thermal helpers are inserted here by test_dytc_replay.py.', helpers)
         with tempfile.TemporaryDirectory() as folder:
             folder = pathlib.Path(folder)
@@ -38,7 +41,7 @@ class DYTCReplayTests(unittest.TestCase):
                                     *sanitizers, '-I', str(folder), '-I', str(ROOT), str(source), '-o', str(executable)],
                                    capture_output=True, text=True, timeout=60)
             self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
-            for case in ('x1-profiles', 'capability-recovery', 'balanced-no-reset', 'masked-readback', 't490-profiles', 'transport-recovery', 'invalid-input', 'csc-balance'):
+            for case in ('x1-profiles', 'capability-recovery', 'balanced-no-reset', 'masked-readback', 't490-profiles', 'transport-recovery', 'invalid-input', 'csc-balance', 'csc-captured-quiet', 'masked-request-not-readback', 'mmc-get-lapmode', 'amt-psc-toggle'):
                 with self.subTest(case=case):
                     result = subprocess.run([str(executable), case], capture_output=True, text=True, timeout=10)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

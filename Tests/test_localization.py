@@ -5,11 +5,23 @@ import pathlib
 import plistlib
 import re
 import unittest
+import tempfile
+import shutil
+import subprocess
 from unittest.mock import patch
+try:
+    from .source_tools import app_sources, function
+except ImportError:
+    from source_tools import app_sources, function
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ENTRY = re.compile(r'^"((?:\\.|[^"\\])*)"\s*=\s*"((?:\\.|[^"\\])*)";', re.M)
 FORMAT = re.compile(r'%(?!%)(?:\d+\$)?[-+ #0]*\d*(?:\.\d+)?(?:hh|ll|h|l|z)?[@diufFeEgGxXosc]')
+
+
+def swift_sources(directory=None):
+    directories = [directory] if directory is not None else [ROOT / 'ReYogaSMCApp']
+    return sorted(path for folder in directories for path in folder.rglob('*.swift'))
 
 
 def catalog(language):
@@ -19,6 +31,46 @@ def catalog(language):
 
 
 class LocalizationTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('swiftc'), 'Swift compiler required')
+    def test_fan_reason_is_translated_at_the_display_boundary(self):
+        policy = (ROOT / 'ReYogaSMCApp/Hardware/Fans/ThinkFanHelper.swift').read_text(encoding='utf-8')
+        localization = (ROOT / 'ReYogaSMCApp/Shared/LocalizedKey.swift').read_text(encoding='utf-8')
+        production = function(policy, 'static func unavailableReason(')
+        renderer = function(localization, 'func renderLocalizedMessage(')
+        source = '''import Foundation
+enum Policy {
+POLICY
+}
+RENDERER
+let root = CommandLine.arguments[1]
+let vietnamese = Bundle(path: root + "/vi.lproj")!
+let english = Bundle(path: root + "/en.lproj")!
+let reason = Policy.unavailableReason(["IOClass": "IdeaVPC"] as NSDictionary)!
+precondition(reason == "Custom Curve is not supported by this driver interface.")
+let translated = renderLocalizedMessage(reason, arguments: [], bundle: vietnamese)
+precondition(translated != reason && !translated.isEmpty, "Fan reason reached the UI without translation")
+precondition(renderLocalizedMessage(reason, arguments: [], bundle: english) == reason)
+precondition(renderLocalizedMessage("SmartFanMode", arguments: [], bundle: vietnamese) == "SmartFanMode")
+print("PASS English/Vietnamese fan reason and unchanged protocol identifier")
+'''.replace('POLICY', production).replace('RENDERER', renderer)
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / 'main.swift'
+            path.write_text(source, encoding='utf-8')
+            executable = path.with_suffix('.exe')
+            build = subprocess.run(['swiftc', '-swift-version', '5', str(path), '-o', str(executable)],
+                                   capture_output=True, text=True, timeout=60)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+            result = subprocess.run([str(executable), str(ROOT)], capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_source_discovery_includes_subdirectories(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / 'Controls').mkdir()
+            nested = root / 'Controls/Power.swift'
+            nested.write_text('struct Power {}', encoding='utf-8')
+            self.assertEqual(swift_sources(root), [nested])
+
     def test_permission_prompts_are_localized_and_included_in_app_resources(self):
         info = plistlib.loads((ROOT / 'ReYogaSMCApp/Info.plist').read_bytes())
         expected = {key for key in info if key.endswith('UsageDescription')}
@@ -65,7 +117,7 @@ class LocalizationTests(unittest.TestCase):
 
     def test_literal_app_message_templates_exist_in_both_catalogs(self):
         keys = set(dict(catalog('en')))
-        for path in list((ROOT / 'ReYogaSMCApp').glob('*.swift')) + list((ROOT / 'ReYogaSMCUtils').glob('*.swift')):
+        for path in swift_sources():
             for raw in re.findall(r'localizedMessage\("((?:\\.|[^"\\])*)"', path.read_text(encoding='utf-8')):
                 if '\\(' in raw:
                     continue  # composed numbers, identifiers, and existing localized labels
@@ -76,7 +128,7 @@ class LocalizationTests(unittest.TestCase):
 
     def test_osd_and_async_acpi_completion_messages_are_translated(self):
         keys = set(dict(catalog('en')))
-        paths = list((ROOT / 'ReYogaSMCApp').glob('*.swift')) + list((ROOT / 'ReYogaSMCUtils').glob('*.swift'))
+        paths = swift_sources()
         for path in paths:
             source = path.read_text(encoding='utf-8')
             for raw in re.findall(r'(?:showOSDRaw|completion)\("((?:\\.|[^"\\])*)"', source):
@@ -85,7 +137,7 @@ class LocalizationTests(unittest.TestCase):
 
     def test_fan_availability_and_recovery_keys_are_translated(self):
         keys = set(dict(catalog('en')))
-        source = (ROOT / 'ReYogaSMCUtils/ThinkFanHelper.swift').read_text(encoding='utf-8')
+        source = (ROOT / 'ReYogaSMCApp/Hardware/Fans/ThinkFanHelper.swift').read_text(encoding='utf-8')
         policy = source.split('struct ThinkFanCurvePolicy', 1)[1].split('static let defaults', 1)[0]
         reasons = re.findall(r'return "([^"\n]+)"', policy)
         reasons += re.findall(r'(?:curveStatus|curveStopReason)\s*=\s*"([^"\n]+)"', source)
@@ -95,23 +147,23 @@ class LocalizationTests(unittest.TestCase):
 
     def test_builtin_event_and_legacy_osd_keys_are_localized(self):
         keys = set(dict(catalog('en')))
-        paths = list((ROOT / 'ReYogaSMCApp').glob('*.swift')) + list((ROOT / 'ReYogaSMCUtils').glob('*.swift'))
+        paths = swift_sources()
         for path in paths:
             for key in re.findall(r'(?:showOSD(?:Res)?|EventDesc)\("([^"\\]*)"', path.read_text(encoding='utf-8')):
                 self.assertIn(key, keys, f'{path.name}: unlocalized event/OSD key')
 
     def test_support_errors_and_control_labels_have_translations(self):
         keys = set(dict(catalog('en')))
-        for path in (ROOT / 'ReYogaSMCApp').glob('*.swift'):
+        for path in swift_sources(ROOT / 'ReYogaSMCApp'):
             for raw in re.findall(r'SupportError\.message\("((?:\\.|[^"\\])*)"', path.read_text(encoding='utf-8')):
                 if '\\(' not in raw:
                     self.assertIn(json.loads('"' + raw + '"'), keys)
-        source = (ROOT / 'ReYogaSMCApp/HardwareManager.swift').read_text(encoding='utf-8').split('public static let catalog:', 1)[1].split('    ]', 1)[0]
+        source = app_sources().split('public static let catalog:', 1)[1].split('    ]', 1)[0]
         for label in re.findall(r'"[^"\n]+": "([^"\n]+)"', source):
             self.assertIn(label, keys)
 
     def test_localization_does_not_modify_registry_keys(self):
-        source = (ROOT / 'ReYogaSMCApp/HardwareManager.swift').read_text(encoding='utf-8')
+        source = app_sources()
         self.assertNotRegex(source, r'props\[localizedMessage\(')
         for key in ('Battery 0', 'Battery 1', 'HardwareProfile', 'FeatureStatus'):
             self.assertIn('"' + key + '"', source)

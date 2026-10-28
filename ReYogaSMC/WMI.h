@@ -29,7 +29,7 @@
 #define kWMIFlags "flags"
 #define kWMIFlagsText "flags-text"
 
-#define TBT_WMI_GUID  "86ccfd48-205e-4a77-9c48-2021cbede341"
+#define TBT_WMI_GUID "86ccfd48-205e-4a77-9c48-2021cbede341"
 
 /*
  * If the GUID data block is marked as expensive, we must enable and
@@ -38,19 +38,18 @@
 
 enum {
     ACPI_WMI_EXPENSIVE = 0x1,
-    ACPI_WMI_METHOD    = 0x2,
-    ACPI_WMI_STRING    = 0x4,
-    ACPI_WMI_EVENT     = 0x8
+    ACPI_WMI_METHOD = 0x2,
+    ACPI_WMI_STRING = 0x4,
+    ACPI_WMI_EVENT = 0x8
 };
 
-class WMI
-{
-    IOACPIPlatformDevice* mDevice {nullptr};
-    OSDictionary* mData = {nullptr};
-    OSDictionary* mEvent = {nullptr};
-    const char* iname;
-    bool firmwareTrace {false};
-    volatile UInt32 firmwareTraceCalls {0};
+class WMI {
+    IOACPIPlatformDevice *mDevice{nullptr};
+    OSDictionary *mData = {nullptr};
+    OSDictionary *mEvent = {nullptr};
+    const char *iname;
+    bool firmwareTrace{false};
+    volatile UInt32 firmwareTraceCalls{0};
     bool traceFirmwareCall();
 
 public:
@@ -61,29 +60,28 @@ public:
 
     bool initialize();
     void start();
-    inline const char *getName() {return mDevice->getName();}
+    inline const char *getName() { return mDevice->getName(); }
 
-    bool hasMethod(const char * guid, UInt8 flg = ACPI_WMI_METHOD);
-    bool enableEvent(const char * guid, bool enable);
-    bool executeMethod(const char * guid, OSObject ** result = 0, OSObject * params[] = 0, IOItemCount paramCount = 0, bool mute = false);
-    bool executeInteger(const char * guid, UInt32 * result, OSObject * params[] = 0, IOItemCount paramCount = 0, bool mute = false);
-    inline IOACPIPlatformDevice* getACPIDevice() { return mDevice; }
-    inline OSDictionary* getEvent() { return mEvent; }
-    bool getEventData(UInt32 event, OSObject ** result);
-    UInt8 getInstanceCount(const char * guid);
+    bool hasMethod(const char *guid, UInt8 flg = ACPI_WMI_METHOD);
+    bool enableEvent(const char *guid, bool enable);
+    bool executeMethod(const char *guid, OSObject **result = 0, OSObject *params[] = 0, IOItemCount paramCount = 0, bool mute = false);
+    bool executeInteger(const char *guid, UInt32 *result, OSObject *params[] = 0, IOItemCount paramCount = 0, bool mute = false);
+    inline IOACPIPlatformDevice *getACPIDevice() { return mDevice; }
+    inline OSDictionary *getEvent() { return mEvent; }
+    bool getEventData(UInt32 event, OSObject **result);
+    UInt8 getInstanceCount(const char *guid);
 
-    IOReturn evaluateMethod(const char * guid, UInt8 instance, UInt32 methodId, OSObject ** result = 0, OSObject * input = 0, bool mute = false);
-    IOReturn evaluateInteger(const char * guid, UInt8 instance, UInt32 methodId, UInt32 * result, OSObject * input = 0, bool mute = false);
-    IOReturn queryBlock(const char * guid, UInt8 instance, OSObject ** result, bool mute = false);
+    IOReturn evaluateMethod(const char *guid, UInt8 instance, UInt32 methodId, OSObject **result = 0, OSObject *input = 0, bool mute = false);
+    IOReturn evaluateInteger(const char *guid, UInt8 instance, UInt32 methodId, UInt32 *result, OSObject *input = 0, bool mute = false);
+    IOReturn queryBlock(const char *guid, UInt8 instance, OSObject **result, bool mute = false);
 
 private:
-    OSDictionary* getMethod(const char * guid, UInt8 flg = 0, bool mute = false);
+    OSDictionary *getMethod(const char *guid, UInt8 flg = 0, bool mute = false);
 
     bool extractData();
-    void parseWDGEntry(struct WMI_DATA * block);
+    bool parseWDGEntry(struct WMI_DATA *block);
 
     bool parseBMF();
 };
-
 
 #endif /* WMI_h */

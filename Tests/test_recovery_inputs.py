@@ -5,6 +5,10 @@ import re
 import tempfile
 import unittest
 from unittest.mock import patch
+try:
+    from .source_tools import app_sources, kernel_sources
+except ImportError:
+    from source_tools import app_sources, kernel_sources
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -54,14 +58,15 @@ class RecoveryInputTests(unittest.TestCase):
                 self.assertTrue(release.plan()['publish'])
 
     def test_swift_recovery_and_input_guards(self):
-        helper = (ROOT / 'ReYogaSMCUtils/ThinkFanHelper.swift').read_text(encoding='utf-8')
-        views = (ROOT / 'ReYogaSMCApp/HardwareViews.swift').read_text(encoding='utf-8')
-        manager = (ROOT / 'ReYogaSMCApp/HardwareManager.swift').read_text(encoding='utf-8')
-        backend = (ROOT / 'ReYogaSMCApp/HardwareSupport.swift').read_text(encoding='utf-8')
+        helper = (ROOT / 'ReYogaSMCApp/Hardware/Fans/ThinkFanHelper.swift').read_text(encoding='utf-8')
+        views = app_sources()
+        manager = app_sources()
+        backend = manager
         self.assertNotIn('enable || automatic', helper)
         self.assertIn('guard confirmed else', helper)
         self.assertTrue('.disabled(!fan.canRecoverAutomatic)' in views, 'Auto recovery must remain separate from manual availability')
-        self.assertIn('rgbController.status.available && HardwareProfiles.lightingOwnedByRGB', manager)
+        self.assertIn('lighting.ownsLighting', manager)
+        self.assertIn('rgbStatus.available && HardwareProfiles.lightingOwnedByRGB', backend)
         self.assertIn('read(upToCount: SavedRGBSettings.maximumImportBytes + 1)', manager)
         self.assertIn('guard data.count <= SavedRGBSettings.maximumImportBytes', backend)
         self.assertIn('with administrator privileges', backend)
@@ -75,7 +80,7 @@ class RecoveryInputTests(unittest.TestCase):
         self.assertIn('expectedDriverFieldsMissing', manager)
         self.assertIn('uptimeSeconds', manager)
         self.assertIn('Event exceeds 1 MiB', manager)
-        kernel = (ROOT / 'ReYogaSMC/ReYogaVPC.cpp').read_text()
+        kernel = kernel_sources('ReYogaVPC')
         self.assertIn('"LastDYTCMutation"', kernel)
         self.assertIn('"TransportStatus", transport', kernel)
 

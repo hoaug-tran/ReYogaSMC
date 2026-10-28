@@ -4,6 +4,10 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+try:
+    from .source_tools import function
+except ImportError:
+    from source_tools import function
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -12,8 +16,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 class ECSelectionTests(unittest.TestCase):
     def test_parent_priority_unique_fallback_and_ambiguity(self):
         source = (ROOT / 'ReYogaSMC/ReYogaBaseService.cpp').read_text(encoding='utf-8')
-        start = source.index('bool ReYogaBaseService::findPNP(')
-        method = source[start:source.index('\n}', start) + 2]
+        method = function(source, 'bool ReYogaBaseService::findPNP(')
         fixture = r'''
 #include <cassert>
 #include <cstring>

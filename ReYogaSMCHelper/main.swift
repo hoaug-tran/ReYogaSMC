@@ -44,7 +44,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func applicationWillTerminate(_ aNotification: Notification) {}
 }
 
 let app = NSApplication.shared

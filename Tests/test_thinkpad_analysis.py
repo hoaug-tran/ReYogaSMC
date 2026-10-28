@@ -34,8 +34,8 @@ class ThinkPadAnalysisTests(unittest.TestCase):
         cls.work = tempfile.TemporaryDirectory()
         cls.folder = pathlib.Path(cls.work.name)
         main = cls.folder / 'main.swift'
-        main.write_text((ROOT / 'ReYogaSMCApp/LocalizedKey.swift').read_text(encoding='utf-8') + '\n' +
-                        (ROOT / 'ReYogaSMCApp/ThinkPadACPI.swift').read_text(encoding='utf-8') + '\n' +
+        main.write_text((ROOT / 'ReYogaSMCApp/Shared/LocalizedKey.swift').read_text(encoding='utf-8') + '\n' +
+                        (ROOT / 'ReYogaSMCApp/Hardware/ACPI/ThinkPadACPI.swift').read_text(encoding='utf-8') + '\n' +
                         (ROOT / 'Tests/thinkpad_acpi.swift').read_text(encoding='utf-8'), encoding='utf-8')
         cls.runner = cls.folder / 'analyze'
         result = subprocess.run(['swiftc', '-swift-version', '5', str(main), '-o', str(cls.runner)],

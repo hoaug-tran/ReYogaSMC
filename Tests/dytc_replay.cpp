@@ -4,7 +4,9 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "ReYogaSMC/ReYogaVPC/DYTC.h"
+#include "ReYogaSMC/Platform/DYTC.h"
+#include "ReYogaSMC/ControlValidation.hpp"
+#include "ReYogaSMC/SensorDescriptors.hpp"
 
 using IOReturn = int;
 constexpr int kIOReturnSuccess = 0;
@@ -24,15 +26,17 @@ struct OSDictionary {
     void setObject(const char *key, bool value) { numbers[key] = value; }
     void release() { delete this; }
 };
-void setPropertyNumber(OSDictionary *d, const char *key, unsigned value, unsigned) { d->numbers[key] = value; }
-void setPropertyString(OSDictionary *d, const char *key, const char *value) { d->strings[key] = value; }
-void setPropertyBoolean(OSDictionary *d, const char *key, bool value) { d->numbers[key] = value; }
+namespace ReYogaProperty {
+void setNumber(OSDictionary *d, const char *key, unsigned value, unsigned) { d->numbers[key] = value; }
+void setString(OSDictionary *d, const char *key, const char *value) { d->strings[key] = value; }
+void setBoolean(OSDictionary *d, const char *key, bool value) { d->numbers[key] = value; }
+}
 
 // Replay the SET/GET rules and values from the supplied Lenovo ACPI tables.
 struct Firmware {
-    bool lap = true, mmc = false, psc = false, csc = false, dptf = false, fieldsAvailable = true;
+    bool lap = true, mmc = false, psc = false, csc = false, amt = false, dptf = false, fieldsAvailable = true;
     bool transportFailure = false;
-    unsigned mmcMode = 0, pscMode = 0, otherActive = BIT(0), resets = 0;
+    unsigned mmcMode = 0, pscMode = 0, amtMode = 0, otherActive = BIT(0), resets = 0;
     std::vector<unsigned> commands;
     int evaluateInteger(const char *name, UInt32 *out) {
         if (!fieldsAvailable) return kIOReturnUnsupported;
@@ -50,6 +54,8 @@ struct Firmware {
             const unsigned mode = lap ? 15 : mmc ? mmcMode : psc ? pscMode : 15;
             const unsigned active = otherActive | (lap ? BIT(1) : 0) | (mmc ? BIT(11) : 0) | (psc ? BIT(13) : 0) | (csc ? BIT(14) : 0);
             *out = 1 | (function << 8) | (mode << 12) | (active << 16);
+        } else if (command == DYTC_CMD_MMC_GET) {
+            *out = 1 | (11 << 8) | (mmcMode << 12) | (1 << 16);
         } else if (command == DYTC_CMD_RESET) {
             ++resets; lap = mmc = psc = csc = false; otherActive = BIT(0); *out = 1;
         } else if (command == DYTC_CMD_SET) {
@@ -62,6 +68,7 @@ struct Firmware {
                     mmc = enabled; mmcMode = enabled ? mode : 0;
                 } else *out = 10;
             } else if (function == 13) { psc = enabled; pscMode = mode; }
+            else if (function == 15) { amt = enabled; amtMode = mode; }
             else if (function == 1 && mode == 15) lap = enabled;
             else *out = 2;
         } else *out = 4;
@@ -74,7 +81,7 @@ struct ReYogaVPC {
     Firmware *vpc = &firmware;
     UInt16 DYTCCap = 0x7913;
     UInt8 DYTCRevision = 5;
-    bool DYTCLock = false, disabled = false;
+    bool DYTCLock = false, disabled = false, mmcGetCap = false;
     OSDictionary version, published;
     OSDictionary *DYTCVersion = &version;
     const char *setThermalControl = "DYTC";
@@ -84,6 +91,7 @@ struct ReYogaVPC {
     void setProperty(const char *key, OSDictionary *d) { if (!strcmp(key, "DYTC")) { published = *d; disabled = false; } }
     // Production thermal helpers are inserted here by test_dytc_replay.py.
     bool DYTCCommand(DYTC_CMD command, DYTC_RESULT *result, UInt8 function = 0, UInt8 mode = 0, bool enabled = false);
+    bool evaluateNamedThermalMode(const char *name, UInt32 *out) const;
     bool parseDYTC(DYTC_RESULT result);
     bool updateDYTC();
     bool setDYTC(int function, int mode);
@@ -94,6 +102,15 @@ struct ReYogaVPC {
 
 int main(int argc, char **argv) {
     assert(argc == 2);
+    static_assert(ReYogaSensor::Fan1 == 0 && ReYogaSensor::Fan2 == 1 &&
+                  ReYogaSensor::CPU == 2 && ReYogaSensor::GPU == 3 && ReYogaSensor::Count == 4,
+                  "Keep generated profile sensor order");
+    assert(!strcmp(ReYogaSensor::descriptors[ReYogaSensor::CPU].bridgeMethod, "RYT0"));
+    assert(ReYogaSensor::descriptors[ReYogaSensor::Fan2].isFan);
+    assert(!ReYogaSensor::descriptors[ReYogaSensor::GPU].isFan);
+    assert(ReYogaControl::validControlEnvelopeLengths(64, 64));
+    assert(!ReYogaControl::validControlEnvelopeLengths(65, 64));
+    assert(!ReYogaControl::validControlEnvelopeLengths(64, 65));
     DYTC_CMD encoding = dytc_set_cmd;
     encoding.ICFunc = 13; encoding.ICMode = 3; encoding.validF = true;
     assert(encoding.raw == 0x13d001);
@@ -161,7 +178,43 @@ int main(int argc, char **argv) {
         device.firmware.csc = true;
         assert(device.updateDYTC());
         assert(device.published.strings["PerfMode"] == "Balance");
-        assert(device.published.strings["FuncMode"] == "Custom");
+        assert(device.published.strings["ReadbackSource"] == "ACPI SMMC");
+    } else if (test == "csc-captured-quiet") {
+        device.firmware.mmcMode = 3;
+        DYTC_RESULT captured;
+        captured.raw = 0x4803fe01;
+        assert(device.parseDYTC(captured));
+        assert(device.published.strings["PerfMode"] == "Quiet");
+        assert(device.published.strings["ReadbackSource"] == "ACPI SMMC");
+        device.firmware.fieldsAvailable = false;
+        assert(device.parseDYTC(captured));
+        assert(device.published.strings["PerfMode"] == "Unavailable while custom mode masks the thermal profile");
+    } else if (test == "masked-request-not-readback") {
+        device.firmware.fieldsAvailable = false;
+        for (unsigned requested : {3U, 1U, 3U}) {
+            assert(device.setThermalProfile(requested));
+            assert(device.published.strings["PerfMode"] == "Unavailable while lap mode masks the thermal profile");
+            assert(device.published.strings["ReadbackSource"] != "Driver cached profile");
+        }
+    } else if (test == "mmc-get-lapmode") {
+        device.DYTCRevision = 6;
+        device.mmcGetCap = true;
+        device.firmware.mmc = true;
+        device.firmware.mmcMode = 2;
+        device.firmware.fieldsAvailable = false;
+        assert(device.updateDYTC());
+        assert(device.published.strings["PerfMode"] == "Performance (Reduced as lapmode active)");
+        assert(device.published.strings["ReadbackSource"] == "DYTC MMC_GET");
+    } else if (test == "amt-psc-toggle") {
+        device.DYTCCap = 0xa013;
+        device.firmware.dptf = true;
+        device.firmware.lap = false;
+        assert(device.setThermalProfile(2));
+        assert(device.firmware.amt && device.firmware.amtMode == 1);
+        assert(device.setThermalProfile(1));
+        assert(!device.firmware.amt && device.firmware.amtMode == 15);
+        assert(device.setThermalProfile(3));
+        assert(!device.firmware.amt && device.firmware.amtMode == 15);
     } else return 2;
     puts("PASS production DYTC replay");
 }

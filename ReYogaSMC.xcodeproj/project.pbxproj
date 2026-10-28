@@ -8,8 +8,6 @@
 
 /* Begin PBXBuildFile section */
         A30000000000000000000001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A30000000000000000000002 /* InfoPlist.strings */; };
-        A20000000000000000000001 /* ThinkPadACPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ThinkPadACPI.swift */; };
-        A10000000000000000000001 /* HardwareSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* HardwareSupport.swift */; };
         A10000000000000000000003 /* HardwareProfiles in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000004 /* HardwareProfiles */; };
 		6F0095B525455F02002C8E1F /* IOBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F8611CD253AA2FA008FB857 /* IOBluetooth.framework */; };
 		6F0095B625455F09002C8E1F /* CoreWLAN.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6F8611E0253AB869008FB857 /* CoreWLAN.framework */; };
@@ -20,14 +18,8 @@
 		6F05D7E3252E35A000471F57 /* ReYogaSMCUserClientPrivate.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F05D7E1252E35A000471F57 /* ReYogaSMCUserClientPrivate.hpp */; };
 		6F08ACE824746B8B00681A63 /* ReYogaWMI.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F08ACE724746B8B00681A63 /* ReYogaWMI.hpp */; };
 		6F08ACEA24746B8B00681A63 /* ReYogaWMI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F08ACE924746B8B00681A63 /* ReYogaWMI.cpp */; };
-		6F0A987A25343357002F9F65 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A987925343357002F9F65 /* AppDelegate.swift */; };
-		6F0A989A25343357002F9F65 /* HardwareManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A989C25343357002F9F65 /* HardwareManager.swift */; };
-		6F0A989B25343357002F9F65 /* HardwareViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A989D25343357002F9F65 /* HardwareViews.swift */; };
-        A10000000000000000000005 /* LocalizedKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000006 /* LocalizedKey.swift */; };
-        A10000000000000000000007 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* AppTheme.swift */; };
 		6F0A987E25343359002F9F65 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6F0A987D25343359002F9F65 /* Assets.xcassets */; };
 		6F0A988125343359002F9F65 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 6F0A987F25343359002F9F65 /* Main.storyboard */; };
-		6F14956F2580BF7200A3BA83 /* AudioHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F14956E2580BF7200A3BA83 /* AudioHelper.swift */; };
 		6F2D45CC24C9494B00A75751 /* LICENSE in CopyFiles */ = {isa = PBXBuildFile; fileRef = 6F2D45CB24C9494B00A75751 /* LICENSE */; };
 		6F3DA56F2584968A00A498C9 /* FunctionKeyOff.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F3DA56D2584968A00A498C9 /* FunctionKeyOff.pdf */; };
 		6F3DA5702584968A00A498C9 /* FunctionKeyOn.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F3DA56E2584968A00A498C9 /* FunctionKeyOn.pdf */; };
@@ -56,23 +48,18 @@
 		6F81FC4425317B1200CFEDF5 /* ReYogaSMCUserClient.h in Headers */ = {isa = PBXBuildFile; fileRef = 6F81FC4025317AE100CFEDF5 /* ReYogaSMCUserClient.h */; };
 		6F83587324D0C2B50031512F /* KeyImplementations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F83587124D0C2B50031512F /* KeyImplementations.cpp */; };
 		6F83587424D0C2B50031512F /* KeyImplementations.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F83587224D0C2B50031512F /* KeyImplementations.hpp */; };
-		6F8611D5253AB59F008FB857 /* RFHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8611D4253AB59F008FB857 /* RFHelper.swift */; };
 		6F861215253AF7E4008FB857 /* BacklightLow.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F861212253AF7E4008FB857 /* BacklightLow.pdf */; };
 		6F861216253AF7E4008FB857 /* BacklightOff.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F861213253AF7E4008FB857 /* BacklightOff.pdf */; };
 		6F861217253AF7E4008FB857 /* BacklightHigh.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F861214253AF7E4008FB857 /* BacklightHigh.pdf */; };
 		6F86122F253B692C008FB857 /* AirplaneMode.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F86122D253B692C008FB857 /* AirplaneMode.pdf */; };
 		6F861230253B692C008FB857 /* Antenna.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F86122E253B692C008FB857 /* Antenna.pdf */; };
 		6F861237253BD518008FB857 /* Star.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F861236253BD518008FB857 /* Star.pdf */; };
-		6F861243253BD7FB008FB857 /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F861242253BD7FB008FB857 /* Configuration.swift */; };
 		6F861251253BF805008FB857 /* ReYogaBaseService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F86124F253BF805008FB857 /* ReYogaBaseService.cpp */; };
 		6F861253253BF805008FB857 /* ReYogaBaseService.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F861250253BF805008FB857 /* ReYogaBaseService.hpp */; };
 		6F86DD06263A3E670037A878 /* DYSMC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F86DD04263A3E670037A878 /* DYSMC.cpp */; };
 		6F86DD07263A3E670037A878 /* DYSMC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F86DD05263A3E670037A878 /* DYSMC.hpp */; };
 		6F87BF8024D26A5D00D64375 /* ReYogaSMC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F87BF7E24D26A5D00D64375 /* ReYogaSMC.cpp */; };
 		6F87BF8124D26A5D00D64375 /* ReYogaSMC.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F87BF7F24D26A5D00D64375 /* ReYogaSMC.hpp */; };
-		6F8B1F262538083A003DD8A8 /* PropertyHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8B1F242538083A003DD8A8 /* PropertyHelper.swift */; };
-		6F8B1F2E253808DC003DD8A8 /* OSDHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8B1F2C253808DC003DD8A8 /* OSDHelper.swift */; };
-		6F8B1F71253821C3003DD8A8 /* ScriptHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8B1F70253821C3003DD8A8 /* ScriptHelper.swift */; };
 		6F8B2303253C4241005BEC5D /* Mic.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F8B2301253C4241005BEC5D /* Mic.pdf */; };
 		6F8B2304253C4241005BEC5D /* MicOff.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F8B2302253C4241005BEC5D /* MicOff.pdf */; };
 		6F8B2311253CE075005BEC5D /* Keyboard.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6F8B230F253CE075005BEC5D /* Keyboard.pdf */; };
@@ -93,15 +80,99 @@
 		6F98BCF825532AD300ACFD99 /* ReYogaHIDD.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6F98BCF625532AD300ACFD99 /* ReYogaHIDD.cpp */; };
 		6F98BCFA25532AD300ACFD99 /* ReYogaHIDD.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6F98BCF725532AD300ACFD99 /* ReYogaHIDD.hpp */; };
 		6FA75308253D68C600EBE9D7 /* FunctionKey.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 6FA75307253D68C600EBE9D7 /* FunctionKey.pdf */; };
-		6FB5BE15255521E1001BFDFF /* ThinkFanHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB5BE14255521E1001BFDFF /* ThinkFanHelper.swift */; };
 		6FB613ED28977075005561EF /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FB613EC28977074005561EF /* CoreGraphics.framework */; };
-		6FC40F3A2592856A004A6D48 /* NotificationHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC40F392592856A004A6D48 /* NotificationHandler.swift */; };
 		6FCF7F592474B74800A82B13 /* WMI.h in Headers */ = {isa = PBXBuildFile; fileRef = 6FCF7F572474B74800A82B13 /* WMI.h */; };
 		6FCF7F5A2474B74800A82B13 /* WMI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6FCF7F582474B74800A82B13 /* WMI.cpp */; };
 		6FCF7F5C2474B89000A82B13 /* common.h in Headers */ = {isa = PBXBuildFile; fileRef = 6FCF7F5B2474B89000A82B13 /* common.h */; };
 		6FD2BB49247721040018EA36 /* bmfdec.c in Sources */ = {isa = PBXBuildFile; fileRef = 6FD2BB47247721040018EA36 /* bmfdec.c */; };
 		6FD2BB8D247B37A20018EA36 /* bmfparser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6FD2BB8B247B37A20018EA36 /* bmfparser.cpp */; };
 		6FD2BB8E247B37A20018EA36 /* bmfparser.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 6FD2BB8C247B37A20018EA36 /* bmfparser.hpp */; };
+		6F0A987A25343357002F9F65 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A987925343357002F9F65 /* AppDelegate.swift */; };
+		0FD338D05806476A31F5D5A2 /* DriverConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B93BE324B7CA3E6F74E385 /* DriverConnection.swift */; };
+		EAF67DBCAC76DF48ABBB775D /* ApplicationReviewHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0A0D17E5C5B7A73263B1C9 /* ApplicationReviewHarness.swift */; };
+		33E256E2F06C82D2DA4FFA38 /* HardwarePreviewSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B84E7390E12DB5B9696963AD /* HardwarePreviewSnapshot.swift */; };
+		278955B9813A2CF74828A6EB /* ReYogaReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF29495811AF7EFA0EBF8003 /* ReYogaReviewView.swift */; };
+		51E20B902BFE47495CBC65D8 /* VolumeObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CC937643DD656D4FF0B231 /* VolumeObserver.swift */; };
+		0DA030A7F7A5C62C5B73DCFE /* DiagnosticCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABB5F08FED7C2FD0909A955 /* DiagnosticCollector.swift */; };
+		DD04BDC23E9E3A18718C0033 /* DiagnosticLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90E2B82CE94EE5AC3D47578 /* DiagnosticLog.swift */; };
+		2D4DB0731E8C002822034F70 /* HardwareDiagnosticsExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 699153FC38AB8094CDBD0849 /* HardwareDiagnosticsExporter.swift */; };
+		E4882613F19EA6906C91AAA1 /* DefaultEvents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B546ACF112DB955CE0C937B8 /* DefaultEvents.swift */; };
+		378967784791C98330DDFB1B /* EventAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88B6B0C39BC1B85B9550DFD9 /* EventAction.swift */; };
+		33640AFAA2CBF162715F9548 /* EventPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6432BB76321B57C5107DD1FC /* EventPreferences.swift */; };
+		60B9515B2603DFB79118F613 /* ACPIExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 318779C2ED36329E4F9E1F39 /* ACPIExport.swift */; };
+		959555EE814F786B7472AE41 /* HardwareACPIAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1F25E36B7094A4797505AC3 /* HardwareACPIAnalysis.swift */; };
+		A20000000000000000000001 /* ThinkPadACPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ThinkPadACPI.swift */; };
+		38F66692ADE59BB6B9DE2037 /* HardwareCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E926D526CA0B408796F360A /* HardwareCapabilities.swift */; };
+		3F3F5AF4C777AF7D29B7B5BB /* HardwareFeatureStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65E505960C1AB48B148FB3A4 /* HardwareFeatureStatus.swift */; };
+		BFE35B7AE0EDED4B5AEC9A37 /* HardwareSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BAD72AE85F1A118CA785A4F /* HardwareSnapshot.swift */; };
+		CFBA2A744748D93555F64FDC /* PowerLimitInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = C584EE1B487B4CC07F265FB4 /* PowerLimitInput.swift */; };
+		D73E0A9C215BCCE30070E43B /* SavedHardwareSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 376FBD090614B171AED6BDE1 /* SavedHardwareSettings.swift */; };
+		67563459F14CD0BC58926FEE /* DriverControlTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD48FD6284443FE3B5EA4C24 /* DriverControlTransport.swift */; };
+		CE02D4883967FEC439D1461F /* DriverEventContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D7F00418ECF723AC2EC33A2 /* DriverEventContext.swift */; };
+		93E861040C7A4391EBA57EF2 /* DriverNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77FF9A594442D60788689706 /* DriverNotifications.swift */; };
+		B1630D57F190A639AC9EFAA2 /* IORegistryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F2EB6463FF2DE1971D0E757 /* IORegistryAccess.swift */; };
+		6FB5BE15255521E1001BFDFF /* ThinkFanHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FB5BE14255521E1001BFDFF /* ThinkFanHelper.swift */; };
+		6F0A989A25343357002F9F65 /* HardwareManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F0A989C25343357002F9F65 /* HardwareManager.swift */; };
+		53522C3C7674A95107EE7588 /* SystemHotkeyActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 091AB69B7520B17FFE565CEA /* SystemHotkeyActions.swift */; };
+		B80F83415DBA77C32B770971 /* HardwareHotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6DFDAE8F6AE9A08BA79FAA /* HardwareHotkeyManager.swift */; };
+		AA6A226BBA65F9EEC767082D /* LegionHotkeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68D30D47AA4523E9F4E2610B /* LegionHotkeys.swift */; };
+		4120B47B8B7AAC3F973FBA15 /* HardwareLightingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F6FCEF071D2B47D5A72EC7D /* HardwareLightingManager.swift */; };
+		A112F666C3F3818FD1EC3381 /* LegionRGBController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F77F88FBDF09E62616E72F1 /* LegionRGBController.swift */; };
+		8FFB2EE46698D770470EBE36 /* RGBMatchProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B56D3CCD6967C2279C0F2BCF /* RGBMatchProfile.swift */; };
+		9F7F463A9C99831279D64087 /* SavedRGBSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37B3786A539E1E6E8314F883 /* SavedRGBSettings.swift */; };
+		E09196A7EF11E3425E0495D0 /* HardwareProfiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 856197165DA114B9E76999F0 /* HardwareProfiles.swift */; };
+		49CA5CDBA66813DD0B3093BC /* LaptopIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D44A0FF8746E170A33303BA7 /* LaptopIdentity.swift */; };
+		CF1929E57EE35F223E779931 /* BatterySnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DBD0AE4A5527E6B325AB17C /* BatterySnapshot.swift */; };
+		0E16C99A5995BE1D2CBF4D8F /* SMCTemperatureReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 988386187A9E201555983F69 /* SMCTemperatureReader.swift */; };
+		752765649AFBB32619A07BF1 /* ReYogaPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2755BF3F24FBF69B90F47E85 /* ReYogaPreferences.swift */; };
+		5BE643C0781E4CC481C9FA65 /* ReleaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F8CEA94B0D9434B2F36131A /* ReleaseService.swift */; };
+		A10000000000000000000005 /* LocalizedKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000006 /* LocalizedKey.swift */; };
+		B6886CFA060EB3DC16819A2B /* ReYogaConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 393CE87CEC362CF4A6CBC612 /* ReYogaConstants.swift */; };
+		17DB11D8F2FC14B02529C6BA /* SupportError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C63B54A14ED3CB8D411C649 /* SupportError.swift */; };
+		E0295BDA0F4BD834A1CABE53 /* AppleScriptActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75090157DC8175BFD37DA23C /* AppleScriptActions.swift */; };
+		6F14956F2580BF7200A3BA83 /* AudioHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F14956E2580BF7200A3BA83 /* AudioHelper.swift */; };
+		30B9E74F017DDBFB0956AD16 /* DesktopActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1446AB44123A393272F172CB /* DesktopActions.swift */; };
+		CEE408B3FB44A809AEFD9657 /* WirelessActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDBF85C7026015A16F4445FC /* WirelessActions.swift */; };
+		A10000000000000000000007 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000008 /* AppTheme.swift */; };
+		44012586A11DEDED53AB96E1 /* BatterySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C10B7B098B2209010D0D50A /* BatterySummary.swift */; };
+		026489713B5A52F3BE539612 /* ColorPanelPlacement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949009770C37F1F576664006 /* ColorPanelPlacement.swift */; };
+		6FD44A8853EA889E6EF2FA86 /* ColorWell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B29BF4CD7814EBB8B91F0318 /* ColorWell.swift */; };
+		9D68FB893AC0533979C2EDB6 /* ControlComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E860D47A52A0EC301598A9F /* ControlComponents.swift */; };
+		F6135160659DBAC651116B2E /* ReportValueRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4D8635FC102425A8470519D /* ReportValueRow.swift */; };
+		5B7823485F782903FA6FDCAA /* ReYogaBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBA9BCEEA4BC42E715AA657D /* ReYogaBrand.swift */; };
+		73BE7564B76BAD5CB50113A0 /* RGBColorConversion.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47B7DB4C7655892DAEB9176 /* RGBColorConversion.swift */; };
+		3F4A7BF677A040A8FC65D379 /* TelemetrySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6C2E655824CA033A0DD3A82 /* TelemetrySummary.swift */; };
+		C67EF8A8D6207DDABB583346 /* BatteryReportPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FFFF3093625DA2B268B2CDD /* BatteryReportPage.swift */; };
+		DBF7C1663CDD4BAADDD6E908 /* ControlPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76E85CBAAB0F3C6C2FA9FEE /* ControlPresentation.swift */; };
+		C34D0A5D275C3C4EC19C9B52 /* ControlRiskConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 057EDAD3F351B92D3EEDC294 /* ControlRiskConfirmation.swift */; };
+		F35082863A3AF84141217005 /* CoolingControlsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC1629365CBCFC17A47F25ED /* CoolingControlsPage.swift */; };
+		0650CDA9D134A587CA30B274 /* DeviceControlsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDCDBA8DEC417328BF838F76 /* DeviceControlsPage.swift */; };
+		B8E002B562A82AFD1BDFC202 /* DiagnosticsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67ACFCDA4222B3AE83F42777 /* DiagnosticsPage.swift */; };
+		DC9F41E1868BDBDAD9F1D096 /* HardwareControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4BBB5591F0B579AE06BF78E /* HardwareControlsView.swift */; };
+		9DEE50856442F66C78300D7D /* LightingControlsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CC48B00D1AA22EC137C4ADA /* LightingControlsPage.swift */; };
+		31BFEFAB9BBAB3DD046D3E91 /* OverviewPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C2EDBA9B5976712C8876258 /* OverviewPage.swift */; };
+		1547CFE653D196B31E2C43F5 /* SettingsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4DC1ECAC104FB208EF7810 /* SettingsPage.swift */; };
+		E8EDDD7DD003E269DD5E4599 /* EventImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C53D3406E4B764585EFB012D /* EventImage.swift */; };
+		7549E193CD2ABD8502794F12 /* StatusHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76F777C03730EAF8222783E8 /* StatusHUD.swift */; };
+		4124095A8DA11D612DF754A9 /* IdeaVPCControls.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F61ED34DD282433CD563D9 /* IdeaVPCControls.cpp */; };
+		B787A9605C4D80E4B7D788B6 /* IdeaVPCIdentity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5CA801E93F3713A8F9ED7944 /* IdeaVPCIdentity.cpp */; };
+		5EE6FD0D39E0410D2659EA70 /* IdeaVPCTelemetry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 72899053AEB96C376C59D022 /* IdeaVPCTelemetry.cpp */; };
+		284FE6C2CB02F461941D818E /* ThinkVPCACPI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 388EF8D33CB660803DFF3676 /* ThinkVPCACPI.cpp */; };
+		B6D72D453772DBAA013E4B58 /* ThinkVPCControls.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4B7D204BF9D60BE7064A713C /* ThinkVPCControls.cpp */; };
+		2098A1687FF4C04C75FF6322 /* ThinkVPCFan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B2C5FBB6ECEE2846DFA759DC /* ThinkVPCFan.cpp */; };
+		3A1C4E703043EA08EF81B5F1 /* ReYogaVPCDYTC.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85BF7846FB9F58A0A2C8CA71 /* ReYogaVPCDYTC.cpp */; };
+		ABBF374794196C49EE0C2AC2 /* ReYogaVPCProperties.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1649C0601AB19736D5CE35C /* ReYogaVPCProperties.cpp */; };
+		7300F960BDBFB3B2F354997A /* IdeaWMIBattery.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FA90D5C67C204471138ECF25 /* IdeaWMIBattery.cpp */; };
+		E80DD444BF8E54D25E00193D /* IdeaWMIGameZone.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CCE66B5271AF702F017B4488 /* IdeaWMIGameZone.cpp */; };
+		CA3F17B7134F90D97D8B97F5 /* IdeaWMIPaper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 218D79FB8C196B2A451CC66C /* IdeaWMIPaper.cpp */; };
+		F537B4A62488AA24E8B6EA76 /* IdeaWMISuperRes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D995142920079362CE8E567B /* IdeaWMISuperRes.cpp */; };
+		447B813D6062B4C1CEE8B34A /* IdeaWMIYoga.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8E012543B5A9EDE5539FBEE6 /* IdeaWMIYoga.cpp */; };
+		E4B952642EEC1E1367696DE4 /* IASLCompiler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63C61131812B1F1858A2123E /* IASLCompiler.swift */; };
+		E8432341B040B14339D0F826 /* ACPIExportActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E78C5FC93AFCE8F7C60DFF3A /* ACPIExportActions.swift */; };
+		001DEA4C9FAFDFA6A630BF7F /* HardwareFeedbackPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD23E602CE53C733EEEE98A5 /* HardwareFeedbackPresenter.swift */; };
+		F8A5A24CFE35511AEBD9C727 /* HardwareFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91320EBA18E5CD5E972A754 /* HardwareFeedback.swift */; };
+		EFD0AA5710F384BCED28D202 /* HotkeyPermissionActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 857C83A2AA1CBBF8AD41946F /* HotkeyPermissionActions.swift */; };
+		9B5523A8652532F551C7624E /* DriverEventActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 674AC15C12C9872743394F5C /* DriverEventActions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -153,10 +224,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+        D03FAD9100BB41B4A07CBC7C /* FirmwareIdentity.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = FirmwareIdentity.hpp; sourceTree = "<group>"; };
+        8AEFF9521DE8C2C2B046AB59 /* SensorDescriptors.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SensorDescriptors.hpp; sourceTree = "<group>"; };
+        5D42F520686752B1617C94B6 /* ControlRequest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ControlRequest.hpp; sourceTree = "<group>"; };
         A30000000000000000000003 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
         A30000000000000000000004 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-        A20000000000000000000002 /* ThinkPadACPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkPadACPI.swift; sourceTree = "<group>"; };
-        A10000000000000000000002 /* HardwareSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSupport.swift; sourceTree = "<group>"; };
         A10000000000000000000004 /* HardwareProfiles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = HardwareProfiles; sourceTree = SOURCE_ROOT; };
 		6F05D7E0252E35A000471F57 /* ReYogaSMCUserClient.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaSMCUserClient.cpp; sourceTree = "<group>"; };
 		6F05D7E1252E35A000471F57 /* ReYogaSMCUserClientPrivate.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaSMCUserClientPrivate.hpp; sourceTree = "<group>"; };
@@ -166,15 +238,9 @@
 		6F08ACE924746B8B00681A63 /* ReYogaWMI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaWMI.cpp; sourceTree = "<group>"; };
 		6F08ACEB24746B8B00681A63 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		6F0A987725343357002F9F65 /* ReYogaSMC.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ReYogaSMC.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		6F0A987925343357002F9F65 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		6F0A989C25343357002F9F65 /* HardwareManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareManager.swift; sourceTree = "<group>"; };
-		6F0A989D25343357002F9F65 /* HardwareViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareViews.swift; sourceTree = "<group>"; };
-        A10000000000000000000006 /* LocalizedKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizedKey.swift; sourceTree = "<group>"; };
-        A10000000000000000000008 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		6F0A987D25343359002F9F65 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6F0A988025343359002F9F65 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		6F0A988225343359002F9F65 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		6F14956E2580BF7200A3BA83 /* AudioHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioHelper.swift; sourceTree = "<group>"; };
 		6F1C709F251473CD007D1DFC /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
 		6F1C70A1251473DF007D1DFC /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		6F1C70A3251473E7007D1DFC /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
@@ -192,7 +258,7 @@
 		6F64A28225A7FA7D00070265 /* DYVPC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DYVPC.hpp; sourceTree = "<group>"; };
 		6F6CEDA224BC14C2004D553F /* ThinkVPC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ThinkVPC.cpp; sourceTree = "<group>"; };
 		6F6CEDA324BC14C2004D553F /* ThinkVPC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ThinkVPC.hpp; sourceTree = "<group>"; };
-		6F70426124D2CFE900FD5659 /* SSDTSample */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SSDTSample; path = ReYogaSMC/SSDTSample; sourceTree = "<group>"; };
+		6F70426124D2CFE900FD5659 /* ACPIExamples */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ACPIExamples; path = ReYogaSMC/ACPIExamples; sourceTree = "<group>"; };
 		6F77A23624F4FE59007A127B /* IdeaSMC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaSMC.cpp; sourceTree = "<group>"; };
 		6F77A23724F4FE59007A127B /* IdeaSMC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = IdeaSMC.hpp; sourceTree = "<group>"; };
 		6F7B5CFD24FBC3CC00AA80FF /* ThinkSMC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ThinkSMC.cpp; sourceTree = "<group>"; };
@@ -209,7 +275,6 @@
 		6F83587124D0C2B50031512F /* KeyImplementations.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = KeyImplementations.cpp; sourceTree = "<group>"; };
 		6F83587224D0C2B50031512F /* KeyImplementations.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = KeyImplementations.hpp; sourceTree = "<group>"; };
 		6F8611CD253AA2FA008FB857 /* IOBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOBluetooth.framework; path = System/Library/Frameworks/IOBluetooth.framework; sourceTree = SDKROOT; };
-		6F8611D4253AB59F008FB857 /* RFHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RFHelper.swift; sourceTree = "<group>"; };
 		6F8611E0253AB869008FB857 /* CoreWLAN.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreWLAN.framework; path = System/Library/Frameworks/CoreWLAN.framework; sourceTree = SDKROOT; };
 		6F8611F1253AC075008FB857 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
 		6F861212253AF7E4008FB857 /* BacklightLow.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = BacklightLow.pdf; sourceTree = "<group>"; };
@@ -218,16 +283,12 @@
 		6F86122D253B692C008FB857 /* AirplaneMode.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = AirplaneMode.pdf; sourceTree = "<group>"; };
 		6F86122E253B692C008FB857 /* Antenna.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = Antenna.pdf; sourceTree = "<group>"; };
 		6F861236253BD518008FB857 /* Star.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = Star.pdf; sourceTree = "<group>"; };
-		6F861242253BD7FB008FB857 /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
 		6F86124F253BF805008FB857 /* ReYogaBaseService.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaBaseService.cpp; sourceTree = "<group>"; };
 		6F861250253BF805008FB857 /* ReYogaBaseService.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaBaseService.hpp; sourceTree = "<group>"; };
 		6F86DD04263A3E670037A878 /* DYSMC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DYSMC.cpp; sourceTree = "<group>"; };
 		6F86DD05263A3E670037A878 /* DYSMC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = DYSMC.hpp; sourceTree = "<group>"; };
 		6F87BF7E24D26A5D00D64375 /* ReYogaSMC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaSMC.cpp; sourceTree = "<group>"; };
 		6F87BF7F24D26A5D00D64375 /* ReYogaSMC.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaSMC.hpp; sourceTree = "<group>"; };
-		6F8B1F242538083A003DD8A8 /* PropertyHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PropertyHelper.swift; sourceTree = "<group>"; };
-		6F8B1F2C253808DC003DD8A8 /* OSDHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSDHelper.swift; sourceTree = "<group>"; };
-		6F8B1F70253821C3003DD8A8 /* ScriptHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScriptHelper.swift; sourceTree = "<group>"; };
 		6F8B1F902538309F003DD8A8 /* ThinkEvents.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ThinkEvents.h; sourceTree = "<group>"; };
 		6F8B1FEA2538D64B003DD8A8 /* ReYogaSMCApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReYogaSMCApp.entitlements; sourceTree = "<group>"; };
 		6F8B2301253C4241005BEC5D /* Mic.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = Mic.pdf; sourceTree = "<group>"; };
@@ -253,19 +314,103 @@
 		6F98BCF725532AD300ACFD99 /* ReYogaHIDD.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaHIDD.hpp; sourceTree = "<group>"; };
 		6F9B2AB124D2ADD800005C16 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		6FA75307253D68C600EBE9D7 /* FunctionKey.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = FunctionKey.pdf; sourceTree = "<group>"; };
-		6FB5BE14255521E1001BFDFF /* ThinkFanHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkFanHelper.swift; sourceTree = "<group>"; };
 		6FB613EC28977074005561EF /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
-		6FC40F392592856A004A6D48 /* NotificationHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationHandler.swift; sourceTree = "<group>"; };
 		6FCF7F572474B74800A82B13 /* WMI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WMI.h; sourceTree = "<group>"; };
 		6FCF7F582474B74800A82B13 /* WMI.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = WMI.cpp; sourceTree = "<group>"; };
 		6FCF7F5B2474B89000A82B13 /* common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = common.h; sourceTree = "<group>"; };
-		6FD083002537E87400491976 /* ReYogaSMC-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ReYogaSMC-Bridging-Header.h"; sourceTree = "<group>"; };
 		6FD2BB47247721040018EA36 /* bmfdec.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = bmfdec.c; sourceTree = "<group>"; };
 		6FD2BB8B247B37A20018EA36 /* bmfparser.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = bmfparser.cpp; sourceTree = "<group>"; };
 		6FD2BB8C247B37A20018EA36 /* bmfparser.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = bmfparser.hpp; sourceTree = "<group>"; };
 		6FE3698824F76A5D008B29E4 /* DYTC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DYTC.h; sourceTree = "<group>"; };
 		A10000000000000000000010 /* ControlValidation.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ControlValidation.hpp; sourceTree = "<group>"; };
 		A10000000000000000000011 /* ReYogaFirmwareProfiles.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ReYogaFirmwareProfiles.hpp; sourceTree = "<group>"; };
+		6F0A987925343357002F9F65 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		F8B93BE324B7CA3E6F74E385 /* DriverConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverConnection.swift; sourceTree = "<group>"; };
+		8F0A0D17E5C5B7A73263B1C9 /* ApplicationReviewHarness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationReviewHarness.swift; sourceTree = "<group>"; };
+		B84E7390E12DB5B9696963AD /* HardwarePreviewSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwarePreviewSnapshot.swift; sourceTree = "<group>"; };
+		BF29495811AF7EFA0EBF8003 /* ReYogaReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReYogaReviewView.swift; sourceTree = "<group>"; };
+		38CC937643DD656D4FF0B231 /* VolumeObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeObserver.swift; sourceTree = "<group>"; };
+		9ABB5F08FED7C2FD0909A955 /* DiagnosticCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticCollector.swift; sourceTree = "<group>"; };
+		D90E2B82CE94EE5AC3D47578 /* DiagnosticLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLog.swift; sourceTree = "<group>"; };
+		699153FC38AB8094CDBD0849 /* HardwareDiagnosticsExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareDiagnosticsExporter.swift; sourceTree = "<group>"; };
+		B546ACF112DB955CE0C937B8 /* DefaultEvents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultEvents.swift; sourceTree = "<group>"; };
+		88B6B0C39BC1B85B9550DFD9 /* EventAction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventAction.swift; sourceTree = "<group>"; };
+		6432BB76321B57C5107DD1FC /* EventPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventPreferences.swift; sourceTree = "<group>"; };
+		318779C2ED36329E4F9E1F39 /* ACPIExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPIExport.swift; sourceTree = "<group>"; };
+		F1F25E36B7094A4797505AC3 /* HardwareACPIAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareACPIAnalysis.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* ThinkPadACPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkPadACPI.swift; sourceTree = "<group>"; };
+		6E926D526CA0B408796F360A /* HardwareCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareCapabilities.swift; sourceTree = "<group>"; };
+		65E505960C1AB48B148FB3A4 /* HardwareFeatureStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareFeatureStatus.swift; sourceTree = "<group>"; };
+		9BAD72AE85F1A118CA785A4F /* HardwareSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSnapshot.swift; sourceTree = "<group>"; };
+		C584EE1B487B4CC07F265FB4 /* PowerLimitInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerLimitInput.swift; sourceTree = "<group>"; };
+		376FBD090614B171AED6BDE1 /* SavedHardwareSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedHardwareSettings.swift; sourceTree = "<group>"; };
+		FD48FD6284443FE3B5EA4C24 /* DriverControlTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverControlTransport.swift; sourceTree = "<group>"; };
+		7D7F00418ECF723AC2EC33A2 /* DriverEventContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverEventContext.swift; sourceTree = "<group>"; };
+		77FF9A594442D60788689706 /* DriverNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverNotifications.swift; sourceTree = "<group>"; };
+		5F2EB6463FF2DE1971D0E757 /* IORegistryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IORegistryAccess.swift; sourceTree = "<group>"; };
+		6FB5BE14255521E1001BFDFF /* ThinkFanHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkFanHelper.swift; sourceTree = "<group>"; };
+		6F0A989C25343357002F9F65 /* HardwareManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareManager.swift; sourceTree = "<group>"; };
+		091AB69B7520B17FFE565CEA /* SystemHotkeyActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemHotkeyActions.swift; sourceTree = "<group>"; };
+		8E6DFDAE8F6AE9A08BA79FAA /* HardwareHotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareHotkeyManager.swift; sourceTree = "<group>"; };
+		68D30D47AA4523E9F4E2610B /* LegionHotkeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegionHotkeys.swift; sourceTree = "<group>"; };
+		4F6FCEF071D2B47D5A72EC7D /* HardwareLightingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareLightingManager.swift; sourceTree = "<group>"; };
+		4F77F88FBDF09E62616E72F1 /* LegionRGBController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegionRGBController.swift; sourceTree = "<group>"; };
+		B56D3CCD6967C2279C0F2BCF /* RGBMatchProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RGBMatchProfile.swift; sourceTree = "<group>"; };
+		37B3786A539E1E6E8314F883 /* SavedRGBSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedRGBSettings.swift; sourceTree = "<group>"; };
+		856197165DA114B9E76999F0 /* HardwareProfiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareProfiles.swift; sourceTree = "<group>"; };
+		D44A0FF8746E170A33303BA7 /* LaptopIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaptopIdentity.swift; sourceTree = "<group>"; };
+		0DBD0AE4A5527E6B325AB17C /* BatterySnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatterySnapshot.swift; sourceTree = "<group>"; };
+		988386187A9E201555983F69 /* SMCTemperatureReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SMCTemperatureReader.swift; sourceTree = "<group>"; };
+		2755BF3F24FBF69B90F47E85 /* ReYogaPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReYogaPreferences.swift; sourceTree = "<group>"; };
+		1F8CEA94B0D9434B2F36131A /* ReleaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseService.swift; sourceTree = "<group>"; };
+		A10000000000000000000006 /* LocalizedKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizedKey.swift; sourceTree = "<group>"; };
+		393CE87CEC362CF4A6CBC612 /* ReYogaConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReYogaConstants.swift; sourceTree = "<group>"; };
+		6C63B54A14ED3CB8D411C649 /* SupportError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportError.swift; sourceTree = "<group>"; };
+		75090157DC8175BFD37DA23C /* AppleScriptActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleScriptActions.swift; sourceTree = "<group>"; };
+		6F14956E2580BF7200A3BA83 /* AudioHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioHelper.swift; sourceTree = "<group>"; };
+		1446AB44123A393272F172CB /* DesktopActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopActions.swift; sourceTree = "<group>"; };
+		CDBF85C7026015A16F4445FC /* WirelessActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WirelessActions.swift; sourceTree = "<group>"; };
+		A10000000000000000000008 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		8C10B7B098B2209010D0D50A /* BatterySummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatterySummary.swift; sourceTree = "<group>"; };
+		949009770C37F1F576664006 /* ColorPanelPlacement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPanelPlacement.swift; sourceTree = "<group>"; };
+		B29BF4CD7814EBB8B91F0318 /* ColorWell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorWell.swift; sourceTree = "<group>"; };
+		7E860D47A52A0EC301598A9F /* ControlComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlComponents.swift; sourceTree = "<group>"; };
+		A4D8635FC102425A8470519D /* ReportValueRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportValueRow.swift; sourceTree = "<group>"; };
+		EBA9BCEEA4BC42E715AA657D /* ReYogaBrand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReYogaBrand.swift; sourceTree = "<group>"; };
+		E47B7DB4C7655892DAEB9176 /* RGBColorConversion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RGBColorConversion.swift; sourceTree = "<group>"; };
+		C6C2E655824CA033A0DD3A82 /* TelemetrySummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetrySummary.swift; sourceTree = "<group>"; };
+		2FFFF3093625DA2B268B2CDD /* BatteryReportPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryReportPage.swift; sourceTree = "<group>"; };
+		C76E85CBAAB0F3C6C2FA9FEE /* ControlPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlPresentation.swift; sourceTree = "<group>"; };
+		057EDAD3F351B92D3EEDC294 /* ControlRiskConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlRiskConfirmation.swift; sourceTree = "<group>"; };
+		AC1629365CBCFC17A47F25ED /* CoolingControlsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoolingControlsPage.swift; sourceTree = "<group>"; };
+		FDCDBA8DEC417328BF838F76 /* DeviceControlsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceControlsPage.swift; sourceTree = "<group>"; };
+		67ACFCDA4222B3AE83F42777 /* DiagnosticsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsPage.swift; sourceTree = "<group>"; };
+		C4BBB5591F0B579AE06BF78E /* HardwareControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareControlsView.swift; sourceTree = "<group>"; };
+		0CC48B00D1AA22EC137C4ADA /* LightingControlsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightingControlsPage.swift; sourceTree = "<group>"; };
+		8C2EDBA9B5976712C8876258 /* OverviewPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewPage.swift; sourceTree = "<group>"; };
+		AC4DC1ECAC104FB208EF7810 /* SettingsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPage.swift; sourceTree = "<group>"; };
+		C53D3406E4B764585EFB012D /* EventImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventImage.swift; sourceTree = "<group>"; };
+		76F777C03730EAF8222783E8 /* StatusHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusHUD.swift; sourceTree = "<group>"; };
+		6FD083002537E87400491976 /* ReYogaSMC-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ReYogaSMC-Bridging-Header.h; sourceTree = "<group>"; };
+		F1F61ED34DD282433CD563D9 /* IdeaVPCControls.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaVPCControls.cpp; sourceTree = "<group>"; };
+		5CA801E93F3713A8F9ED7944 /* IdeaVPCIdentity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaVPCIdentity.cpp; sourceTree = "<group>"; };
+		72899053AEB96C376C59D022 /* IdeaVPCTelemetry.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaVPCTelemetry.cpp; sourceTree = "<group>"; };
+		388EF8D33CB660803DFF3676 /* ThinkVPCACPI.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ThinkVPCACPI.cpp; sourceTree = "<group>"; };
+		4B7D204BF9D60BE7064A713C /* ThinkVPCControls.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ThinkVPCControls.cpp; sourceTree = "<group>"; };
+		B2C5FBB6ECEE2846DFA759DC /* ThinkVPCFan.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ThinkVPCFan.cpp; sourceTree = "<group>"; };
+		85BF7846FB9F58A0A2C8CA71 /* ReYogaVPCDYTC.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaVPCDYTC.cpp; sourceTree = "<group>"; };
+		F1649C0601AB19736D5CE35C /* ReYogaVPCProperties.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = ReYogaVPCProperties.cpp; sourceTree = "<group>"; };
+		FA90D5C67C204471138ECF25 /* IdeaWMIBattery.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaWMIBattery.cpp; sourceTree = "<group>"; };
+		CCE66B5271AF702F017B4488 /* IdeaWMIGameZone.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaWMIGameZone.cpp; sourceTree = "<group>"; };
+		218D79FB8C196B2A451CC66C /* IdeaWMIPaper.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaWMIPaper.cpp; sourceTree = "<group>"; };
+		D995142920079362CE8E567B /* IdeaWMISuperRes.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaWMISuperRes.cpp; sourceTree = "<group>"; };
+		8E012543B5A9EDE5539FBEE6 /* IdeaWMIYoga.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaWMIYoga.cpp; sourceTree = "<group>"; };
+		63C61131812B1F1858A2123E /* IASLCompiler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IASLCompiler.swift; sourceTree = "<group>"; };
+		E78C5FC93AFCE8F7C60DFF3A /* ACPIExportActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ACPIExportActions.swift; sourceTree = "<group>"; };
+		AD23E602CE53C733EEEE98A5 /* HardwareFeedbackPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareFeedbackPresenter.swift; sourceTree = "<group>"; };
+		B91320EBA18E5CD5E972A754 /* HardwareFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareFeedback.swift; sourceTree = "<group>"; };
+		857C83A2AA1CBBF8AD41946F /* HotkeyPermissionActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyPermissionActions.swift; sourceTree = "<group>"; };
+		674AC15C12C9872743394F5C /* DriverEventActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverEventActions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -315,7 +460,6 @@
 				6F08ACE624746B8B00681A63 /* ReYogaSMC */,
 				6F0A987825343357002F9F65 /* ReYogaSMCApp */,
 				6F7D484125344C25004074C7 /* ReYogaSMCHelper */,
-				6F8B1F1925380748003DD8A8 /* ReYogaSMCUtils */,
 				6F08ACE524746B8B00681A63 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -333,9 +477,11 @@
 		6F08ACE624746B8B00681A63 /* ReYogaSMC */ = {
 			isa = PBXGroup;
 			children = (
-				6F70426024D2CFB900FD5659 /* ReYogaSMC */,
-				6F9553BC24BA516100215EBB /* ReYogaVPC */,
-				6F48676024A2937E003AD4CA /* ReYogaWMI */,
+				F1649C0601AB19736D5CE35C /* ReYogaVPCProperties.cpp */,
+				85BF7846FB9F58A0A2C8CA71 /* ReYogaVPCDYTC.cpp */,
+				6F70426024D2CFB900FD5659 /* SMC */,
+				6F9553BC24BA516100215EBB /* Platform */,
+				6F48676024A2937E003AD4CA /* WMI */,
 				6FCF7F572474B74800A82B13 /* WMI.h */,
 				6FCF7F582474B74800A82B13 /* WMI.cpp */,
 				6FD2BB47247721040018EA36 /* bmfdec.c */,
@@ -343,6 +489,9 @@
 				6FD2BB8B247B37A20018EA36 /* bmfparser.cpp */,
 				6FCF7F5B2474B89000A82B13 /* common.h */,
 				A10000000000000000000010 /* ControlValidation.hpp */,
+                D03FAD9100BB41B4A07CBC7C /* FirmwareIdentity.hpp */,
+                8AEFF9521DE8C2C2B046AB59 /* SensorDescriptors.hpp */,
+                5D42F520686752B1617C94B6 /* ControlRequest.hpp */,
 				A10000000000000000000011 /* ReYogaFirmwareProfiles.hpp */,
 				6F96F4D524CD9593005A7686 /* message.h */,
 				6F83587224D0C2B50031512F /* KeyImplementations.hpp */,
@@ -366,17 +515,17 @@
 		6F0A987825343357002F9F65 /* ReYogaSMCApp */ = {
 			isa = PBXGroup;
 			children = (
+				30BED3BD852D8E6F00EF1DAE /* Application */,
+				486A0FD7A5E23E94A7A1E360 /* Diagnostics */,
+				BE26B7976C35EE265B0C9291 /* Events */,
+				C12D1CCE8E962C7A1305E502 /* Hardware */,
+				B2F09A7047CC5F8DD10BF823 /* Preferences */,
+				81EE7111FF409745EC66ECAD /* Shared */,
+				8B7F648BB24B3C2CEB2ABA8C /* System */,
+				C43CCA800020B14A4E78E4F1 /* Views */,
 				6F86121D253AF7FA008FB857 /* Resources */,
 				6F8B1FEA2538D64B003DD8A8 /* ReYogaSMCApp.entitlements */,
-				6F0A987925343357002F9F65 /* AppDelegate.swift */,
-				6F0A989C25343357002F9F65 /* HardwareManager.swift */,
-                A10000000000000000000002 /* HardwareSupport.swift */,
-                A20000000000000000000002 /* ThinkPadACPI.swift */,
                 A10000000000000000000004 /* HardwareProfiles */,
-				6F0A989D25343357002F9F65 /* HardwareViews.swift */,
-                A10000000000000000000006 /* LocalizedKey.swift */,
-                A10000000000000000000008 /* AppTheme.swift */,
-				6FC40F392592856A004A6D48 /* NotificationHandler.swift */,
 				6F0A987D25343359002F9F65 /* Assets.xcassets */,
 				6F0A987F25343359002F9F65 /* Main.storyboard */,
 				6F0A988225343359002F9F65 /* Info.plist */,
@@ -401,21 +550,26 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		6F48676024A2937E003AD4CA /* ReYogaWMI */ = {
+		6F48676024A2937E003AD4CA /* WMI */ = {
 			isa = PBXGroup;
 			children = (
+				8E012543B5A9EDE5539FBEE6 /* IdeaWMIYoga.cpp */,
+				D995142920079362CE8E567B /* IdeaWMISuperRes.cpp */,
+				218D79FB8C196B2A451CC66C /* IdeaWMIPaper.cpp */,
+				CCE66B5271AF702F017B4488 /* IdeaWMIGameZone.cpp */,
+				FA90D5C67C204471138ECF25 /* IdeaWMIBattery.cpp */,
 				6F9150752634C29200DF4F9D /* DYWMI.hpp */,
 				6F9150742634C29200DF4F9D /* DYWMI.cpp */,
 				6F48676224A293A0003AD4CA /* IdeaWMI.hpp */,
 				6F48676124A293A0003AD4CA /* IdeaWMI.cpp */,
 			);
-			path = ReYogaWMI;
+			path = WMI;
 			sourceTree = "<group>";
 		};
 		6F70425F24D2CF5200FD5659 /* Docs */ = {
 			isa = PBXGroup;
 			children = (
-				6F70426124D2CFE900FD5659 /* SSDTSample */,
+				6F70426124D2CFE900FD5659 /* ACPIExamples */,
 				6F93458F255140B900625343 /* Changelog.md */,
 				6F2D45CB24C9494B00A75751 /* LICENSE */,
 				6F9B2AB124D2ADD800005C16 /* README.md */,
@@ -423,7 +577,7 @@
 			name = Docs;
 			sourceTree = "<group>";
 		};
-		6F70426024D2CFB900FD5659 /* ReYogaSMC */ = {
+		6F70426024D2CFB900FD5659 /* SMC */ = {
 			isa = PBXGroup;
 			children = (
 				6F86DD05263A3E670037A878 /* DYSMC.hpp */,
@@ -433,7 +587,7 @@
 				6F7B5CFE24FBC3CC00AA80FF /* ThinkSMC.hpp */,
 				6F7B5CFD24FBC3CC00AA80FF /* ThinkSMC.cpp */,
 			);
-			path = ReYogaSMC;
+			path = SMC;
 			sourceTree = "<group>";
 		};
 		6F7D484125344C25004074C7 /* ReYogaSMCHelper */ = {
@@ -486,24 +640,16 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
-		6F8B1F1925380748003DD8A8 /* ReYogaSMCUtils */ = {
+
+		6F9553BC24BA516100215EBB /* Platform */ = {
 			isa = PBXGroup;
 			children = (
-				6F14956E2580BF7200A3BA83 /* AudioHelper.swift */,
-				6F861242253BD7FB008FB857 /* Configuration.swift */,
-				6F8B1F2C253808DC003DD8A8 /* OSDHelper.swift */,
-				6F8B1F242538083A003DD8A8 /* PropertyHelper.swift */,
-				6F8611D4253AB59F008FB857 /* RFHelper.swift */,
-				6F8B1F70253821C3003DD8A8 /* ScriptHelper.swift */,
-				6FB5BE14255521E1001BFDFF /* ThinkFanHelper.swift */,
-				6FD083002537E87400491976 /* ReYogaSMC-Bridging-Header.h */,
-			);
-			path = ReYogaSMCUtils;
-			sourceTree = "<group>";
-		};
-		6F9553BC24BA516100215EBB /* ReYogaVPC */ = {
-			isa = PBXGroup;
-			children = (
+				B2C5FBB6ECEE2846DFA759DC /* ThinkVPCFan.cpp */,
+				4B7D204BF9D60BE7064A713C /* ThinkVPCControls.cpp */,
+				388EF8D33CB660803DFF3676 /* ThinkVPCACPI.cpp */,
+				72899053AEB96C376C59D022 /* IdeaVPCTelemetry.cpp */,
+				5CA801E93F3713A8F9ED7944 /* IdeaVPCIdentity.cpp */,
+				F1F61ED34DD282433CD563D9 /* IdeaVPCControls.cpp */,
 				6FE3698824F76A5D008B29E4 /* DYTC.h */,
 				6F64A28225A7FA7D00070265 /* DYVPC.hpp */,
 				6F64A28125A7FA7D00070265 /* DYVPC.cpp */,
@@ -515,7 +661,241 @@
 				6F98BCF725532AD300ACFD99 /* ReYogaHIDD.hpp */,
 				6F98BCF625532AD300ACFD99 /* ReYogaHIDD.cpp */,
 			);
-			path = ReYogaVPC;
+			path = Platform;
+			sourceTree = "<group>";
+		};
+		30BED3BD852D8E6F00EF1DAE /* Application */ = {
+			isa = PBXGroup;
+			children = (
+				6F0A987925343357002F9F65 /* AppDelegate.swift */,
+				F8B93BE324B7CA3E6F74E385 /* DriverConnection.swift */,
+				DCB5EF310B75CC6CBDAE4034 /* Preview */,
+				38CC937643DD656D4FF0B231 /* VolumeObserver.swift */,
+			);
+			path = Application;
+			sourceTree = "<group>";
+		};
+		DCB5EF310B75CC6CBDAE4034 /* Preview */ = {
+			isa = PBXGroup;
+			children = (
+				8F0A0D17E5C5B7A73263B1C9 /* ApplicationReviewHarness.swift */,
+				B84E7390E12DB5B9696963AD /* HardwarePreviewSnapshot.swift */,
+				BF29495811AF7EFA0EBF8003 /* ReYogaReviewView.swift */,
+			);
+			path = Preview;
+			sourceTree = "<group>";
+		};
+		486A0FD7A5E23E94A7A1E360 /* Diagnostics */ = {
+			isa = PBXGroup;
+			children = (
+				9ABB5F08FED7C2FD0909A955 /* DiagnosticCollector.swift */,
+				D90E2B82CE94EE5AC3D47578 /* DiagnosticLog.swift */,
+				699153FC38AB8094CDBD0849 /* HardwareDiagnosticsExporter.swift */,
+			);
+			path = Diagnostics;
+			sourceTree = "<group>";
+		};
+		BE26B7976C35EE265B0C9291 /* Events */ = {
+			isa = PBXGroup;
+			children = (
+				674AC15C12C9872743394F5C /* DriverEventActions.swift */,
+				B546ACF112DB955CE0C937B8 /* DefaultEvents.swift */,
+				88B6B0C39BC1B85B9550DFD9 /* EventAction.swift */,
+				6432BB76321B57C5107DD1FC /* EventPreferences.swift */,
+			);
+			path = Events;
+			sourceTree = "<group>";
+		};
+		C12D1CCE8E962C7A1305E502 /* Hardware */ = {
+			isa = PBXGroup;
+			children = (
+				B91320EBA18E5CD5E972A754 /* HardwareFeedback.swift */,
+				9D27ED31DF0A8525CE3B1724 /* ACPI */,
+				2852597C89DB1DFCD2A8F939 /* Controls */,
+				56E2EABE83840E98CDA51E41 /* Driver */,
+				7CD04BC83A1D07CD8D56B5A6 /* Fans */,
+				6F0A989C25343357002F9F65 /* HardwareManager.swift */,
+				6299DEAAB7A12079C8E57E49 /* Input */,
+				E614853D6B3A4938D3F0C1CE /* Lighting */,
+				8607A7FD869A7FD9A338E7A0 /* Profiles */,
+				7C441326A7526F3CFA086DFC /* Sensors */,
+			);
+			path = Hardware;
+			sourceTree = "<group>";
+		};
+		9D27ED31DF0A8525CE3B1724 /* ACPI */ = {
+			isa = PBXGroup;
+			children = (
+				63C61131812B1F1858A2123E /* IASLCompiler.swift */,
+				318779C2ED36329E4F9E1F39 /* ACPIExport.swift */,
+				F1F25E36B7094A4797505AC3 /* HardwareACPIAnalysis.swift */,
+				A20000000000000000000002 /* ThinkPadACPI.swift */,
+			);
+			path = ACPI;
+			sourceTree = "<group>";
+		};
+		2852597C89DB1DFCD2A8F939 /* Controls */ = {
+			isa = PBXGroup;
+			children = (
+				6E926D526CA0B408796F360A /* HardwareCapabilities.swift */,
+				65E505960C1AB48B148FB3A4 /* HardwareFeatureStatus.swift */,
+				9BAD72AE85F1A118CA785A4F /* HardwareSnapshot.swift */,
+				C584EE1B487B4CC07F265FB4 /* PowerLimitInput.swift */,
+				376FBD090614B171AED6BDE1 /* SavedHardwareSettings.swift */,
+			);
+			path = Controls;
+			sourceTree = "<group>";
+		};
+		56E2EABE83840E98CDA51E41 /* Driver */ = {
+			isa = PBXGroup;
+			children = (
+				FD48FD6284443FE3B5EA4C24 /* DriverControlTransport.swift */,
+				7D7F00418ECF723AC2EC33A2 /* DriverEventContext.swift */,
+				77FF9A594442D60788689706 /* DriverNotifications.swift */,
+				5F2EB6463FF2DE1971D0E757 /* IORegistryAccess.swift */,
+				6FD083002537E87400491976 /* ReYogaSMC-Bridging-Header.h */,
+			);
+			path = Driver;
+			sourceTree = "<group>";
+		};
+		7CD04BC83A1D07CD8D56B5A6 /* Fans */ = {
+			isa = PBXGroup;
+			children = (
+				6FB5BE14255521E1001BFDFF /* ThinkFanHelper.swift */,
+			);
+			path = Fans;
+			sourceTree = "<group>";
+		};
+		6299DEAAB7A12079C8E57E49 /* Input */ = {
+			isa = PBXGroup;
+			children = (
+				8E6DFDAE8F6AE9A08BA79FAA /* HardwareHotkeyManager.swift */,
+				68D30D47AA4523E9F4E2610B /* LegionHotkeys.swift */,
+			);
+			path = Input;
+			sourceTree = "<group>";
+		};
+		E614853D6B3A4938D3F0C1CE /* Lighting */ = {
+			isa = PBXGroup;
+			children = (
+				4F6FCEF071D2B47D5A72EC7D /* HardwareLightingManager.swift */,
+				4F77F88FBDF09E62616E72F1 /* LegionRGBController.swift */,
+				B56D3CCD6967C2279C0F2BCF /* RGBMatchProfile.swift */,
+				37B3786A539E1E6E8314F883 /* SavedRGBSettings.swift */,
+			);
+			path = Lighting;
+			sourceTree = "<group>";
+		};
+		8607A7FD869A7FD9A338E7A0 /* Profiles */ = {
+			isa = PBXGroup;
+			children = (
+				856197165DA114B9E76999F0 /* HardwareProfiles.swift */,
+				D44A0FF8746E170A33303BA7 /* LaptopIdentity.swift */,
+			);
+			path = Profiles;
+			sourceTree = "<group>";
+		};
+		7C441326A7526F3CFA086DFC /* Sensors */ = {
+			isa = PBXGroup;
+			children = (
+				0DBD0AE4A5527E6B325AB17C /* BatterySnapshot.swift */,
+				988386187A9E201555983F69 /* SMCTemperatureReader.swift */,
+			);
+			path = Sensors;
+			sourceTree = "<group>";
+		};
+		B2F09A7047CC5F8DD10BF823 /* Preferences */ = {
+			isa = PBXGroup;
+			children = (
+				2755BF3F24FBF69B90F47E85 /* ReYogaPreferences.swift */,
+				A7C0E5E035827C394960E103 /* Services */,
+			);
+			path = Preferences;
+			sourceTree = "<group>";
+		};
+		A7C0E5E035827C394960E103 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				1F8CEA94B0D9434B2F36131A /* ReleaseService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		81EE7111FF409745EC66ECAD /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000006 /* LocalizedKey.swift */,
+				393CE87CEC362CF4A6CBC612 /* ReYogaConstants.swift */,
+				6C63B54A14ED3CB8D411C649 /* SupportError.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		8B7F648BB24B3C2CEB2ABA8C /* System */ = {
+			isa = PBXGroup;
+			children = (
+				091AB69B7520B17FFE565CEA /* SystemHotkeyActions.swift */,
+				75090157DC8175BFD37DA23C /* AppleScriptActions.swift */,
+				6F14956E2580BF7200A3BA83 /* AudioHelper.swift */,
+				1446AB44123A393272F172CB /* DesktopActions.swift */,
+				CDBF85C7026015A16F4445FC /* WirelessActions.swift */,
+			);
+			path = System;
+			sourceTree = "<group>";
+		};
+		C43CCA800020B14A4E78E4F1 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				515E9253ADFE920C5C9FDB98 /* Components */,
+				A2DCC71627EC73EC6C903C82 /* Controls */,
+				A03E7301F44E8F1A055A0B9E /* HUD */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		515E9253ADFE920C5C9FDB98 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				E78C5FC93AFCE8F7C60DFF3A /* ACPIExportActions.swift */,
+				A10000000000000000000008 /* AppTheme.swift */,
+				8C10B7B098B2209010D0D50A /* BatterySummary.swift */,
+				949009770C37F1F576664006 /* ColorPanelPlacement.swift */,
+				B29BF4CD7814EBB8B91F0318 /* ColorWell.swift */,
+				7E860D47A52A0EC301598A9F /* ControlComponents.swift */,
+				E47B7DB4C7655892DAEB9176 /* RGBColorConversion.swift */,
+				EBA9BCEEA4BC42E715AA657D /* ReYogaBrand.swift */,
+				A4D8635FC102425A8470519D /* ReportValueRow.swift */,
+				C6C2E655824CA033A0DD3A82 /* TelemetrySummary.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		A2DCC71627EC73EC6C903C82 /* Controls */ = {
+			isa = PBXGroup;
+			children = (
+				857C83A2AA1CBBF8AD41946F /* HotkeyPermissionActions.swift */,
+				2FFFF3093625DA2B268B2CDD /* BatteryReportPage.swift */,
+				C76E85CBAAB0F3C6C2FA9FEE /* ControlPresentation.swift */,
+				057EDAD3F351B92D3EEDC294 /* ControlRiskConfirmation.swift */,
+				AC1629365CBCFC17A47F25ED /* CoolingControlsPage.swift */,
+				FDCDBA8DEC417328BF838F76 /* DeviceControlsPage.swift */,
+				67ACFCDA4222B3AE83F42777 /* DiagnosticsPage.swift */,
+				C4BBB5591F0B579AE06BF78E /* HardwareControlsView.swift */,
+				0CC48B00D1AA22EC137C4ADA /* LightingControlsPage.swift */,
+				8C2EDBA9B5976712C8876258 /* OverviewPage.swift */,
+				AC4DC1ECAC104FB208EF7810 /* SettingsPage.swift */,
+			);
+			path = Controls;
+			sourceTree = "<group>";
+		};
+		A03E7301F44E8F1A055A0B9E /* HUD */ = {
+			isa = PBXGroup;
+			children = (
+				AD23E602CE53C733EEEE98A5 /* HardwareFeedbackPresenter.swift */,
+				C53D3406E4B764585EFB012D /* EventImage.swift */,
+				76F777C03730EAF8222783E8 /* StatusHUD.swift */,
+			);
+			path = HUD;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -737,6 +1117,19 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4124095A8DA11D612DF754A9 /* IdeaVPCControls.cpp in Sources */,
+				B787A9605C4D80E4B7D788B6 /* IdeaVPCIdentity.cpp in Sources */,
+				5EE6FD0D39E0410D2659EA70 /* IdeaVPCTelemetry.cpp in Sources */,
+				284FE6C2CB02F461941D818E /* ThinkVPCACPI.cpp in Sources */,
+				B6D72D453772DBAA013E4B58 /* ThinkVPCControls.cpp in Sources */,
+				2098A1687FF4C04C75FF6322 /* ThinkVPCFan.cpp in Sources */,
+				3A1C4E703043EA08EF81B5F1 /* ReYogaVPCDYTC.cpp in Sources */,
+				ABBF374794196C49EE0C2AC2 /* ReYogaVPCProperties.cpp in Sources */,
+				7300F960BDBFB3B2F354997A /* IdeaWMIBattery.cpp in Sources */,
+				E80DD444BF8E54D25E00193D /* IdeaWMIGameZone.cpp in Sources */,
+				CA3F17B7134F90D97D8B97F5 /* IdeaWMIPaper.cpp in Sources */,
+				F537B4A62488AA24E8B6EA76 /* IdeaWMISuperRes.cpp in Sources */,
+				447B813D6062B4C1CEE8B34A /* IdeaWMIYoga.cpp in Sources */,
 				6F64A28325A7FA7D00070265 /* DYVPC.cpp in Sources */,
 				6F9553BA24BA515B00215EBB /* IdeaVPC.cpp in Sources */,
 				6F6CEDA424BC14C2004D553F /* ThinkVPC.cpp in Sources */,
@@ -762,21 +1155,79 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6FB5BE15255521E1001BFDFF /* ThinkFanHelper.swift in Sources */,
-				6F14956F2580BF7200A3BA83 /* AudioHelper.swift in Sources */,
-				6F8B1F2E253808DC003DD8A8 /* OSDHelper.swift in Sources */,
-				6FC40F3A2592856A004A6D48 /* NotificationHandler.swift in Sources */,
-				6F8B1F262538083A003DD8A8 /* PropertyHelper.swift in Sources */,
-				6F8611D5253AB59F008FB857 /* RFHelper.swift in Sources */,
-				6F8B1F71253821C3003DD8A8 /* ScriptHelper.swift in Sources */,
+				9B5523A8652532F551C7624E /* DriverEventActions.swift in Sources */,
+				EFD0AA5710F384BCED28D202 /* HotkeyPermissionActions.swift in Sources */,
+				F8A5A24CFE35511AEBD9C727 /* HardwareFeedback.swift in Sources */,
+				001DEA4C9FAFDFA6A630BF7F /* HardwareFeedbackPresenter.swift in Sources */,
+				E8432341B040B14339D0F826 /* ACPIExportActions.swift in Sources */,
+				E4B952642EEC1E1367696DE4 /* IASLCompiler.swift in Sources */,
 				6F0A987A25343357002F9F65 /* AppDelegate.swift in Sources */,
+				0FD338D05806476A31F5D5A2 /* DriverConnection.swift in Sources */,
+				EAF67DBCAC76DF48ABBB775D /* ApplicationReviewHarness.swift in Sources */,
+				33E256E2F06C82D2DA4FFA38 /* HardwarePreviewSnapshot.swift in Sources */,
+				278955B9813A2CF74828A6EB /* ReYogaReviewView.swift in Sources */,
+				51E20B902BFE47495CBC65D8 /* VolumeObserver.swift in Sources */,
+				0DA030A7F7A5C62C5B73DCFE /* DiagnosticCollector.swift in Sources */,
+				DD04BDC23E9E3A18718C0033 /* DiagnosticLog.swift in Sources */,
+				2D4DB0731E8C002822034F70 /* HardwareDiagnosticsExporter.swift in Sources */,
+				E4882613F19EA6906C91AAA1 /* DefaultEvents.swift in Sources */,
+				378967784791C98330DDFB1B /* EventAction.swift in Sources */,
+				33640AFAA2CBF162715F9548 /* EventPreferences.swift in Sources */,
+				60B9515B2603DFB79118F613 /* ACPIExport.swift in Sources */,
+				959555EE814F786B7472AE41 /* HardwareACPIAnalysis.swift in Sources */,
+				A20000000000000000000001 /* ThinkPadACPI.swift in Sources */,
+				38F66692ADE59BB6B9DE2037 /* HardwareCapabilities.swift in Sources */,
+				3F3F5AF4C777AF7D29B7B5BB /* HardwareFeatureStatus.swift in Sources */,
+				BFE35B7AE0EDED4B5AEC9A37 /* HardwareSnapshot.swift in Sources */,
+				CFBA2A744748D93555F64FDC /* PowerLimitInput.swift in Sources */,
+				D73E0A9C215BCCE30070E43B /* SavedHardwareSettings.swift in Sources */,
+				67563459F14CD0BC58926FEE /* DriverControlTransport.swift in Sources */,
+				CE02D4883967FEC439D1461F /* DriverEventContext.swift in Sources */,
+				93E861040C7A4391EBA57EF2 /* DriverNotifications.swift in Sources */,
+				B1630D57F190A639AC9EFAA2 /* IORegistryAccess.swift in Sources */,
+				6FB5BE15255521E1001BFDFF /* ThinkFanHelper.swift in Sources */,
 				6F0A989A25343357002F9F65 /* HardwareManager.swift in Sources */,
-                A10000000000000000000001 /* HardwareSupport.swift in Sources */,
-                A20000000000000000000001 /* ThinkPadACPI.swift in Sources */,
-				6F0A989B25343357002F9F65 /* HardwareViews.swift in Sources */,
-                A10000000000000000000005 /* LocalizedKey.swift in Sources */,
-                A10000000000000000000007 /* AppTheme.swift in Sources */,
-				6F861243253BD7FB008FB857 /* Configuration.swift in Sources */,
+				53522C3C7674A95107EE7588 /* SystemHotkeyActions.swift in Sources */,
+				B80F83415DBA77C32B770971 /* HardwareHotkeyManager.swift in Sources */,
+				AA6A226BBA65F9EEC767082D /* LegionHotkeys.swift in Sources */,
+				4120B47B8B7AAC3F973FBA15 /* HardwareLightingManager.swift in Sources */,
+				A112F666C3F3818FD1EC3381 /* LegionRGBController.swift in Sources */,
+				8FFB2EE46698D770470EBE36 /* RGBMatchProfile.swift in Sources */,
+				9F7F463A9C99831279D64087 /* SavedRGBSettings.swift in Sources */,
+				E09196A7EF11E3425E0495D0 /* HardwareProfiles.swift in Sources */,
+				49CA5CDBA66813DD0B3093BC /* LaptopIdentity.swift in Sources */,
+				CF1929E57EE35F223E779931 /* BatterySnapshot.swift in Sources */,
+				0E16C99A5995BE1D2CBF4D8F /* SMCTemperatureReader.swift in Sources */,
+				752765649AFBB32619A07BF1 /* ReYogaPreferences.swift in Sources */,
+				5BE643C0781E4CC481C9FA65 /* ReleaseService.swift in Sources */,
+				A10000000000000000000005 /* LocalizedKey.swift in Sources */,
+				B6886CFA060EB3DC16819A2B /* ReYogaConstants.swift in Sources */,
+				17DB11D8F2FC14B02529C6BA /* SupportError.swift in Sources */,
+				E0295BDA0F4BD834A1CABE53 /* AppleScriptActions.swift in Sources */,
+				6F14956F2580BF7200A3BA83 /* AudioHelper.swift in Sources */,
+				30B9E74F017DDBFB0956AD16 /* DesktopActions.swift in Sources */,
+				CEE408B3FB44A809AEFD9657 /* WirelessActions.swift in Sources */,
+				A10000000000000000000007 /* AppTheme.swift in Sources */,
+				44012586A11DEDED53AB96E1 /* BatterySummary.swift in Sources */,
+				026489713B5A52F3BE539612 /* ColorPanelPlacement.swift in Sources */,
+				6FD44A8853EA889E6EF2FA86 /* ColorWell.swift in Sources */,
+				9D68FB893AC0533979C2EDB6 /* ControlComponents.swift in Sources */,
+				F6135160659DBAC651116B2E /* ReportValueRow.swift in Sources */,
+				5B7823485F782903FA6FDCAA /* ReYogaBrand.swift in Sources */,
+				73BE7564B76BAD5CB50113A0 /* RGBColorConversion.swift in Sources */,
+				3F4A7BF677A040A8FC65D379 /* TelemetrySummary.swift in Sources */,
+				C67EF8A8D6207DDABB583346 /* BatteryReportPage.swift in Sources */,
+				DBF7C1663CDD4BAADDD6E908 /* ControlPresentation.swift in Sources */,
+				C34D0A5D275C3C4EC19C9B52 /* ControlRiskConfirmation.swift in Sources */,
+				F35082863A3AF84141217005 /* CoolingControlsPage.swift in Sources */,
+				0650CDA9D134A587CA30B274 /* DeviceControlsPage.swift in Sources */,
+				B8E002B562A82AFD1BDFC202 /* DiagnosticsPage.swift in Sources */,
+				DC9F41E1868BDBDAD9F1D096 /* HardwareControlsView.swift in Sources */,
+				9DEE50856442F66C78300D7D /* LightingControlsPage.swift in Sources */,
+				31BFEFAB9BBAB3DD046D3E91 /* OverviewPage.swift in Sources */,
+				1547CFE653D196B31E2C43F5 /* SettingsPage.swift in Sources */,
+				E8EDDD7DD003E269DD5E4599 /* EventImage.swift in Sources */,
+				7549E193CD2ABD8502794F12 /* StatusHUD.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1050,7 +1501,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.reyoga.ReYogaSMC;
 				PRODUCT_MODULE_NAME = ReYogaSMC;
 				PRODUCT_NAME = ReYogaSMC;
-				SWIFT_OBJC_BRIDGING_HEADER = "ReYogaSMCUtils/ReYogaSMC-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "ReYogaSMCApp/Hardware/Driver/ReYogaSMC-Bridging-Header.h";
 				SYSTEM_FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 				);
@@ -1077,7 +1528,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = org.reyoga.ReYogaSMC;
 				PRODUCT_MODULE_NAME = ReYogaSMC;
 				PRODUCT_NAME = ReYogaSMC;
-				SWIFT_OBJC_BRIDGING_HEADER = "ReYogaSMCUtils/ReYogaSMC-Bridging-Header.h";
+				SWIFT_OBJC_BRIDGING_HEADER = "ReYogaSMCApp/Hardware/Driver/ReYogaSMC-Bridging-Header.h";
 				SYSTEM_FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 				);

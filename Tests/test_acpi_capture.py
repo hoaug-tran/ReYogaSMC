@@ -4,6 +4,10 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+try:
+    from .source_tools import kernel_sources, function
+except ImportError:
+    from source_tools import kernel_sources, function
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -11,12 +15,15 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 @unittest.skipUnless(shutil.which('g++') or shutil.which('clang++'), 'C++ compiler required')
 class ACPICaptureTests(unittest.TestCase):
     def test_capture_limits_safe_mode_and_cleanup(self):
-        source = (ROOT / 'ReYogaSMC/ReYogaVPC.cpp').read_text(encoding='utf-8')
-        start = source.index('    if (auto requested = OSDynamicCast(OSBoolean, dict->getObject("ExportACPITables")))')
-        body = source[start:source.index('    if (auto requested = OSDynamicCast(OSBoolean, dict->getObject("ExportDSDT")))', start)]
+        source = kernel_sources('ReYogaVPC')
+        dispatch = function(source, 'if (!strcmp(key, "ExportACPITables"))')
+        unsupported = function(source, 'void ReYogaVPC::exportACPITables(')
+        think = kernel_sources('ThinkVPC')
+        export = function(think, 'void ThinkVPC::exportACPITables(')
         fixture = r'''
 #include "ReYogaSMC/ControlValidation.hpp"
 #include <cassert>
+#include <cstring>
 #include <map>
 #include <string>
 #include <vector>
@@ -41,7 +48,7 @@ struct OSArray : OSObject {
  bool setObject(OSObject *value){values.push_back(value);return true;}
  unsigned getCount(){return values.size();}
 };
-static void setPropertyNumber(OSDictionary *,const char *,unsigned,unsigned){}
+namespace ReYogaProperty { static void setNumber(OSDictionary *,const char *,unsigned,unsigned){} }
 struct Device {
  std::vector<OSData> tables; unsigned validations=0;
  const OSData *getACPITableData(const char *signature,unsigned index){
@@ -52,20 +59,27 @@ struct Device {
 };
 struct ReYogaVPC {
  Device device; Device *vpc=&device,*ec=&device; OSDictionary properties;
- bool think=true; unsigned status=99;
+ unsigned status=99;
  ReYogaVPC(){properties.values["ACPIECPath"]=&yes;properties.values["ACPIHKEYPath"]=&yes;device.tables.resize(3);}
- void *metaCast(const char *){return think?this:nullptr;}
  OSObject *getProperty(const char *key){return properties.getObject(key);}
  void removeProperty(const char *key){properties.values.erase(key);}
  void setProperty(const char *key,OSObject *value){properties.values[key]=value;}
  void setProperty(const char *,UInt32 value,unsigned){status=value;}
+ virtual void exportACPITables();
  void exportTables(OSDictionary *dict){
- // PRODUCTION
+ const char *key = "ExportACPITables";
+ OSObject *rawValue = dict->getObject(key);
+ // DISPATCH
  }
 };
+struct ThinkVPC : ReYogaVPC { void exportACPITables() override; };
+// UNSUPPORTED
+// EXPORT
 int main(){
  OSDictionary request;request.values["ExportACPITables"]=&yes;
- ReYogaVPC driver;driver.exportTables(&request);
+ ReYogaVPC unsupported;unsupported.exportTables(&request);
+ assert(unsupported.status!=0 && !unsupported.getProperty("ExportedACPITables"));
+ ThinkVPC driver;driver.exportTables(&request);
  assert(driver.status==0 && driver.device.validations==5);
  auto tables=dynamic_cast<OSArray *>(driver.getProperty("ExportedACPITables"));
  assert(tables && tables->getCount()==3);
@@ -73,9 +87,9 @@ int main(){
  assert(!driver.getProperty("ExportedACPITables") && !driver.getProperty("ThinkPadACPIEvidence"));
  request.values["ExportACPITables"]=&yes;
  for(unsigned failure=0;failure<7;++failure){
-  ReYogaVPC invalid;
+  ThinkVPC invalid;
   if(failure==0)invalid.properties.values["SafeMode"]=&yes;
-  if(failure==1)invalid.think=false;
+  if(failure==1)invalid.vpc=nullptr;
   if(failure==2)invalid.device.tables.clear();
   if(failure==3)invalid.device.tables[0].length=35;
   if(failure==4)invalid.device.tables.resize(257);
@@ -86,7 +100,7 @@ int main(){
   assert(invalid.device.validations==0);
  }
 }
-'''.replace('// PRODUCTION', body)
+'''.replace('// DISPATCH', dispatch).replace('// UNSUPPORTED', unsupported).replace('// EXPORT', export)
         with tempfile.TemporaryDirectory() as directory:
             path = pathlib.Path(directory) / 'capture.cpp'
             path.write_text(fixture, encoding='utf-8')

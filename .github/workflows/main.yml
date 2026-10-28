@@ -50,12 +50,7 @@ jobs:
       - name: Bootstrap locked dependencies
         run: bash Scripts/bootstrap.sh
       - name: Check support adapters
-        run: |
-          mkdir -p build
-          cp -R HardwareProfiles build/HardwareProfiles
-          swiftc -import-objc-header ReYogaSMCUtils/ReYogaSMC-Bridging-Header.h ReYogaSMCApp/LocalizedKey.swift ReYogaSMCApp/HardwareSupport.swift ReYogaSMCApp/ThinkPadACPI.swift ReYogaSMCApp/AppTheme.swift ReYogaSMCUtils/PropertyHelper.swift ReYogaSMCUtils/ThinkFanHelper.swift ReYogaSMCUtils/OSDHelper.swift Tests/main.swift -o build/SupportTests
-          REYOGA_LOCALIZATION_ROOT="$PWD" build/SupportTests
-          clang++ -std=c++14 -fsyntax-only Tests/control_validation.cpp
+        run: bash Scripts/test-support.sh
       - name: Build Debug and Release
         env:
           BUILD_VERSION: ${{ steps.version.outputs.version }}

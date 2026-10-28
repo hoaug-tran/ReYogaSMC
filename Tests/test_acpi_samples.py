@@ -13,14 +13,14 @@ class ACPISampleTests(unittest.TestCase):
         template = (ROOT / 'HardwareProfiles/SSDT-ThinkPad.template.dsl').read_text(encoding='utf-8')
         source = template.replace('{{ EC_PATH }}', r'\_SB.PCI0.LPCB.EC').replace(
             '{{ HKEY_PATH }}', r'\_SB.PCI0.LPCB.EC.HKEY')
-        sample = (ROOT / 'ReYogaSMC/SSDTSample/SSDT-ThinkPad.dsl').read_text(encoding='utf-8')
+        sample = (ROOT / 'ReYogaSMC/ACPIExamples/SSDT-ThinkPad.dsl').read_text(encoding='utf-8')
         self.assertEqual(sample.split('\n', 1)[1], source)
         self.assertNotIn('EST0', source, 'Unreviewed sensor offsets must not be added by the generator')
 
     @unittest.skipUnless(shutil.which('iasl'), 'ACPI compiler is not installed')
     def test_samples_compile(self):
         with tempfile.TemporaryDirectory() as directory:
-            for source in sorted((ROOT / 'ReYogaSMC/SSDTSample').glob('*.dsl')):
+            for source in sorted((ROOT / 'ReYogaSMC/ACPIExamples').glob('*.dsl')):
                 with self.subTest(sample=source.name):
                     result = subprocess.run(['iasl', '-p', str(pathlib.Path(directory) / source.stem), str(source)],
                                             capture_output=True, text=True, timeout=30)

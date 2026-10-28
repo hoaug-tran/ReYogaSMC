@@ -182,7 +182,7 @@
 "BATTERY_CHARGE" = "Battery charge";
 "PERCENT_FORMAT" = "%d percent";
 "BATTERY_MACOS" = "macOS battery";
-"BATTERY_PACK_FORMAT" = "Battery %d — Lenovo ACPI";
+"BATTERY_PACK_FORMAT" = "Battery %d - Lenovo ACPI";
 "SOURCE_FORMAT" = "Source: %@";
 "RETAINED_FORMAT" = "%.1f%% of design";
 "THINKPAD_FANS" = "ThinkPad EC fans";
@@ -226,8 +226,7 @@
 "ACPI backlight unavailable; RGB may use USB HID" = "ACPI backlight unavailable; RGB may use USB HID";
 "ACPI bridge" = "ACPI bridge";
 "ACPI bridge / precise EC RPM" = "ACPI bridge / precise EC RPM";
-"ACPI bridge source saved — compile and review before booting" = "ACPI bridge source saved — compile and review before booting";
-"ACPI bridge source saved. Install iasl to compile it." = "ACPI bridge source saved. Install iasl to compile it.";
+"ACPI bridge source saved - compile and review before booting" = "ACPI bridge source saved - compile and review before booting";
 "ACPI profile" = "ACPI profile";
 "ACPI profile discovery disabled by -reynobridge" = "ACPI profile discovery disabled by -reynobridge";
 "ACPI template contains unresolved fields" = "ACPI template contains unresolved fields";
@@ -242,7 +241,7 @@
 "AppleSMC service is unavailable" = "AppleSMC service is unavailable";
 "Applied colors and effects return when this app opens. Breathing and Spectrum run while it is open." = "Applied colors and effects return when this app opens. Breathing and Spectrum run while it is open.";
 "Applied minimum: %d RPM" = "Applied minimum: %d RPM";
-"Applied minimum: —" = "Applied minimum: —";
+"Applied minimum: -" = "Applied minimum: -";
 "Approve ReYogaSMC in System Settings → Login Items." = "Approve ReYogaSMC in System Settings → Login Items.";
 "Automatic fan restoration failed; inspect firmware and restart" = "Automatic fan restoration failed; inspect firmware and restart";
 "Automatic update checks: %@" = "Automatic update checks: %@";
@@ -309,7 +308,6 @@
 "DSDT unavailable or outside the validated size range" = "DSDT unavailable or outside the validated size range";
 "DYTC desk thermal profiles unavailable" = "DYTC desk thermal profiles unavailable";
 "Detailed Logging: %@" = "Detailed logging: %@";
-"Device support: %@" = "Device support: %@";
 "Diagnostic report saved locally" = "Diagnostic report saved locally";
 "Direct colors have transport acknowledgement; color readback is unavailable" = "Direct colors have transport acknowledgement; color readback is unavailable";
 "Disabled" = "Disabled";
@@ -478,7 +476,7 @@
 "Notification registration failed" = "Notification registration failed";
 "OK" = "OK";
 "Off" = "Off";
-"Off — native media keys remain active." = "Off — native media keys remain active.";
+"Off - native media keys remain active." = "Off - native media keys remain active.";
 "On" = "On";
 "Original machine type or BIOS family unavailable; generic ACPI/WMI interfaces remain available" = "Original machine type or BIOS family unavailable; generic ACPI/WMI interfaces remain available";
 "PCI subsystem ID" = "PCI subsystem ID";
@@ -538,8 +536,7 @@
 "SMC key descriptor unavailable" = "SMC key descriptor unavailable";
 "SMC read failed: transport=0x%08x result=%u bytes=%u" = "SMC read failed: transport=0x%08x result=%u bytes=%u";
 "SSDT compilation failed. The source and compile.log are saved for inspection." = "SSDT compilation failed. The source and compile.log are saved for inspection.";
-"SSDT compiled — review it and add it to OpenCore before rebooting" = "SSDT compiled — review it and add it to OpenCore before rebooting";
-"Save ACPI source for review and compilation with iasl. It will not be installed." = "Save ACPI source for review and compilation with iasl. It will not be installed.";
+"SSDT compiled - review it and add it to OpenCore before rebooting" = "SSDT compiled - review it and add it to OpenCore before rebooting";
 "Saved mapping is paused: grant Accessibility and Input Monitoring, then enable it." = "Saved mapping is paused: grant Accessibility and Input Monitoring, then enable it.";
 "Screen Off" = "Screen off";
 "Screen On" = "Screen on";
@@ -558,16 +555,13 @@
 "Start with macOS: %@" = "Start with macOS: %@";
 "Static" = "Static";
 "Status" = "Status";
-"Stopped — error" = "Stopped — error";
+"Stopped - error" = "Stopped - error";
 "Strip" = "Strip";
-"Support report ready" = "Support report ready";
-"Support report ready — review and submit the issue" = "Support report ready — review and submit the issue";
-"Support repository URL is invalid" = "Support repository URL is invalid";
 "System Prefereces" = "System prefereces";
 "System Preferences" = "System preferences";
 "System battery" = "System battery";
 "Tablet Mode" = "Tablet mode";
-"Telemetry stale — check driver log" = "Telemetry stale — check driver log";
+"Telemetry stale - check driver log" = "Telemetry stale - check driver log";
 "Tent Mode" = "Tent mode";
 "The active driver has no validated manual fan control for this firmware" = "The active driver has no validated manual fan control for this firmware";
 "The active driver has no validated manual fan control for this firmware." = "The active driver has no validated manual fan control for this firmware.";
@@ -577,7 +571,6 @@
 "The driver did not provide a valid current power limit and adjustment range." = "The driver did not provide a valid current power limit and adjustment range.";
 "The driver did not provide a valid fan adjustment range and step." = "The driver did not provide a valid fan adjustment range and step.";
 "The driver exports DSDT locally. Only a reviewed profile can generate an SSDT; it is never installed automatically." = "The driver exports DSDT locally. Only a reviewed profile can generate an SSDT; it is never installed automatically.";
-"Save the all-in-one ThinkPad ACPI patch source. If iasl is installed, it will be compiled automatically." = "Save the all-in-one ThinkPad ACPI patch source. If iasl is installed, it will be compiled automatically.";
 "The driver rejected the connection (0x%08x). Another copy of this app may already be running." = "The driver rejected the connection (0x%08x). Another copy of this app may already be running.";
 "The driver snapshot is stale. Refresh the connection before changing firmware controls." = "The driver snapshot is stale. Refresh the connection before changing firmware controls.";
 "The hardware driver disconnected. Retry the connection or restart with the matching kext." = "The hardware driver disconnected. Retry the connection or restart with the matching kext.";
@@ -684,7 +677,6 @@
 
 "The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT." = "The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT.";
 
-"ThinkPad ACPI source saved. Install iasl to compile it." = "ThinkPad ACPI source saved. Install iasl to compile it.";
 
 "Power profile readback unavailable. Refresh to retry." = "Power profile readback unavailable. Refresh to retry.";
 
@@ -729,7 +721,6 @@
 "Conflicting object or method argument count at %@" = "Conflicting object or method argument count at %@";
 "Generated SSDT is not loaded for this firmware. Check OpenCore ACPI Add and reboot." = "Generated SSDT is not loaded for this firmware. Check OpenCore ACPI Add and reboot.";
 "Inactive helper already exists in an ACPI table; review its condition and replace only the superseded helper table: %@" = "Inactive helper already exists in an ACPI table; review its condition and replace only the superseded helper table: %@";
-"Install iasl or set IASLPath before analyzing ThinkPad ACPI." = "Install iasl or set IASLPath before analyzing ThinkPad ACPI.";
 "Invalid ACPI namespace path: %@" = "Invalid ACPI namespace path: %@";
 "Live helper is absent from captured tables: %@" = "Live helper is absent from captured tables: %@";
 "Live namespace evidence is missing for %@" = "Live namespace evidence is missing for %@";
@@ -772,3 +763,13 @@
 "Unavailable while lap mode masks the thermal profile" = "Unavailable while lap mode masks the thermal profile";
 "Watchdog confirmed BIOS Auto" = "Watchdog confirmed BIOS Auto";
 "State-control interface advertised" = "State-control interface advertised";
+
+"Restore fan mode at startup" = "Restore fan mode at startup";
+
+"Unavailable while custom mode masks the thermal profile" = "Unavailable while custom mode masks the thermal profile";
+"Cached iasl is not executable. Remove the app's iasl cache and retry." = "Cached iasl is not executable. Remove the app's iasl cache and retry.";
+"Could not download iasl. Check your connection or set IASLPath to an existing compiler, then retry." = "Could not download iasl. Check your connection or set IASLPath to an existing compiler, then retry.";
+"iasl checksum or size validation failed. The compiler was not installed or executed." = "iasl checksum or size validation failed. The compiler was not installed or executed.";
+"Choose a different output file to preserve the original DSDT source." = "Choose a different output file to preserve the original DSDT source.";
+"The driver did not provide a valid current value for this control." = "The driver did not provide a valid current value for this control.";
+"Firmware readback did not match before the retry limit." = "Firmware readback did not match before the retry limit.";

@@ -4,6 +4,10 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+try:
+    from .source_tools import kernel_sources, function
+except ImportError:
+    from source_tools import kernel_sources, function
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -11,18 +15,20 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 @unittest.skipUnless(shutil.which('g++') or shutil.which('clang++'), 'C++ compiler required')
 class CurveWatchdogTests(unittest.TestCase):
     def test_expiry_failure_retry_and_independent_fans(self):
-        production = (ROOT / 'ReYogaSMC/ReYogaVPC.cpp').read_text(encoding='utf-8')
+        production = kernel_sources('ThinkVPC')
         bodies = []
-        for signature in ('IOReturn ReYogaVPC::accessThinkFanCurve(', 'void ReYogaVPC::expireThinkFanCurve('):
-            start = production.index(signature)
-            end = production.index('\n}', start) + 2
-            bodies.append(production[start:end])
+        for signature in ('IOReturn ThinkVPC::accessPlatformFanCurve(', 'void ThinkVPC::expireThinkFanCurve('):
+            bodies.append(function(production, signature))
+        base = kernel_sources('ReYogaVPC')
+        bodies.extend(function(base, signature) for signature in (
+            'IOReturn ReYogaVPC::accessThinkFanCurve(', 'IOReturn ReYogaVPC::accessPlatformFanCurve('))
         fixture = r'''
 #include "ReYogaSMC/ControlValidation.hpp"
 #include <cassert>
 #include <cstring>
 using UInt32 = unsigned; using UInt8 = unsigned char; using IOReturn = int;
 constexpr int kIOReturnSuccess=0, kIOReturnBadArgument=1, kIOReturnUnsupported=2, kIOReturnNotReady=3;
+constexpr int kIOReturnNotAttached=4;
 void *const kOSBooleanTrue = reinterpret_cast<void *>(1);
 struct OSObject {};
 struct IOTimerEventSource { unsigned arms=0; void setTimeoutMS(unsigned) { ++arms; } };
@@ -33,11 +39,15 @@ struct Gate {
 };
 static unsigned long long nowMS=0;
 static unsigned long long thinkFanTimeMS() { return nowMS; }
-struct ReYogaVPC : OSObject {
+struct ReYogaVPC {
+    IOReturn accessThinkFanCurve(UInt32, UInt32, UInt8 *);
+    virtual IOReturn accessPlatformFanCurve(UInt32, UInt32, UInt8 *);
+};
+struct ThinkVPC : OSObject {
     IOTimerEventSource timer; IOTimerEventSource *thinkFanWatchdog=&timer;
     Gate gate{this}; Gate *commandGate=&gate;
     ReYogaControl::ThinkFanLease thinkFanLease;
-    bool safe=false, dual=true, inactive=false, fail=false, think=true;
+    bool safe=false, dual=true, inactive=false, fail=false, think=true, stopping=false;
     unsigned levels[2]{0x84,0x84}, writes=0, warnings=0;
     void *metaCast(const char *) { return think ? this : nullptr; }
     void *getProperty(const char *key) {
@@ -48,33 +58,37 @@ struct ReYogaVPC : OSObject {
     IOReturn accessThinkFanGated(unsigned fan, unsigned target, UInt8 *) {
         ++writes; levels[fan]=target; return fail ? kIOReturnNotReady : kIOReturnSuccess;
     }
-    IOReturn accessThinkFanCurve(UInt32, UInt32, UInt8 *);
+    IOReturn accessPlatformFanCurve(UInt32, UInt32, UInt8 *);
     void expireThinkFanCurve(OSObject *, IOTimerEventSource *);
 };
 // PRODUCTION
 int main() {
-    UInt8 output[3]{}; ReYogaVPC device;
-    assert(device.accessThinkFanCurve(0,0,output)==kIOReturnBadArgument && device.writes==0);
+    UInt8 output[3]{}; ThinkVPC device;
+    device.stopping=true;
+    assert(device.accessPlatformFanCurve(0,7,output)==kIOReturnNotAttached && device.writes==0);
+    device.expireThinkFanCurve(nullptr,nullptr);assert(device.writes==0 && device.timer.arms==0);
+    device.stopping=false;
+    assert(device.accessPlatformFanCurve(0,0,output)==kIOReturnBadArgument && device.writes==0);
     const unsigned invalidLevels[] {8U, 0x40U, 0x80U, 0x84U, 0x100U};
     for (auto level : invalidLevels)
-        assert(device.accessThinkFanCurve(0,level,output)==kIOReturnBadArgument && device.writes==0);
-    assert(device.accessThinkFanCurve(2,7,output)==kIOReturnBadArgument && device.writes==0);
-    assert(device.accessThinkFanCurve(0,7,nullptr)==kIOReturnBadArgument && device.writes==0);
-    device.think=false;
-    assert(device.accessThinkFanCurve(0,4,output)==kIOReturnUnsupported && device.writes==0);
-    device.think=true; device.thinkFanWatchdog=nullptr;
-    assert(device.accessThinkFanCurve(0,4,output)==kIOReturnUnsupported && device.writes==0);
+        assert(device.accessPlatformFanCurve(0,level,output)==kIOReturnBadArgument && device.writes==0);
+    assert(device.accessPlatformFanCurve(2,7,output)==kIOReturnBadArgument && device.writes==0);
+    assert(device.accessPlatformFanCurve(0,7,nullptr)==kIOReturnBadArgument && device.writes==0);
+    ReYogaVPC unsupported;
+    assert(unsupported.accessThinkFanCurve(0,4,output)==kIOReturnUnsupported);
+    device.thinkFanWatchdog=nullptr;
+    assert(device.accessPlatformFanCurve(0,4,output)==kIOReturnUnsupported && device.writes==0);
     device.thinkFanWatchdog=&device.timer; device.inactive=true;
-    assert(device.accessThinkFanCurve(0,4,output)==kIOReturnNotReady && device.writes==0);
+    assert(device.accessPlatformFanCurve(0,4,output)==kIOReturnNotReady && device.writes==0);
     device.inactive=false;
     device.safe=true;
-    assert(device.accessThinkFanCurve(0,4,output)==kIOReturnUnsupported && device.writes==0);
+    assert(device.accessPlatformFanCurve(0,4,output)==kIOReturnUnsupported && device.writes==0);
     device.safe=false; device.dual=false;
-    assert(device.accessThinkFanCurve(1,4,output)==kIOReturnUnsupported && device.writes==0);
+    assert(device.accessPlatformFanCurve(1,4,output)==kIOReturnUnsupported && device.writes==0);
     device.dual=true;
-    assert(device.accessThinkFanCurve(0,4,output)==0);
+    assert(device.accessPlatformFanCurve(0,4,output)==0);
     assert(device.timer.arms==1);
-    nowMS=1000; assert(device.accessThinkFanCurve(1,7,output)==0);
+    nowMS=1000; assert(device.accessPlatformFanCurve(1,7,output)==0);
     assert(device.timer.arms==1); // Renewals must not postpone the watchdog's tick.
     nowMS=6000; device.fail=true;
     device.expireThinkFanCurve(nullptr,nullptr);
@@ -87,7 +101,7 @@ int main() {
     nowMS=7000; device.expireThinkFanCurve(nullptr,nullptr);
     assert(device.levels[1]==0x84 && !device.thinkFanLease.active());
     device.fail=true; nowMS=8000;
-    assert(device.accessThinkFanCurve(0,7,output)!=0 && device.thinkFanLease.active());
+    assert(device.accessPlatformFanCurve(0,7,output)!=0 && device.thinkFanLease.active());
     device.fail=false; nowMS=14000; device.expireThinkFanCurve(nullptr,nullptr);
     assert(device.levels[0]==0x84 && !device.thinkFanLease.active());
 }

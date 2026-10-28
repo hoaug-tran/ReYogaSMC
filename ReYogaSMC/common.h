@@ -17,63 +17,67 @@
 #endif
 
 #ifdef DEBUG
-#define DebugLog(str, ...) do { IOLog("RYSMC - Debug: %s::%s " str "\n", iname ? iname : "(null)", getName(), ## __VA_ARGS__); } while (0)
+#define DebugLog(str, ...)                                                                            \
+    do {                                                                                              \
+        IOLog("RYSMC - Debug: %s::%s " str "\n", iname ? iname : "(null)", getName(), ##__VA_ARGS__); \
+    } while (0)
 #else
-#define DebugLog(str, ...) do { } while (0)
+#define DebugLog(str, ...) \
+    do {                   \
+    } while (0)
 #endif
-#define AlwaysLog(str, ...) do { IOLog("RYSMC - Info: %s::%s " str "\n", iname ? iname : "(null)", getName(), ## __VA_ARGS__); } while (0)
+#define AlwaysLog(str, ...)                                                                          \
+    do {                                                                                             \
+        IOLog("RYSMC - Info: %s::%s " str "\n", iname ? iname : "(null)", getName(), ##__VA_ARGS__); \
+    } while (0)
 
 #define BIT(nr) (1U << (nr))
 
-#define ECReadCap    BIT(0)
-#define ECWriteCap   BIT(1)
+#define ECReadCap BIT(0)
+#define ECWriteCap BIT(1)
 
-// A malformed property skips the caller's collection loop; a do/while macro
-// would only continue its own loop and leave callers dereferencing null.
-#define getPropertyBoolean(prompt) \
-    if ((value = OSDynamicCast(OSBoolean, dict->getObject(prompt))) == nullptr) { \
-        AlwaysLog(valueInvalid, prompt); continue; \
-    }
-#define getPropertyNumber(prompt) \
-    if ((value = OSDynamicCast(OSNumber, dict->getObject(prompt))) == nullptr) { \
-        AlwaysLog(valueInvalid, prompt); continue; \
-    }
-#define getPropertyString(prompt) \
-    if ((value = OSDynamicCast(OSString, dict->getObject(prompt))) == nullptr) { \
-        AlwaysLog(valueInvalid, prompt); continue; \
-    }
+// Getters return borrowed values; setters retain into the dictionary.
+#include <libkern/c++/OSBoolean.h>
+#include <libkern/c++/OSData.h>
+#include <libkern/c++/OSDictionary.h>
+#include <libkern/c++/OSNumber.h>
+#include <libkern/c++/OSString.h>
 
-#define setPropertyBoolean(dict, name, boolean) \
-    do { dict->setObject(name, boolean ? kOSBooleanTrue : kOSBooleanFalse); } while (0)
+namespace ReYogaProperty {
+template <typename Value, typename Key>
+inline Value *get(const OSDictionary *dictionary, const Key *key) {
+    return dictionary && key ? OSDynamicCast(Value, dictionary->getObject(key)) : nullptr;
+}
 
-// Scoped temporaries avoid dependence on the caller's variable names/types.
-#define setPropertyNumber(dict, name, number, bits) \
-    do { \
-        auto propertyObject = OSNumber::withNumber(number, bits); \
-        if (propertyObject != nullptr) { dict->setObject(name, propertyObject); propertyObject->release(); } \
-    } while (0)
-#define setPropertyString(dict, name, str) \
-    do { \
-        auto propertyObject = OSString::withCString(str); \
-        if (propertyObject != nullptr) { dict->setObject(name, propertyObject); propertyObject->release(); } \
-    } while (0)
+// Consumes exactly one owned reference, including when insertion fails.
+template <typename Key>
+inline bool setOwned(OSDictionary *dictionary, const Key *key, OSObject *owned) {
+    if (!owned)
+        return false;
+    const bool inserted = dictionary && key && dictionary->setObject(key, owned);
+    owned->release();
+    return inserted;
+}
 
-#define setPropertyBytes(dict, name, data, len) \
-    do { \
-        value = OSData::withBytes(data, len); \
-        if (value != nullptr) { \
-            dict->setObject(name, value); \
-            value->release(); \
-        } \
-    } while (0)
+template <typename Key>
+inline bool setBoolean(OSDictionary *dictionary, const Key *key, bool value) {
+    return dictionary && key && dictionary->setObject(key, value ? kOSBooleanTrue : kOSBooleanFalse);
+}
 
-#define setPropertyObject(dict, name, obj) \
-    do { \
-        value = obj; \
-        if (value != nullptr) { \
-            dict->setObject(name, value); \
-            value->release(); \
-        } \
-    } while (0)
+template <typename Key>
+inline bool setNumber(OSDictionary *dictionary, const Key *key, UInt64 value, unsigned bits) {
+    return setOwned(dictionary, key, OSNumber::withNumber(value, bits));
+}
+
+template <typename Key>
+inline bool setString(OSDictionary *dictionary, const Key *key, const char *value) {
+    return value && setOwned(dictionary, key, OSString::withCString(value));
+}
+
+template <typename Key>
+inline bool setBytes(OSDictionary *dictionary, const Key *key, const void *bytes, unsigned length) {
+    return setOwned(dictionary, key, OSData::withBytes(bytes, length));
+}
+} // namespace ReYogaProperty
 
 #endif /* common_h */

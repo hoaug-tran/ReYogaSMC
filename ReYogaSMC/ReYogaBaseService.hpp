@@ -25,31 +25,32 @@ class ReYogaBaseService : public IOService {
     OSDeclareDefaultStructors(ReYogaBaseService);
 
 private:
-    void dispatchMessageGated(int* message, void* data);
+    void dispatchMessageGated(int *message, void *data);
 
-    bool notificationHandler(void * refCon, IOService * newService, IONotifier * notifier);
-    void notificationHandlerGated(IOService * newService, IONotifier * notifier);
+    bool notificationHandler(void *refCon, IOService *newService, IONotifier *notifier);
+    void notificationHandlerGated(IOService *newService, IONotifier *notifier);
 
-    IONotifier* _publishNotify {nullptr};
-    IONotifier* _terminateNotify {nullptr};
-    OSSet* _notificationServices {nullptr};
-    const OSSymbol* _deliverNotification {nullptr};
+    IONotifier *_publishNotify{nullptr};
+    IONotifier *_terminateNotify{nullptr};
+    OSSet *_notificationServices{nullptr};
+    const OSSymbol *_deliverNotification{nullptr};
 
 protected:
-    const char* iname {nullptr};
+    const char *iname{nullptr};
 
-    IOWorkLoop *workLoop {nullptr};
-    IOCommandGate *commandGate {nullptr};
+    IOWorkLoop *workLoop{nullptr};
+    IOCommandGate *commandGate{nullptr};
+    bool stopping{false}; // Read and written only under commandGate after start.
 
     /**
      *  UserClient
      */
-//    ReYogaSMCUserClient *client {nullptr};
+    //    ReYogaSMCUserClient *client {nullptr};
 
     /**
      *  WMI device, in place of provider and direct ACPI evaluations
      */
-    WMI* YWMI {nullptr};
+    WMI *YWMI{nullptr};
 
     /**
      *  Iterate over IOACPIPlane for PNP device
@@ -64,12 +65,12 @@ protected:
     /**
      *  Current Keyboard status
      */
-    bool Keyboardenabled {true};
+    bool Keyboardenabled{true};
 
     /**
      *  Current TouchPad status
      */
-    bool TouchPadenabled {true};
+    bool TouchPadenabled{true};
 
     /**
      *  Switch  touchpad status
@@ -98,20 +99,20 @@ protected:
     /**
      *  Power management support
      */
-    bool isPMsupported {false};
+    bool isPMsupported{false};
 
     /**
      *  Related ACPI methods
      */
-    static constexpr const char *readECOneByte      = "RE1B";
-    static constexpr const char *readECBytes        = "RECB";
-    static constexpr const char *writeECOneByte     = "WE1B";
-    static constexpr const char *writeECBytes       = "WECB";
+    static constexpr const char *readECOneByte = "RE1B";
+    static constexpr const char *readECBytes = "RECB";
+    static constexpr const char *writeECOneByte = "WE1B";
+    static constexpr const char *writeECBytes = "WECB";
 
     /**
      *  EC device
      */
-    IOACPIPlatformDevice *ec {nullptr};
+    IOACPIPlatformDevice *ec{nullptr};
 
     /**
      *  Test EC capability
@@ -123,7 +124,7 @@ protected:
      *  BIT 0 Read
      *  BIT 1 Write
      */
-    UInt8 ECAccessCap {0};
+    UInt8 ECAccessCap{0};
 
     /**
      *  Wrapper for RE1B
@@ -166,7 +167,7 @@ protected:
      *
      *  @return kIOReturnSuccess on success
      */
-    IOReturn readECName(const char* name, UInt32 *result);
+    IOReturn readECName(const char *name, UInt32 *result);
 
     /**
      *  Send key event through VoodooPS2
@@ -174,7 +175,7 @@ protected:
      * @param goingDown pressed
      * @param time notify key time
      */
-    void dispatchKeyEvent(UInt16 keyCode, bool goingDown, bool time=true);
+    void dispatchKeyEvent(UInt16 keyCode, bool goingDown, bool time = true);
 
 public:
     virtual bool init(OSDictionary *dictionary) APPLE_KEXT_OVERRIDE;
@@ -182,10 +183,11 @@ public:
 
     virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
     virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
+    void free() APPLE_KEXT_OVERRIDE;
 
-    void dispatchMessage(int message, void* data);
+    void dispatchMessage(int message, void *data);
 
-    virtual IOReturn setPowerState(unsigned long powerStateOrdinal, IOService * whatDevice) APPLE_KEXT_OVERRIDE;
+    virtual IOReturn setPowerState(unsigned long powerStateOrdinal, IOService *whatDevice) APPLE_KEXT_OVERRIDE;
 
     friend class ReYogaSMCUserClient;
 };
