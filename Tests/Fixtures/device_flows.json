@@ -1,0 +1,399 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "thinkpad-t490",
+      "model": "ThinkPad T490",
+      "provenance": {
+        "kind": "public-issue-diagnostic",
+        "comment": "https://github.com/hoaug-tran/ReYogaSMC/issues/1#issuecomment-6447916447",
+        "reportSHA256": "a99d6566e3df967b8496cc62523ac82f803f8067bbde2846ac211fc146328b33",
+        "attachment": "33984154"
+      },
+      "snapshot": {
+        "BacklightLevel": 2,
+        "BatteryIndex": 1,
+        "BatteryIndividualAddressing": false,
+        "ChargeStartThreshold": 0,
+        "ChargeStopThreshold": 100,
+        "ControlProtocolVersion": 1,
+        "EC Capability": "RW",
+        "Fan1RPM": 2514,
+        "FeatureStatus": {
+          "BacklightLevel": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "BatteryIndex": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Single battery platform"
+          },
+          "CPUBoostPower": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "CPUPowerReset": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "CPUSustainedPower": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "ChargeStartThreshold": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "ChargeStopThreshold": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "FnlockMode": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "SmartFanMode": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          }
+        },
+        "FirmwareDSDTSHA256": "4e438c2615d84ef4c55d58b5c24158a9d38a354146a8744e8d713abb462e9b13",
+        "FnlockMode": false,
+        "IOClass": "ThinkVPC",
+        "SmartFanMode": 3,
+        "ThinkFanAccessFailed": false,
+        "ThinkFanProtocolVersion": 1
+      },
+      "expectedAvailable": [
+        "BacklightLevel",
+        "ChargeStartThreshold",
+        "ChargeStopThreshold",
+        "FnlockMode",
+        "SmartFanMode"
+      ],
+      "expectedCurve": false
+    },
+    {
+      "id": "thinkpad-x1c7",
+      "model": "ThinkPad X1 Carbon Gen 7",
+      "provenance": {
+        "kind": "public-issue-diagnostic",
+        "comment": "https://github.com/hoaug-tran/ReYogaSMC/issues/2#issuecomment-6446185537",
+        "reportSHA256": "b13163aae3cefbfefc65dc5cd1309b6365ada756efdeb93e14e283d009b273b2",
+        "attachment": "34027250"
+      },
+      "snapshot": {
+        "ACPIECPath": "IOACPIPlane:/_SB/PCI0@0/LPCB@1f0000/EC",
+        "ACPIHKEYPath": "IOACPIPlane:/_SB/PCI0@0/LPCB@1f0000/EC/HKEY",
+        "BacklightLevel": 1,
+        "BatteryIndex": 1,
+        "BatteryIndividualAddressing": false,
+        "ChargeStartThreshold": 0,
+        "ChargeStopThreshold": 100,
+        "ControlProtocolVersion": 1,
+        "EC Capability": "RW",
+        "Fan1RPM": 4201,
+        "FeatureStatus": {
+          "BacklightLevel": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "BatteryIndex": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Single battery platform"
+          },
+          "CPUBoostPower": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "CPUPowerReset": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "CPUSustainedPower": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "ChargeStartThreshold": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "ChargeStopThreshold": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "FnlockMode": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "SmartFanMode": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          }
+        },
+        "FirmwareDSDTSHA256": "0ac7cc6d4229398b459c5b1cd3a25f287932668cee8f93d9a026cffa0e080259",
+        "FnlockMode": false,
+        "IOClass": "ThinkVPC",
+        "SmartFanMode": 3,
+        "ThinkFanAccessFailed": false,
+        "ThinkFanCurveVersion": 1,
+        "ThinkFanProtocolVersion": 1,
+        "ThinkFanTelemetryVersion": 1,
+        "ThinkPadACPIAnalysisVersion": 1
+      },
+      "expectedAvailable": [
+        "BacklightLevel",
+        "ChargeStartThreshold",
+        "ChargeStopThreshold",
+        "FnlockMode",
+        "SmartFanMode"
+      ],
+      "expectedCurve": true
+    },
+    {
+      "id": "thinkpad-t480s",
+      "model": "ThinkPad T480s",
+      "provenance": {
+        "kind": "public-issue-diagnostic",
+        "comment": "https://github.com/hoaug-tran/ReYogaSMC/issues/3#issuecomment-6439399348",
+        "reportSHA256": "dd4d4bbd2f71e25a5fd2991737ced21718639fb047156f8f7d415d8e86632259",
+        "attachment": "34011198"
+      },
+      "snapshot": {
+        "BatteryIndex": 1,
+        "ChargeStartThreshold": 0,
+        "ChargeStopThreshold": 100,
+        "ControlProtocolVersion": 1,
+        "Fan1RPM": 3657,
+        "FeatureStatus": {
+          "BacklightLevel": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Keyboard backlight not advertised"
+          },
+          "BatteryIndex": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Single battery platform"
+          },
+          "CPUBoostPower": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "CPUPowerReset": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "CPUSustainedPower": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "ChargeStartThreshold": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "ChargeStopThreshold": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "FnlockMode": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "SmartFanMode": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          }
+        },
+        "FirmwareDSDTSHA256": "2f43977a335b66c7f34836f678e283aac1dff1ce89eedc68d6d2b14d73cc72ef",
+        "IOClass": "ThinkVPC",
+        "ThinkFanAccessFailed": false,
+        "ThinkFanProtocolVersion": 1
+      },
+      "expectedAvailable": [
+        "ChargeStartThreshold",
+        "ChargeStopThreshold"
+      ],
+      "expectedCurve": false
+    },
+    {
+      "id": "thinkpad-t480",
+      "model": "ThinkPad T480",
+      "provenance": {
+        "kind": "public-issue-diagnostic",
+        "comment": "https://github.com/hoaug-tran/ReYogaSMC/issues/7#issuecomment-6463934207",
+        "reportSHA256": "a43809133353831ba712935bd8e0767fd2da775a1347dd8361d50e33d5be46f6",
+        "attachment": "34066644"
+      },
+      "snapshot": {
+        "ACPIECPath": "IOACPIPlane:/_SB/PCI0@0/LPCB@1f0000/EC",
+        "ACPIHKEYPath": "IOACPIPlane:/_SB/PCI0@0/LPCB@1f0000/EC/HKEY",
+        "BacklightLevel": 1,
+        "BatteryIndex": 1,
+        "BatteryIndividualAddressing": true,
+        "ChargeStartThreshold": 70,
+        "ChargeStopThreshold": 80,
+        "ControlProtocolVersion": 1,
+        "EC Capability": "RW",
+        "Fan1RPM": 3157,
+        "FeatureStatus": {
+          "BacklightLevel": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "BatteryIndex": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "CPUBoostPower": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "CPUPowerReset": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "CPUSustainedPower": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "ChargeStartThreshold": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "ChargeStopThreshold": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "FnlockMode": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "SmartFanMode": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          }
+        },
+        "FirmwareDSDTSHA256": "65bd0ff8be46833b8d6e0f3fbe6104c750dc44139aae2b546d0b76c6b3fefe19",
+        "FnlockMode": false,
+        "IOClass": "ThinkVPC",
+        "SmartFanMode": 3,
+        "ThinkFanAccessFailed": false,
+        "ThinkFanCurveVersion": 1,
+        "ThinkFanProtocolVersion": 1,
+        "ThinkFanTelemetryVersion": 1,
+        "ThinkPadACPIAnalysisVersion": 1
+      },
+      "expectedAvailable": [
+        "BacklightLevel",
+        "BatteryIndex",
+        "ChargeStartThreshold",
+        "ChargeStopThreshold",
+        "FnlockMode",
+        "SmartFanMode"
+      ],
+      "expectedCurve": true
+    },
+    {
+      "id": "legion7-gkcn",
+      "model": "Lenovo Legion 7 16ACHg6",
+      "provenance": {
+        "kind": "synthetic-ui-fixture",
+        "source": "Tests/ui-fixture.json"
+      },
+      "snapshot": {
+        "IOClass": "IdeaVPC",
+        "HardwareProfileName": "Lenovo Legion 7 2021 16ACHg6",
+        "ControlProtocolVersion": 1,
+        "Fan number": 2,
+        "Fan1RPM": 2400,
+        "Fan2RPM": 2200,
+        "CPUTemp": 55.5,
+        "GPUTemp": 42.3,
+        "SmartFanMode": 2,
+        "ConservationMode": true,
+        "RapidChargeMode": false,
+        "BacklightLevel": 1,
+        "FnlockMode": false,
+        "FeatureStatus": {
+          "SmartFanMode": {
+            "Available": true,
+            "Backend": "ACPI",
+            "Reason": ""
+          },
+          "ConservationMode": {
+            "Available": true,
+            "Backend": "ACPI",
+            "Reason": ""
+          },
+          "RapidChargeMode": {
+            "Available": true,
+            "Backend": "ACPI",
+            "Reason": ""
+          },
+          "BacklightLevel": {
+            "Available": true,
+            "Backend": "ACPI",
+            "Reason": ""
+          },
+          "FnlockMode": {
+            "Available": true,
+            "Backend": "ACPI",
+            "Reason": ""
+          }
+        },
+        "HardwareProfile": "legion7-16achg6-gkcn",
+        "ProfileMatchState": "identity_matched",
+        "FirmwareMachineType": "82N6",
+        "FirmwareBIOSFamily": "GKCN",
+        "FirmwareDSDTOEMTableID": "CB-01",
+        "BatteryStateSchemaVersion": 4,
+        "ConservationStateMask": 32,
+        "RapidChargeStateMask": 4,
+        "BatteryModeRaw": 131104
+      },
+      "expectedAvailable": [
+        "BacklightLevel",
+        "ConservationMode",
+        "FnlockMode",
+        "RapidChargeMode",
+        "SmartFanMode"
+      ],
+      "expectedCurve": false
+    }
+  ]
+}
