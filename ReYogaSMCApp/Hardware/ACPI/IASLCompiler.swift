@@ -10,11 +10,11 @@ enum IASLCompiler {
 
     static func installed(candidates: [String?]? = nil) -> URL? {
         let environment = ProcessInfo.processInfo.environment
-        let paths = candidates ?? [UserDefaults.standard.string(forKey: "IASLPath"),
+        let pathCandidates = (environment["PATH"] ?? "").split(separator: ":").map { String($0) + "/iasl" }
+        let defaults: [String?] = [UserDefaults.standard.string(forKey: "IASLPath"),
             FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("bin/iasl").path,
-            "/opt/homebrew/bin/iasl", "/usr/local/bin/iasl"] +
-            (environment["PATH"] ?? "").split(separator: ":").map { String($0) + "/iasl" } +
-            ["/Applications/MaciASL.app/Contents/MacOS/iasl-stable"]
+            "/opt/homebrew/bin/iasl", "/usr/local/bin/iasl"]
+        let paths = candidates ?? (defaults + pathCandidates + ["/Applications/MaciASL.app/Contents/MacOS/iasl-stable"])
         return paths.compactMap { $0 }.first(where: {
             var directory: ObjCBool = false
             return FileManager.default.fileExists(atPath: $0, isDirectory: &directory) && !directory.boolValue &&
