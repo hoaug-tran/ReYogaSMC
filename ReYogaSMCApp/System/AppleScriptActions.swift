@@ -10,7 +10,7 @@ let getAudioMutedAS = "output muted of (get volume settings)"
 let getMicVolumeAS = "input volume of (get volume settings)"
 let setMicVolumeAS = "set volume input volume %d"
 
-func scriptHelper(_ source: String, _ name: String, _ image: NSString? = nil) -> NSAppleEventDescriptorriptor? {
+func scriptHelper(_ source: String, _ name: String, _ image: NSString? = nil) -> NSAppleEventDescriptor? {
     if let scpt = NSAppleScript(source: source) {
         var error: NSDictionary?
         let ret = scpt.executeAndReturnError(&error)

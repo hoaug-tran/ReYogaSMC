@@ -21,6 +21,7 @@ sources=(
     ReYogaSMCApp/Hardware/Lighting/RGBMatchProfile.swift
     ReYogaSMCApp/Hardware/Lighting/LegionRGBController.swift
     ReYogaSMCApp/Hardware/Input/LegionHotkeys.swift
+    ReYogaSMCApp/System/AppleScriptActions.swift
     ReYogaSMCApp/Hardware/Sensors/SMCTemperatureReader.swift
     ReYogaSMCApp/Hardware/Sensors/BatterySnapshot.swift
     ReYogaSMCApp/Diagnostics/DiagnosticCollector.swift
