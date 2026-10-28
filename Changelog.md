@@ -2,58 +2,35 @@
 
 ## 2.2.0
 
-### ThinkPad fans and power profiles
+### Added
 
-- Add Custom Curve with editable temperature points, levels 1–7 and Full Speed. Require EC read/write helpers, a driver watchdog and a fresh CPU temperature.
-- Put BIOS Auto, Manual, Custom Curve and Full Speed in one mode picker. Auto and Full Speed apply immediately; Manual and Custom Curve use Apply. Editing a draft leaves the running curve unchanged.
-- Raise curve levels immediately. Lower levels wait for a 3°C temperature drop and 10 seconds. Request Full Speed at 95°C.
-- Stop curves and request BIOS Auto on stale temperature data, sleep, disconnect and app shutdown. A driver watchdog also requests Auto when updates stop. Curves require an explicit restart after wake or reconnect.
-- Share timestamped fan readings between Overview and Cooling. Reject old samples, preserve the manual slider draft and show failed readings as unavailable.
-- Check fan-mode readback, preserve selector bits on dual-fan systems and keep Auto recovery available after failed manual commands. Avoid the selector on single-fan systems.
-- Read the active DYTC profile through supported MMC/PSC methods when CQL or CSC hides it. Remove requested-profile cache values from firmware readback and keep lap mode unchanged while polling.
-- Keep the Power Profile section visible after read errors, with a retry action. Do not enable profile changes without a valid current mode.
-- Save fan drafts by firmware and fan. Make startup fan-mode restore opt-in; do not replay old global levels on an unidentified device or restart an active curve automatically.
+- Add ThinkPad Custom Curve with editable temperature points, levels 1–7 and Full Speed. Require fresh CPU temperature, EC read/write helpers and a driver watchdog; return to BIOS Auto when the curve stops and require an explicit restart after wake or reconnect.
+- Add ThinkPad SSDT generation and post-boot verification in Diagnostics. Validate captured ACPI tables and helper layouts, preserve existing patches and export DSL, AML and an analysis file. Installation remains manual.
+- Add automatic iasl download when no installed compiler is found. Use a pinned binary with SHA-256 verification and keep it in the app cache.
+- Add firmware-specific fan drafts and opt-in startup fan-mode restoration.
+- Add a shared laptop-name catalog, a separate ThinkPad System Settings shortcut and Reset to defaults for event mappings.
 
-### Controls and saved settings
+### Fixed
 
-- Detect secondary-battery addressing from firmware. Hide battery selection when individual addressing is unavailable.
-- Keep explicit keyboard-backlight Off separate from idle timeout Off. Keypress restores idle lighting without overriding explicit Off. Accept timeouts from 0 to 3600 seconds and reject invalid saved values.
-- Skip saved controls whose readback already matches, coalesce queued changes to the same control and bound the pending queue. User actions cancel pending startup restoration.
-- Check current control values, power ranges, fan steps and firmware identity before enabling or restoring controls. Recheck CPU power limits at execution.
-- Require matching request IDs and completed readback before reporting success or saving settings. A pending readback that never matches remains a failure.
-- Keep fan controls and wake handling active when the menu icon is hidden. Reject late callbacks and new hardware work after shutdown or connection replacement.
-- Separate the ThinkPad System Settings shortcut from the app controls action and add Reset to defaults for event mappings.
+- Fix ThinkPad DYTC profile readback when CSC or CQL hides the active mode; preserve lap mode and keep profile controls available for retry.
+- Fix ThinkPad fan telemetry, mode readback and dual-fan selector recovery. Keep manual selections until Apply and detect individual battery addressing before offering battery selection.
+- Fix keyboard-backlight keypress recovery overriding explicit Off. Restore lighting only after idle timeout Off.
+- Fix control requests reporting success before pending readback completes. Validate current values and ranges before applying or restoring settings, and save only confirmed results.
+- Fix Legion, IdeaPad and LOQ profile matches, including 82EY, 82WQ and LOQ 15AHP9 83DX/NZCN. Model recognition does not enable unverified firmware writes.
+- Fix HP WMI string and sensor validation, RGB controller matching and RGB setting imports. Preserve LED IDs and legacy import aliases.
+- Fix stale Login Items errors after successful retries on macOS 11/12, and complete English/Vietnamese app menu and permission messages.
 
-### ACPI and device profiles
+### Changed
 
-- Add Generate ThinkPad SSDT and Verify ThinkPad SSDT in Diagnostics. Capture running ACPI tables and helper status; add only missing helpers after checking paths, signatures, checksums, method arguments and EC field layout.
-- Preserve existing valid helpers and required battery patches. Reject conflicting declarations and unknown layouts. Keep generated helpers working with OpenCore `_OSI` renames.
-- Export DSL, compiled AML and an analysis file. Verify the recorded AML and live fan readback after reboot; installation remains manual.
-- Use an installed iasl first. If none is found, download a pinned macOS binary, check SHA-256 and keep it in the app's own directory. Never overwrite an existing compiler.
-- Compile in a temporary directory and validate the new AML before replacing an output file. Preserve source, previous AML and compiler logs on failure.
-- Expand the model-name catalog and parse original SMBIOS records without using serial numbers for identity. Reject conflicting model matches.
-- Correct LOQ 15AHP9 matching to 83DX/NZCN. Remove IdeaPad 82EY from the Legion 5 profile and Legion Pro 7 82WQ from the Pro 5 profile. Reject machine types assigned to different model names.
-- Decode bounded HP WMI UTF-16LE strings and reject malformed sensor records, invalid lengths and empty state lists.
-- Require the expected HID usage when matching the ITE c968 RGB controller. Correct LED names while preserving numeric IDs and old import aliases.
+- Reorganize app and driver code by responsibility. Separate views, hardware services, driver connections, platform backends, SMC and WMI code; update Xcode groups and build inputs.
+- Harden allocation cleanup, request queues, reconnect and shutdown handling. Keep diagnostics bounded and redact device identifiers.
+- Verify pinned build dependencies and package source manifests; include build provenance and archive checksums. Keep pull-request validation separate from publishing.
+- Expand production-code tests for controls, ACPI, fan recovery and device lifecycle. Rewrite setup, compatibility and hardware-tool documentation.
 
-### App and diagnostics
+### Thanks
 
-- Split app services, views, driver connections, event actions and firmware backends by responsibility. Keep dialogs and HUD formatting outside hardware services.
-- Keep navigation and saved power drafts tied to stable keys instead of translated labels.
-- Restore USB RGB settings only for the matching controller profile. Check imported colors and file sizes; keep unrelated firmware lighting controls available.
-- Add English and Vietnamese fan, ACPI, permission and recovery messages. Preserve firmware keys, paths and register values during translation.
-- Export sensor sources, timestamps, control results, curve transitions and local system logs. Redact serial numbers and platform UUIDs; limit command duration and output size.
-- Separate failed update attempts from successful checks, retry after a cooldown and ignore cancelled or stopped requests.
-- Clear stale Login Items errors after a successful retry on macOS 11/12. Preserve Detailed Logging settings across reconnects and stop new logging requests after shutdown.
-
-### Driver, build and tests
-
-- Check kernel allocations and unwind partial startup. Keep callback, workloop and user-client resources alive until their users finish; block firmware operations during teardown.
-- Keep build output inside the checkout, protect unrelated files during cleaning and verify locked dependency downloads before reuse.
-- Record source manifests during builds, reject changed source during packaging and include build provenance with archive checksums.
-- Keep native app/kext checks on pull requests and publishing separate from validation.
-- Add production-code replays for device controls, readback, restore, reconnect, shutdown, backlight, fan recovery, ACPI, Login Items and update checks. Add a device-flow runner with separate software, native-build and hardware results.
-- Fix repeated support-resource copies and write generated headers with LF line endings on Windows.
+- Thanks @5T33Z0, @medkintos, @bimacakra30 and @froschwerk for testing, reporting issues and sharing diagnostics.
+- Special thanks to @5T33Z0 for the Cooling interface suggestions in #1.
 
 ## 2.1.0
 
