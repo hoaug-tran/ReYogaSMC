@@ -1,0 +1,15 @@
+CompileFlags:
+  Add:
+    - -xc++
+    - -std=c++14
+    - -DAPPLE_KEXT_OVERRIDE=override
+    - -DDEBUG=1
+    - -I./MacKernelSDK/Headers
+    - -I./Lilu.kext/Contents/Resources
+    - -I./Lilu.kext/Contents/Resources/Headers
+    - -I./VirtualSMC.kext/Contents/Resources
+    - -I./VirtualSMC.kext/Contents/Resources/Headers
+    - -I./ReYogaSMC
+    - -I./ReYogaSMC/SMC
+    - -I./ReYogaSMC/Platform
+    - -I./ReYogaSMC/WMI

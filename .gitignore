@@ -8,6 +8,9 @@ build/
 /MacKernelSDK
 /Index
 
+# Local editor settings
+/.vscode/
+
 # Local diagnostics and hardware exports
 /log.txt
 /ReYoga-report*/
@@ -17,3 +20,27 @@ build/
 
 # Local task notes
 /_problem/
+
+# Local AI assistant settings
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+/.agent/
+/.agents/
+/.claude/
+/.gemini/
+/.codex/
+/.cursor/
+/.cursorrules
+/.aider*
+/.clinerules
+/.roo/
+/.roorules
+/.continue/
+/.opencode/
+/opencode.json
+/opencode.jsonc
+/.github/copilot-instructions.md
+/.github/instructions/
+/.github/agents/
+/.github/prompts/
