@@ -144,6 +144,9 @@ def verify_assets(folder, version=None, require_provenance=False):
         if path.stat().st_size == 0:
             raise ValueError('Empty package: ' + name)
         with zipfile.ZipFile(path) as archive:
+            bundle = required[0].split('/', 1)[0]
+            if any(member.split('/', 1)[0] != bundle for member in archive.namelist()):
+                raise ValueError('Unexpected packaged content: ' + name)
             for member in required:
                 if member not in archive.namelist() or archive.getinfo(member).file_size == 0:
                     raise ValueError('Missing packaged file: ' + member)

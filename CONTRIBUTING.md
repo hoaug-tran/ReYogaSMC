@@ -81,6 +81,8 @@ Use the PR template. Describe the problem, resulting behavior, relevant tests an
 
 Use Conventional Commits, such as `fix(driver): ...`, `feat(app): ...`, `docs: ...` or `test: ...`. Add notes to the pending version in [Changelog.md](Changelog.md); leave published release entries unchanged.
 
-The main workflow tests all platforms before building and packaging. Pull requests run native checks without publishing. Release preparation requires clean source. Shipped changes can trigger a release; documentation, tests and CI changes alone do not. A manually increased project version takes precedence over the calculated version.
+Pull requests to `main` or `develop` run platform tests alongside native support checks and Debug/Release builds. The PR artifact `ReYogaSMC-DEBUG` contains only the two Debug ZIPs: one holds `ReYogaSMC.kext`, the other `ReYogaSMC.app`. New PR commits cancel older runs. Pushes to `develop` do not start a second build; use a pull request or Run workflow for branch builds. UI rendering runs separately with `Scripts/check_device_flows.py --native`.
+
+Pushes to `main` use the same checks and upload both configurations with checksums and source provenance in `ReYogaSMC-development`. Failed non-PR builds upload `build-logs`. Publishing waits for every test and the native build to pass. Release preparation requires clean source. Shipped changes can trigger a release; documentation, tests and CI changes alone do not. A manually increased project version takes precedence over the calculated version.
 
 Release notes come from the versioned changelog section. Publishing creates the metadata commit, tag and release assets only after checks pass. Existing tags must match the expected source before a rerun can replace assets.

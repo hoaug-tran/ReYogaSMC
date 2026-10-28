@@ -101,7 +101,31 @@ class ProjectStructureTests(unittest.TestCase):
         settings = build.split('    steps:', 1)[0]
         self.assertNotIn("github.event_name != 'pull_request'", settings)
         self.assertIn('run: bash Scripts/test-support.sh', build)
-        self.assertIn("- name: Package\n        if: github.event_name != 'pull_request'", build)
+        self.assertIn('- name: Package\n', build)
+        package = build.split('- name: Package\n', 1)[1].split('- name: Upload', 1)[0]
+        self.assertNotIn('if:', package)
+        pr_artifact = build.split('- name: Upload PR Debug packages\n', 1)[1].split('- name: Upload release packages', 1)[0]
+        self.assertIn("if: github.event_name == 'pull_request'", pr_artifact)
+        self.assertIn('name: ReYogaSMC-DEBUG', pr_artifact)
+        self.assertIn('path: build/packages/Debug/*.zip', pr_artifact)
+        self.assertNotIn('build/release-plan.json', pr_artifact)
+        self.assertNotIn('build/*.log', pr_artifact)
+        self.assertIn("if: failure() && github.event_name != 'pull_request'", build)
+        self.assertIn('name: ReYogaSMC-development', build)
+        self.assertIn('if-no-files-found: error', build)
+        self.assertNotIn('--render-ui', build)
+        release = workflow.split('  release:\n', 1)[1]
+        self.assertIn('needs: [test, build]', release)
+        self.assertIn("github.ref == 'refs/heads/main'", release)
+        self.assertIn("github.event_name != 'pull_request'", release)
+
+    def test_ci_routes_pr_and_main_without_duplicate_develop_push_builds(self):
+        workflow = (ROOT / '.github/workflows/main.yml').read_text(encoding='utf-8')
+        events = workflow.split('permissions:', 1)[0]
+        self.assertIn('push:\n    branches: [main]\n', events)
+        self.assertIn('pull_request:\n    branches: [main, develop]\n', events)
+        self.assertIn('workflow_dispatch:', events)
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", workflow)
 
     def test_brand_generator_updates_shipped_icns(self):
         generator = (ROOT / 'Scripts/render-brand.swift').read_text(encoding='utf-8')

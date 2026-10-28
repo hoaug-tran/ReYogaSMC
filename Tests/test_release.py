@@ -106,6 +106,10 @@ class ReleaseTests(unittest.TestCase):
                 _, name = line.split('  ')
                 self.assertNotIn('/', name)
                 self.assertNotIn('\\', name)
+            with zipfile.ZipFile(root / next(iter(manifest)), 'a') as archive:
+                archive.writestr('README.txt', 'extra')
+            with self.assertRaisesRegex(ValueError, 'Unexpected packaged content'):
+                release.verify_assets(root, '2.0.0')
             (root / 'ReYogaSMC-tool-Release.zip').write_bytes(b'extra')
             with self.assertRaises(ValueError):
                 release.verify_assets(root, '2.0.0')
