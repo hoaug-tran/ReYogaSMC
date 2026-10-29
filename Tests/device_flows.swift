@@ -208,6 +208,24 @@ for entry in cases {
         }
     }
     check(Fixture.references == 0, "\(id): retained service leaked")
+    var profileFlow = "unavailable_in_snapshot"
+    if available.contains("SmartFanMode") {
+        for profile in [1, 2, 3, 2, 1, 3] {
+            manager.setPowerProfile(profile); manager.drain()
+            check(manager.powerProfile == profile && manager.saved().values["SmartFanMode"]?.value == profile,
+                  "\(id): power profile transition or persistence failed")
+        }
+        Fixture.reply = .failed
+        manager.setPowerProfile(1); manager.drain()
+        check(manager.powerProfile == 3 && manager.saved().values["SmartFanMode"]?.value == 3,
+              "\(id): rejected power profile changed confirmed or saved state")
+        Fixture.reply = .pending; Fixture.polls = 0
+        manager.setPowerProfile(1); manager.drain()
+        check(manager.powerProfile == 1 && manager.saved().values["SmartFanMode"]?.value == 1 && Fixture.polls == 2,
+              "\(id): delayed power profile readback failed")
+        Fixture.reply = .matched
+        profileFlow = "passed"
+    }
     // Freshness loss disables firmware writes but keeps feature sections present.
     var stale = Fixture.snapshot
     stale["SensorSampleSequence"] = 1; stale["SensorSampleTimeMS"] = 0
@@ -243,7 +261,8 @@ for entry in cases {
         fanFlow = "passed"
     }
     flowRows.append(["id": id, "available": available.sorted(), "unavailable": HardwareFeatureStatus.catalog.keys.filter { !available.contains($0) }.sorted(),
-                     "controlFlow": "passed", "fanAutoManualFullRecovery": fanFlow, "curveSleep": curveFlow, "hardware": "not_run"])
+                     "controlFlow": "passed", "powerProfileTransitionsAndRecovery": profileFlow,
+                     "fanAutoManualFullRecovery": fanFlow, "curveSleep": curveFlow, "hardware": "not_run"])
 }
 
 // Transport failures and stale replies must not become saved state.

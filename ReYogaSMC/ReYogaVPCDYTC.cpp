@@ -29,7 +29,8 @@ bool ReYogaVPC::DYTCCommand(DYTC_CMD command, DYTC_RESULT *result, UInt8 ICFunc,
         ReYogaProperty::setNumber(diagnostic, "Revision", DYTCRevision, 8);
         ReYogaProperty::setNumber(diagnostic, "Capabilities", DYTCCap, 16);
         setProperty("LastDYTCCommand", diagnostic);
-        if (command.command == DYTC_CMD_SET || command.command == DYTC_CMD_RESET)
+        const UInt32 opcode = command.raw & 0xfff;
+        if (opcode == DYTC_CMD_SET || opcode == DYTC_CMD_RESET)
             setProperty("LastDYTCMutation", diagnostic);
         diagnostic->release();
     }
@@ -199,6 +200,7 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
         const bool mmcActive = (result.get.func_sta & DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0;
         const bool pscActive = (result.get.func_sta & DYTCCap & BIT(DYTC_FUNCTION_PSC)) != 0;
         const bool mmcReadable = mmcActive || (readbackFunction == DYTC_FUNCTION_CSC && supportsMMCThermal());
+        const bool pscReadable = pscActive || (!supportsMMCThermal() && (DYTCCap & BIT(DYTC_FUNCTION_PSC)) != 0);
         UInt32 mode = 0;
         if (mmcActive && mmcGetCap) {
             DYTC_RESULT mmcResult;
@@ -217,7 +219,7 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
                 readbackFunction = DYTC_FUNCTION_MMC;
                 result.get.perfmode = mode;
                 ReYogaProperty::setString(DYTCStatus, "ReadbackSource", "ACPI SMMC");
-            } else if (!mmcActive && pscActive && evaluateNamedThermalMode("SPSC", &mode) &&
+            } else if (!mmcActive && pscReadable && evaluateNamedThermalMode("SPSC", &mode) &&
                        (DYTCRevision < 9 ? mode >= 1 && mode <= 8 : mode == 1 || mode == 3 || mode == 4)) {
                 readbackFunction = DYTC_FUNCTION_PSC;
                 result.get.perfmode = mode;
@@ -287,7 +289,6 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
 
     case DYTC_FUNCTION_CSC:
         ReYogaProperty::setString(DYTCStatus, "FuncMode", "Custom");
-        // CSC's GET mode can be 0xF regardless of the underlying SMMC profile.
         ReYogaProperty::setString(DYTCStatus, "PerfMode", "Unavailable while custom mode masks the thermal profile");
         break;
 
