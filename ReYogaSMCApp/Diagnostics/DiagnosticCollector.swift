@@ -83,7 +83,7 @@ enum DiagnosticCollector {
         result["state"] = stopped ?? (!truncatedStreams.isEmpty ? "output_limit" :
             process.terminationStatus == 0 ? "completed" : "command_failed")
         result["truncatedStreams"] = truncatedStreams
-        result["exitStatus"] = process.terminationStatus
+        result["exitStatus"] = Int(process.terminationStatus)
         result["terminationReason"] = process.terminationReason.rawValue
         result["elapsedSeconds"] = ProcessInfo.processInfo.systemUptime - start
         result["stdout"] = output.lastPathComponent

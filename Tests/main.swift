@@ -427,6 +427,24 @@ func testDiagnostics() throws {
     defer { try? FileManager.default.removeItem(at: collectorFolder) }
     let collectedEcho = try DiagnosticCollector.run("/bin/echo", ["diagnostic-check"], name: "echo", folder: collectorFolder)
     require(collectedEcho["state"] as? String == "completed", "Diagnostic collector did not capture success")
+    require(collectedEcho["exitStatus"] as? Int == 0, "Successful process exit must satisfy the ZIP export guard")
+    let collectedFailure = try DiagnosticCollector.run("/bin/sh", ["-c", "exit 7"], name: "failure", folder: collectorFolder)
+    require(collectedFailure["exitStatus"] as? Int == 7 && collectedFailure["state"] as? String == "command_failed",
+            "Failed process exit must retain its code")
+    #if os(macOS)
+    let archive = collectorFolder.appendingPathComponent("diagnostics.zip")
+    let contents = collectorFolder.appendingPathComponent("report")
+    try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+    try Data("diagnostic-check".utf8).write(to: contents.appendingPathComponent("report.txt"))
+    let package = try DiagnosticCollector.run("/usr/bin/ditto", ["-c", "-k", "--keepParent", contents.path, archive.path],
+        name: "package", folder: collectorFolder)
+    require(package["state"] as? String == "completed" && package["exitStatus"] as? Int == 0,
+            "A successful ditto ZIP must pass the production export guard")
+    let unpack = try DiagnosticCollector.run("/usr/bin/unzip", ["-p", archive.path, "report/report.txt"],
+        name: "unpack", folder: collectorFolder)
+    let unpacked = try Data(contentsOf: collectorFolder.appendingPathComponent("unpack.txt"))
+    require(unpack["exitStatus"] as? Int == 0 && unpacked == Data("diagnostic-check".utf8), "Diagnostic ZIP is not readable")
+    #endif
     let collectedMissing = try DiagnosticCollector.run("/nonexistent/reyoga", [], name: "missing", folder: collectorFolder)
     require(collectedMissing["state"] as? String == "launch_failed", "Diagnostic launch failure was hidden")
     let collectedTimeout = try DiagnosticCollector.run("/bin/sleep", ["5"], name: "timeout", folder: collectorFolder, timeout: 0.1)

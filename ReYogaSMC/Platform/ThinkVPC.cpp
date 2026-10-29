@@ -90,6 +90,7 @@ bool ThinkVPC::initVPC() {
     setMicMuteLEDStatus(0);
     setProperty("ControlProtocolVersion", 1, 32);
     setProperty("ThinkFanProtocolVersion", 1, 32);
+    setProperty("ThinkFanAuthorizationVersion", kRYSMCFanAuthorizationVersion, 32);
     setProperty("ThinkFanTelemetryVersion", 1, 32);
     return true;
 }

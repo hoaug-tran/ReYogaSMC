@@ -47,6 +47,7 @@ class ProjectStructureTests(unittest.TestCase):
         project = (ROOT / 'ReYogaSMC.xcodeproj/project.pbxproj').read_text(encoding='utf-8')
         sources = project_sources(project, '6F0A987325343357002F9F65')
         expected = [path.relative_to(ROOT).as_posix() for path in (ROOT / 'ReYogaSMCApp').rglob('*.swift')]
+        expected.append('ReYogaSMCFanHelper/FanAuthorizationClient.m')
         self.assertCountEqual(sources, expected)
 
     def test_each_kernel_translation_unit_is_registered_in_xcode(self):

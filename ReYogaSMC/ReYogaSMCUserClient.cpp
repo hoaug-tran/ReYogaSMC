@@ -15,6 +15,8 @@
 #include <IOKit/IOLib.h>
 #include <libkern/libkern.h>
 #include <kern/ipc_mig.h>
+#include <mach/task.h>
+#include <mach/task_info.h>
 
 OSDefineMetaClassAndStructors(ReYogaSMCUserClient, IOUserClient)
 
@@ -27,6 +29,7 @@ OSDefineMetaClassAndStructors(ReYogaSMCUserClient, IOUserClient)
         {methodReadECName, 0, 4, 0, 1},
         {methodThinkFan, 2, 0, 0, kRYSMCFanReplySize},
         {methodThinkFanCurve, 2, 0, 0, kRYSMCFanReplySize},
+        {methodAuthorizeThinkFan, 0, kRYSMCAuditTokenWords * sizeof(uint32_t), 0, 0},
 };
 
 bool ReYogaSMCUserClient::initWithTask(task_t owningTask,
@@ -40,6 +43,11 @@ bool ReYogaSMCUserClient::initWithTask(task_t owningTask,
     administrator_ =
         clientHasPrivilege(owningTask, kIOClientPrivilegeAdministrator) ==
         kIOReturnSuccess;
+    mach_msg_type_number_t count = TASK_AUDIT_TOKEN_COUNT;
+    static_assert(sizeof(ownerAuditToken_) == sizeof(audit_token_t), "Audit token size changed");
+    ownerAuditTokenValid_ = task_info(owningTask, TASK_AUDIT_TOKEN,
+                                      reinterpret_cast<task_info_t>(ownerAuditToken_), &count) == KERN_SUCCESS &&
+                            count == TASK_AUDIT_TOKEN_COUNT;
 
     return true;
 }
@@ -202,7 +210,24 @@ IOReturn ReYogaSMCUserClient::openGated() {
     return provider_->open(this) ? kIOReturnSuccess : kIOReturnExclusiveAccess;
 }
 
+IOReturn ReYogaSMCUserClient::methodAuthorizeThinkFan(
+    OSObject *target, void *, IOExternalMethodArguments *arguments) {
+    auto self = static_cast<ReYogaSMCUserClient *>(target);
+    // A separate root connection grants only the already registered app session.
+    // Audit PID version prevents a reused PID from inheriting this grant.
+    auto peer = self->provider_->client;
+    if (!self->administrator_ || !peer || peer->stopping_ || peer->isInactive() ||
+        !self->provider_->isOpen(peer) || !peer->ownerAuditTokenValid_ ||
+        !arguments->structureInput || arguments->structureInputSize != sizeof(peer->ownerAuditToken_))
+        return kIOReturnNotPermitted;
+    if (memcmp(peer->ownerAuditToken_, arguments->structureInput, sizeof(peer->ownerAuditToken_)) != 0)
+        return kIOReturnNotPermitted;
+    peer->fanAuthorized_ = true;
+    return kIOReturnSuccess;
+}
+
 IOReturn ReYogaSMCUserClient::closeGated() {
+    fanAuthorized_ = false;
     clearNotificationGated();
 
     if (!provider_ || !provider_->isOpen(this)) {
@@ -290,7 +315,7 @@ IOReturn ReYogaSMCUserClient::thinkFanGated(
         return kIOReturnBadArgument;
     }
 
-    if (!administrator_ &&
+    if (!administrator_ && !fanAuthorized_ &&
         (mode == FanRequestMode::Watchdog || request != kRYSMCFanQueryRPM)) {
         return kIOReturnNotPermitted;
     }

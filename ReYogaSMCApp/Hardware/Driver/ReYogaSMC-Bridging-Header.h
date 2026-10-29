@@ -18,6 +18,7 @@
 static inline UInt32 ReYogaServiceTerminatedMessage(void) { return kIOMessageServiceIsTerminated; }
 
 #import "../../../ReYogaSMC/ReYogaSMCUserClient.h"
+#import "../../../ReYogaSMCFanHelper/FanAuthorizationClient.h"
 #import "../../../ReYogaSMC/Platform/ThinkEvents.h"
 
 // from https://github.com/toy/blueutil/blob/master/blueutil.m#L44

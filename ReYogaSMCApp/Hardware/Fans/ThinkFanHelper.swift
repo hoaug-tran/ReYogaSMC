@@ -139,15 +139,19 @@ class ThinkFanHelper: ObservableObject {
     private static let queryRPMLevel: UInt64 = 0x100
 
     @Published private(set) var savedLevel: UInt8 = 0x80
-    var persistedLevel: UInt8 { curveEnabled || curveRecoveryPending ? Self.automaticLevel : savedLevel }
+    private var startupLevel: UInt8?
+    var persistedLevel: UInt8 { curveEnabled || curveRecoveryPending ? Self.automaticLevel : startupLevel ?? savedLevel }
     var isAutomatic: Bool { savedLevel & 0x80 != 0 }
     var isFullSpeed: Bool { savedLevel & 0x40 != 0 }
 
     private let feedback: (HardwareFeedback) -> Void
-    init(connection: io_connect_t, isMainFan: Bool, feedback: @escaping (HardwareFeedback) -> Void = { _ in }) {
+    private let saveStartupMode: (UInt8) -> Void
+    init(connection: io_connect_t, isMainFan: Bool, feedback: @escaping (HardwareFeedback) -> Void = { _ in },
+         saveStartupMode: @escaping (UInt8) -> Void = { _ in }) {
         self.feedback = feedback
         self.connect = connection
         self.main = isMainFan
+        self.saveStartupMode = saveStartupMode
         enable = connect != 0
     }
 
@@ -231,6 +235,8 @@ class ThinkFanHelper: ObservableObject {
         if !curveStatus.isEmpty { curveStatus = target & 0x80 != 0 ? "BIOS Auto" : "" }
         savedLevel = target
         acceptLevel(sample[2])
+        startupLevel = target
+        saveStartupMode(target)
     }
 
     func loadCurve(key: String) {
@@ -263,6 +269,9 @@ class ThinkFanHelper: ObservableObject {
         curvePolicy.reset(); curveWriteTime = 0; lastCurveTarget = nil
         curveSampleTime = ProcessInfo.processInfo.systemUptime
         curveEnabled = true
+        // A curve saves its draft, never a transient level to replay without the watchdog.
+        startupLevel = Self.automaticLevel
+        saveStartupMode(Self.automaticLevel)
         curveStopReason = ""
         curveRecoveryPending = false
         ReYogaDiagnostics.shared.record("think_fan_curve_started", ["fan": main ? 0 : 1,

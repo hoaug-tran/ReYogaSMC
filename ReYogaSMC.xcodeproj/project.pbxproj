@@ -173,6 +173,8 @@
 		F8A5A24CFE35511AEBD9C727 /* HardwareFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91320EBA18E5CD5E972A754 /* HardwareFeedback.swift */; };
 		EFD0AA5710F384BCED28D202 /* HotkeyPermissionActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 857C83A2AA1CBBF8AD41946F /* HotkeyPermissionActions.swift */; };
 		9B5523A8652532F551C7624E /* DriverEventActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 674AC15C12C9872743394F5C /* DriverEventActions.swift */; };
+		F22000000000000000000001 /* FanAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = F22000000000000000000002 /* FanAuthorization.swift */; };
+		F22000000000000000000003 /* FanAuthorizationClient.m in Sources */ = {isa = PBXBuildFile; fileRef = F22000000000000000000004 /* FanAuthorizationClient.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -411,6 +413,10 @@
 		B91320EBA18E5CD5E972A754 /* HardwareFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareFeedback.swift; sourceTree = "<group>"; };
 		857C83A2AA1CBBF8AD41946F /* HotkeyPermissionActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyPermissionActions.swift; sourceTree = "<group>"; };
 		674AC15C12C9872743394F5C /* DriverEventActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverEventActions.swift; sourceTree = "<group>"; };
+		F22000000000000000000002 /* FanAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FanAuthorization.swift; sourceTree = "<group>"; };
+		F22000000000000000000004 /* FanAuthorizationClient.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FanAuthorizationClient.m; sourceTree = "<group>"; };
+		F22000000000000000000005 /* FanAuthorizationClient.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = FanAuthorizationClient.h; sourceTree = "<group>"; };
+		F22000000000000000000006 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -460,6 +466,7 @@
 				6F08ACE624746B8B00681A63 /* ReYogaSMC */,
 				6F0A987825343357002F9F65 /* ReYogaSMCApp */,
 				6F7D484125344C25004074C7 /* ReYogaSMCHelper */,
+				F22000000000000000000007 /* ReYogaSMCFanHelper */,
 				6F08ACE524746B8B00681A63 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -834,6 +841,7 @@
 		8B7F648BB24B3C2CEB2ABA8C /* System */ = {
 			isa = PBXGroup;
 			children = (
+				F22000000000000000000002 /* FanAuthorization.swift */,
 				091AB69B7520B17FFE565CEA /* SystemHotkeyActions.swift */,
 				75090157DC8175BFD37DA23C /* AppleScriptActions.swift */,
 				6F14956E2580BF7200A3BA83 /* AudioHelper.swift */,
@@ -896,6 +904,16 @@
 				76F777C03730EAF8222783E8 /* StatusHUD.swift */,
 			);
 			path = HUD;
+			sourceTree = "<group>";
+		};
+		F22000000000000000000007 /* ReYogaSMCFanHelper */ = {
+			isa = PBXGroup;
+			children = (
+				F22000000000000000000004 /* FanAuthorizationClient.m */,
+				F22000000000000000000005 /* FanAuthorizationClient.h */,
+				F22000000000000000000006 /* main.m */,
+			);
+			path = ReYogaSMCFanHelper;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -971,6 +989,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6F0A988625343359002F9F65 /* Build configuration list for PBXNativeTarget "ReYogaSMCApp" */;
 			buildPhases = (
+				F22000000000000000000008 /* Build Fan Authorization Helper */,
 				6F0A987325343357002F9F65 /* Sources */,
 				6F0A987425343357002F9F65 /* Frameworks */,
 				6F0A987525343357002F9F65 /* Resources */,
@@ -1110,6 +1129,17 @@
 			shellPath = /bin/sh;
 			shellScript = "REYOGA_REVISION=$(git -C \"${PROJECT_DIR}\" describe --always --dirty --tags)\n/usr/libexec/PlistBuddy -c \"Delete :ReYogaGitRevision\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\" 2>/dev/null || true\n/usr/libexec/PlistBuddy -c \"Add :ReYogaGitRevision string $REYOGA_REVISION\" \"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\n";
 		};
+		F22000000000000000000008 /* Build Fan Authorization Helper */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ("$(PROJECT_DIR)/ReYogaSMCFanHelper/main.m", "$(PROJECT_DIR)/ReYogaSMC/ReYogaSMCUserClient.h", "$(PROJECT_DIR)/Scripts/build-fan-helper.sh");
+			name = "Build Fan Authorization Helper";
+			outputPaths = ("$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Library/LaunchServices/org.reyoga.ReYogaSMC.FanAuthorization");
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "bash \"${PROJECT_DIR}/Scripts/build-fan-helper.sh\"";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -1155,6 +1185,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F22000000000000000000001 /* FanAuthorization.swift in Sources */,
+				F22000000000000000000003 /* FanAuthorizationClient.m in Sources */,
 				9B5523A8652532F551C7624E /* DriverEventActions.swift in Sources */,
 				EFD0AA5710F384BCED28D202 /* HotkeyPermissionActions.swift in Sources */,
 				F8A5A24CFE35511AEBD9C727 /* HardwareFeedback.swift in Sources */,

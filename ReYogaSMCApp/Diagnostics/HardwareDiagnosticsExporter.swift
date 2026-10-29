@@ -19,11 +19,12 @@ enum HardwareDiagnosticsExporter {
             "batteryProviderFields": manager.liveBattery?.rawFields ?? [:],
             "cpuTemperature": manager.cpuTemp, "cpuTemperatureSource": manager.cpuTemperatureSource,
             "cpuSampleUptime": cpuSampleTime, "thinkFanCurveSupported": manager.thinkFanCurveSupported,
+            "fanAuthorization": ["busy": manager.thinkFanAuthorizationBusy, "error": manager.thinkFanAuthorizationError],
             "thinkFanCurves": [manager.fanHelper, manager.fanHelper2]
                 .compactMap { fan -> [String: Any]? in
                     guard let fan = fan else { return nil }
                     return ["fan": fan.main ? 0 : 1, "enabled": fan.curveEnabled, "status": fan.curveStatus, "stopReason": fan.curveStopReason,
-                        "accessReady": fan.enable, "requestedControl": fan.savedLevel, "rpm": fan.rpm ?? -1,
+                        "accessReady": fan.enable, "requestedControl": fan.savedLevel, "startupControl": fan.persistedLevel, "rpm": fan.rpm ?? -1,
                         "points": fan.curvePoints.map { ["temperature": $0.temperature, "level": $0.level] }]
                 }]
         return HardwareDiagnosticSnapshot(service: manager.service, metadata: metadata)
@@ -38,7 +39,7 @@ enum HardwareDiagnosticsExporter {
         queue.async {
             defer { if handle != 0 { IOObjectRelease(handle) } }
             let keys = ["DYTC", "Battery 0", "Battery 1", "IOClass", "SafeMode", "NativeTelemetryProfile", "NativeTelemetryReason", "FirmwareDSDTSHA256", "SensorSources", "BatteryIndex", "ChargeStartThreshold", "ChargeStopThreshold", "BatteryModeRaw", "ConservationMode", "RapidChargeMode", "BatteryStateSchemaVersion", "ConservationStateMask", "RapidChargeStateMask", "VersionInfo", "FeatureStatus", "SensorStatus", "LastControlResult", "ControlProtocolVersion",
-                        "ACPIBridgeVersion", "ACPIBridgeProfile", "ACPIBridgeProfileName", "ProfileMatchState", "ProfileMatchStage", "ProfileMatchReason", "ProfileMatchProfilesChecked", "ProfileMatchOEMMatches", "FirmwareDSDTOEMTableID", "FirmwareDSDTLength", "FirmwareDSDTChecksum", "FirmwareMachineType", "FirmwareBIOSFamily", "FirmwareIdentityConflict", "ACPIBridgeReason", "ThinkFanProtocolVersion", "ThinkFanStatus", "ThinkFanAccessFailed", "CPUPowerPendingProfile", "CPUPowerRestoreReason", "FanRestoreReason", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "FanFullSpeedECResult", "FanFullSpeedCommandBackend", "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage", "SensorSampleSequence", "SensorSampleTimeMS",
+                        "ACPIBridgeVersion", "ACPIBridgeProfile", "ACPIBridgeProfileName", "ProfileMatchState", "ProfileMatchStage", "ProfileMatchReason", "ProfileMatchProfilesChecked", "ProfileMatchOEMMatches", "FirmwareDSDTOEMTableID", "FirmwareDSDTLength", "FirmwareDSDTChecksum", "FirmwareMachineType", "FirmwareBIOSFamily", "FirmwareIdentityConflict", "ACPIBridgeReason", "ThinkFanProtocolVersion", "ThinkFanAuthorizationVersion", "ThinkFanStatus", "ThinkFanAccessFailed", "CPUPowerPendingProfile", "CPUPowerRestoreReason", "FanRestoreReason", "HardwareProfile", "HardwareProfileName", "PowerLimitRanges", "YLogoRawState", "YLogoRawBrightness", "PortLightingRawState", "PortLightingRawBrightness", "FanFullSpeedRaw", "FanFullSpeedECResult", "FanFullSpeedCommandBackend", "LightingControlOwner", "LogoLightingCapability", "PortLightingCapability", "LightingCommandStage", "SensorSampleSequence", "SensorSampleTimeMS",
                         "Fan1RPM", "Fan2RPM", "Fan1TargetRPM", "Fan2TargetRPM", "FanControlMode", "CPUTemp", "GPUTemp"]
             let snapshot: NSDictionary = handle != 0 ? getProperties(handle) ?? [:] : [:]
             var driver: [String: Any] = [:]

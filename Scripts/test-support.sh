@@ -22,6 +22,7 @@ sources=(
     ReYogaSMCApp/Hardware/Lighting/LegionRGBController.swift
     ReYogaSMCApp/Hardware/Input/LegionHotkeys.swift
     ReYogaSMCApp/System/AppleScriptActions.swift
+    ReYogaSMCApp/System/FanAuthorization.swift
     ReYogaSMCApp/Hardware/Sensors/SMCTemperatureReader.swift
     ReYogaSMCApp/Hardware/Sensors/BatterySnapshot.swift
     ReYogaSMCApp/Diagnostics/DiagnosticCollector.swift
@@ -45,7 +46,8 @@ sources=(
     ReYogaSMCApp/Views/Components/ColorPanelPlacement.swift
     Tests/main.swift
 )
-swiftc -import-objc-header ReYogaSMCApp/Hardware/Driver/ReYogaSMC-Bridging-Header.h "${sources[@]}" -o build/SupportTests
+clang -fobjc-arc -fblocks -Wall -Wextra -Werror -c ReYogaSMCFanHelper/FanAuthorizationClient.m -o build/FanAuthorizationClient.o
+swiftc -import-objc-header ReYogaSMCApp/Hardware/Driver/ReYogaSMC-Bridging-Header.h "${sources[@]}" build/FanAuthorizationClient.o -o build/SupportTests
 REYOGA_LOCALIZATION_ROOT="$root" build/SupportTests
 clang++ -std=c++14 -fsyntax-only Tests/control_validation.cpp
 clang++ -std=c++14 -fsyntax-only Tests/notification_abi.cpp

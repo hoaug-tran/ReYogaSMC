@@ -773,3 +773,26 @@
 "Choose a different output file to preserve the original DSDT source." = "Choose a different output file to preserve the original DSDT source.";
 "The driver did not provide a valid current value for this control." = "The driver did not provide a valid current value for this control.";
 "Firmware readback did not match before the retry limit." = "Firmware readback did not match before the retry limit.";
+
+"Auto, Manual and Full Speed can be restored. Custom Curve keeps its draft and requires Start after restart or wake." = "Auto, Manual and Full Speed can be restored. Custom Curve keeps its draft and requires Start after restart or wake.";
+
+"Authorizing fan control…" = "Authorizing fan control…";
+
+"Authorize Fan Control…" = "Authorize Fan Control…";
+
+"Fan authorization failed (0x%08x). Reconnect the driver and retry authorization." = "Fan authorization failed (0x%08x). Reconnect the driver and retry authorization.";
+
+"The fan authorization helper is missing or invalid. Reinstall the app." = "The fan authorization helper is missing or invalid. Reinstall the app.";
+
+"Fan authorization requires a valid app signature. Reinstall a signed app build." = "Fan authorization requires a valid app signature. Reinstall a signed app build.";
+
+"Could not request administrator authorization." = "Could not request administrator authorization.";
+
+"Fan authorization was cancelled. Fan controls remain unavailable." = "Fan authorization was cancelled. Fan controls remain unavailable.";
+
+
+"Update the app and kext to use compatible fan authorization." = "Update the app and kext to use compatible fan authorization.";
+
+"Fan control permission was denied. Update both app and kext, then reconnect and authorize fan control." = "Fan control permission was denied. Update both app and kext, then reconnect and authorize fan control.";
+
+"Could not install the fan authorization helper (%@): %@" = "Could not install the fan authorization helper (%@): %@";

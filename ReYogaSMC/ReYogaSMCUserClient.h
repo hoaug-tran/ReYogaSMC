@@ -25,7 +25,8 @@ enum {
     kRYSMCUCReadECName = 4,    // Reserved pending a verified ACPI read allowlist.
     kRYSMCUCThinkFan = 5,      // Scalar inputs: fan, command; 3-byte structure output.
     kRYSMCUCThinkFanCurve = 6, // Same shape; watchdog-controlled levels.
-    kRYSMCUCNumMethods = 7
+    kRYSMCUCAuthorizeThinkFan = 7, // Root broker only: structure input is the peer's 32-byte audit token.
+    kRYSMCUCNumMethods = 8
 };
 
 // User-client protocol values. These are NOT raw EC register offsets.
@@ -34,7 +35,9 @@ enum {
     kRYSMCFanReplySize = 3,
     kRYSMCFanQueryRPM = 0x100,
     kRYSMCFanCurveFullSpeed = 0x47,
-    kRYSMCNotificationType = 0
+    kRYSMCNotificationType = 0,
+    kRYSMCFanAuthorizationVersion = 1,
+    kRYSMCAuditTokenWords = 8
 };
 
 // Wire layout, shared between kernel and userspace.

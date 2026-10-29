@@ -24,6 +24,7 @@ final class DriverConnection: NSObject {
         self.manager = manager
         self.prepareControls = prepareControls
         super.init()
+        manager.configureThinkFanAuthorization { [weak self] in self?.initializeThinkFans() }
     }
 
     var hasConnection: Bool { context.service != 0 || context.connect != 0 }
@@ -124,6 +125,7 @@ final class DriverConnection: NSObject {
 
     func close() {
         connectionGeneration &+= 1
+        manager.setThinkFanAuthorization(busy: false)
         if manager.service != 0 { manager.service = 0 }
         fanHelper?.stopCurve(reason: .connectionClosed); fanHelper2?.stopCurve(reason: .connectionClosed)
         if driverInterest != 0 { IOObjectRelease(driverInterest); driverInterest = 0 }
@@ -160,20 +162,7 @@ final class DriverConnection: NSObject {
             thinkWakeup()
             if !defaults.bool(forKey: "DisableFan") {
                 if ECCap == "RW", getNumber("ThinkFanProtocolVersion", context.service) == 1 {
-                    if getBoolean("Dual fan", context.service), defaults.bool(forKey: "SecondThinkFan") {
-                        fanHelper2 = ThinkFanHelper(connection: context.connect, isMainFan: false, feedback: HardwareFeedbackPresenter.show)
-                        fanHelper2?.update()
-                        if defaults.bool(forKey: "SaveFanLevel"),
-                           let key = fanPreferenceKey("Fan2Level"), let level = defaults.object(forKey: key) as? UInt8 {
-                            fanHelper2?.setFanLevel(level)
-                        }
-                    }
-                    fanHelper = ThinkFanHelper(connection: context.connect, isMainFan: true, feedback: HardwareFeedbackPresenter.show)
-                    fanHelper?.update()
-                    if defaults.bool(forKey: "SaveFanLevel"),
-                       let key = fanPreferenceKey("FanLevel"), let level = defaults.object(forKey: key) as? UInt8 {
-                        fanHelper?.setFanLevel(level)
-                    }
+                    if isOpen { initializeThinkFans() }
                 } else {
                     showOSD("ECAccessUnavailable")
                 }
@@ -220,6 +209,54 @@ final class DriverConnection: NSObject {
         }
     }
 
+    private func initializeThinkFans() {
+        guard !manager.isShuttingDown, !manager.thinkFanAuthorizationBusy, fanHelper == nil,
+              context.connect != 0, context.service != 0, provider == "ThinkVPC",
+              !defaults.bool(forKey: "DisableFan"), getString("EC Capability", context.service) == "RW",
+              getNumber("ThinkFanProtocolVersion", context.service) == 1 else { return }
+        let generation = connectionGeneration
+        let finish: (Result<Void, Error>) -> Void = { [weak self] result in
+            guard let self = self, generation == self.connectionGeneration, self.context.connect != 0,
+                  !self.manager.isShuttingDown else { return }
+            switch result {
+            case .failure(let error):
+                self.manager.setThinkFanAuthorization(busy: false, error: error.localizedDescription)
+                ReYogaDiagnostics.shared.record("think_fan_authorization", ["authorized": false, "error": error.localizedDescription])
+            case .success:
+                self.manager.setThinkFanAuthorization(busy: false)
+                ReYogaDiagnostics.shared.record("think_fan_authorization", ["authorized": true])
+                self.fanHelper = self.makeThinkFan(main: true)
+                if getBoolean("Dual fan", self.context.service), self.defaults.bool(forKey: "SecondThinkFan") {
+                    self.fanHelper2 = self.makeThinkFan(main: false)
+                }
+                self.manager.installFanHelpers(self.fanHelper, secondary: self.fanHelper2)
+            }
+        }
+        let version = getNumber("ThinkFanAuthorizationVersion", context.service)
+        if version == -1 { finish(.success(())); return } // Older kexts retain their existing access policy.
+        guard version == Int(kRYSMCFanAuthorizationVersion) else {
+            finish(.failure(SupportError.message("Update the app and kext to use compatible fan authorization."))); return
+        }
+        manager.setThinkFanAuthorization(busy: true)
+        FanAuthorization.authorize(service: context.service, completion: finish)
+    }
+
+    private func makeThinkFan(main: Bool) -> ThinkFanHelper {
+        let key = fanPreferenceKey(main ? "FanLevel" : "Fan2Level")
+        let fan = ThinkFanHelper(connection: context.connect, isMainFan: main, feedback: HardwareFeedbackPresenter.show,
+            saveStartupMode: { [defaults] mode in
+                if let key = key { defaults.set(Int(mode), forKey: key) }
+            })
+        fan.update()
+        if defaults.bool(forKey: "SaveFanLevel"), let key = key,
+           let number = defaults.object(forKey: key) as? NSNumber,
+           CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue.isFinite,
+           number.doubleValue == Double(number.intValue), let mode = UInt8(exactly: number.intValue) {
+            fan.setFanLevel(mode)
+        }
+        return fan
+    }
+
     private func loadConfig() {
         if defaults.object(forKey: "StartAtLogin") == nil {
             os_log("First launch", type: .info)
@@ -257,15 +294,6 @@ final class DriverConnection: NSObject {
            Bundle.main.bundlePath.hasPrefix("/Applications"),
            provider != "ReYogaHIDD" {
             saveEvents(context.events)
-        }
-
-        if defaults.bool(forKey: "SaveFanLevel") {
-            if let fan = fanHelper2, let key = fanPreferenceKey("Fan2Level") {
-                defaults.set(fan.persistedLevel, forKey: key)
-            }
-            if let fan = fanHelper, let key = fanPreferenceKey("FanLevel") {
-                defaults.set(fan.persistedLevel, forKey: key)
-            }
         }
 
         // Save driver settings

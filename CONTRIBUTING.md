@@ -26,6 +26,7 @@ Use names that describe the file's main type or job. Keep stable IDs, persisted 
 | `ReYogaSMCApp/Application/` | App lifecycle, windows and driver connection ownership |
 | `ReYogaSMCApp/Hardware/` | Device state, capability checks and hardware transactions |
 | `ReYogaSMCApp/Views/` | UI, dialogs, formatting and HUD |
+| `ReYogaSMCFanHelper/` | Root fan-authorization broker and its XPC client; no firmware transactions |
 | `ReYogaSMCApp/Events/`, `Preferences/`, `Diagnostics/`, `System/` | Event mappings, app settings, report collection and macOS actions |
 
 Views receive state and actions explicitly. Hardware code must not locate `AppDelegate` or open dialogs. Keep one owner for each connection, queue and mutable state. Update Xcode groups, target membership, script inputs and tests when moving a source file.
@@ -72,6 +73,8 @@ python3 Scripts/release.py verify-assets
 ```
 
 Keep the same signing identity across app updates when possible. Ad-hoc builds may need privacy approval again. Signing does not sign the kext or test firmware behavior.
+
+The app target builds the standalone fan broker through `Scripts/build-fan-helper.sh`. Sign that broker before the app; `sign-app.sh` includes it. Fan authorization pins the app's code hash, so a new or re-signed build needs administrator approval again. Native tests compile the XPC client/broker; installation, approval/cancellation, reuse after reboot and fan behavior still need a macOS target check. Do not run support tests or Xcode as root to conceal authorization failures.
 
 Builds record source hashes. Packaging rejects source changes after a build and mismatched Debug/Release snapshots. Archives include source manifests; `BUILD_PROVENANCE.json` and `SHA256SUMS.txt` describe the packaged files.
 

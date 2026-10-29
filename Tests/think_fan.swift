@@ -158,6 +158,22 @@ func testFanAccessAndSnapshots() {
     withExtendedLifetime(subscription) {}
     precondition(publishedUpdates > 0, "Fan UI must observe helper status changes")
     #endif
+    var storedModes: [UInt8] = []
+    let persistent = ThinkFanHelper(connection: 1, isMainFan: true, saveStartupMode: { storedModes.append($0) })
+    FanFixture.responses = [(notReady, [0, 0, 0], 3)]
+    persistent.setFullSpeed()
+    precondition(storedModes.isEmpty, "Failed writes must not change the startup preference")
+    FanFixture.responses = [(0, [0, 0, 0x84], 3), (0, [0, 0, 5], 3), (0, [0, 0, 0x84], 3)]
+    persistent.update()
+    persistent.setManualLevel(5)
+    persistent.update()
+    precondition(storedModes == [5] && persistent.persistedLevel == 5 && persistent.isAutomatic,
+                 "Telemetry and firmware Auto recovery must not overwrite confirmed startup intent")
+    FanFixture.responses = [(0, [0, 0, 0x47], 3), (0, [0, 0, 0x84], 3)]
+    persistent.setFullSpeed()
+    persistent.setAutomatic()
+    precondition(storedModes == [5, 0x47, 0x84], "Confirmed modes must persist before app exit")
+    precondition(FanFixture.responses.isEmpty)
     print("PASS real ThinkFanHelper: transient failure, polling recovery, Auto, missing RPM, invalid replies, restore")
 }
 

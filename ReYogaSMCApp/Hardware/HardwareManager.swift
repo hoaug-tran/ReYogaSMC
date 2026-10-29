@@ -96,6 +96,20 @@ public final class HardwareManager: ObservableObject {
 
     @Published private(set) var fanHelper: ThinkFanHelper?
     @Published private(set) var fanHelper2: ThinkFanHelper?
+    @Published private(set) var thinkFanAuthorizationBusy = false
+    @Published private(set) var thinkFanAuthorizationError = ""
+    private var requestThinkFanAuthorization: () -> Void = {}
+
+    func configureThinkFanAuthorization(_ action: @escaping () -> Void) {
+        requestThinkFanAuthorization = action
+    }
+
+    func authorizeThinkFanControls() { requestThinkFanAuthorization() }
+
+    func setThinkFanAuthorization(busy: Bool, error: String = "") {
+        thinkFanAuthorizationBusy = busy
+        thinkFanAuthorizationError = error
+    }
 
     func installFanHelpers(_ main: ThinkFanHelper?, secondary: ThinkFanHelper?) {
         fanHelper = main

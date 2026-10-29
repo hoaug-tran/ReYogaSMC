@@ -1,4 +1,5 @@
 import Foundation
+import IOKit
 
 enum HardwareFeedbackPresenter {
     static func show(_ feedback: HardwareFeedback) {
@@ -34,7 +35,11 @@ enum HardwareFeedbackPresenter {
         case .hotkeysEnabled(let enabled):
             showOSDRaw(localizedMessage("Legion Hotkeys: %@", localizedMessage(enabled ? "On" : "Off")))
         case .fanAccessFailed(let failure):
-            showOSDRaw(String(format: localizedMessage("ThinkPad fan access failed (0x%08x). Retry the driver connection."), failure))
+            if failure == kIOReturnNotPermitted {
+                showOSDRaw(localizedMessage("Fan control permission was denied. Update both app and kext, then reconnect and authorize fan control."))
+            } else {
+                showOSDRaw(String(format: localizedMessage("ThinkPad fan access failed (0x%08x). Retry the driver connection."), failure))
+            }
         case .invalidFanLevel:
             showOSDRaw("Fan level is invalid; use Auto or a supported level")
         }

@@ -3,7 +3,7 @@
 static_assert(kRYSMCUCOpen == 0 && kRYSMCUCClose == 1 && kRYSMCUCReadEC == 2 &&
               kRYSMCUCWriteEC == 3 && kRYSMCUCReadECName == 4 &&
               kRYSMCUCThinkFan == 5 && kRYSMCUCThinkFanCurve == 6 &&
-              kRYSMCUCNumMethods == 7, "User-client selectors are a stable ABI");
+              kRYSMCUCAuthorizeThinkFan == 7 && kRYSMCUCNumMethods == 8, "User-client selectors are a stable ABI");
 static_assert(kRYSMCFanReplySize == 3 && kRYSMCFanQueryRPM == 0x100 &&
               kRYSMCFanCurveFullSpeed == 0x47, "Fan protocol values changed");
 

@@ -88,6 +88,14 @@ private struct ThinkPadFanPanel: View {
     var body: some View {
         ControlSection(loc(.thinkPadFans)) {
             Toggle(localizedMessage("Restore fan mode at startup"), isOn: $saveFanLevel)
+            Text(localizedMessage("Auto, Manual and Full Speed can be restored. Custom Curve keeps its draft and requires Start after restart or wake."))
+                .font(.caption).foregroundColor(.secondary)
+            if manager.thinkFanAuthorizationBusy {
+                ProgressView(localizedMessage("Authorizing fan control…"))
+            } else if !manager.thinkFanAuthorizationError.isEmpty {
+                Text(localizedMessage(manager.thinkFanAuthorizationError)).font(.caption).foregroundColor(AppTheme.accent)
+                Button(localizedMessage("Authorize Fan Control…")) { manager.authorizeThinkFanControls() }
+            }
             ForEach(0..<(manager.hasDualFan || helper(1) != nil ? 2 : 1), id: \.self) { index in
                 if let fan = helper(index) {
                     ThinkPadFanControl(manager: manager, fan: fan)

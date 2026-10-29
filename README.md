@@ -49,6 +49,10 @@ The app groups controls into Overview, Device, Cooling, Battery, Lighting, Diagn
 
 Manual control needs working EC read/write helpers. Custom Curve also needs the driver watchdog and a fresh CPU temperature. The app must remain open while a curve runs. Sleep, lost readings, disconnect or app shutdown stops the curve and requests BIOS Auto. The driver watchdog also requests Auto if updates stop.
 
+The matching app and kext use a macOS administrator dialog to install a root fan-authorization helper. Authorization survives app restarts and reboot; passwords are never saved. Updating or re-signing the app, or using another macOS account, requires authorization again. Cancelling leaves fan controls unavailable; retry with **Authorize Fan Control…** in Cooling. The helper grants only fan access to the authenticated app connection, not raw EC access.
+
+**Restore fan mode at startup** restores confirmed Auto, Manual or Full Speed choices for the same firmware identity. Choices are saved when commands succeed, rather than only when quitting. A Custom Curve saves its points and starts in Auto after reboot; start the curve explicitly.
+
 Curve points are saved by firmware and fan. A curve does not restart automatically after sleep or reconnect. Full Speed is a firmware mode; it does not promise a fixed RPM.
 
 Legion and other non-ThinkPad fan interfaces keep their own supported modes. They do not use the ThinkPad Custom Curve backend. See [compatibility](Docs/compatibility.md) for control limits and unavailable states.

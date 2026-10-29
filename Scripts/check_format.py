@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-TEXT_SUFFIXES = {'.c', '.cpp', '.h', '.hpp', '.swift', '.py', '.sh', '.ps1', '.cmd',
+TEXT_SUFFIXES = {'.c', '.cpp', '.m', '.h', '.hpp', '.swift', '.py', '.sh', '.ps1', '.cmd',
                  '.command', '.md', '.json', '.yml', '.yaml', '.dsl', '.strings'}
 
 

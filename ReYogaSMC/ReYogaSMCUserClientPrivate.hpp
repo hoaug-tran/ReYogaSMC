@@ -85,6 +85,8 @@ private:
                                    IOExternalMethodArguments *arguments);
     static IOReturn methodThinkFanCurve(OSObject *target, void *reference,
                                         IOExternalMethodArguments *arguments);
+    static IOReturn methodAuthorizeThinkFan(OSObject *target, void *reference,
+                                            IOExternalMethodArguments *arguments);
 
     // All methods below require the provider's command gate to be held.
     IOReturn openGated();
@@ -107,6 +109,9 @@ private:
 
     // Snapshot of owning task authorization at user-client creation.
     bool administrator_{false};
+    uint32_t ownerAuditToken_[kRYSMCAuditTokenWords]{};
+    bool ownerAuditTokenValid_{false};
+    bool fanAuthorized_{false}; // Only the fan API; never grants raw EC access.
 };
 
 #endif // REYOGA_SMC_USER_CLIENT_PRIVATE_HPP

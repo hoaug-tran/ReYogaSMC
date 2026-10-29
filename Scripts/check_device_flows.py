@@ -19,7 +19,7 @@ AREAS = {
     'identity_and_profiles': ['test_firmware_identity', 'test_firmware_profiles', 'test_profile_schemas'],
     'controls_readback_restore': ['test_device_flows', 'test_control_request', 'test_recovery_inputs'],
     'dytc_profiles': ['test_dytc_replay'],
-    'thinkpad_fan_curve_watchdog': ['test_think_fan', 'test_curve_watchdog'],
+    'thinkpad_fan_curve_watchdog': ['test_think_fan', 'test_curve_watchdog', 'test_fan_authorization'],
     'acpi_capture_generation_verification': ['test_acpi_capture', 'test_acpi_lifecycle', 'test_thinkpad_analysis', 'test_thinkpad_acpi_runtime', 'test_acpi_samples'],
     'backlight': ['test_backlight_policy', 'test_device_flows'],
     'lighting_and_hotkeys_lifecycle': ['test_lighting_lifecycle', 'test_hotkey_lifecycle'],
