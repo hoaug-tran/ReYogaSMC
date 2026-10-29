@@ -34,6 +34,7 @@ enum tpacpi_hkey_event_t : UInt32 {
     TP_HKEY_EV_APPS = 0x1020,        /* All programs/Launchpad (F12, _Q69) */
 
     /* Hotkey-related (preset masks) */
+    TP_HKEY_EV_PRIVACYGUARD_TOGGLE = 0x130F, /* PrivacyGuard key */
     TP_HKEY_EV_STAR = 0x1311,      /* Star (F12, _Q62) */
     TP_HKEY_EV_BLUETOOTH = 0x1314, /* Bluetooth (F10, _Q60) */
     TP_HKEY_EV_KEYBOARD = 0x1315,  /* Keyboard (F11, _Q61) */

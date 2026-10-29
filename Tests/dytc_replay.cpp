@@ -51,8 +51,12 @@ struct Firmware {
         if (transportFailure) { transportFailure = false; return kIOReturnUnsupported; }
         const unsigned command = raw & 0x1ff;
         if (command == DYTC_CMD_GET) {
-            const unsigned function = lap ? 1 : mmc ? 11 : psc ? 13 : csc ? 14 : 0;
-            const unsigned mode = lap ? 15 : mmc ? mmcMode : psc ? pscMode : 15;
+            unsigned function = 0, mode = 15;
+            // Captured X1C7 responses select CSC even with CQL active.
+            if (csc) function = 14;
+            else if (lap) function = 1;
+            else if (mmc) { function = 11; mode = mmcMode; }
+            else if (psc) { function = 13; mode = pscMode; }
             const unsigned active = otherActive | (lap ? BIT(1) : 0) | (mmc ? BIT(11) : 0) | (psc ? BIT(13) : 0) | (csc ? BIT(14) : 0);
             *out = 1 | (function << 8) | (mode << 12) | (active << 16);
         } else if (command == DYTC_CMD_MMC_GET) {
@@ -87,7 +91,7 @@ struct ReYogaVPC {
     UInt16 DYTCCap = 0x7913;
     UInt8 DYTCRevision = 5;
     bool DYTCLock = false, disabled = false, mmcGetCap = false;
-    OSDictionary version, published, lastMutation;
+    OSDictionary version, published, lastMutation, lastReadback;
     OSDictionary *DYTCVersion = &version;
     const char *setThermalControl = "DYTC";
     int evaluateIntegerParam(const char *, UInt32 *out, unsigned raw) { return firmware.command(raw, out); }
@@ -96,10 +100,11 @@ struct ReYogaVPC {
     void setProperty(const char *key, OSDictionary *d) {
         if (!strcmp(key, "DYTC")) { published = *d; disabled = false; }
         if (!strcmp(key, "LastDYTCMutation")) lastMutation = *d;
+        if (!strcmp(key, "LastDYTCReadback")) lastReadback = *d;
     }
     // Production thermal helpers are inserted here by test_dytc_replay.py.
     bool DYTCCommand(DYTC_CMD command, DYTC_RESULT *result, UInt8 function = 0, UInt8 mode = 0, bool enabled = false);
-    bool evaluateNamedThermalMode(const char *name, UInt32 *out) const;
+    bool evaluateNamedThermalMode(const char *name, UInt32 *out);
     bool parseDYTC(DYTC_RESULT result);
     bool updateDYTC();
     bool setDYTC(int function, int mode);
@@ -229,10 +234,17 @@ int main(int argc, char **argv) {
         device.firmware.mmc = true; device.firmware.mmcMode = 3;
         assert(device.updateDYTC());
         assert(device.published.strings["PerfMode"] == "Quiet");
+        assert(device.lastReadback.numbers.at("ValueValid") == 1);
+        assert(device.lastReadback.numbers.at("Value") == 3);
         assert(device.firmware.commands.size() == 1 && device.firmware.commands[0] == 2);
         device.firmware.fieldsAvailable = false;
         assert(device.updateDYTC());
         assert(device.published.strings["PerfMode"] == "Unavailable while lap mode masks the thermal profile");
+        assert(device.lastReadback.strings.at("Field") == "SMMC");
+        assert(device.lastReadback.numbers.at("ValueValid") == 0);
+        assert(device.lastReadback.numbers.count("RootStatus"));
+        assert(device.lastReadback.numbers.count("ParentStatus"));
+        assert(!device.lastReadback.numbers.count("Value"));
         device.firmware.fieldsAvailable = true;
         device.firmware.mmcMode = 0x1000;
         assert(device.updateDYTC());
@@ -276,6 +288,18 @@ int main(int argc, char **argv) {
         assert(!device.setDYTC(11, 16) && !device.setDYTC(11, -1));
         assert(!device.setDYTC(16, 3) && !device.setDYTC(-1, 3));
         assert(device.firmware.commands.empty());
+    } else if (test == "x1-csc-with-lap") {
+        device.firmware.csc = true;
+        device.firmware.mmc = true;
+        device.firmware.mmcMode = 3;
+        device.firmware.fieldsAvailable = false;
+        UInt32 captured = 0;
+        assert(device.firmware.command(2, &captured) == kIOReturnSuccess);
+        assert(captured == 0x4803fe01);
+        assert(device.setThermalProfile(3));
+        assert(device.lastMutation.numbers.at("FirmwareError") == 1);
+        assert(device.published.strings.at("PerfMode") == "Unavailable while custom mode masks the thermal profile");
+        assert(device.firmware.csc && device.firmware.lap && !device.firmware.resets);
     } else if (test == "csc-balance") {
         device.firmware.lap = false;
         device.firmware.mmc = false;

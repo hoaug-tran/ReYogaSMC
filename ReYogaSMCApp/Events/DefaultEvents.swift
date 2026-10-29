@@ -72,6 +72,7 @@ let thinkEvents: [UInt32: [UInt32: EventDescriptor]] = [
     TP_HKEY_EV_SEARCH.rawValue: [0: EventDescriptor("Search", act: .siri, display: false)],
     TP_HKEY_EV_MISSION.rawValue: [0: EventDescriptor("Mission Control", act: .mission, display: false)],
     TP_HKEY_EV_APPS.rawValue: [0: EventDescriptor("Launchpad", act: .launchpad, display: false)],
+    TP_HKEY_EV_PRIVACYGUARD_TOGGLE.rawValue: [0: EventDescriptor("Privacy Screen Guard")],
     TP_HKEY_EV_STAR.rawValue: [
         0: EventDescriptor("ReYogaSMC Controls", .kStar, act: .controls),
         optionFlag: EventDescriptor("System Preferences", .kStar, act: .launchbundle, opt: "com.apple.systempreferences")

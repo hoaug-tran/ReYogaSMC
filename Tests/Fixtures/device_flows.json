@@ -169,6 +169,118 @@
       "expectedCurve": true
     },
     {
+      "id": "thinkpad-x1c7-csc-masked",
+      "model": "ThinkPad X1 Carbon Gen 7",
+      "provenance": {
+        "kind": "public-issue-diagnostic",
+        "comment": "https://github.com/hoaug-tran/ReYogaSMC/issues/2#issuecomment-6496978303",
+        "reportSHA256": "b1550b22adb5199f7e86a733868e0579718b6d15f4ef5cf2994aafe6fc04d7ff",
+        "attachment": "34132510"
+      },
+      "snapshot": {
+        "ACPIECPath": "IOACPIPlane:/_SB/PCI0@0/LPCB@1f0000/EC",
+        "ACPIHKEYPath": "IOACPIPlane:/_SB/PCI0@0/LPCB@1f0000/EC/HKEY",
+        "BacklightLevel": 1,
+        "BatteryIndex": 1,
+        "BatteryIndividualAddressing": false,
+        "ChargeStartThreshold": 0,
+        "ChargeStopThreshold": 100,
+        "ControlProtocolVersion": 1,
+        "EC Capability": "RW",
+        "Fan1RPM": 4643,
+        "FeatureStatus": {
+          "BacklightLevel": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "BatteryIndex": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Single battery platform"
+          },
+          "CPUBoostPower": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "CPUPowerReset": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "CPUSustainedPower": {
+            "Available": false,
+            "Backend": "ThinkPad ACPI",
+            "Reason": "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC."
+          },
+          "ChargeStartThreshold": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "ChargeStopThreshold": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "FnlockMode": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          },
+          "SmartFanMode": {
+            "Available": true,
+            "Backend": "ThinkPad ACPI",
+            "Reason": ""
+          }
+        },
+        "FirmwareDSDTSHA256": "0ac7cc6d4229398b459c5b1cd3a25f287932668cee8f93d9a026cffa0e080259",
+        "FnlockMode": false,
+        "IOClass": "ThinkVPC",
+        "ThinkFanAccessFailed": false,
+        "ThinkFanCurveVersion": 1,
+        "ThinkFanProtocolVersion": 1,
+        "ThinkFanTelemetryVersion": 1,
+        "ThinkPadACPIAnalysisVersion": 1,
+        "DYTC": {
+          "FCAP": 30995,
+          "FuncMode": "Lap",
+          "Function Status": {
+            "CQL": true,
+            "CSC": true,
+            "MMC": false,
+            "MSC": false,
+            "PSC": false,
+            "STD": true,
+            "STP": false,
+            "raw": 16387
+          },
+          "PerfMode": "Unavailable while custom mode masks the thermal profile",
+          "ReadbackSource": "DYTC GET",
+          "Revision": 5,
+          "SubRevision": 0,
+          "lapmode": true
+        },
+        "LastDYTCCommand": {
+          "Capabilities": 30995,
+          "CommandRaw": 2,
+          "FirmwareError": 1,
+          "ResultRaw": 1074003457,
+          "ResultValid": true,
+          "Revision": 5,
+          "TransportStatus": 0
+        }
+      },
+      "expectedAvailable": [
+        "BacklightLevel",
+        "ChargeStartThreshold",
+        "ChargeStopThreshold",
+        "FnlockMode"
+      ],
+      "expectedCurve": true
+    },
+    {
       "id": "thinkpad-t480s",
       "model": "ThinkPad T480s",
       "provenance": {

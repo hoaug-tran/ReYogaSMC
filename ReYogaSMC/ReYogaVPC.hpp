@@ -38,7 +38,7 @@ protected:
                                                                     : 7);
     }
     bool supportsMMCThermal() const { return (DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0; }
-    bool evaluateNamedThermalMode(const char *name, UInt32 *out) const;
+    bool evaluateNamedThermalMode(const char *name, UInt32 *out);
 
     // FCAP bits 16..31, indexed by the four-bit function ID.
     UInt16 DYTCCap{0};

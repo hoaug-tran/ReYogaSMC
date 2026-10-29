@@ -355,15 +355,33 @@ bool ReYogaVPC::setDYTC(int funcmode, int perfmode) {
     return updateDYTC();
 }
 
-bool ReYogaVPC::evaluateNamedThermalMode(const char *name, UInt32 *out) const {
+bool ReYogaVPC::evaluateNamedThermalMode(const char *name, UInt32 *out) {
     if (!vpc || !name || !out)
         return false;
+    auto diagnostic = OSDictionary::withCapacity(6);
+    auto read = [&](const char *path, const char *statusKey) {
+        const IOReturn status = vpc->evaluateInteger(path, out);
+        if (diagnostic)
+            ReYogaProperty::setNumber(diagnostic, statusKey, status, 32);
+        return status == kIOReturnSuccess;
+    };
     char path[16];
-    if (vpc->evaluateInteger(name, out) == kIOReturnSuccess)
-        return true;
-    snprintf(path, sizeof(path), "\\%s", name);
-    if (vpc->evaluateInteger(path, out) == kIOReturnSuccess)
-        return true;
-    snprintf(path, sizeof(path), "^%s", name);
-    return vpc->evaluateInteger(path, out) == kIOReturnSuccess;
+    bool success = read(name, "RelativeStatus");
+    if (!success) {
+        snprintf(path, sizeof(path), "\\%s", name);
+        success = read(path, "RootStatus");
+    }
+    if (!success) {
+        snprintf(path, sizeof(path), "^%s", name);
+        success = read(path, "ParentStatus");
+    }
+    if (diagnostic) {
+        ReYogaProperty::setString(diagnostic, "Field", name);
+        ReYogaProperty::setBoolean(diagnostic, "ValueValid", success);
+        if (success)
+            ReYogaProperty::setNumber(diagnostic, "Value", *out, 32);
+        setProperty("LastDYTCReadback", diagnostic);
+        diagnostic->release();
+    }
+    return success;
 }
