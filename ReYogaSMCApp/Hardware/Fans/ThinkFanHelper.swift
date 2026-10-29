@@ -120,6 +120,9 @@ class ThinkFanHelper: ObservableObject {
     @Published private(set) var curveStatus = ""
     @Published private(set) var curveStopReason = ""
     @Published var curvePoints = ThinkFanCurvePolicy.defaults
+    @Published var pendingCurveResume = false
+    var resumeCurveAfterWake = false
+    private(set) var resumeRequestedTime: TimeInterval = 0
     private var curvePolicy = ThinkFanCurvePolicy()
     private var curveSampleTime: TimeInterval = 0
     private var curveWriteTime: TimeInterval = 0
@@ -146,12 +149,15 @@ class ThinkFanHelper: ObservableObject {
 
     private let feedback: (HardwareFeedback) -> Void
     private let saveStartupMode: (UInt8) -> Void
+    private let saveCurveMode: (Bool) -> Void
     init(connection: io_connect_t, isMainFan: Bool, feedback: @escaping (HardwareFeedback) -> Void = { _ in },
-         saveStartupMode: @escaping (UInt8) -> Void = { _ in }) {
+         saveStartupMode: @escaping (UInt8) -> Void = { _ in },
+         saveCurveMode: @escaping (Bool) -> Void = { _ in }) {
         self.feedback = feedback
         self.connect = connection
         self.main = isMainFan
         self.saveStartupMode = saveStartupMode
+        self.saveCurveMode = saveCurveMode
         enable = connect != 0
     }
 
@@ -165,16 +171,25 @@ class ThinkFanHelper: ObservableObject {
 #endif
 
     func setAutomatic() {
+        resumeCurveAfterWake = false
+        pendingCurveResume = false
+        saveCurveMode(false)
         stopCurve()
         setFanLevel(Self.automaticLevel, operation: "auto")
     }
 
     func setFullSpeed() {
+        resumeCurveAfterWake = false
+        pendingCurveResume = false
+        saveCurveMode(false)
         stopCurve()
         setFanLevel(Self.fullSpeedLevel, operation: "full")
     }
 
     func setManualLevel(_ target: Int) {
+        resumeCurveAfterWake = false
+        pendingCurveResume = false
+        saveCurveMode(false)
         guard !curveEnabled else { return }
         guard (minimumLevel...7).contains(target) else { return }
         setFanLevel(UInt8(target), operation: "manual")
@@ -239,6 +254,9 @@ class ThinkFanHelper: ObservableObject {
             return
         }
         guard let sample = access(level: UInt64(target), operation: operation) else { return }
+        resumeCurveAfterWake = false
+        pendingCurveResume = false
+        saveCurveMode(false)
         curveRecoveryPending = false
         curveStopReason = ""
         if !curveStatus.isEmpty { curveStatus = target & 0x80 != 0 ? "BIOS Auto" : "" }
@@ -278,9 +296,11 @@ class ThinkFanHelper: ObservableObject {
         curvePolicy.reset(); curveWriteTime = 0; lastCurveTarget = nil
         curveSampleTime = ProcessInfo.processInfo.systemUptime
         curveEnabled = true
-        // A curve saves its draft, never a transient level to replay without the watchdog.
+        pendingCurveResume = false
+        resumeCurveAfterWake = false
         startupLevel = Self.automaticLevel
         saveStartupMode(Self.automaticLevel)
+        saveCurveMode(true)
         curveStopReason = ""
         curveRecoveryPending = false
         ReYogaDiagnostics.shared.record("think_fan_curve_started", ["fan": main ? 0 : 1,
@@ -304,6 +324,27 @@ class ThinkFanHelper: ObservableObject {
 
     func explainCurveUnavailable(_ reason: String) {
         curveStatus = reason
+    }
+
+    func prepareForSleep(savePreference: Bool) {
+        if curveEnabled {
+            resumeCurveAfterWake = savePreference
+            stopCurve(reason: .systemSleep)
+        }
+    }
+
+    func requestCurveResume() {
+        pendingCurveResume = true
+        resumeRequestedTime = ProcessInfo.processInfo.systemUptime
+        curveStatus = "Waiting for fresh thermal readings before resuming curve…"
+    }
+
+    func checkResumeTimeout(now: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard pendingCurveResume else { return }
+        if now - resumeRequestedTime > 5 {
+            pendingCurveResume = false
+            curveStopReason = "Curve paused: waiting for valid CPU temperature readings."
+        }
     }
 
     func stopCurve(reason: CurveStopReason = .userOrLifecycle) {

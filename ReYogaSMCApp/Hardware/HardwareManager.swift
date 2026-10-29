@@ -392,9 +392,15 @@ extension HardwareManager {
                             fan.loadCurve(key: SavedHardwareSettings.storageKey(self.preferenceIdentity) + ".ThinkFanCurve.\(index)")
                         }
                         if self.thinkFanCurveSupported && cpuSampleTime > 0 && ProcessInfo.processInfo.systemUptime - cpuSampleTime <= 3 {
-                            fan.updateCurve(temperature: self.cpuTemp)
+                            if fan.pendingCurveResume {
+                                self.startThinkFanCurve(fan, points: fan.savedCurveDraft)
+                            } else {
+                                fan.updateCurve(temperature: self.cpuTemp)
+                            }
+                        } else {
+                            if fan.pendingCurveResume { fan.checkResumeTimeout() }
+                            fan.stopCurve(reason: .capabilityOrTemperatureLost)
                         }
-                        else { fan.stopCurve(reason: .capabilityOrTemperatureLost) }
                     }
                 } else {
                     self.service = 0

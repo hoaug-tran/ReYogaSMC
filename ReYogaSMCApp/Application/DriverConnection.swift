@@ -170,8 +170,9 @@ final class DriverConnection: NSObject {
 
             thinkWakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.thinkWakeup() }
             thinkSleepObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.fanHelper?.stopCurve(reason: .systemSleep)
-                self?.fanHelper2?.stopCurve(reason: .systemSleep)
+                let save = self?.defaults.bool(forKey: "SaveFanLevel") ?? false
+                self?.fanHelper?.prepareForSleep(savePreference: save)
+                self?.fanHelper2?.prepareForSleep(savePreference: save)
             }
 
             if defaults.bool(forKey: "ThinkMuteLEDFixup") {
@@ -243,16 +244,24 @@ final class DriverConnection: NSObject {
 
     private func makeThinkFan(main: Bool) -> ThinkFanHelper {
         let key = fanPreferenceKey(main ? "FanLevel" : "Fan2Level")
+        let curveKey = fanPreferenceKey(main ? "FanCurve" : "Fan2Curve")
         let fan = ThinkFanHelper(connection: context.connect, isMainFan: main, feedback: HardwareFeedbackPresenter.show,
             saveStartupMode: { [defaults] mode in
                 if let key = key { defaults.set(Int(mode), forKey: key) }
+            },
+            saveCurveMode: { [defaults] enabled in
+                if let curveKey = curveKey { defaults.set(enabled, forKey: curveKey) }
             })
         fan.update()
-        if defaults.bool(forKey: "SaveFanLevel"), let key = key,
-           let number = defaults.object(forKey: key) as? NSNumber,
-           CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue.isFinite,
-           number.doubleValue == Double(number.intValue), let mode = UInt8(exactly: number.intValue) {
-            fan.setFanLevel(mode)
+        if defaults.bool(forKey: "SaveFanLevel") {
+            if let curveKey = curveKey, defaults.bool(forKey: curveKey) {
+                fan.requestCurveResume()
+            } else if let key = key,
+               let number = defaults.object(forKey: key) as? NSNumber,
+               CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue.isFinite,
+               number.doubleValue == Double(number.intValue), let mode = UInt8(exactly: number.intValue) {
+                fan.setFanLevel(mode)
+            }
         }
         return fan
     }
@@ -308,8 +317,14 @@ final class DriverConnection: NSObject {
         if defaults.bool(forKey: "ThinkMuteLEDFixup") { muteLEDHelper(context.service) }
 
         for fan in [fanHelper, fanHelper2].compactMap({ $0 }) {
-            if fan.curveEnabled { fan.stopCurve(reason: .wakeRequiresRestart) }
-            else { fan.setFanLevel() }
+            if fan.resumeCurveAfterWake {
+                fan.resumeCurveAfterWake = false
+                fan.requestCurveResume()
+            } else if defaults.bool(forKey: "SaveFanLevel") {
+                fan.setFanLevel(fan.persistedLevel)
+            } else {
+                fan.setFanLevel()
+            }
         }
     }
 

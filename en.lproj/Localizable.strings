@@ -799,3 +799,9 @@
 "Read-only bridge cannot validate writes" = "Read-only bridge cannot validate writes";
 "Unsupported bridge kind" = "Unsupported bridge kind";
 "ACPI bridge / firmware RPM resolution" = "ACPI bridge / firmware RPM resolution";
+"Current fan mode: %@" = "Current fan mode: %@";
+"Auto, Manual, Custom Curve and Full Speed are restored automatically when valid thermal data is available." = "Auto, Manual, Custom Curve and Full Speed are restored automatically when valid thermal data is available.";
+"Set your own fan speeds based on temperature." = "Set your own fan speeds based on temperature.";
+"Waiting for fresh thermal readings before resuming curve…" = "Waiting for fresh thermal readings before resuming curve…";
+"Curve paused: waiting for valid CPU temperature readings." = "Curve paused: waiting for valid CPU temperature readings.";
+"Curve paused: thermal readings not available after wake." = "Curve paused: thermal readings not available after wake.";

@@ -88,9 +88,12 @@ private struct ThinkPadFanPanel: View {
 
     var body: some View {
         ControlSection(loc(.thinkPadFans)) {
-            Toggle(localizedMessage("Restore fan mode at startup"), isOn: $saveFanLevel)
-            Text(localizedMessage("Auto, Manual and Full Speed can be restored. Custom Curve keeps its draft and requires Start after restart or wake."))
-                .font(.caption).foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(localizedMessage("Restore fan mode at startup"), isOn: $saveFanLevel)
+                Text(localizedMessage("Auto, Manual, Custom Curve and Full Speed are restored automatically when valid thermal data is available."))
+                    .font(.caption).foregroundColor(.secondary)
+                    .padding(.top, 2)
+            }
             if manager.thinkFanAuthorizationBusy {
                 ProgressView(localizedMessage("Authorizing fan control…"))
             } else if !manager.thinkFanAuthorizationError.isEmpty {
@@ -132,12 +135,25 @@ private struct ThinkPadFanControl: View {
     @State private var curveDraft = ThinkFanCurvePolicy.defaults
 
     private var title: String { fan.main ? loc(.mainFan) : loc(.secondaryFan) }
-    private var mode: String {
+    private var modeDescription: String {
         guard fan.enable else { return loc(.commonUnavailable) }
-        if fan.curveEnabled { return localizedMessage("Custom Curve") }
+        if fan.curveEnabled || fan.pendingCurveResume { return localizedMessage("Custom Curve") }
         if fan.isFullSpeed { return loc(.fanFullSpeed) }
-        if fan.isAutomatic { return loc(.fanAuto) }
+        if fan.isAutomatic { return localizedMessage("BIOS Auto") }
         return String(format: loc(.fanLevelFormat), fan.level)
+    }
+
+    private var calculatedMode: Int {
+        if fan.curveEnabled || fan.pendingCurveResume { return 2 }
+        if fan.isAutomatic { return 0 }
+        if fan.isFullSpeed { return 3 }
+        return 1
+    }
+
+    private func syncWithFan() {
+        level = Double(max(fan.minimumLevel, fan.level))
+        selectedMode = calculatedMode
+        curveDraft = fan.savedCurveDraft
     }
 
     var body: some View {
@@ -161,7 +177,8 @@ private struct ThinkPadFanControl: View {
                 Text(localizedMessage("Custom Curve")).tag(2)
                 Text(loc(.fanFullSpeed)).tag(3)
             }.pickerStyle(SegmentedPickerStyle())
-            Text(mode).font(.caption).foregroundColor(.secondary)
+            Text(String(format: localizedMessage("Current fan mode: %@"), modeDescription))
+                .font(.caption).foregroundColor(.secondary)
             if selectedMode == 0 && !fan.enable {
                 Button(loc(.fanAuto)) { command { fan.setAutomatic() } }
                     .disabled(!fan.canRecoverAutomatic)
@@ -196,10 +213,7 @@ private struct ThinkPadFanControl: View {
                     Text(localizedMessage("Use increasing temperatures and fan levels, ending in Full Speed by 95°C."))
                         .font(.caption).foregroundColor(AppTheme.accent)
                 }
-                Text(localizedMessage("Curve is experimental. Full Speed uses disengaged mode; calibrate on your laptop. Restart after sleep or reconnect."))
-                    .font(.caption).foregroundColor(.secondary)
-                Text(localizedMessage(manager.cpuTemperatureSource) + " · " +
-                     (manager.cpuTemp > 0 ? String(format: "%.1f °C", manager.cpuTemp) : loc(.commonUnavailable)))
+                Text(localizedMessage("Set your own fan speeds based on temperature."))
                     .font(.caption).foregroundColor(.secondary)
                 if !fan.curveStatus.isEmpty {
                     Text(localizedMessage(fan.curveStatus)).font(.caption).foregroundColor(.secondary)
@@ -213,7 +227,14 @@ private struct ThinkPadFanControl: View {
                 }
             }
             if !fan.curveStopReason.isEmpty {
-                Text(localizedMessage(fan.curveStopReason)).font(.caption).foregroundColor(AppTheme.accent)
+                HStack(spacing: 5) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundColor(AppTheme.accent)
+                    Text(localizedMessage(fan.curveStopReason))
+                        .font(.caption)
+                        .foregroundColor(AppTheme.accent)
+                }
             }
             if !fan.enable {
                 Text(localizedMessage("Fan status is unavailable. Try Auto or reconnect the driver."))
@@ -233,9 +254,16 @@ private struct ThinkPadFanControl: View {
             }
         }.padding(.vertical, 6)
             .onAppear {
-                level = Double(max(fan.minimumLevel, fan.level))
-                selectedMode = fan.curveEnabled ? 2 : fan.isAutomatic ? 0 : fan.isFullSpeed ? 3 : 1
-                curveDraft = fan.savedCurveDraft
+                syncWithFan()
+            }
+            .onChange(of: fan.curveEnabled) { _ in
+                syncWithFan()
+            }
+            .onChange(of: fan.pendingCurveResume) { _ in
+                syncWithFan()
+            }
+            .onChange(of: fan.savedLevel) { _ in
+                syncWithFan()
             }
             .onChange(of: curveDraft) {
                 if !CommandLine.arguments.contains("--render-ui") { fan.saveCurveDraft($0) }

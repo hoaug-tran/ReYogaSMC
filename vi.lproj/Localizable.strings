@@ -801,3 +801,9 @@
 "Read-only bridge cannot validate writes" = "Cầu nối chỉ đọc không thể xác nhận quyền ghi";
 "Unsupported bridge kind" = "Loại cầu nối không được hỗ trợ";
 "ACPI bridge / firmware RPM resolution" = "Cầu nối ACPI / độ phân giải RPM của firmware";
+"Current fan mode: %@" = "Chế độ quạt hiện tại: %@";
+"Auto, Manual, Custom Curve and Full Speed are restored automatically when valid thermal data is available." = "Tự động, Thủ công, Curve tùy chỉnh và Tốc độ tối đa sẽ tự động khôi phục khi có dữ liệu nhiệt độ hợp lệ.";
+"Set your own fan speeds based on temperature." = "Tùy chỉnh tốc độ quạt theo ngưỡng nhiệt độ.";
+"Waiting for fresh thermal readings before resuming curve…" = "Đang chờ dữ liệu nhiệt độ mới để tiếp tục chạy curve…";
+"Curve paused: waiting for valid CPU temperature readings." = "Đã tạm dừng curve: đang chờ dữ liệu nhiệt độ CPU hợp lệ.";
+"Curve paused: thermal readings not available after wake." = "Đã tạm dừng curve: không có dữ liệu nhiệt độ sau khi đánh thức máy.";
