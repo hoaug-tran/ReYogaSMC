@@ -141,12 +141,16 @@ enum InstallerQuoteTest {
         for value in ["plain", "with spaces", "a'b", "\"; exit 9; #", "`id` $(id) $HOME", "line\none\n", "Tiếng Việt"] {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/bin/sh")
-            process.arguments = ["-c", "printf '%s' " + shellQuote(value)]
+            // Process.arguments uses filesystem encoding on macOS; feed exact UTF-8 through stdin.
+            let input = Pipe(); process.standardInput = input
             let pipe = Pipe(); process.standardOutput = pipe
             try! process.run()
+            input.fileHandleForWriting.write(Data(("printf '%s' " + shellQuote(value) + "\n").utf8))
+            try! input.fileHandleForWriting.close()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
-            precondition(process.terminationStatus == 0 && data == Data(value.utf8))
+            precondition(process.terminationStatus == 0 && data == Data(value.utf8),
+                         "Shell roundtrip failed for \(value.debugDescription): got \(Array(data)), expected \(Array(value.utf8))")
         }
     }
 }
