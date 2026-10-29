@@ -93,9 +93,17 @@ class BootSafetyTests(unittest.TestCase):
         self.assertIn('ACPIBridgeProfile', text)
         self.assertNotIn('setProperty("HardwareProfile", identity)', text)
 
-    def test_live_bios_hash_remains_unreviewed(self):
+    def test_live_bios_review_is_limited_to_named_reads(self):
         header = source('ReYogaSMC/ReYogaFirmwareProfiles.hpp')
-        self.assertNotIn('c803c21a14bd4063c7dd29ff3a11f3ac04c3aeb8552b89c075bbfff9899e1ed1', header)
+        import json
+        profile = json.loads(source('HardwareProfiles/legion7-16achg6.json'))
+        self.assertEqual(profile.get('bridge_kind', 'named-fields-readonly'), 'named-fields-readonly')
+        self.assertEqual(profile['verified_writes'], 0)
+        self.assertIn('17aa:3a58', header)
+        self.assertIn('legionBridgeVersion > nativeProfile->bridgeVersion', source('ReYogaSMC/Platform/IdeaVPCIdentity.cpp'))
+        template = source('HardwareProfiles/SSDT-ReYoga-readonly.template.dsl')
+        for unsafe in ('OperationRegion', 'RYFS', 'RYFA', 'RYFF'):
+            self.assertNotIn(unsafe, template)
 
         text = source('ReYogaSMC/Platform/IdeaVPC.cpp')
         for property_name in ('ProfileMatchStage', 'ProfileMatchReason', 'ProfileMatchProfilesChecked',

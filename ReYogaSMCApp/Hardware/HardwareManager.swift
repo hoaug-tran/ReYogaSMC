@@ -934,7 +934,30 @@ extension HardwareManager {
     func loadUIFixture(_ props: NSDictionary) {
         stopMonitoring()
         controlsRestoreAttempted = true
-        applyPreview(HardwarePreviewSnapshot.fixture(props))
+        let snapshot = props.mutableCopy() as! NSMutableDictionary
+        let reviewState = props["UIReview"] as? [String: Any] ?? [:]
+        snapshot["SensorSampleTimeMS"] = reviewState["Stale"] as? Bool == true ? 0 : ProcessInfo.processInfo.systemUptime * 1000
+        applyPreview(HardwarePreviewSnapshot.fixture(snapshot))
+        // Review metadata is consumed only by the DEBUG fixture entry point.
+        guard CommandLine.arguments.contains("--render-ui"), let review = props["UIReview"] as? [String: Any] else { return }
+        if let rgb = review["RGBAvailable"] as? Bool {
+            rgbStatus = HardwareFeatureStatus(available: rgb, reason: review["RGBReason"] as? String ?? "", backend: "USB HID")
+        }
+        if providerClass == "ThinkVPC" {
+            let main = ThinkFanHelper(connection: 0, isMainFan: true)
+            let secondary = ThinkFanHelper(connection: 0, isMainFan: false)
+            main.loadUIReview(rpm: fan1RPM, curve: review["ThinkCurve"] as? Bool == true)
+            secondary.loadUIReview(rpm: fan2RPM, curve: review["ThinkCurve"] as? Bool == true)
+            installFanHelpers(main, secondary: hasDualFan ? secondary : nil)
+        }
+        rgbMode = review["RGBMode"] as? String ?? "Factory"
+        isApplying = review["Applying"] as? Bool ?? false
+        applyingControl = review["ApplyingControl"] as? String
+        acpiAnalysisStatus = review["ACPIStatus"] as? String ?? ""
+        if review["MissingDriver"] as? Bool == true { loadMissingDriverPreview() }
+        if let message = review["DriverError"] as? String {
+            driverState = .unavailable; isConnected = false; driverMessage = message
+        }
     }
 
     private func applyPreview(_ preview: HardwarePreviewSnapshot) {

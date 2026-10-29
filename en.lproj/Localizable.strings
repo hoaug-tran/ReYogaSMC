@@ -796,3 +796,6 @@
 "Fan control permission was denied. Update both app and kext, then reconnect and authorize fan control." = "Fan control permission was denied. Update both app and kext, then reconnect and authorize fan control.";
 
 "Could not install the fan authorization helper (%@): %@" = "Could not install the fan authorization helper (%@): %@";
+"Read-only bridge cannot validate writes" = "Read-only bridge cannot validate writes";
+"Unsupported bridge kind" = "Unsupported bridge kind";
+"ACPI bridge / firmware RPM resolution" = "ACPI bridge / firmware RPM resolution";

@@ -798,3 +798,6 @@
 "Fan control permission was denied. Update both app and kext, then reconnect and authorize fan control." = "Quyền điều khiển quạt bị từ chối. Cập nhật cả ứng dụng và kext, rồi kết nối lại và cấp quyền điều khiển quạt.";
 
 "Could not install the fan authorization helper (%@): %@" = "Không thể cài trình trợ giúp cấp quyền quạt (%@): %@";
+"Read-only bridge cannot validate writes" = "Cầu nối chỉ đọc không thể xác nhận quyền ghi";
+"Unsupported bridge kind" = "Loại cầu nối không được hỗ trợ";
+"ACPI bridge / firmware RPM resolution" = "Cầu nối ACPI / độ phân giải RPM của firmware";

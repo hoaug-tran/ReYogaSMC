@@ -3,6 +3,7 @@ import AppKit
 
 struct BatteryReportPage: View {
     @ObservedObject var manager: HardwareManager
+    @State private var reviewExpanded = CommandLine.arguments.contains("--render-ui") && ProcessInfo.processInfo.environment["REYOGA_UI_EXPANDED"] == "1"
     private let columns = [GridItem(.adaptive(minimum: 270), spacing: 12, alignment: .top)]
     @ViewBuilder
     var body: some View {
@@ -48,13 +49,13 @@ struct BatteryReportPage: View {
 
             if let live = manager.liveBattery {
                 ControlSection(loc(.batteryDetailsHeader)) {
-                    DisclosureGroup(loc(.batteryAboutReadingsTitle)) {
+                    DisclosureGroup(loc(.batteryAboutReadingsTitle), isExpanded: $reviewExpanded) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(loc(.batteryAboutReadingsText))
                                 .font(.system(size: 11)).foregroundColor(.secondary).lineSpacing(3)
                         }.padding(.vertical, 8)
                     }.font(.system(size: 12)).padding(.bottom, 8)
-                    DisclosureGroup("\(loc(.batteryRawFieldsTitle)) (\(live.rawFields.count))") {
+                    DisclosureGroup("\(loc(.batteryRawFieldsTitle)) (\(live.rawFields.count))", isExpanded: $reviewExpanded) {
                         ForEach(live.rawFields.keys.sorted(), id: \.self) { key in
                             ReportValueRow(key, live.rawFields[key] ?? loc(.commonUnavailable))
                         }

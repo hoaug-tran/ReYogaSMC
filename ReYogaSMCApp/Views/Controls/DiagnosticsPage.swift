@@ -3,6 +3,7 @@ import AppKit
 
 struct DiagnosticsPage: View {
     @ObservedObject var manager: HardwareManager
+    @State private var reviewExpanded = CommandLine.arguments.contains("--render-ui") && ProcessInfo.processInfo.environment["REYOGA_UI_EXPANDED"] == "1"
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             ControlSection(loc(.diagnosticsIdentityHeader)) {
@@ -28,7 +29,7 @@ struct DiagnosticsPage: View {
                 Text(localizedMessage(manager.gpuTemperatureReason)).font(.caption).foregroundColor(.secondary)
             }
             ControlSection(loc(.diagnosticsSectionCapabilities)) {
-                DisclosureGroup(loc(.diagnosticsSectionCapabilities)) {
+                DisclosureGroup(loc(.diagnosticsSectionCapabilities), isExpanded: $reviewExpanded) {
                     ForEach(manager.featureStatus.keys.sorted(), id: \.self) { key in
                         if let feature = manager.featureStatus[key] {
                             HStack(alignment: .top, spacing: 10) {

@@ -94,9 +94,19 @@ struct HardwareProfiles {
             throw SupportError.message("DSDT length or checksum is invalid")
         }
         let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+        let oemTableID = String(bytes: bytes[16..<24], encoding: .ascii)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let matches = all().filter {
-            $0["kind"] as? String == "acpi" && $0["offsets"] != nil &&
-                ($0["reviewed_aml_hashes"] as? [String])?.contains(digest) == true
+            guard $0["kind"] as? String == "acpi", $0["offsets"] != nil else { return false }
+            if ($0["reviewed_aml_hashes"] as? [String])?.contains(digest) == true {
+                return true
+            }
+            let isReadOnly = ($0["bridge_kind"] as? String == "named-fields-readonly") ||
+                (($0["verified_writes"] as? Int ?? 0) == 0 && $0["native_telemetry"] != nil)
+            if isReadOnly, let oemIDs = $0["oem_table_ids"] as? [String], oemIDs.contains(oemTableID) {
+                return true
+            }
+            return false
         }
         guard matches.count == 1 else {
             throw SupportError.message("No unique reviewed AML fingerprint matches. Export diagnostics for firmware review.")
@@ -113,7 +123,19 @@ struct HardwareProfiles {
     static func render(_ profile: [String: Any]) throws -> String {
         guard let directory = directory,
               let offsets = profile["offsets"] as? [String: String] else { throw SupportError.message("Hardware profile is incomplete") }
-        var source = try String(contentsOf: directory.appendingPathComponent("SSDT-ReYoga.template.dsl"), encoding: .utf8)
+        let kind = (profile["bridge_kind"] as? String) ??
+            (profile["native_telemetry"] != nil ? "named-fields-readonly" : "raw-offsets")
+        let template: String
+        switch kind {
+        case "raw-offsets": template = "SSDT-ReYoga.template.dsl"
+        case "named-fields-readonly":
+            guard (profile["verified_writes"] as? Int ?? 0) == 0 else {
+                throw SupportError.message("Read-only bridge cannot validate writes")
+            }
+            template = "SSDT-ReYoga-readonly.template.dsl"
+        default: throw SupportError.message("Unsupported bridge kind")
+        }
+        var source = try String(contentsOf: directory.appendingPathComponent(template), encoding: .utf8)
         var values = profile
         for (key, value) in offsets { values[key] = value }
         values["profile_name"] = profile["name"]

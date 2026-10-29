@@ -29,6 +29,8 @@ class FirmwareProfilesTests(unittest.TestCase):
         unreviewed["machine_types"] = ["ZZZZ"]
         unreviewed["bios_families"] = ["ZZZZ"]
         unreviewed.pop("native_telemetry")
+        unreviewed.pop("reviewed_aml_hashes", None)
+        unreviewed.pop("reviewed_dsdt_hashes", None)
         rendered = generator.render([self.profile, unreviewed])
         self.assertEqual(rendered, generator.render([self.profile]))
     def test_bad_units_and_fields_are_rejected(self):

@@ -3,6 +3,7 @@ import AppKit
 
 struct CoolingControlsPage: View {
     @ObservedObject var manager: HardwareManager
+    @State private var reviewExpanded = CommandLine.arguments.contains("--render-ui") && ProcessInfo.processInfo.environment["REYOGA_UI_EXPANDED"] == "1"
     private var hasFanControls: Bool {
         manager.featureStatus["Fan1TargetRPM"]?.available == true || manager.featureStatus["Fan2TargetRPM"]?.available == true
     }
@@ -49,7 +50,7 @@ struct CoolingControlsPage: View {
                 let whyTitle: LocalizedKey = (showFanUnavailable && showPowerUnavailable)
                     ? .coolingWhyUnavailable
                     : (showFanUnavailable ? .coolingWhyFanUnavailable : .coolingWhyPowerUnavailable)
-                DisclosureGroup {
+                DisclosureGroup(isExpanded: $reviewExpanded) {
                     VStack(alignment: .leading, spacing: 12) {
                         if showFanUnavailable {
                             coolingReason(loc(.coolingSectionManualFan), reason: manager.featureStatus["Fan1TargetRPM"]?.reason ?? "No verified manual fan interface")

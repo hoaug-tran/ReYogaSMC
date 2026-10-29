@@ -93,6 +93,13 @@ def _validate_profiles(profiles):
         verified_writes = profile.get("verified_writes", 0)
         if type(verified_writes) is not int or verified_writes not in (0, 1):
             raise ValueError(f"{profile_id}: verified_writes must be integer 0 or 1")
+        bridge_kind = profile.get("bridge_kind")
+        if not bridge_kind:
+            bridge_kind = "named-fields-readonly" if profile.get("native_telemetry") and profile.get("verified_writes", 0) == 0 else "raw-offsets"
+        if bridge_kind not in ("raw-offsets", "named-fields-readonly"):
+            raise ValueError(f"{profile_id}: unsupported bridge kind")
+        if bridge_kind == "named-fields-readonly" and verified_writes:
+            raise ValueError(f"{profile_id}: read-only bridge cannot validate writes")
         if verified_writes and not profile.get("reviewed_aml_hashes"):
             raise ValueError(f"{profile_id}: validated writes require reviewed AML fingerprints")
         sensors = profile.get("native_telemetry")
@@ -115,12 +122,14 @@ def render(profiles):
         profile_id, machine_types, bios_families, oem_id, namespace = _validate_identity(profile)
         fields = ", ".join(json.dumps(namespace + "." + field) for field in _FIELD_ORDER)
         scales = ", ".join(str(sensor["scale"]) for sensor in profile["native_telemetry"])
+        is_readonly = (profile.get("bridge_kind") == "named-fields-readonly" or
+                       (profile.get("native_telemetry") and profile.get("verified_writes", 0) == 0))
         for machine in machine_types:
             for bios in bios_families:
                 rows.append(
                     f'    {{"{profile_id}", {json.dumps(profile["name"])}, '
                     f'{json.dumps(oem_id)}, {json.dumps(machine)}, {json.dumps(bios)}, '
-                    f'{{{fields}}}, {{{scales}}}, {json.dumps("|".join(profile.get("reviewed_aml_hashes", [])))}, {json.dumps("|".join(profile.get("pci_subsystem_ids", [])))}}},'
+                    f'{{{fields}}}, {{{scales}}}, {json.dumps("|".join(profile.get("reviewed_aml_hashes", [])))}, {json.dumps("|".join(profile.get("pci_subsystem_ids", [])))}, {1 if is_readonly else 2}}},'
                 )
     if not rows:
         raise ValueError("No native telemetry profiles found")
@@ -138,6 +147,7 @@ struct ReYogaNativeProfile {
     unsigned scales[4];
     const char *amlHashes; // Reviewed AML SHA-256 digests separated by |.
     const char *pciSubsystemIDs; // Model-specific Lenovo subsystem IDs separated by |.
+    unsigned bridgeVersion; // Maximum reviewed bridge interface (1: named reads, 2: raw offsets).
 };
 
 static constexpr ReYogaNativeProfile ReYogaNativeProfiles[] = {
