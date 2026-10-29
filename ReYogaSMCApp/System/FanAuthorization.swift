@@ -25,8 +25,8 @@ enum FanAuthorization {
                     ReYogaAuthorizeFan(identity) { retry in
                         DispatchQueue.main.async {
                             if retry == kIOReturnSuccess { completion(.success(())) }
-                            else { completion(.failure(SupportError.message(localizedMessage(
-                                "Fan authorization failed (0x%08x). Reconnect the driver and retry authorization.", retry)))) }
+                            else { completion(.failure(SupportError.message(String(format: localizedMessage(
+                                "Fan authorization failed (0x%08x). Reconnect the driver and retry authorization."), retry)))) }
                         }
                     }
                 } catch { completion(.failure(error)) }
