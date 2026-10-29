@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
         assert(device.firmware.commands.size() == 1 && device.firmware.commands[0] == 2);
         device.firmware.fieldsAvailable = false;
         assert(device.updateDYTC());
-        assert(device.published.strings["PerfMode"] == "Unavailable while lap mode masks the thermal profile");
+        assert(device.published.strings["PerfMode"] == "Quiet");
         assert(device.lastReadback.strings.at("Field") == "SMMC");
         assert(device.lastReadback.numbers.at("ValueValid") == 0);
         assert(device.lastReadback.numbers.count("RootStatus"));
@@ -321,9 +321,25 @@ int main(int argc, char **argv) {
         device.firmware.fieldsAvailable = false;
         for (unsigned requested : {3U, 1U, 3U}) {
             assert(device.setThermalProfile(requested));
-            assert(device.published.strings["PerfMode"] == "Unavailable while lap mode masks the thermal profile");
+            assert(device.published.strings["PerfMode"] == (requested == 1 ? "Quiet" : "Performance (Reduced as lapmode active)"));
             assert(device.published.strings["ReadbackSource"] != "Driver cached profile");
         }
+    } else if (test == "x1-cold-boot-and-switch-without-fields") {
+        device.firmware.fieldsAvailable = false;
+        device.firmware.lap = true;
+        assert(device.updateDYTC());
+        assert(device.published.strings["PerfMode"] == "Balance");
+        assert(device.published.strings["FuncMode"] == "Lap");
+        assert(device.published.numbers["lapmode"] == 1);
+        assert(device.setThermalProfile(3));
+        assert(device.published.strings["PerfMode"] == "Performance (Reduced as lapmode active)");
+        assert(device.firmware.lap);
+        assert(device.setThermalProfile(1));
+        assert(device.published.strings["PerfMode"] == "Quiet");
+        assert(device.firmware.lap);
+        assert(device.setThermalProfile(2));
+        assert(device.published.strings["PerfMode"] == "Balance");
+        assert(device.firmware.lap);
     } else if (test == "mmc-get-lapmode") {
         device.DYTCRevision = 6;
         device.mmcGetCap = true;

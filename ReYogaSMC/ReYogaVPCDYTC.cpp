@@ -30,7 +30,7 @@ bool ReYogaVPC::DYTCCommand(DYTC_CMD command, DYTC_RESULT *result, UInt8 ICFunc,
         ReYogaProperty::setNumber(diagnostic, "Capabilities", DYTCCap, 16);
         setProperty("LastDYTCCommand", diagnostic);
         const UInt32 opcode = command.raw & 0xfff;
-        if (opcode == DYTC_CMD_SET || opcode == DYTC_CMD_RESET)
+        if ((opcode == DYTC_CMD_SET && command.ICFunc != DYTC_FUNCTION_CQL) || opcode == DYTC_CMD_RESET)
             setProperty("LastDYTCMutation", diagnostic);
         diagnostic->release();
     }
@@ -318,6 +318,27 @@ bool ReYogaVPC::updateDYTC() {
     DYTC_RESULT result;
     if (!DYTCCommand(dytc_get_cmd, &result))
         return false;
+
+    // X1C7 X1C7 X1C7 X1C7 X1C7 X1C7 X1C7 X1C7
+    if (result.get.funcmode == DYTC_FUNCTION_CQL && supportsMMCThermal() && !mmcGetCap) {
+        UInt32 dummyMode = 0;
+        if (!evaluateNamedThermalMode("SMMC", &dummyMode)) {
+            DYTC_RESULT unmaskedResult;
+            DYTC_RESULT cqlDummy;
+            if (DYTCCommand(dytc_set_cmd, &cqlDummy, DYTC_FUNCTION_CQL, DYTC_MODE_BALANCE, false)) {
+                if (DYTCCommand(dytc_get_cmd, &unmaskedResult)) {
+                    if (unmaskedResult.get.funcmode == DYTC_FUNCTION_MMC) {
+                        result.get.funcmode = DYTC_FUNCTION_MMC;
+                        result.get.perfmode = unmaskedResult.get.perfmode;
+                    } else if (unmaskedResult.get.funcmode == DYTC_FUNCTION_STD) {
+                        result.get.funcmode = DYTC_FUNCTION_MMC;
+                        result.get.perfmode = DYTC_MODE_BALANCE;
+                    }
+                }
+                DYTCCommand(dytc_set_cmd, &cqlDummy, DYTC_FUNCTION_CQL, DYTC_MODE_BALANCE, true);
+            }
+        }
+    }
 
     return parseDYTC(result);
 }
