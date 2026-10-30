@@ -115,6 +115,7 @@ final class HardwareManager {
     var service: UInt32 = 1
     var isShuttingDown = false, connectionGeneration: UInt64 = 0
     var controlsRestoreAttempted = true, initialized = false
+    var restoredPreferenceIdentity: String? = nil
     var preferenceIdentity = "", restoreOrigin = "startup"
     var lastControlSnapshot: NSDictionary = [:]
     var restoringControls: [(String, SavedControlValue)] = []

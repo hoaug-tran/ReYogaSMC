@@ -710,7 +710,10 @@ extension HardwareManager {
     }
 
     private func publishThinkFans(_ main: ThinkFanReading, _ secondary: ThinkFanReading) {
-        publish(\.fan1RPM, main.rpm ?? -1); publish(\.fan2RPM, secondary.rpm ?? -1)
+        if let r1 = main.rpm { publish(\.fan1RPM, r1) }
+        else if fan1RPM < 0 { publish(\.fan1RPM, -1) }
+        if let r2 = secondary.rpm { publish(\.fan2RPM, r2) }
+        else if fan2RPM < 0 { publish(\.fan2RPM, -1) }
         fanHelper?.acceptSnapshot(main); fanHelper2?.acceptSnapshot(secondary)
     }
 
@@ -737,7 +740,9 @@ extension HardwareManager {
         action()
         lastThinkFanCommandTime = ProcessInfo.processInfo.systemUptime
         lastThinkFanSampleTime = lastThinkFanCommandTime
-        publish(fan.main ? \.fan1RPM : \.fan2RPM, fan.rpm ?? -1)
+        if let rpm = fan.rpm {
+            publish(fan.main ? \.fan1RPM : \.fan2RPM, rpm)
+        }
         refreshMetrics()
     }
 

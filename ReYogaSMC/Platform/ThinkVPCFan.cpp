@@ -11,15 +11,20 @@ void ThinkVPC::updateFans() {
         UInt32 rpm = 0;
         UInt8 control = 0xff;
         const char *property = fan == 0 ? "Fan1RPM" : "Fan2RPM";
-        const bool validRPM = readThinkFanRPM(fan, rpm, &control) == kIOReturnSuccess;
+        const IOReturn status = readThinkFanRPM(fan, rpm, &control);
+        const bool validRPM = status == kIOReturnSuccess;
         if (validRPM)
             setProperty(property, rpm, 32);
-        else
+        else if (status != kIOReturnUnderrun)
             removeProperty(property);
         auto reading = OSDictionary::withCapacity(2);
         if (reading) {
             if (validRPM)
                 ReYogaProperty::setNumber(reading, "RPM", rpm, 32);
+            else if (status == kIOReturnUnderrun && getProperty(property)) {
+                if (auto *lastRPM = OSDynamicCast(OSNumber, getProperty(property)))
+                    ReYogaProperty::setNumber(reading, "RPM", lastRPM->unsigned32BitValue(), 32);
+            }
             if (control != 0xff)
                 ReYogaProperty::setNumber(reading, "Control", control, 8);
             if (telemetry)
