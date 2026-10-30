@@ -187,6 +187,7 @@ public final class HardwareManager: ObservableObject {
                 startMonitoring()
                 initialized = false
                 controlsRestoreAttempted = false
+                restoredPreferenceIdentity = nil
                 restoringControls.removeAll()
             }
         }
@@ -250,6 +251,7 @@ public final class HardwareManager: ObservableObject {
     private var initialized = false
     private var preferenceIdentity = ""
     private var controlsRestoreAttempted = false
+    private var restoredPreferenceIdentity: String? = nil
     private var restoringControls: [(String, SavedControlValue)] = []
     private var pendingFanChecks: [Int: (target: Int, deadline: Date)] = [:]
     @Published public private(set) var isApplying = false
@@ -540,8 +542,14 @@ extension HardwareManager {
         let mode = number("SmartFanMode")
         if !(1...3).contains(mode) { publish(\.powerProfile, 0) }
         if (1...3).contains(mode) && mode != powerProfile {
+            let previous = powerProfile
             publish(\.powerProfile, mode)
-            if initialized && !isApplying { feedback(.powerProfile(mode)) }
+            if initialized && !isApplying {
+                feedback(.powerProfile(mode))
+                if previous != 0 && controlsRestoreAttempted && restoringControls.isEmpty {
+                    saveHardwareSetting("SmartFanMode", target: mode, boolean: false)
+                }
+            }
         }
     }
 
@@ -576,9 +584,17 @@ extension HardwareManager {
         guard !isShuttingDown else { return }
         let firmwareDigest = (props["FirmwareDSDTSHA256"] as? String) ?? ""
         let profileIdentity = (props["HardwareProfile"] as? String) ?? ""
-        preferenceIdentity = firmwareDigest.isEmpty && profileIdentity.isEmpty ? "" :
+        let isDeferred = (props["ProfileMatchDeferred"] as? Bool) ?? false
+        // Defer restore until driver finishes deferred identity matching (e.g. PCI dGPU lookup)
+        guard !isDeferred else { return }
+
+        let newIdentity = firmwareDigest.isEmpty && profileIdentity.isEmpty ? "" :
             profileIdentity + "|" + firmwareDigest + "|" + ((props["IOClass"] as? String) ?? "driver")
-        if !controlsRestoreAttempted && !sampleIsStale {
+        preferenceIdentity = newIdentity
+        guard !newIdentity.isEmpty, !sampleIsStale else { return }
+
+        if restoredPreferenceIdentity != newIdentity {
+            restoredPreferenceIdentity = newIdentity
             controlsRestoreAttempted = true
             refreshPermissions()
             let handle = service
@@ -586,8 +602,8 @@ extension HardwareManager {
                 IOObjectRetain(handle)
                 hardwareQueue.async { _ = sendBoolean("DetailedTelemetry", self.detailedLogging, handle); IOObjectRelease(handle) }
             }
-            let saved = preferenceIdentity.isEmpty ? SavedHardwareSettings(identity: "") : loadHardwareSettings()
-            let order = ["SmartFanMode", "ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "Fan1TargetRPM", "Fan2TargetRPM"]
+            let saved = loadHardwareSettings()
+            let order = ["SmartFanMode", "FanFullSpeed", "ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "Fan1TargetRPM", "Fan2TargetRPM"]
             restoringControls = order.compactMap { key in saved.values[key].map { (key, $0) } }
             DispatchQueue.main.async { self.restoreNextControl() }
         }
@@ -734,6 +750,21 @@ extension HardwareManager {
         if let data = UserDefaults.standard.data(forKey: key),
            let saved = try? JSONDecoder().decode(SavedHardwareSettings.self, from: data),
            saved.version == 1, saved.identity == preferenceIdentity { return saved }
+        let parts = preferenceIdentity.split(separator: "|", omittingEmptySubsequences: false)
+        if parts.count == 3, !parts[0].isEmpty {
+            let fallbackIdentity = "|" + parts[1] + "|" + parts[2]
+            let fallbackKey = SavedHardwareSettings.storageKey(fallbackIdentity)
+            if let data = UserDefaults.standard.data(forKey: fallbackKey),
+               let saved = try? JSONDecoder().decode(SavedHardwareSettings.self, from: data),
+               saved.version == 1 {
+                var migrated = saved
+                migrated.identity = preferenceIdentity
+                if let encoded = try? JSONEncoder().encode(migrated) {
+                    UserDefaults.standard.set(encoded, forKey: key)
+                }
+                return migrated
+            }
+        }
         return SavedHardwareSettings(identity: preferenceIdentity)
     }
     private func saveHardwareSetting(_ key: String, target: Int, boolean: Bool) {
@@ -774,6 +805,7 @@ extension HardwareManager {
         restoreOrigin = "wake"
         ReYogaDiagnostics.shared.record("restore_after_wake", ["generation": connectionGeneration])
         controlsRestoreAttempted = false
+        restoredPreferenceIdentity = nil
         if rgbStatus.available { retryRGBDiscovery() }
         refreshAll()
     }

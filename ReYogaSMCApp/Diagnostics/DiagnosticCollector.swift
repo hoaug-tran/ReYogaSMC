@@ -124,6 +124,7 @@ enum DiagnosticCollector {
             ("sip", "/usr/bin/csrutil", ["status"])
         ]
         var manifest: [[String: Any]] = []
+        manifest.append(try collectPrivileged(to: folder))
         for (name, executable, arguments) in commands {
             manifest.append(try run(executable, arguments, name: name, folder: folder))
         }
@@ -131,7 +132,6 @@ enum DiagnosticCollector {
             manifest.append(try run("/usr/sbin/ioreg", ["-a", "-r", "-c", provider],
                 name: "registry-" + provider, folder: folder))
         }
-        manifest.append(try collectPrivileged(to: folder))
         let data = try PropertyListSerialization.data(fromPropertyList: ["schemaVersion": 2,
             "policy": "Fixed read-only commands. Administrator collection requires macOS authorization. No user-provided executable or output path is passed to root. Review output for identifiers before sharing. Empty registry output can mean provider absent.",
             "commands": manifest], format: .xml, options: 0)
