@@ -330,28 +330,34 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
         UInt32 result = 0;
         if (target != 0)
             return kIOReturnBadArgument; // Manual is entered by a target-RPM request.
-        IOReturn ret = ec->evaluateInteger("RYFA", &result);
-        return ret == kIOReturnSuccess && result != 0 ? kIOReturnIOError : ret;
+        if (ec && ec->validateObject("RYFA") == kIOReturnSuccess) {
+            IOReturn ret = ec->evaluateInteger("RYFA", &result);
+            return ret == kIOReturnSuccess && result != 0 ? kIOReturnIOError : ret;
+        }
+        return kIOReturnSuccess;
     }
     if (!strcmp(key, smartFanPrompt)) {
         if (number == nullptr || target < 1 || target > 3)
             return kIOReturnBadArgument;
         UInt32 currentProfile = 0;
-        if (powerLimitsSaved && wmig->getGameZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &currentProfile) && currentProfile != powerLimitsProfile) {
+        if (powerLimitsSaved && wmig && wmig->getGameZoneData(GAME_ZONE_WMI_GET_SMARTFAN_MODE, &currentProfile) && currentProfile != powerLimitsProfile) {
             if (target != powerLimitsProfile)
                 return kIOReturnNotReady;
             if (!wmig->setGameZoneData(GAME_ZONE_WMI_SET_SMARTFAN_MODE, target))
                 return kIOReturnIOError;
+            setProperty(smartFanPrompt, target, 32);
             return restorePowerLimits() ? kIOReturnSuccess : kIOReturnIOError;
         }
         if (!restorePowerLimits())
             return kIOReturnIOError;
-        if (legionBridge) {
+        if (legionBridge && ec && ec->validateObject("RYFA") == kIOReturnSuccess) {
             UInt32 result = 0;
-            if (ec->evaluateInteger("RYFA", &result) != kIOReturnSuccess || result != 0)
-                return kIOReturnIOError;
+            ec->evaluateInteger("RYFA", &result);
         }
-        return wmig->setGameZoneData(GAME_ZONE_WMI_SET_SMARTFAN_MODE, target) ? kIOReturnSuccess : kIOReturnIOError;
+        if (!wmig || !wmig->setGameZoneData(GAME_ZONE_WMI_SET_SMARTFAN_MODE, target))
+            return kIOReturnIOError;
+        setProperty(smartFanPrompt, target, 32);
+        return kIOReturnSuccess;
     }
     if (!strcmp(key, alwaysOnUSBStatePrompt)) {
         if (number == nullptr || target > 2)
@@ -551,7 +557,7 @@ void IdeaVPC::restoreUserControls() {
     commandGate->runAction([](OSObject *owner, void *, void *, void *, void *) -> IOReturn {
         auto self = static_cast<IdeaVPC *>(owner);
         self->restorePowerLimits();
-        if (self->legionBridge) {
+        if (self->legionBridge && self->ec && self->ec->validateObject("RYFA") == kIOReturnSuccess) {
             UInt32 result = 0;
             if (self->ec->evaluateInteger("RYFA", &result) != kIOReturnSuccess || result != 0)
                 self->setProperty("FanRestoreReason", "Firmware did not confirm automatic fan restoration");
