@@ -73,7 +73,7 @@ final class LegionRGBController {
             guard let match = profiles.first(where: { profile in
                 guard profile.vendorID == vendor && profile.productID == product else { return false }
                 let pageMatches = profile.usagePage == primaryPage || profile.usagePage == devicePage
-                let usageMatches = profile.usage == primaryUsage || profile.usage == deviceUsage
+                let usageMatches = profile.matches(vendorID: vendor, productID: product, usagePage: primaryPage ?? devicePage, usage: primaryUsage ?? deviceUsage)
                 let sizeMatches = profile.reportSize == nil || size == -1 || profile.reportSize == size || profile.reportSize! + 1 == size
                 return pageMatches && usageMatches && sizeMatches
             }) else { return nil }

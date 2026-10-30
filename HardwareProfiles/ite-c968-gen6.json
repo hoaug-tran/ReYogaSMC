@@ -10,6 +10,7 @@
   "vendorID": 1165,
   "productID": 51560,
   "usagePage": 65417,
+  "usage": 16,
   "reportID": 7,
   "reportSize": 192,
   "maxLEDsPerPacket": 47,

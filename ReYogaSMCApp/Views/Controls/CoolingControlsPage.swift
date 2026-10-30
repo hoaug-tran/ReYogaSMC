@@ -33,11 +33,6 @@ struct CoolingControlsPage: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if manager.hasPowerProfiles {
-                ControlSection(loc(.overviewSectionProfiles)) {
-                    ProfileSelector(manager: manager)
-                }
-            }
             if manager.hasFanFullSpeed {
                 ControlSection(loc(.fanFullSpeed)) {
                     ControlFeatureRow(manager, .fanFullSpeed, "FanFullSpeed", "wind", manager.isFanFullSpeedOn, true) {

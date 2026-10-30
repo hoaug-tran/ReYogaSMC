@@ -23,6 +23,9 @@ struct RGBMatchProfile {
     }
 
     func matches(vendorID: Int?, productID: Int?, usagePage: Int?, usage: Int?) -> Bool {
-        self.vendorID == vendorID && self.productID == productID && self.usagePage == usagePage && self.usage == usage
+        guard self.vendorID == vendorID && self.productID == productID && self.usagePage == usagePage else { return false }
+        if self.usage == usage { return true }
+        if (self.usage == 16 || self.usage == 7) && (usage == 16 || usage == 7) { return true }
+        return false
     }
 }
