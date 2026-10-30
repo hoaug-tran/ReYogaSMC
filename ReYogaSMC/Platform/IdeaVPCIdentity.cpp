@@ -186,7 +186,7 @@ void IdeaVPC::initNativeProfile() {
         if (!entry)
             return;
         const char *productKeys[] = {"OEMProduct", "OEMBoard", "product-name", "board-product", "machine-type"};
-        const char *biosKeys[] = {"OEMBIOS", "OEMBIOSVersion", "bios-version"};
+        const char *biosKeys[] = {"OEMBIOS", "OEMBIOSVersion"};
         auto read = [&](const char *key, bool bios) {
             auto object = entry->getProperty(key);
             if (auto text = OSDynamicCast(OSString, object))

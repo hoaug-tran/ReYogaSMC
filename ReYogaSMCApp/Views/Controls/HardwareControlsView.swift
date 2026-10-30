@@ -133,5 +133,14 @@ public struct HardwareControlsView: View {
         }.frame(minWidth: AppTheme.width, maxWidth: .infinity, minHeight: AppTheme.height, maxHeight: .infinity)
             .background(Color(NSColor.windowBackgroundColor))
     }
-    private var pageSubtitle: String { loc(page.subtitle) }
+    private var pageSubtitle: String {
+        if page == .lighting {
+            if manager.hasRGBHardware || manager.hasYLogo || manager.hasPortLighting {
+                return loc(.subtitleLighting)
+            } else if manager.featureStatus["BacklightLevel"]?.available == true && manager.keyboardBacklight >= 0 {
+                return loc(.lightingSectionKeyboard)
+            }
+        }
+        return loc(page.subtitle)
+    }
 }

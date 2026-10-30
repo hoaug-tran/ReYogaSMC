@@ -74,6 +74,9 @@ struct Identity {
             if (!alphanumeric(code[i]))
                 return;
         }
+        if (!strncmp(code, "MBP", 3) || !strncmp(code, "MAC", 3) ||
+            !strncmp(code, "APPL", 4) || !strncmp(code, "IMAC", 4))
+            return;
         if (!isBIOS && !(code[0] >= '0' && code[0] <= '9' && code[1] >= '0' && code[1] <= '9'))
             return;
         if (isBIOS && (length < 5 || value[4] < '0' || value[4] > '9'))
@@ -125,10 +128,32 @@ inline bool readSMBIOS(const uint8_t *bytes, size_t size, Identity &identity) {
             for (unsigned i = 0; lenovo && i < 6; ++i)
                 lenovo = upper(vendor[i]) == "LENOVO"[i];
             if (lenovo) {
-                size_t stringLength = 0;
-                const char *text = stringAt(bytes[offset + indexOffset], stringLength);
-                if (text)
-                    parsed.add(text, stringLength, type == 0);
+                if (type == 0) {
+                    size_t stringLength = 0;
+                    const char *text = stringAt(bytes[offset + indexOffset], stringLength);
+                    if (text)
+                        parsed.add(text, stringLength, true);
+                } else if (type == 1) {
+                    constexpr unsigned offsets[] = {0x05, 0x06, 0x19};
+                    for (unsigned off : offsets) {
+                        if (length > off && !parsed.machine[0]) {
+                            size_t stringLength = 0;
+                            const char *text = stringAt(bytes[offset + off], stringLength);
+                            if (text) {
+                                parsed.add(text, stringLength, false);
+                                if (!parsed.machine[0] && stringLength >= 4) {
+                                    for (size_t s = 0; s + 4 <= stringLength; ++s) {
+                                        if (text[s] >= '0' && text[s] <= '9' && text[s + 1] >= '0' && text[s + 1] <= '9') {
+                                            parsed.add(text + s, 4, false);
+                                            if (parsed.machine[0])
+                                                break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
         offset = end + 2;

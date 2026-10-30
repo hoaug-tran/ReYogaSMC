@@ -650,6 +650,13 @@ extension HardwareManager {
         publish(\.hasTouchpadLock, supported("TouchpadLock"))
         publish(\.hasYLogo, supported("YLogoStatus"))
         publish(\.hasPortLighting, supported("PortLighting"))
+        if providerClass == "ThinkVPC" {
+            hasRGBHardware = false
+        } else if let profile = props["HardwareProfile"] as? String {
+            hasRGBHardware = lighting.matchedProfileID != nil || HardwareProfiles.hasRGBHardware(profileID: profile)
+        } else {
+            hasRGBHardware = providerClass != "ThinkVPC" && (lighting.matchedProfileID != nil || HardwareProfiles.hasRGBHardware(profileID: firmwareProfileID))
+        }
         acceptFanAndThermalSnapshot(props)
         acceptControlReadback(props, conservationMask: capabilities.conservationMask, rapidMask: capabilities.rapidChargeMask, powerRanges: capabilities.powerRanges)
         acceptTelemetryStatus(props, sequence: sequence, stale: sampleIsStale, protocolVersion: protocolVersion)
@@ -948,6 +955,13 @@ extension HardwareManager {
         guard CommandLine.arguments.contains("--render-ui"), let review = props["UIReview"] as? [String: Any] else { return }
         if let rgb = review["RGBAvailable"] as? Bool {
             rgbStatus = HardwareFeatureStatus(available: rgb, reason: review["RGBReason"] as? String ?? "", backend: "USB HID")
+            hasRGBHardware = rgb || (review["RGBHardware"] as? Bool ?? false)
+        } else if let rgbHw = review["RGBHardware"] as? Bool {
+            hasRGBHardware = rgbHw
+        } else if providerClass == "ThinkVPC" {
+            hasRGBHardware = false
+        } else if let profile = props["HardwareProfile"] as? String {
+            hasRGBHardware = HardwareProfiles.hasRGBHardware(profileID: profile)
         }
         if providerClass == "ThinkVPC" {
             let main = ThinkFanHelper(connection: 0, isMainFan: true)
@@ -1008,7 +1022,7 @@ extension HardwareManager {
         lighting.detect(retry: true) { [weak self] profile in self?.acceptRGBDiscovery(profile) }
     }
     private func acceptRGBDiscovery(_ profile: String?) {
-        hasRGBHardware = profile != nil
+        hasRGBHardware = providerClass != "ThinkVPC" && (profile != nil || HardwareProfiles.hasRGBHardware(profileID: firmwareProfileID))
         if let profile = profile { hotkeyProfileID = profile }
         refreshPermissions()
     }

@@ -18,11 +18,16 @@ final class LegionRGBController {
         status = HardwareFeatureStatus(available: false, reason: "No reviewed RGB USB profile matched", backend: "USB HID")
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         let profiles = HardwareProfiles.all().filter { $0["kind"] as? String == "rgb" }.compactMap(RGBMatchProfile.init)
-        let matchers: [NSDictionary] = profiles.map {
-            [kIOHIDVendorIDKey: $0.vendorID, kIOHIDProductIDKey: $0.productID,
-             kIOHIDPrimaryUsagePageKey: $0.usagePage, kIOHIDPrimaryUsageKey: $0.usage]
+        guard !profiles.isEmpty else { return }
+        let matchers: [NSDictionary] = profiles.flatMap { profile in
+            [
+                [kIOHIDVendorIDKey: profile.vendorID, kIOHIDProductIDKey: profile.productID,
+                 kIOHIDDeviceUsagePageKey: profile.usagePage, kIOHIDDeviceUsageKey: profile.usage],
+                [kIOHIDVendorIDKey: profile.vendorID, kIOHIDProductIDKey: profile.productID,
+                 kIOHIDPrimaryUsagePageKey: profile.usagePage, kIOHIDPrimaryUsageKey: profile.usage],
+                [kIOHIDVendorIDKey: profile.vendorID, kIOHIDProductIDKey: profile.productID]
+            ]
         }
-        guard !matchers.isEmpty else { return }
         var iterator: io_iterator_t = 0
         if IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("IOHIDDevice"), &iterator) == kIOReturnSuccess {
             defer { IOObjectRelease(iterator) }
@@ -30,13 +35,20 @@ final class LegionRGBController {
                 let entry = IOIteratorNext(iterator)
                 if entry == 0 { break }
                 defer { IOObjectRelease(entry) }
-                func number(_ key: String) -> Int? {
-                    IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Int
+                func number(_ keys: String...) -> Int? {
+                    for key in keys {
+                        if let val = IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Int {
+                            return val
+                        }
+                    }
+                    return nil
                 }
+                let page = number(kIOHIDPrimaryUsagePageKey, kIOHIDDeviceUsagePageKey)
+                let usage = number(kIOHIDPrimaryUsageKey, kIOHIDDeviceUsageKey)
                 // Registry identity is useful even when macOS later denies opening HID.
                 if let match = profiles.first(where: { $0.matches(vendorID: number(kIOHIDVendorIDKey),
-                    productID: number(kIOHIDProductIDKey), usagePage: number(kIOHIDPrimaryUsagePageKey),
-                    usage: number(kIOHIDPrimaryUsageKey)) }) {
+                    productID: number(kIOHIDProductIDKey), usagePage: page,
+                    usage: usage) }) {
                     matchedProfileID = match.profile["id"] as? String
                     break
                 }
@@ -53,15 +65,22 @@ final class LegionRGBController {
         let candidates: [(device: IOHIDDevice, profile: RGBMatchProfile)] = devices.compactMap { candidate in
             let vendor = IOHIDDeviceGetProperty(candidate, kIOHIDVendorIDKey as CFString) as? Int ?? -1
             let product = IOHIDDeviceGetProperty(candidate, kIOHIDProductIDKey as CFString) as? Int ?? -1
-            let page = IOHIDDeviceGetProperty(candidate, kIOHIDPrimaryUsagePageKey as CFString) as? Int ?? -1
-            let usage = IOHIDDeviceGetProperty(candidate, kIOHIDPrimaryUsageKey as CFString) as? Int ?? -1
+            let primaryPage = IOHIDDeviceGetProperty(candidate, kIOHIDPrimaryUsagePageKey as CFString) as? Int
+            let devicePage = IOHIDDeviceGetProperty(candidate, kIOHIDDeviceUsagePageKey as CFString) as? Int
+            let primaryUsage = IOHIDDeviceGetProperty(candidate, kIOHIDPrimaryUsageKey as CFString) as? Int
+            let deviceUsage = IOHIDDeviceGetProperty(candidate, kIOHIDDeviceUsageKey as CFString) as? Int
             let size = IOHIDDeviceGetProperty(candidate, kIOHIDMaxFeatureReportSizeKey as CFString) as? Int ?? -1
-            guard let match = profiles.first(where: {
-                $0.matches(vendorID: vendor, productID: product, usagePage: page, usage: usage) && $0.reportSize == size
+            guard let match = profiles.first(where: { profile in
+                guard profile.vendorID == vendor && profile.productID == product else { return false }
+                let pageMatches = profile.usagePage == primaryPage || profile.usagePage == devicePage
+                let usageMatches = profile.usage == primaryUsage || profile.usage == deviceUsage
+                let sizeMatches = profile.reportSize == nil || size == -1 || profile.reportSize == size || profile.reportSize! + 1 == size
+                return pageMatches && usageMatches && sizeMatches
             }) else { return nil }
             return (device: candidate, profile: match)
         }
-        guard candidates.count <= 1 else {
+        let uniqueProfiles = Set(candidates.compactMap { $0.profile.profile["id"] as? String })
+        guard uniqueProfiles.count <= 1 else {
             matchedProfileID = nil
             status = HardwareFeatureStatus(available: false, reason: "Multiple matching RGB controllers found; disconnect additional controllers and retry", backend: "USB HID")
             return

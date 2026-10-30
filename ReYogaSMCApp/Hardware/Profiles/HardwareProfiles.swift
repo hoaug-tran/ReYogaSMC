@@ -42,6 +42,24 @@ struct HardwareProfiles {
         }
         return true
     }
+    static func hasRGBHardware(profileID: String?) -> Bool {
+        guard let id = profileID, !id.isEmpty else { return false }
+        let profiles = all()
+        if let profile = profiles.first(where: { ($0["id"] as? String) == id }) {
+            if profile["kind"] as? String == "rgb" { return true }
+            if let hotkeys = profile["hotkeys"] as? [String: Any],
+               let matches = hotkeys["matchProfiles"] as? [String] {
+                if matches.contains(where: { matchID in
+                    profiles.contains { ($0["id"] as? String) == matchID && ($0["kind"] as? String) == "rgb" }
+                }) { return true }
+            }
+            if let name = profile["name"] as? String,
+               name.contains("Legion") || name.contains("LOQ") || name.contains("Gaming") {
+                return true
+            }
+        }
+        return false
+    }
     static let maxDSDTFileSize = 16 * 1024 * 1024
     static func readDSDTSource(_ input: URL) throws -> String {
         let attributes = try FileManager.default.attributesOfItem(atPath: input.path)

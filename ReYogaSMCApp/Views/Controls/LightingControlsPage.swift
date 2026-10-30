@@ -3,9 +3,15 @@ import AppKit
 
 struct LightingControlsPage: View {
     @ObservedObject var manager: HardwareManager
+    private var hasKeyboardBacklight: Bool {
+        manager.featureStatus["BacklightLevel"]?.available == true && manager.keyboardBacklight >= 0
+    }
+    private var hasDeviceLighting: Bool {
+        manager.hasYLogo || manager.hasPortLighting
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if manager.featureStatus["BacklightLevel"]?.available == true && manager.keyboardBacklight >= 0 {
+            if hasKeyboardBacklight {
                 ControlSection(loc(.lightingSectionKeyboard)) {
                     Picker(loc(.lightingBrightness), selection: Binding(get: { manager.keyboardBacklight }, set: { manager.setKeyboardBacklight($0) })) {
                         Text(loc(.commonOff)).tag(0)
@@ -14,7 +20,7 @@ struct LightingControlsPage: View {
                     }.pickerStyle(SegmentedPickerStyle()).disabled(manager.isApplying)
                 }
             }
-            if manager.hasYLogo || manager.hasPortLighting {
+            if hasDeviceLighting {
                 ControlSection(loc(.lightingSectionDevice)) {
                     if manager.hasYLogo {
                         ControlFeatureRow(manager, .lightingLogoLed, "YLogoStatus", "lightbulb", manager.isYLogoOn, true) { manager.toggleYLogo() }
@@ -24,7 +30,16 @@ struct LightingControlsPage: View {
                     }
                 }
             }
-            RGBControls(manager: manager)
+            if manager.hasRGBHardware {
+                RGBControls(manager: manager)
+            } else if !hasKeyboardBacklight && !hasDeviceLighting {
+                ControlSection(loc(.sidebarTabLighting)) {
+                    Text(loc(.commonUnavailable))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 4)
+                }
+            }
         }
     }
 }
@@ -65,7 +80,9 @@ struct RGBControls: View {
             } else {
                 Text(localizedMessage(manager.rgbStatus.reason)).font(.system(size: 12)).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
                 HStack {
-                    Button(loc(.grantPermissions)) { HotkeyPermissionActions.openPrivacySettings() }
+                    if !manager.hasInputMonitoringPermission {
+                        Button(loc(.grantPermissions)) { HotkeyPermissionActions.openPrivacySettings() }
+                    }
                     Button(loc(.coolingRetry)) { manager.retryRGBDiscovery() }.disabled(manager.rgbApplying)
                 }.padding(.top, 8)
             }
