@@ -112,9 +112,11 @@ final class SMCTemperatureReader {
 
     private func temperature(_ sensor: Sensor) -> (reading: Reading?, reason: String) {
         do {
-            if Date() >= nextDiscovery {
-                nextDiscovery = Date().addingTimeInterval(30)
-                try discover()
+            if connection == 0 || (cpuKeys.isEmpty && keys.isEmpty) {
+                if Date() >= nextDiscovery {
+                    nextDiscovery = Date().addingTimeInterval(10)
+                    try discover()
+                }
             }
             let selectedKeys: [String]
             let provider: String
@@ -137,7 +139,7 @@ final class SMCTemperatureReader {
             }
             return (nil, selectedKeys.isEmpty ? discoveryReason : invalidReason)
         } catch {
-            close(); nextDiscovery = Date().addingTimeInterval(30)
+            close(); nextDiscovery = Date().addingTimeInterval(5)
             return (nil, error.localizedDescription)
         }
     }

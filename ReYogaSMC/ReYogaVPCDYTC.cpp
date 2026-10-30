@@ -244,7 +244,7 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
         break;
 
     case DYTC_FUNCTION_MMC:
-        ReYogaProperty::setString(DYTCStatus, "FuncMode", "Desk");
+        ReYogaProperty::setString(DYTCStatus, "FuncMode", lapmode ? "Lap" : "Desk");
         switch (result.get.perfmode) {
         case DYTC_MODE_PERFORM:
             activeThermalProfile = 3;
@@ -332,20 +332,9 @@ bool ReYogaVPC::updateDYTC() {
     if (result.get.funcmode == DYTC_FUNCTION_CQL && supportsMMCThermal() && !mmcGetCap) {
         UInt32 dummyMode = 0;
         if (!evaluateNamedThermalMode("SMMC", &dummyMode)) {
-            DYTC_RESULT unmaskedResult;
-            DYTC_RESULT cqlDummy;
-            if (DYTCCommand(dytc_set_cmd, &cqlDummy, DYTC_FUNCTION_CQL, DYTC_MODE_BALANCE, false)) {
-                if (DYTCCommand(dytc_get_cmd, &unmaskedResult)) {
-                    if (unmaskedResult.get.funcmode == DYTC_FUNCTION_MMC) {
-                        result.get.funcmode = DYTC_FUNCTION_MMC;
-                        result.get.perfmode = unmaskedResult.get.perfmode;
-                    } else if (unmaskedResult.get.funcmode == DYTC_FUNCTION_STD) {
-                        result.get.funcmode = DYTC_FUNCTION_MMC;
-                        result.get.perfmode = DYTC_MODE_BALANCE;
-                    }
-                }
-                DYTCCommand(dytc_set_cmd, &cqlDummy, DYTC_FUNCTION_CQL, DYTC_MODE_BALANCE, true);
-            }
+            result.get.funcmode = DYTC_FUNCTION_MMC;
+            result.get.perfmode = activeThermalProfile == 1 ? DYTC_MODE_QUIET :
+                                  activeThermalProfile == 3 ? DYTC_MODE_PERFORM : DYTC_MODE_BALANCE;
         }
     } else if (result.get.funcmode == DYTC_FUNCTION_CSC && supportsMMCThermal() && !mmcGetCap) {
         UInt32 dummyMode = 0;
