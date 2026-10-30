@@ -240,9 +240,7 @@ class ThinkFanHelper: ObservableObject {
         }
         enable = true
         let measuredRPM = Int(output[0]) | Int(output[1]) << 8
-        if measuredRPM != 0xffff {
-            rpm = measuredRPM
-        }
+        rpm = measuredRPM == 0xffff ? nil : measuredRPM
         return output
     }
 
