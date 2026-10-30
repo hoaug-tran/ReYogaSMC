@@ -36,6 +36,7 @@ public final class HardwareManager: ObservableObject {
     private var lastFirmwareRefresh = Date.distantPast
 
     @Published public private(set) var hasDualFan: Bool = false
+    @Published public private(set) var hasFanFullSpeed: Bool = false
     @Published public private(set) var hasPowerProfiles: Bool = false
     @Published public private(set) var powerProfilesReady: Bool = false
     @Published public private(set) var powerProfileError = ""
@@ -63,6 +64,7 @@ public final class HardwareManager: ObservableObject {
     @Published public private(set) var isTouchpadLocked: Bool = false
     @Published public private(set) var isYLogoOn: Bool = false
     @Published public private(set) var isPortLightingOn: Bool = false
+    @Published public private(set) var isFanFullSpeedOn: Bool = false
     @Published public private(set) var providerClass = ""
     @Published public private(set) var acpiECPath = ""
     @Published public private(set) var acpiHKEYPath = ""
@@ -178,7 +180,7 @@ public final class HardwareManager: ObservableObject {
                 featurePollingSupported = false; lastFirmwareRefresh = .distantPast
                 fanLabels = ["Fan 1", "Fan 2"]
                 hasDualFan = false; hasPowerProfiles = false; powerProfilesReady = false; hasConservation = false; hasRapidCharge = false
-                hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasAlwaysOnUSB = false
+                hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasAlwaysOnUSB = false; hasFanFullSpeed = false; isFanFullSpeedOn = false
                 preferenceIdentity = ""
                 modelName = detectedIdentity.name; modelSource = detectedIdentity.source; modelWarning = ""
                 telemetryStatus = "Driver unavailable"
@@ -525,6 +527,7 @@ extension HardwareManager {
         publish(\.isTouchpadLocked, number("TouchpadLock") == 1)
         if rgbMode == "Factory" { publish(\.isYLogoOn, boolean("YLogoStatus")) }
         publish(\.isPortLightingOn, boolean("PortLighting"))
+        publish(\.isFanFullSpeedOn, boolean("FanFullSpeed"))
         publish(\.alwaysOnUSBState, max(number("AlwaysOnUSBState"), 0))
         publish(\.cpuBoostWatts, number("CPUBoostPower"))
         publish(\.cpuSustainedWatts, number("CPUSustainedPower"))
@@ -650,6 +653,7 @@ extension HardwareManager {
         publish(\.hasTouchpadLock, supported("TouchpadLock"))
         publish(\.hasYLogo, supported("YLogoStatus"))
         publish(\.hasPortLighting, supported("PortLighting"))
+        publish(\.hasFanFullSpeed, supported("FanFullSpeed"))
         if providerClass == "ThinkVPC" {
             hasRGBHardware = false
         } else if let profile = props["HardwareProfile"] as? String {
@@ -877,6 +881,7 @@ extension HardwareManager {
         apply("FanControlMode", 0, title: "Manual Fan Minimum") }
     public func toggleConservation() { apply("ConservationMode", isConservationOn ? 0 : 1, boolean: true, title: "Conservation") }
     public func toggleRapidCharge() { apply("RapidChargeMode", isRapidChargeOn ? 0 : 1, boolean: true, title: "Rapid Charge") }
+    public func toggleFanFullSpeed() { apply("FanFullSpeed", isFanFullSpeedOn ? 0 : 1, boolean: true, title: "Full Speed") }
     public func toggleOverDrive() { apply("DisplayOverDrive", isOverDriveOn ? 0 : 1, title: "Display Overdrive") }
     public func toggleTouchpad() { apply("TouchpadLock", isTouchpadLocked ? 0 : 1, title: "Touchpad Lock") }
     public func toggleYLogo() {
@@ -997,7 +1002,7 @@ extension HardwareManager {
         driverMessage = "Firmware driver unavailable. Independent battery, SMC and USB RGB functions remain accessible."
         featureStatus = [:]
         hasDualFan = false; hasPowerProfiles = false; powerProfilesReady = false; hasConservation = false; hasRapidCharge = false
-        hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasAlwaysOnUSB = false
+        hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasAlwaysOnUSB = false; hasFanFullSpeed = false; isFanFullSpeedOn = false
         fan1RPM = -1; fan2RPM = -1; powerProfile = 0
         telemetryStatus = "Independent sensors"
     }

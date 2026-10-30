@@ -33,8 +33,20 @@ struct CoolingControlsPage: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if manager.hasPowerProfiles {
+                ControlSection(loc(.overviewSectionProfiles)) {
+                    ProfileSelector(manager: manager)
+                }
+            }
+            if manager.hasFanFullSpeed {
+                ControlSection(loc(.fanFullSpeed)) {
+                    ControlFeatureRow(manager, .fanFullSpeed, "FanFullSpeed", "wind", manager.isFanFullSpeedOn, true) {
+                        manager.toggleFanFullSpeed()
+                    }
+                }
+            }
             if hasFanControls { ManualFanControls(manager: manager) }
-            else if manager.providerClass != "ThinkVPC" {
+            else if manager.providerClass != "ThinkVPC" && !manager.hasFanFullSpeed {
                 unavailableCoolingCard(loc(.coolingSectionManualFan), icon: "wind",
                     detail: loc(.coolingManualFanCardDesc), tint: AppTheme.cpu)
             }

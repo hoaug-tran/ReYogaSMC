@@ -35,7 +35,7 @@ struct HardwareCapabilities {
                     writesValidated: props["FanWritesValidated"] as? Bool == true)
             }
         }
-        let stateControls = ["SmartFanMode", "ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"]
+        let stateControls = ["SmartFanMode", "ConservationMode", "RapidChargeMode", "AlwaysOnUSBState", "FnlockMode", "BacklightLevel", "DisplayOverDrive", "TouchpadLock", "YLogoStatus", "PortLighting", "CPUBoostPower", "CPUSustainedPower", "FanFullSpeed", "FanControlMode", "Fan1TargetRPM", "Fan2TargetRPM"]
         for key in stateControls where availability[key]?.available == true && props[key] == nil {
             availability[key] = HardwareFeatureStatus(available: false,
                 reason: "The driver did not provide a current value for this control.", backend: availability[key]?.backend ?? "Unavailable")

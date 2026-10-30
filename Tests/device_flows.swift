@@ -202,7 +202,7 @@ for entry in cases {
                 "RapidChargeMode": manager.isRapidChargeOn ? 1 : 0, "BatteryIndex": manager.batteryIndex,
                 "ChargeStartThreshold": manager.chargeStartThreshold, "ChargeStopThreshold": manager.chargeStopThreshold,
                 "CPUBoostPower": manager.cpuBoostWatts, "CPUSustainedPower": manager.cpuSustainedWatts,
-                "AlwaysOnUSBState": manager.alwaysOnUSBState, "Fan1TargetRPM": manager.fan1TargetRPM, "Fan2TargetRPM": manager.fan2TargetRPM]
+                "AlwaysOnUSBState": manager.alwaysOnUSBState, "FanFullSpeed": manager.isFanFullSpeedOn ? 1 : 0, "Fan1TargetRPM": manager.fan1TargetRPM, "Fan2TargetRPM": manager.fan2TargetRPM]
             if let actual = displayed[key] { check(actual == target, "\(id): published state \(key)") }
             check(transient.contains(key) || manager.saved().values[key]?.value == target, "\(id): persisted \(key)")
         }

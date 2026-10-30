@@ -54,7 +54,7 @@ struct OverviewPage: View {
         }
     }
 }
-private struct ProfileSelector: View {
+struct ProfileSelector: View {
     @ObservedObject var manager: HardwareManager
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let modes: [(Int, LocalizedKey, String)] = [
