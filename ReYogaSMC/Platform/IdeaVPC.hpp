@@ -198,6 +198,7 @@ OSDeclareDefaultStructors(IdeaVPC)
     UInt32 telemetryIntervalMS{500};
     bool legionBridge{false};
     UInt32 legionBridgeVersion{0};
+    UInt32 profileRetriesLeft{120}; // ~60 s at 500 ms ticks, retry every 2 s
     bool powerLimitsSaved{false};
     UInt32 originalPowerLimits[2]{0, 0};
     UInt32 powerLimitsProfile{0};

@@ -71,6 +71,22 @@ bool IdeaVPC::start(IOService *provider) {
         telemetryPoller = IOTimerEventSource::timerEventSource(this, [](OSObject *owner, IOTimerEventSource *timer) {
             auto self = OSDynamicCast(IdeaVPC, owner);
             if (self && self->telemetryAwake) {
+                // The PCI subsystem ID used for identity (dGPU 17aa:3a58) may
+                // not be published yet when initVPC runs; retry matching.
+                if (!self->nativeProfile && self->profileRetriesLeft) {
+                    auto stage = OSDynamicCast(OSString, self->getProperty("ProfileMatchStage"));
+                    if (stage && stage->isEqualTo("identity_unavailable")) {
+                        if ((self->profileRetriesLeft-- % 4) == 0) {
+                            self->initNativeProfile();
+                            self->initBridge();
+                            if (self->nativeProfile) {
+                                self->setProperty("ProfileMatchDeferred", true);
+                                self->updateAll();
+                            }
+                        }
+                    } else
+                        self->profileRetriesLeft = 0;
+                }
                 self->updateTelemetry();
                 timer->setTimeoutMS(self->telemetryIntervalMS);
             }

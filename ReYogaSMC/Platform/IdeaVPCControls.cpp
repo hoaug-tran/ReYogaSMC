@@ -350,12 +350,23 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
         }
         if (!restorePowerLimits())
             return kIOReturnIOError;
-        if (legionBridge && ec && ec->validateObject("RYFA") == kIOReturnSuccess) {
+        auto currentFullFan = getProperty(fullFanPrompt);
+        const bool keepFullFan = currentFullFan && currentFullFan == kOSBooleanTrue;
+        if (!keepFullFan && legionBridge && ec && ec->validateObject("RYFA") == kIOReturnSuccess) {
             UInt32 result = 0;
             ec->evaluateInteger("RYFA", &result);
         }
         if (!wmig || !wmig->setGameZoneData(GAME_ZONE_WMI_SET_SMARTFAN_MODE, target))
             return kIOReturnIOError;
+        if (keepFullFan && legionBridge && ec && ec->validateObject("RYFF") == kIOReturnSuccess) {
+            auto argument = OSNumber::withNumber(1ULL, 32);
+            if (argument) {
+                OSObject *arguments[] = {argument};
+                UInt32 ecResult = 0;
+                ec->evaluateInteger("RYFF", &ecResult, arguments, 1);
+                argument->release();
+            }
+        }
         setProperty(smartFanPrompt, target, 32);
         return kIOReturnSuccess;
     }
@@ -407,8 +418,17 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
         }
         setProperty("FanFullSpeedCommandBackend", "WMI / firmware discards EC return status");
         bool res = wmig && wmig->setFanFullSpeed(target);
-        if (res)
-            setProperty(fullFanPrompt, target != 0);
+        if (res) {
+            // EC latches FCST asynchronously after NCMD(0x59, 0x70/0x76);
+            // poll briefly instead of reading back immediately.
+            bool state = !target;
+            for (int i = 0; i < 10 && state != (target != 0); ++i) {
+                IOSleep(150);
+                if (!wmig->getFanFullSpeed(&state))
+                    break;
+            }
+            setProperty("FanFullSpeedReadbackLatched", state == (target != 0));
+        }
         return res ? kIOReturnSuccess : kIOReturnIOError;
     }
     if (!strcmp(key, overDrivePrompt)) {
@@ -481,6 +501,11 @@ void IdeaVPC::controlRequest(OSDictionary *request) {
         if (readbackPending) {
             ReYogaProperty::setString(result, "Code", "fan_state_unchanged");
             ReYogaProperty::setString(result, "Reason", "The vendor command completed, but the firmware full-speed flag did not change. EC return 0 only means no command-port timeout; it does not confirm fan activation.");
+            auto cap = OSDynamicCast(OSNumber, getProperty("FanCoolingCapability"));
+            if (cap && cap->unsigned32BitValue() == 0) {
+                ReYogaProperty::setString(result, "Code", "firmware_capability_absent");
+                ReYogaProperty::setString(result, "Reason", "BIOS reports no fan-cooling capability (Game Zone 0x0C = 0); the EC ignored NCMD 0x59 and FCST stayed 0 after 1.5 s");
+            }
         }
         if (auto ecStatus = OSDynamicCast(OSNumber, getProperty("FanFullSpeedECResult"))) {
             result->setObject("ECResult", ecStatus);

@@ -345,6 +345,8 @@ void IdeaVPC::initBridge() {
         legionBridgeVersion = 0;
         setProperty("ACPIBridgeVersion", static_cast<UInt64>(0), 32);
         setProperty("ACPIBridgeReason", "Bridge requires a reviewed AML fingerprint and matching firmware identity");
+    } else {
+        removeProperty("ACPIBridgeReason");
     }
 }
 
