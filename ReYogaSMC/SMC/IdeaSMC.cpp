@@ -20,7 +20,9 @@ void IdeaSMC::addVSMCKey() {
             VirtualSMCAPI::addKey(KeyBDVT, vsmcPlugin.data, VirtualSMCAPI::valueWithFlag(state->getValue(), new BDVT(this), SMC_KEY_ATTRIBUTE_READ | SMC_KEY_ATTRIBUTE_WRITE));
     }
 
-    if (!wmig) {
+    char bootArgument[16];
+    if (!wmig || PE_parse_boot_argn("-reynosmc", bootArgument, sizeof(bootArgument)) ||
+        PE_parse_boot_argn("-reynosensors", bootArgument, sizeof(bootArgument))) {
         super::addVSMCKey();
         return;
     }
