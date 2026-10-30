@@ -91,6 +91,7 @@ struct ReYogaVPC {
     UInt16 DYTCCap = 0x7913;
     UInt8 DYTCRevision = 5;
     bool DYTCLock = false, disabled = false, mmcGetCap = false;
+    UInt32 activeThermalProfile{2};
     OSDictionary version, published, lastMutation, lastReadback;
     OSDictionary *DYTCVersion = &version;
     const char *setThermalControl = "DYTC";
@@ -298,8 +299,29 @@ int main(int argc, char **argv) {
         assert(captured == 0x4803fe01);
         assert(device.setThermalProfile(3));
         assert(device.lastMutation.numbers.at("FirmwareError") == 1);
-        assert(device.published.strings.at("PerfMode") == "Unavailable while custom mode masks the thermal profile");
+        assert(device.published.strings.at("PerfMode") == (device.firmware.lap ? "Performance (Reduced as lapmode active)" : "Performance"));
         assert(device.firmware.csc && device.firmware.lap && !device.firmware.resets);
+        assert(device.setThermalProfile(1));
+        assert(device.published.strings.at("PerfMode") == "Quiet");
+        assert(device.setThermalProfile(2));
+        assert(device.published.strings.at("PerfMode") == "Balance");
+    } else if (test == "x1-csc-cold-boot-without-fields") {
+        device.firmware.fieldsAvailable = false;
+        device.firmware.csc = true;
+        device.firmware.lap = false;
+        device.firmware.mmc = false;
+        assert(device.updateDYTC());
+        assert(device.published.strings["PerfMode"] == "Balance");
+        assert(device.published.strings["FuncMode"] == "Custom");
+        assert(device.setThermalProfile(3));
+        assert(device.published.strings["PerfMode"] == "Performance");
+        assert(device.published.strings["FuncMode"] == "Custom");
+        assert(device.setThermalProfile(1));
+        assert(device.published.strings["PerfMode"] == "Quiet");
+        assert(device.published.strings["FuncMode"] == "Custom");
+        assert(device.setThermalProfile(2));
+        assert(device.published.strings["PerfMode"] == "Balance");
+        assert(device.published.strings["FuncMode"] == "Custom");
     } else if (test == "csc-balance") {
         device.firmware.lap = false;
         device.firmware.mmc = false;

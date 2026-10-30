@@ -44,6 +44,7 @@ protected:
     UInt16 DYTCCap{0};
     UInt8 DYTCRevision{0};
     bool mmcGetCap{false};
+    UInt32 activeThermalProfile{2};
     IOACPIPlatformDevice *vpc{nullptr};       // Borrowed provider.
     OSOrderedSet *WMICollection{nullptr};     // Own retained service elements.
     OSOrderedSet *WMIProvCollection{nullptr}; // Own retained provider elements.
