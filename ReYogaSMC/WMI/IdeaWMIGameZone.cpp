@@ -105,10 +105,8 @@ bool IdeaWMIGameZone::setFanFullSpeed(bool enable) {
     OSData *in = OSData::withBytes(&state, sizeof(state));
     if (in == nullptr)
         return false;
-    // Try Legion WMAA method 0x0D (13) first, fall back to legacy method 2
-    ret = YWMI->evaluateMethod(LENOVO_FAN_METHOD, 0, 0x0D, &result, in, true);
-    if (ret != kIOReturnSuccess)
-        ret = YWMI->evaluateMethod(LENOVO_FAN_METHOD, 0, 2, &result, in, true);
+    // On Legion WMB2 (LENOVO_FAN_METHOD): Method 2 is SET full speed
+    ret = YWMI->evaluateMethod(LENOVO_FAN_METHOD, 0, 2, &result, in, true);
     OSSafeReleaseNULL(result);
     OSSafeReleaseNULL(in);
     return (ret == kIOReturnSuccess);
@@ -122,10 +120,8 @@ bool IdeaWMIGameZone::getFanFullSpeed(bool *enabled) {
         return false;
     IOReturn ret;
     UInt32 result = 0;
-    // Try Legion WMAA method 0x14 (20) first (FCST & 1), fall back to legacy method 1
-    ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 0x14, &result, nullptr, true);
-    if (ret != kIOReturnSuccess)
-        ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 1, &result, nullptr, true);
+    // On Legion WMB2 (LENOVO_FAN_METHOD): Method 1 is GET full speed (FCST & 1)
+    ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 1, &result, nullptr, true);
     if (ret == kIOReturnSuccess) {
         setProperty("FanFullSpeedRaw", result, 32);
         *enabled = (result & 1) != 0;

@@ -349,7 +349,14 @@ void IdeaVPC::updateFeatureStatus() {
         setProperty("FanCoolingCapability", coolingCapability, 32);
     else
         removeProperty("FanCoolingCapability");
-    bool ok = wmig && wmig->getFanFullSpeed(&state);
+    bool ok = false;
+    UInt32 fullSpeedStatus = 0;
+    if (legionBridge && ec && ec->evaluateInteger("RYFS", &fullSpeedStatus) == kIOReturnSuccess) {
+        ok = true;
+        state = (fullSpeedStatus & 1) != 0;
+    } else if (wmig && wmig->getFanFullSpeed(&state)) {
+        ok = true;
+    }
     const bool coolingSupported = (coolingCapabilityRead && coolingCapability != 0) ||
                                   (wmig && wmig->hasFanMethod) ||
                                   (legionBridge && ec && ec->validateObject("RYFF") == kIOReturnSuccess);
@@ -357,7 +364,7 @@ void IdeaVPC::updateFeatureStatus() {
     add(fullFanPrompt, coolingAvailable,
         !coolingSupported ? "Firmware does not advertise fan cooling control" : ok ? ""
                                                                                    : "Fan full-speed getter failed or interface missing",
-        "WMI Fan");
+        legionBridge ? "ACPI Bridge" : "WMI Fan");
     if (ok)
         setProperty(fullFanPrompt, state);
     else

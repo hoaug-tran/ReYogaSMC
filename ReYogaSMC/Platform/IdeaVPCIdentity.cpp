@@ -338,7 +338,8 @@ void IdeaVPC::initBridge() {
     auto conflict = OSDynamicCast(OSBoolean, getProperty("FirmwareIdentityConflict"));
     auto matchState = OSDynamicCast(OSString, getProperty("ProfileMatchState"));
     if (!nativeProfile || legionBridgeVersion > nativeProfile->bridgeVersion ||
-        !bridgeProfile || !matchState || !matchState->isEqualTo("exact") ||
+        !bridgeProfile || !matchState ||
+        (!matchState->isEqualTo("exact") && !matchState->isEqualTo("pci_matched") && !matchState->isEqualTo("identity_matched")) ||
         (conflict && conflict->getValue()) || !bridgeProfile->isEqualTo(nativeProfile->id)) {
         legionBridge = false;
         legionBridgeVersion = 0;

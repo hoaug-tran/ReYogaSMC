@@ -395,10 +395,15 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
             if (status != kIOReturnSuccess)
                 return status;
             setProperty("FanFullSpeedECResult", ecResult, 32);
+            if (ecResult == 0)
+                setProperty(fullFanPrompt, target != 0);
             return ecResult == 0 ? kIOReturnSuccess : kIOReturnIOError;
         }
         setProperty("FanFullSpeedCommandBackend", "WMI / firmware discards EC return status");
-        return wmig->setFanFullSpeed(target) ? kIOReturnSuccess : kIOReturnIOError;
+        bool res = wmig && wmig->setFanFullSpeed(target);
+        if (res)
+            setProperty(fullFanPrompt, target != 0);
+        return res ? kIOReturnSuccess : kIOReturnIOError;
     }
     if (!strcmp(key, overDrivePrompt)) {
         if (number == nullptr || target > 1)
