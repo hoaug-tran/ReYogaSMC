@@ -470,6 +470,8 @@ void IdeaVPC::updateTelemetry() {
     auto sources = OSDictionary::withCapacity(4);
     static_assert(sizeof(nativeProfile->fields) / sizeof(nativeProfile->fields[0]) == ReYogaSensor::Count,
                   "Sensor descriptors must match the generated profile schema");
+    UInt32 cpuTempValue = 0;
+    bool hasCpuTemp = false;
     for (unsigned i = ReYogaSensor::Fan1; i < ReYogaSensor::Count; ++i) {
         const auto &sensor = ReYogaSensor::descriptors[i];
         UInt32 value = 0;
@@ -500,6 +502,18 @@ void IdeaVPC::updateTelemetry() {
             else
                 ok = i == ReYogaSensor::CPU ? wmig->getCPUTemperature(&value) : wmig->getGPUTemperature(&value);
             ok = ok && valid(value);
+        }
+        if (i == ReYogaSensor::CPU && ok) {
+            cpuTempValue = value;
+            hasCpuTemp = true;
+        } else if (i == ReYogaSensor::GPU && !ok && hasCpuTemp && cpuTempValue > 0) {
+            value = cpuTempValue;
+            ok = true;
+            source = "CPU thermal mirror";
+            if (legionBridge)
+                ec->evaluateObject("RYT1");
+            else
+                ec->evaluateObject("TGPU");
         }
         if (sources)
             ReYogaProperty::setString(sources, sensor.property, ok ? source : "Unavailable");
