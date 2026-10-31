@@ -366,6 +366,8 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
                 ec->evaluateInteger("RYFF", &ecResult, arguments, 1);
                 argument->release();
             }
+        } else if (keepFullFan && wmig) {
+            wmig->setFanFullSpeed(true);
         }
         setProperty(smartFanPrompt, target, 32);
         return kIOReturnSuccess;
@@ -397,7 +399,7 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
         return target == rapidChargeMode || toggleRapidCharge() ? kIOReturnSuccess : kIOReturnIOError;
     }
     if (!strcmp(key, fullFanPrompt)) {
-        if (boolean == nullptr || target > 1)
+        if ((boolean == nullptr && number == nullptr) || target > 1)
             return kIOReturnBadArgument;
         removeProperty("FanFullSpeedECResult");
         if (legionBridge && ec && ec->validateObject("RYFF") == kIOReturnSuccess) {
@@ -417,17 +419,15 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
             return ecResult == 0 ? kIOReturnSuccess : kIOReturnIOError;
         }
         setProperty("FanFullSpeedCommandBackend", "WMI / firmware discards EC return status");
-        bool res = wmig && wmig->setFanFullSpeed(target);
+        bool res = wmig && wmig->setFanFullSpeed(target != 0);
         if (res) {
-            // EC latches FCST asynchronously after NCMD(0x59, 0x70/0x76);
-            // poll briefly instead of reading back immediately.
+            setProperty(fullFanPrompt, target != 0);
             bool state = !target;
-            for (int i = 0; i < 10 && state != (target != 0); ++i) {
-                IOSleep(150);
-                if (!wmig->getFanFullSpeed(&state))
-                    break;
+            if (wmig->getFanFullSpeed(&state) && state == (target != 0)) {
+                setProperty("FanFullSpeedReadbackLatched", true);
+            } else {
+                setProperty("FanFullSpeedReadbackLatched", false);
             }
-            setProperty("FanFullSpeedReadbackLatched", state == (target != 0));
         }
         return res ? kIOReturnSuccess : kIOReturnIOError;
     }

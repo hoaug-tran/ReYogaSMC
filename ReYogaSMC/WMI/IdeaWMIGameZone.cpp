@@ -97,16 +97,19 @@ bool IdeaWMIGameZone::getGPUTemperature(UInt32 *result) {
 }
 
 bool IdeaWMIGameZone::setFanFullSpeed(bool enable) {
-    if (!hasFanMethod)
-        return false;
-    IOReturn ret;
+    IOReturn ret = kIOReturnUnsupported;
     OSObject *result = nullptr;
-    const UInt8 state = enable ? 1 : 0;
-    OSData *in = OSData::withBytes(&state, sizeof(state));
+    OSNumber *in = OSNumber::withNumber(enable ? 1ULL : 0ULL, 32);
     if (in == nullptr)
         return false;
-    // On Legion WMB2 (LENOVO_FAN_METHOD): Method 2 is SET full speed
-    ret = YWMI->evaluateMethod(LENOVO_FAN_METHOD, 0, 2, &result, in, true);
+    if (hasFanMethod) {
+        // On Legion WMB2 (LENOVO_FAN_METHOD): Method 2 is SET full speed
+        ret = YWMI->evaluateMethod(LENOVO_FAN_METHOD, 0, 2, &result, in, true);
+    }
+    if (ret != kIOReturnSuccess && YWMI->hasMethod(GAME_ZONE_DATA_WMI_METHOD)) {
+        // On Legion WMAA (GAME_ZONE_DATA_WMI_METHOD): Method 0x0D is SET full speed
+        ret = YWMI->evaluateMethod(GAME_ZONE_DATA_WMI_METHOD, 0, GAME_ZONE_WMI_SET_FAN_COOLING, &result, in, true);
+    }
     OSSafeReleaseNULL(result);
     OSSafeReleaseNULL(in);
     return (ret == kIOReturnSuccess);
@@ -116,17 +119,22 @@ bool IdeaWMIGameZone::getFanFullSpeed(bool *enabled) {
     removeProperty("FanFullSpeedRaw");
     if (!enabled)
         return false;
-    if (!hasFanMethod)
-        return false;
-    IOReturn ret;
+    IOReturn ret = kIOReturnUnsupported;
     UInt32 result = 0;
-    // On Legion WMB2 (LENOVO_FAN_METHOD): Method 1 is GET full speed (FCST & 1)
-    ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 1, &result, nullptr, true);
+    if (hasFanMethod) {
+        // On Legion WMB2 (LENOVO_FAN_METHOD): Method 1 is GET full speed (FCST & 1)
+        ret = YWMI->evaluateInteger(LENOVO_FAN_METHOD, 0, 1, &result, nullptr, true);
+    }
+    if (ret != kIOReturnSuccess && YWMI->hasMethod(GAME_ZONE_DATA_WMI_METHOD)) {
+        // On Legion WMAA (GAME_ZONE_DATA_WMI_METHOD): Method 0x14 is GET full speed
+        ret = YWMI->evaluateInteger(GAME_ZONE_DATA_WMI_METHOD, 0, GAME_ZONE_WMI_GET_FAN_STA, &result, nullptr, true);
+    }
     if (ret == kIOReturnSuccess) {
         setProperty("FanFullSpeedRaw", result, 32);
         *enabled = (result & 1) != 0;
+        return true;
     }
-    return (ret == kIOReturnSuccess);
+    return false;
 }
 
 bool IdeaWMIGameZone::supportsStateLighting(UInt8 component) {

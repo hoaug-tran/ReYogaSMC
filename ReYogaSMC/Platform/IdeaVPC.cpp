@@ -581,6 +581,20 @@ IOReturn IdeaVPC::setPowerStateGated(unsigned long state, IOService *device) {
     IOReturn ret = super::setPowerState(state, device);
     if (state != 0) {
         telemetryAwake = true;
+        auto currentFullFan = getProperty(fullFanPrompt);
+        if (currentFullFan && currentFullFan == kOSBooleanTrue) {
+            if (legionBridge && ec && ec->validateObject("RYFF") == kIOReturnSuccess) {
+                auto argument = OSNumber::withNumber(1ULL, 32);
+                if (argument) {
+                    OSObject *arguments[] = {argument};
+                    UInt32 ecResult = 0;
+                    ec->evaluateInteger("RYFF", &ecResult, arguments, 1);
+                    argument->release();
+                }
+            } else if (wmig) {
+                wmig->setFanFullSpeed(true);
+            }
+        }
         updateFeatureStatus();
         updateTelemetry();
         if (telemetryPoller)

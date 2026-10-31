@@ -356,6 +356,11 @@ void IdeaVPC::updateFeatureStatus() {
         state = (fullSpeedStatus & 1) != 0;
     } else if (wmig && wmig->getFanFullSpeed(&state)) {
         ok = true;
+        if (!state && coolingCapabilityRead && coolingCapability == 0) {
+            auto current = OSDynamicCast(OSBoolean, getProperty(fullFanPrompt));
+            if (current)
+                state = current->getValue();
+        }
     }
     const bool coolingSupported = (coolingCapabilityRead && coolingCapability != 0) ||
                                   (wmig && wmig->hasFanMethod) ||
