@@ -46,13 +46,12 @@ All profiles use `schema_version: 1`, a unique `id`, a display `name`, a `kind` 
 | `ec_path` | Absolute ACPI path to the embedded controller |
 | `native_telemetry` | Named sensor fields and their scales |
 | `rpm_scale` | Fan reading multiplier: 1 or 100 |
-| `battery_conservation_mask`, `battery_rapidcharge_mask` | State bits for the reviewed battery protocol |
-| `reviewed_dsdt_hashes`, `reviewed_aml_hashes` | Reviewed source/AML fingerprints used for bridge matching |
+| `reviewed_dsdt_hashes`, `reviewed_aml_hashes` | Optional legacy fingerprints; active profiles match via hardware identity without hashes |
 | `required_patterns`, `offsets` | Required declarations and addresses for a raw-offset bridge |
 | `ec_base`, `ec_size` | Memory-mapped EC window, where used |
 | `verified_writes` | Write-validation flag; keep 0 until target writes and recovery are confirmed |
 
-Native named-field sensors can work without a bridge fingerprint. A raw-offset bridge needs a unique reviewed fingerprint and complete bridge data. A BIOS update or ACPI patch can change the fingerprint.
+Native named-field sensors and bridges match via hardware identity (machine type, BIOS family, OEM table ID and PCI subsystem ID) without firmware hashes. A model match does not enable raw-offset writes; manual fan writes remain disabled.
 
 Machine types and PCI IDs must not name different models. Shared USB controller IDs do not identify a laptop. Unknown or conflicting identities keep model-specific access unavailable.
 

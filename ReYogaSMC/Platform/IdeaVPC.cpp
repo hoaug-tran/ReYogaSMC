@@ -585,7 +585,7 @@ IOReturn IdeaVPC::setPowerStateGated(unsigned long state, IOService *device) {
         if (currentFullFan && currentFullFan == kOSBooleanTrue) {
             if (legionBridge && ec && ec->validateObject("RYFF") == kIOReturnSuccess) {
                 auto argument = OSNumber::withNumber(1ULL, 32);
-                if (argument) {
+                if (argument != nullptr) {
                     OSObject *arguments[] = {argument};
                     UInt32 ecResult = 0;
                     ec->evaluateInteger("RYFF", &ecResult, arguments, 1);

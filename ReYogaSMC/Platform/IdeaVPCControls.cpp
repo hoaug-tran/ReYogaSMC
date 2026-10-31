@@ -61,7 +61,7 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
                     toggleAlwaysOnUSB();
             } else if (key->isEqualTo(ECLockPrompt)) {
                 auto value = ReYogaProperty::get<OSBoolean>(dict, ECLockPrompt);
-                if (!value) {
+                if (value == nullptr) {
                     AlwaysLog(valueInvalid, ECLockPrompt);
                     continue;
                 }
@@ -74,7 +74,7 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
                 if (ECLock)
                     continue;
                 auto value = ReYogaProperty::get<OSNumber>(dict, readECPrompt);
-                if (!value) {
+                if (value == nullptr) {
                     AlwaysLog(valueInvalid, readECPrompt);
                     continue;
                 }
@@ -90,7 +90,7 @@ void IdeaVPC::setPropertiesGated(OSObject *props) {
                 AlwaysLog("Raw VPC writes are unsupported; use a capability-checked control");
             } else if (key->isEqualTo(batteryPrompt)) {
                 auto value = ReYogaProperty::get<OSBoolean>(dict, batteryPrompt);
-                if (!value) {
+                if (value == nullptr) {
                     AlwaysLog(valueInvalid, batteryPrompt);
                     continue;
                 }
@@ -328,8 +328,9 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
     }
     if (!strcmp(key, "FanControlMode")) {
         UInt32 result = 0;
+        // Manual is entered by a target-RPM request
         if (target != 0)
-            return kIOReturnBadArgument; // Manual is entered by a target-RPM request.
+            return kIOReturnBadArgument;
         if (ec && ec->validateObject("RYFA") == kIOReturnSuccess) {
             IOReturn ret = ec->evaluateInteger("RYFA", &result);
             return ret == kIOReturnSuccess && result != 0 ? kIOReturnIOError : ret;
@@ -360,7 +361,7 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
             return kIOReturnIOError;
         if (keepFullFan && legionBridge && ec && ec->validateObject("RYFF") == kIOReturnSuccess) {
             auto argument = OSNumber::withNumber(1ULL, 32);
-            if (argument) {
+            if (argument != nullptr) {
                 OSObject *arguments[] = {argument};
                 UInt32 ecResult = 0;
                 ec->evaluateInteger("RYFF", &ecResult, arguments, 1);
@@ -507,7 +508,7 @@ void IdeaVPC::controlRequest(OSDictionary *request) {
             auto cap = OSDynamicCast(OSNumber, getProperty("FanCoolingCapability"));
             if (cap && cap->unsigned32BitValue() == 0) {
                 ReYogaProperty::setString(result, "Code", "firmware_capability_absent");
-                ReYogaProperty::setString(result, "Reason", "BIOS reports no fan-cooling capability (Game Zone 0x0C = 0); the EC ignored NCMD 0x59 and FCST stayed 0 after 1.5 s");
+                ReYogaProperty::setString(result, "Reason", "BIOS reports no fan-cooling capability (Game Zone 0x0C = 0); the EC ignored NCMD 0x59 and FCST stayed 0");
             }
         }
         if (auto ecStatus = OSDynamicCast(OSNumber, getProperty("FanFullSpeedECResult"))) {

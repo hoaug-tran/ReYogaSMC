@@ -11,7 +11,7 @@
 
 Laptop sensors, hotkeys and hardware controls for macOS.
 
-[Download](https://github.com/hoaug-tran/ReYogaSMC/releases/latest) · [Install](#installation) · [Compatibility](Docs/compatibility.md) · [Changelog](Changelog.md)
+[Download](https://github.com/hoaug-tran/ReYogaSMC/releases/latest) | [Install](#installation) | [Compatibility](Docs/compatibility.md) | [Changelog](Changelog.md)
 
 </div>
 
@@ -59,24 +59,16 @@ Curve points are saved by firmware and fan. A curve does not restart automatical
 
 Non-ThinkPad Lenovo laptops (Legion, IdeaPad, Yoga, LOQ) rely on the Embedded Controller's internal thermal loop rather than ThinkPad manual fan levels.
 
-- **Full Speed availability**: On older models (e.g. Y540, Y740), firmware advertises fan cooling capability (`GAME_ZONE_WMI_CAP_FAN_COOLING`) and accepts the vendor ACPI command `NCMD(0x59, 0x70)`. On modern Legion models (such as 2021+ Legion 7 16ACHg6 with GKCN BIOS and newer), Lenovo removed this handler from the EC firmware and reports capability `0x0C` as `0`. ReYogaSMC detects this capability and only presents the Full Speed control on machines whose firmware actually executes it.
-- **Why fans run slower and temperatures sit higher on macOS**: Legion laptops share a unified vapor chamber across both CPU and GPU. The EC regulates both fans based on *both* temperature sensors. On macOS, the dedicated NVIDIA GPU is powered down via ACPI (`SSDT-dGPU-OFF`), so its sensor stays cold. The EC sees no GPU thermal demand, keeping the GPU fan at idle/low speeds (~2500–2700 RPM) while capping the CPU fan around 3000–3500 RPM for acoustic limits. With half the vapor chamber not actively exhausted, CPU temperatures naturally sit higher (75–85 °C) under sustained load than on Windows, where both fans spin up together.
-- **Hardware safety**: ReYogaSMC communicates exclusively through documented vendor ACPI/WMI interfaces. It does not perform raw writes into the EC's internal RAM tables. Arbitrary EC RAM writes on Legion hardware risk triggering instant emergency shutdowns or microcontroller lockups.
-
-<details>
-<summary><b>Tiếng Việt: Cơ chế tản nhiệt và quạt Legion trên macOS</b></summary>
-
-- **Tính năng Full Speed:** Trên các dòng Legion cũ (như Y540, Y740), BIOS hỗ trợ cờ làm mát WMI và nhận lệnh `NCMD(0x59, 0x70)`. Từ thế hệ Legion 2021 (Legion 7 16ACHg6 / BIOS GKCN) trở đi, Lenovo đã bỏ mã xử lý lệnh này trong vi điều khiển EC (`FanCoolingCapability = 0`). ReYogaSMC tự động nhận diện phần cứng và chỉ hiển thị nút Full Speed trên những máy thực sự hỗ trợ.
-- **Lý do quạt chỉ quay ~3000–3500 RPM và CPU nóng hơn Windows:** Legion dùng buồng hơi tản nhiệt chung cho cả CPU lẫn GPU. Chip EC điều tốc quạt dựa trên nhiệt độ của cả 2 chip. Trên macOS, card rời NVIDIA bị ngắt nguồn hoàn toàn (`SSDT-dGPU-OFF`), cảm biến nhiệt GPU luôn nguội. EC thấy GPU không nóng nên giữ quạt GPU ở mức thấp (~2500–2700 RPM) và giới hạn quạt CPU ở ngưỡng cân bằng tiếng ồn (~3000–3500 RPM). Do một nửa buồng hơi không được quạt GPU xả nhiệt, CPU sẽ nóng hơn rõ rệt (75–85 °C) so với bên Windows (nơi cả 2 quạt cùng kéo tối đa 4500–5000 RPM).
-- **An toàn phần cứng:** ReYogaSMC chỉ sử dụng các hàm ACPI/WMI tiêu chuẩn của nhà sản xuất, tuyệt đối không ghi đè trực tiếp vào vùng nhớ RAM nội bộ của chip EC. Can thiệp thô bạo vào RAM của EC trên dòng Legion rất dễ gây lỗi vi điều khiển hoặc sập nguồn khẩn cấp.
-</details>
+- **Full Speed availability**: On older models (e.g. Y540, Y740), firmware advertises fan cooling capability (`GAME_ZONE_WMI_CAP_FAN_COOLING`) and accepts the vendor ACPI command `NCMD(0x59, 0x70)`. On modern revisions (such as Legion 7 16ACHg6 with GKCN BIOS, for example), Lenovo removed this handler from the EC firmware and reports capability `0x0C` as `0`. ReYogaSMC detects this capability and only presents the Full Speed control on machines whose firmware actually executes it.
+- **Dual-sensor thermal cooling on macOS**: On laptops with shared thermal architecture (heatpipes or unified vapor chamber), the EC regulates fan speed based on both CPU and GPU temperatures. Because the dedicated GPU is disabled on macOS (e.g. via `SSDT-dGPU-OFF`), its temperature sensor stays cold. The firmware's internal thermal table keeps the GPU fan around idle/low speed (~2500-2700 RPM) and acoustic limits cap the CPU fan around ~3000-3500 RPM. Because only one side of the cooling assembly actively exhausts air under single-chip load, CPU temperatures naturally sit higher (75-85 °C) under sustained load than on Windows, where both fans spin up together.
+- **Hardware safety**: ReYogaSMC communicates exclusively through documented vendor ACPI/WMI interfaces. It does not perform raw writes into the EC's internal RAM tables. Arbitrary EC RAM writes on laptop hardware risk triggering instant emergency shutdowns or microcontroller lockups.
 
 See [compatibility](Docs/compatibility.md) for control limits and unavailable states.
 
 <details>
 <summary>More screenshots</summary>
 
-Screenshots show a Legion 7 16ACHg6. Other machines expose different controls.
+Screenshots show a Legion 7 16ACHg6 as an example. Other machines expose different controls.
 
 | Device | Battery |
 | --- | --- |

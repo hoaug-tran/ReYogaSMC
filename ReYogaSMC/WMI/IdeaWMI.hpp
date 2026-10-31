@@ -226,6 +226,7 @@ public:
     bool supportsStateLighting(UInt8 component);
     bool getPowerLimit(UInt32 query, UInt32 range[4]);
     bool setPowerLimit(UInt32 query, UInt32 watts);
+    bool supportsFanFullSpeed();
     bool getCPUTemperature(UInt32 *result);
     bool getGPUTemperature(UInt32 *result);
     bool setFanFullSpeed(bool enable);

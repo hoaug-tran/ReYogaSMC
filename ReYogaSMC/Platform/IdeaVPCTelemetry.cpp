@@ -356,13 +356,8 @@ void IdeaVPC::updateFeatureStatus() {
         state = (fullSpeedStatus & 1) != 0;
     } else if (wmig && wmig->getFanFullSpeed(&state)) {
         ok = true;
-        if (!state && coolingCapabilityRead && coolingCapability == 0) {
-            auto current = OSDynamicCast(OSBoolean, getProperty(fullFanPrompt));
-            if (current)
-                state = current->getValue();
-        }
     }
-    const bool wmiCoolingSupported = wmig && wmig->hasFanMethod && (!coolingCapabilityRead || coolingCapability != 0);
+    const bool wmiCoolingSupported = wmig && wmig->supportsFanFullSpeed() && (!coolingCapabilityRead || coolingCapability != 0);
     const bool bridgeCoolingSupported = legionBridge && ec && ec->validateObject("RYFF") == kIOReturnSuccess;
     const bool coolingSupported = wmiCoolingSupported || bridgeCoolingSupported;
     const bool coolingAvailable = (ok || bridgeCoolingSupported) && coolingSupported;

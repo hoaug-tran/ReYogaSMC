@@ -103,7 +103,7 @@ final class LegionRGBController {
                 device = nil
                 continue
             }
-            status = HardwareFeatureStatus(available: true, reason: "Direct colors have transport acknowledgement; color readback is unavailable", backend: localizedMessage("USB HID • %@", String(describing: match["id"] ?? "unknown")))
+            status = HardwareFeatureStatus(available: true, reason: "Direct colors have transport acknowledgement; color readback is unavailable", backend: localizedMessage("USB HID (%@)", String(describing: match["id"] ?? "unknown")))
             ReYogaDiagnostics.shared.record("rgb_detected", ["vendor": matched.profile.vendorID, "product": matched.profile.productID, "reportSize": matched.profile.reportSize ?? -1, "profile": match["id"] ?? "unknown"])
             break
         }

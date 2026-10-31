@@ -52,7 +52,7 @@ enum ApplicationReviewHarness {
                 ("battery-error", "Conservation: Firmware did not confirm the requested state", "battery.75"),
                 ("rgb-success", "Static: sent to controller", "lightbulb"),
                 ("rgb-error", "RGB: macOS denied HID access. Enable Input Monitoring for ReYogaSMC, then retry discovery.", "exclamationmark.triangle"),
-                ("export-success", "SSDT compiled — review it and add it to OpenCore before rebooting", "checkmark.circle"),
+                ("export-success", "SSDT compiled - review it and add it to OpenCore before rebooting", "checkmark.circle"),
                 ("export-error", "No unique reviewed AML fingerprint matches. Export diagnostics for firmware review.", "exclamationmark.triangle")
             ] {
                 jobs.append {

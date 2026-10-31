@@ -96,6 +96,10 @@ bool IdeaWMIGameZone::getGPUTemperature(UInt32 *result) {
     return ok && *result < 125;
 }
 
+bool IdeaWMIGameZone::supportsFanFullSpeed() {
+    return hasFanMethod || (YWMI && YWMI->hasMethod(GAME_ZONE_DATA_WMI_METHOD));
+}
+
 bool IdeaWMIGameZone::setFanFullSpeed(bool enable) {
     IOReturn ret = kIOReturnUnsupported;
     OSObject *result = nullptr;

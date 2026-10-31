@@ -123,7 +123,7 @@ func eventActuator(_ desc: EventDescriptor, _ data: UInt32, _ context: DriverEve
         case 0:
             showOSDRes("Fn Lock", "Media keys", .kFunctionKeyOff)
         case 1:
-            showOSDRes("Fn Lock", "F1–F12 keys", .kFunctionKeyOn)
+            showOSDRes("Fn Lock", "F1-F12 keys", .kFunctionKeyOn)
         default:
             // Reserved values belong to firmware-defined media keyboard states.
             showOSDRes("Fn Lock", "\(data)", .kFunctionKeyOn)

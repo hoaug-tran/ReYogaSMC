@@ -297,7 +297,7 @@
 "Could not open %@: %@" = "Could not open %@: %@";
 "Could not open ReYogaSMC" = "Could not open ReYogaSMC";
 "Could not package diagnostics. Open Logs to inspect the local files." = "Could not package diagnostics. Open Logs to inspect the local files.";
-"Current %d W - Range %d–%d W - Step %d W" = "Current %d W - Range %d–%d W - Step %d W";
+"Current %d W - Range %d-%d W - Step %d W" = "Current %d W - Range %d-%d W - Step %d W";
 "Cycle count" = "Cycle count";
 "DSDT OEM vendor is not LENOVO; generic interfaces remain available" = "DSDT OEM vendor is not LENOVO; generic interfaces remain available";
 "DSDT checksum is invalid" = "DSDT checksum is invalid";
@@ -329,7 +329,7 @@
 "Event %@" = "Event %@";
 "Export hardware status and recent app logs locally. Review the archive before attaching it to an issue." = "Export hardware status and recent app logs locally. Review the archive before attaching it to an issue.";
 "Exported ACPI table is not a valid DSDT" = "Exported ACPI table is not a valid DSDT";
-"F1–F12 keys" = "F1–F12 keys";
+"F1-F12 keys" = "F1-F12 keys";
 "Factory" = "Factory";
 "Factory effects are selected with Fn+Space. The app releases RGB control." = "Factory effects are selected with Fn+Space. The app releases RGB control.";
 "Fan %@" = "Fan %@";
@@ -357,9 +357,9 @@
 "Firmware driver unavailable. Independent battery, SMC and USB RGB functions remain accessible." = "Firmware driver unavailable. Independent battery, SMC and USB RGB functions remain accessible.";
 "Firmware error" = "Firmware error";
 "Firmware identity sources disagree; model-specific access disabled" = "Firmware identity sources disagree; model-specific access disabled";
-"Firmware identity unverified • %@" = "Firmware identity unverified • %@";
+"Firmware identity unverified: %@" = "Firmware identity unverified: %@";
 "Firmware profile unavailable" = "Firmware profile unavailable";
-"Firmware profile unavailable • %@" = "Firmware profile unavailable • %@";
+"Firmware profile unavailable: %@" = "Firmware profile unavailable: %@";
 "Firmware readback matched" = "Firmware readback matched";
 "Firmware reports this capability unavailable" = "Firmware reports this capability unavailable";
 "Firmware state refreshed" = "Firmware state refreshed";
@@ -422,7 +422,7 @@
 "Lenovo firmware identity" = "Lenovo firmware identity";
 "Lighting capability record missing or query failed" = "Lighting capability record missing or query failed";
 "Live" = "Live";
-"Live • %@ ms" = "Live • %@ ms";
+"Live (%@ ms)" = "Live (%@ ms)";
 "Login item: %@" = "Login item: %@";
 "Logo" = "Logo";
 "Logo LED" = "Logo LED";
@@ -595,7 +595,7 @@
 "Touchpad Lock" = "Touchpad lock";
 "USB Charging" = "USB charging";
 "USB HID" = "USB HID";
-"USB HID • %@" = "USB HID • %@";
+"USB HID (%@)" = "USB HID (%@)";
 "USB RGB owns lighting" = "USB RGB owns lighting";
 "USB report transport only" = "USB report transport only";
 "USB transmission only; the device does not report the physical LED state" = "USB transmission only; the device does not report the physical LED state";
@@ -650,7 +650,7 @@
 "Expected JSON: zone -> LED name or ID -> #RRGGBB" = "Expected JSON: zone -> LED name or ID -> #RRGGBB";
 
 "Firmware profile not verified" = "Firmware profile not verified";
-"Firmware profile not verified • %@" = "Firmware profile not verified • %@";
+"Firmware profile not verified: %@" = "Firmware profile not verified: %@";
 
 "pci_matched" = "Matched by PCI subsystem ID";
 

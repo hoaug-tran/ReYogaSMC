@@ -354,7 +354,7 @@ private struct PowerLimitRow: View {
                 Text(localizedMessage("W")).font(.caption).foregroundColor(.secondary)
                 Button(loc(.coolingApply)) { if valid, let watts = Int(text) { apply(watts) } }.disabled(busy || !valid || Int(text) == current)
             }
-            Text(localizedMessage(String(format: localizedMessage("Current %d W - Range %d–%d W - Step %d W"), current, range["Min"] ?? 0, range["Max"] ?? 0, range["Step"] ?? 0)))
+            Text(String(format: localizedMessage("Current %d W - Range %d-%d W - Step %d W"), current, range["Min"] ?? 0, range["Max"] ?? 0, range["Step"] ?? 0))
                 .font(.system(size: 11)).foregroundColor(.secondary)
             if !text.isEmpty && !valid { Text(loc(.coolingPowerEnterValid)).font(.system(size: 11)).foregroundColor(.red) }
         }.onAppear { if text.isEmpty { text = String(current) } }

@@ -8,7 +8,7 @@ ThinkPad uses HKEY and EC methods. It does not need a Lenovo JSON profile for ho
 
 | Feature | Requirements and limits |
 | --- | --- |
-| Charge thresholds | Start: 0–99%; stop: 1–100%. Firmware must support the operation and accept the ordering. |
+| Charge thresholds | Start: 0-99%; stop: 1-100%. Firmware must support the operation and accept the ordering. |
 | Battery selection | Shown only when firmware supports individual battery addressing. |
 | Power profiles | A supported DYTC MMC/PSC interface and a readable current mode. Polling preserves lap mode. |
 | Fan RPM | A supported EC/helper or native fan-reading method. Failed readings show unavailable. |
@@ -30,8 +30,8 @@ Native ACPI sensors use the [profile catalog](../HardwareProfiles/README.md). Ma
 Each sensor is checked separately. Failed native reads may use a supported WMI source. A model match does not enable raw-offset writes. Bridge generation needs a reviewed firmware fingerprint and complete bridge data; manual fan writes need separate write/recovery validation. Current ACPI profiles keep those writes disabled.
 
 Legion Game Zone controls vary by firmware:
-- **Full Speed mode**: Older models (Y540, Y740) support `NCMD(0x59, 0x70)` and report non-zero fan cooling capability. On modern models (such as Legion 7 16ACHg6 with GKCN BIOS), Lenovo dropped this command from the EC firmware and reports capability `0x0C` as `0`. ReYogaSMC verifies capability `0x0C` and only exposes Full Speed when supported by firmware.
-- **Vapor chamber cooling on macOS**: Because the dedicated GPU is disabled on macOS (`SSDT-dGPU-OFF`), the GPU temperature sensor remains cold. The EC's dual-sensor fan curve keeps the GPU fan around low speed (~2500–2700 RPM) and limits the CPU fan (~3000–3500 RPM) to maintain acoustic thresholds. Because only one half of the vapor chamber is actively exhausted, CPU temperatures stay higher under load than on Windows.
+- **Full Speed mode**: Older models (e.g. Y540, Y740) support `NCMD(0x59, 0x70)` and report non-zero fan cooling capability. On modern revisions (such as Legion 7 16ACHg6 with GKCN BIOS, for example), Lenovo dropped this command from the EC firmware and reports capability `0x0C` as `0`. ReYogaSMC verifies capability `0x0C` and only exposes Full Speed when supported by firmware.
+- **Dual-sensor thermal cooling on macOS**: On laptops with shared thermal architecture (heatpipes or unified vapor chamber), the EC regulates fan speed based on both CPU and GPU temperatures. Because the dedicated GPU is disabled on macOS (e.g. via `SSDT-dGPU-OFF`), its temperature sensor stays cold. The firmware's internal thermal table keeps the GPU fan around idle/low speed (~2500-2700 RPM) and acoustic limits cap the CPU fan around ~3000-3500 RPM. Because only one side of the cooling assembly actively exhausts air under single-chip load, CPU temperatures naturally sit higher than under Windows where both fans spin up together.
 - **Manual fan curves**: Raw writes into the EC internal memory tables are intentionally disabled. Direct EC RAM modifications on Legion hardware risk immediate power-offs and thermal lockups.
 - **CPU power access**: Disabled by default, including getters. `-reycpupower` enables supported requests; range, step and readback checks still apply. Saved limits stay associated with the power profile that was edited.
 

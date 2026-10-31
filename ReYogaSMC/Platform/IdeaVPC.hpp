@@ -198,7 +198,8 @@ OSDeclareDefaultStructors(IdeaVPC)
     UInt32 telemetryIntervalMS{500};
     bool legionBridge{false};
     UInt32 legionBridgeVersion{0};
-    UInt32 profileRetriesLeft{120}; // ~60 s at 500 ms ticks, retry every 2 s
+    // Retry PCI matching (~60 s at 500 ms ticks) if dGPU was published late
+    UInt32 profileRetriesLeft{120};
     bool powerLimitsSaved{false};
     UInt32 originalPowerLimits[2]{0, 0};
     UInt32 powerLimitsProfile{0};

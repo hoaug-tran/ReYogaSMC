@@ -566,7 +566,7 @@ extension HardwareManager {
             }
         }
         let interval = props["TelemetryIntervalMS"] as? Int
-        let liveStatus = interval.map { $0 > 0 ? localizedMessage("Live • %@ ms", String(describing: $0)) : "Live" } ?? "Live"
+        let liveStatus = interval.map { $0 > 0 ? localizedMessage("Live (%@ ms)", String(describing: $0)) : "Live" } ?? "Live"
         let status = sequence < 0 ? (protocolVersion == 1 ? "Firmware state refreshed" : "Driver update required") :
             stale ? "Telemetry stale - check driver log" : liveStatus
         if stale {
