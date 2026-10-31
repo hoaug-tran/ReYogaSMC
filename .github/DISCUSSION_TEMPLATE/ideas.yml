@@ -1,0 +1,18 @@
+title: "[Idea]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share your ideas for new features or improvements to ReYogaSMC.
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: What would you like ReYogaSMC or ReYogaSMCApp to do?
+    validations:
+      required: true
+  - type: textarea
+    id: hardware-context
+    attributes:
+      label: Target Hardware / Interface
+      description: Which laptop models or ACPI/WMI interfaces does this apply to?

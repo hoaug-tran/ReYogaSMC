@@ -1,1 +1,5 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Community Discussions & Hardware Q&A
+    url: https://github.com/hoaug-tran/ReYogaSMC/discussions
+    about: Ask questions, get help with OpenCore setup/SSDTs, or share your laptop experience.
