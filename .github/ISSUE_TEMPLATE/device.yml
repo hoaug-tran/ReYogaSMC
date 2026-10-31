@@ -1,24 +1,60 @@
-name: Device support
-description: Request support for a model or firmware interface.
-title: "[Device] "
+name: Device Support Request
+description: Request hardware support, sensor mapping, or profile inclusion for a new Lenovo model.
+title: "[Device]: "
+labels: ["device-support"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to request native sensor mapping, battery control profiles, or hotkey support for an unlisted Lenovo laptop.
+
+        Before submitting, please ensure you have exported your hardware diagnostic files using ReYogaSMCApp -> Diagnostics -> Export diagnostics.
   - type: input
-    id: identity
+    id: model
     attributes:
-      label: Model, machine type and BIOS
+      label: Exact Laptop Model & Marketing Name
+      placeholder: e.g. Lenovo Legion Pro 5 16ARX8 / ThinkPad X1 Extreme Gen 4
     validations:
       required: true
-  - type: textarea
-    id: features
+  - type: input
+    id: machine-type
     attributes:
-      label: Features and current behavior
-      description: List working, failing and unavailable features separately. Include macOS and driver versions.
+      label: Machine Type (4-character code)
+      description: Available on the laptop bottom sticker, BIOS, or via System Information.
+      placeholder: e.g. 82WM, 20Y5, 82N6
     validations:
       required: true
-  - type: textarea
-    id: report
+  - type: input
+    id: bios
     attributes:
-      label: Hardware report and source evidence
-      description: Attach the ReYoga export after reviewing it. Include known Windows behavior and protocol references if available.
+      label: BIOS Family & Version
+      placeholder: e.g. LPCN49WW (Family: LPCN)
+    validations:
+      required: true
+  - type: input
+    id: pci-id
+    attributes:
+      label: Lenovo PCI Subsystem ID
+      description: e.g. 17aa:3a58 (from Hackintool, IORegistry subsystem-id, or Linux lspci -nn).
+      placeholder: e.g. 17aa:3801
+    validations:
+      required: false
+  - type: checkboxes
+    id: working-status
+    attributes:
+      label: Current Working Status on macOS
+      options:
+        - label: Battery Conservation Mode works
+        - label: Rapid Charge works
+        - label: Fan RPM is reported in App
+        - label: CPU/GPU Temperatures are reported
+        - label: DYTC Power Mode switching works (Fn+Q)
+        - label: Fn hotkeys and Fn Lock work
+        - label: Keyboard backlight control works
+  - type: textarea
+    id: acpi-evidence
+    attributes:
+      label: ACPI / DSDT Dump & Diagnostics
+      description: Attach your exported DSDT or the zip archive from Diagnostics -> Export diagnostics.
     validations:
       required: true

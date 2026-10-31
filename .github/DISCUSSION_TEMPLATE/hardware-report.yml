@@ -1,0 +1,45 @@
+title: "[Hardware Report]: "
+labels: ["hardware"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing your laptop hardware configuration with ReYogaSMC!
+  - type: input
+    id: laptop-model
+    attributes:
+      label: Laptop Model & Machine Type
+      description: e.g. ThinkPad T490 20N3, Legion 7 16ACHg6 82N6, Yoga Slim 7
+      placeholder: e.g. Lenovo Legion 7 16ACHg6 (82N6)
+    validations:
+      required: true
+  - type: input
+    id: bios-version
+    attributes:
+      label: BIOS Version
+      placeholder: e.g. GKCN60WW, 1.85
+    validations:
+      required: true
+  - type: input
+    id: macos-opencore
+    attributes:
+      label: macOS Version & OpenCore Version
+      placeholder: e.g. macOS 14.5 Sonoma, OpenCore 1.0.0
+    validations:
+      required: true
+  - type: checkboxes
+    id: working-features
+    attributes:
+      label: Verified Working Features
+      options:
+        - label: Battery Conservation / Rapid Charge
+        - label: Function Keys & Hotkeys
+        - label: Fan RPM & Temperature Telemetry
+        - label: DYTC Power Profiles (Quiet / Balanced / Performance)
+        - label: ThinkPad Custom Fan Curve
+        - label: ITE USB RGB Keyboard Lighting
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes & EFI Details
+      description: Any specific SSDT patches (e.g. SSDT-EC-USBX, SSDT-dGPU-OFF) or quirks you used.
