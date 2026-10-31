@@ -60,8 +60,33 @@ DefinitionBlock ("", "SSDT", 2, "REYOGA", "RYLG", 0x00000001)
         Method (RYNM, 0, Serialized) { Return ("{{profile_name}}") }
         Method (RYF0, 0, Serialized) { Return (RYR0) }
         Method (RYF1, 0, Serialized) { Return (RYR1) }
-        Method (RYT0, 0, Serialized) { Return (RYCT) }
-        Method (RYT1, 0, Serialized) { Return (RYGT) }
+        Method (RYT0, 0, Serialized)
+        {
+            Local0 = RYCT
+            Local1 = RYGT
+            If ((Local1 == Zero) || (Local1 > 125))
+            {
+                If ((Local0 > Zero) && (Local0 < 125))
+                {
+                    RYGT = Local0
+                }
+            }
+            Return (Local0)
+        }
+        Method (RYT1, 0, Serialized)
+        {
+            Local0 = RYGT
+            If ((Local0 == Zero) || (Local0 > 125))
+            {
+                Local1 = RYCT
+                If ((Local1 > Zero) && (Local1 < 125))
+                {
+                    Local0 = Local1
+                    RYGT = Local0
+                }
+            }
+            Return (Local0)
+        }
         Method (RYG0, 0, Serialized) { If (RYA0 && RYVF (RYB0, RYP0)) { Return (Zero) } Return (RYP0) }
         Method (RYG1, 0, Serialized) { If (RYA1 && RYVF (RYB1, RYP1)) { Return (Zero) } Return (RYP1) }
         Method (RYFM, 0, Serialized)

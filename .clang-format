@@ -1,0 +1,10 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: -4
+ColumnLimit: 0
+NamespaceIndentation: None
+ContinuationIndentWidth: 4
+ConstructorInitializerIndentWidth: 4
+SortIncludes: Never

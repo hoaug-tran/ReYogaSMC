@@ -1,52 +1,78 @@
 # Hardware profiles
 
-Hardware profiles declare model identity, firmware interfaces and validation evidence for Lenovo laptops that expose model-specific ACPI EC sensor fields or USB RGB layouts. A source link or identity entry is not proof that every feature has been tested on hardware.
+Profiles describe model-specific ACPI sensors and USB RGB layouts. ThinkPad HKEY controls and generic IdeaPad/Yoga ACPI features do not need a profile from this directory.
 
-> [!NOTE]
-> ThinkPad laptops (such as T, X, X1, P, L and E series) and standard IdeaPad/Yoga ACPI features (`GBMD`/`SBMC` battery conservation, rapid charge, keyboard backlight, Fn Lock, Always-On USB and WMI thermal modes) use generic ACPI/WMI methods and do not require a JSON file in this directory.
+A model-name match does not grant write access. Current ACPI profiles leave raw manual fan writes disabled. See [compatibility](../Docs/compatibility.md) for runtime requirements and [CONTRIBUTING.md](../CONTRIBUTING.md#change-device-support) for validation steps.
 
-## Profile schema
+## ACPI models
 
-Profiles in `HardwareProfiles/` use `schema_version: 1` and are consumed by `Scripts/generate_firmware_profiles.py` and the app adapters. Firmware fingerprints are required for raw-offset bridges; write validation is independent of identity and read support.
+The table lists profile identity data, not a guarantee for every BIOS revision. Open a JSON file for its firmware references and fields.
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `schema_version` | integer | Must be `1` |
-| `kind` | string | `acpi` for system firmware or `rgb` for a USB lighting controller |
-| `id` | string | Unique profile identifier; ACPI entries are included in the generated driver table |
-| `name` | string | Model name shown in the app (for example `Lenovo Legion 7 16ACHg6`) |
-| `sources` | array of strings | References to Linux kernel drivers, PSREF specifications or Lenovo Legion Toolkit |
-| `machine_types` | array of strings | Lenovo 4-character machine type codes (for example `82N6`, `82JQ`, `82WK`) |
-| `bios_families` | array of strings | Lenovo 4-character BIOS family prefixes (for example `GKCN`, `KWCN`, `J2CN`) |
-| `oem_table_ids` | array of strings | DSDT OEM table IDs (for example `CB-01`) |
-| `pci_subsystem_ids` | array of strings | Optional model-specific Lenovo PCI subsystem IDs (`17aa:xxxx`) |
-| `ec_path` | string | Absolute ACPI namespace path to the embedded controller (`\_SB.PCI0.LPC0.EC0` or `\_SB.PC00.LPCB.EC0`) |
-| `ec_base` | string | Physical memory-mapped EC base address (optional) |
-| `ec_size` | string | EC memory window size (optional) |
-| `rpm_scale` | integer | Fan speed multiplier (`1` or `100`) |
-| `battery_conservation_mask` | integer | Bitmask for conservation mode in `GBMD`/`SBMC` |
-| `battery_rapidcharge_mask` | integer | Bitmask for rapid charge in `GBMD`/`SBMC` |
-| `native_telemetry` | array of objects | Native ACPI sensor fields (`field` and `scale`) |
+| Profile | Model | Machine types | BIOS families |
+| --- | --- | --- | --- |
+| [ideapad-gaming3-gen5](ideapad-gaming3-gen5.json) | Lenovo IdeaPad Gaming 3 15ARH05 | 82EY | FCCN |
+| [ideapad-gaming3-gen6](ideapad-gaming3-gen6.json) | Lenovo IdeaPad Gaming 3 15ACH6 | 82K2, 82K1 | H3CN |
+| [legion-pro5-gen8-arh](legion-pro5-gen8-arh.json) | Lenovo Legion Pro 5 16ARX8 | 82WM | LPCN |
+| [legion-pro5-gen8-irx](legion-pro5-gen8-irx.json) | Lenovo Legion Pro 5 16IRX8 | 82WK, 82WL | KWCN |
+| [legion-pro5-gen9-irx](legion-pro5-gen9-irx.json) | Lenovo Legion Pro 5 16IRX9 | 83DF | N2CN |
+| [legion-pro7-gen8-irx](legion-pro7-gen8-irx.json) | Lenovo Legion Pro 7 16IRX8H | 82WQ, 82WR | KWCN |
+| [legion-pro7-gen9-irx](legion-pro7-gen9-irx.json) | Lenovo Legion Pro 7 16IRX9 | 83FD | NSCN |
+| [legion5-gen5-ach](legion5-gen5-ach.json) | Lenovo Legion 5 15ARH05 | 82B5, 82B1, 82GN | EUCN, FSCN |
+| [legion5-gen5-imh](legion5-gen5-imh.json) | Lenovo Legion 5 15IMH05 | 81Y6, 82AU, 82B3, 81Y8 | EFCN, E9CN |
+| [legion5-gen6-ach](legion5-gen6-ach.json) | Lenovo Legion 5 15ACH6 | 82JW, 82JU, 82NW | GKCN, HHCN |
+| [legion5-gen7-arh](legion5-gen7-arh.json) | Lenovo Legion 5 15ARH7 | 82RE, 82RD | JUCN, K9CN |
+| [legion5pro-gen6-ach](legion5pro-gen6-ach.json) | Lenovo Legion 5 Pro 16ACH6H | 82JQ, 82JS | GKCN |
+| [legion5pro-gen7-iah](legion5pro-gen7-iah.json) | Lenovo Legion 5 Pro 16IAH7H | 82RF, 82RG | J2CN, KFCN |
+| [legion7-16achg6-gkcn](legion7-16achg6.json) | Lenovo Legion 7 2021 16ACHg6 | 82N6 | GKCN |
+| [legion7-gen5-imh](legion7-gen5-imh.json) | Lenovo Legion 7 15IMH05 | 81YT, 81YU | E9CN |
+| [legion7-gen6-ith](legion7-gen6-ith.json) | Lenovo Legion 7 16ITHg6 | 82K6 | H1CN |
+| [legion7-gen7-arh](legion7-gen7-arh.json) | Lenovo Legion 7 16ARHA7 | 82UH | K9CN |
+| [loq-gen8-aph](loq-gen8-aph.json) | Lenovo LOQ 15APH8 | 82XT | LYCN |
+| [loq-gen8-irh](loq-gen8-irh.json) | Lenovo LOQ 15IRH8 | 82XV, 82XW, 82XU | LZCN |
+| [loq-gen9-ahp](loq-gen9-ahp.json) | Lenovo LOQ 15AHP9 | 83DX | NZCN |
+| [yoga-slim7-gen5](yoga-slim7-gen5.json) | Lenovo Yoga Slim 7 14ARE05 | 82A2, 82A8 | DMCN, EMCN |
 
-ACPI-specific fields do not apply to `rgb` profiles, which describe USB device matching and lighting layout. The supported schemas are enforced by the profile tests and adapters.
+## Fields
 
-For raw-offset bridges, `reviewed_dsdt_hashes` or `reviewed_aml_hashes` identify reviewed firmware, `required_patterns` and `offsets` describe the declarations, and `verified_writes` records write validation. A native telemetry entry alone does not make a bridge eligible for generation. All current ACPI profiles leave manual fan writes disabled.
+All profiles use `schema_version: 1`, a unique `id`, a display `name`, a `kind` and source URLs.
 
-## Header generation
+| Field | Meaning |
+| --- | --- |
+| `kind` | `acpi` for firmware sensors; `rgb` for USB lighting |
+| `machine_types` | Four-character Lenovo machine types |
+| `bios_families` | Expected BIOS prefixes |
+| `oem_table_ids` | Expected DSDT OEM table IDs |
+| `pci_subsystem_ids` | Optional model-specific Lenovo subsystem IDs, in `17aa:xxxx` form |
+| `ec_path` | Absolute ACPI path to the embedded controller |
+| `native_telemetry` | Named sensor fields and their scales |
+| `rpm_scale` | Fan reading multiplier: 1 or 100 |
+| `reviewed_dsdt_hashes`, `reviewed_aml_hashes` | Optional legacy fingerprints; active profiles match via hardware identity without hashes |
+| `required_patterns`, `offsets` | Required declarations and addresses for a raw-offset bridge |
+| `ec_base`, `ec_size` | Memory-mapped EC window, where used |
+| `verified_writes` | Write-validation flag; keep 0 until target writes and recovery are confirmed |
 
-After editing or adding profiles, regenerate the kernel lookup header:
+Native named-field sensors and bridges match via hardware identity (machine type, BIOS family, OEM table ID and PCI subsystem ID) without firmware hashes. A model match does not enable raw-offset writes; manual fan writes remain disabled.
+
+Machine types and PCI IDs must not name different models. Shared USB controller IDs do not identify a laptop. Unknown or conflicting identities keep model-specific access unavailable.
+
+## USB RGB
+
+The [ITE c968 Gen 6 profile](ite-c968-gen6.json) describes HID matching, report sizes, zones, effects and LED IDs. Matching uses VID `0x048D`, PID `0xC968`, usage page `0xFF89`, usage `0x07` and a 192-byte feature report, together with the required interface pair.
+
+Numeric LED IDs are stable. Existing name aliases remain accepted by color imports. Reviewed keyboard mappings use the `hotkeys` section in the relevant laptop profile.
+
+## Model-name catalog
+
+[catalogs/models.json](catalogs/models.json) maps machine types and PCI subsystem IDs to names. It is used for display identity. Adding a name does not add a firmware backend or enable a control.
+
+## Generate and check
+
+After editing an ACPI profile:
 
 ```sh
 python3 Scripts/generate_firmware_profiles.py
 python3 Scripts/generate_firmware_profiles.py --check
-```
-
-## Validation
-
-Run the profile schema and identity tests:
-
-```sh
 python3 -B -m unittest Tests.test_profile_schemas Tests.test_firmware_profiles Tests.test_firmware_identity
 ```
 
-Display identity also accepts optional `pci_subsystem_ids` entries (`"17aa:1234"`, lowercase hexadecimal subsystem vendor/device pairs). Only add IDs verified for that model; shared USB/RGB controller IDs do not identify a laptop. Machine types and PCI subsystem IDs do not grant firmware write permission. Ambiguous matches fall back to `Lenovo Laptop`; absent Lenovo evidence falls back to `Unknown Laptop`.
+The generator updates `ReYogaSMC/ReYogaFirmwareProfiles.hpp`. Edit the JSON source, not the header. Tests reject duplicate identities, conflicting model names, invalid fingerprints and unsupported sensor scales.

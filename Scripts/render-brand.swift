@@ -38,6 +38,14 @@ for size in [16,32,64,128,256,512,1024] {
     if size >= 32 { try data.write(to: iconset.appendingPathComponent("icon_\(size/2)x\(size/2)@2x.png")) }
     if size == 1024 { try data.write(to: output.appendingPathComponent("app-icon.png")) }
 }
+let iconutil = Process()
+iconutil.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
+iconutil.arguments = ["-c", "icns", iconset.path, "-o", output.appendingPathComponent("ReYogaSMC.icns").path]
+try iconutil.run()
+iconutil.waitUntilExit()
+guard iconutil.terminationStatus == 0 else {
+    throw NSError(domain: "ReYogaBrand", code: Int(iconutil.terminationStatus), userInfo: [NSLocalizedDescriptionKey: "Could not generate ReYogaSMC.icns"])
+}
 let svg = """
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
 <defs><linearGradient id="plate" x2="0" y2="1"><stop stop-color="#303030"/><stop offset="1" stop-color="#151515"/></linearGradient></defs>

@@ -41,6 +41,11 @@
 "SETTINGS_LOGGING_HEADER" = "Nhật ký và chẩn đoán";
 "SETTINGS_DETAILED_LOGGING" = "Ghi nhật ký chi tiết";
 "SETTINGS_DETAILED_LOGGING_DESC" = "Lưu thêm các mẫu dữ liệu phần cứng vào nhật ký chẩn đoán cục bộ của ứng dụng.";
+"SETTINGS_SHORTCUTS_HEADER" = "Phím tắt bàn phím";
+"SETTINGS_RESET_SHORTCUTS_TITLE" = "Khôi phục phím tắt mặc định";
+"SETTINGS_RESET_SHORTCUTS_DESC" = "Đặt lại toàn bộ ánh xạ phím Fn (như Fn+F9 mở Cài đặt hệ thống) về mặc định ban đầu.";
+"SETTINGS_RESET_SHORTCUTS_BUTTON" = "Khôi phục";
+"Shortcuts reset to defaults" = "Đã khôi phục phím tắt mặc định";
 
 "OVERVIEW_SECTION_TELEMETRY" = "Cảm biến";
 "OVERVIEW_SECTION_BATTERY" = "Pin";
@@ -71,6 +76,8 @@
 "COOLING_MANUAL_FAN_DESC" = "Thiết lập tốc độ quạt tối thiểu trên các thiết bị có giao diện firmware tương thích đã được xác thực.";
 "COOLING_LIVE_READINGS_NOTICE" = "Nhiệt độ, tốc độ quạt và chế độ hiệu năng được hiển thị trong mục Tổng quan.";
 "COOLING_WHY_UNAVAILABLE" = "Vì sao các tính năng này không khả dụng?";
+"COOLING_WHY_FAN_UNAVAILABLE" = "Vì sao điều khiển quạt không khả dụng?";
+"COOLING_WHY_POWER_UNAVAILABLE" = "Vì sao giới hạn công suất CPU không khả dụng?";
 "COOLING_RETRY" = "Thử lại";
 "COOLING_RESTORE_AUTO" = "Chuyển về tự động";
 "COOLING_APPLY" = "Áp dụng";
@@ -144,6 +151,8 @@
 "DIAGNOSTICS_OPEN_LOGS" = "Mở nhật ký";
 "DIAGNOSTICS_GENERATE_BRIDGE" = "Tạo ACPI Bridge…";
 "DIAGNOSTICS_BRIDGE_DESC" = "ACPI Bridge SSDT cho phép macOS truy cập trực tiếp các thanh ghi nhiệt độ và quạt của thiết bị khi cần.";
+"DIAGNOSTICS_GENERATE_THINKPAD_SSDT" = "Tạo SSDT ThinkPad…";
+"DIAGNOSTICS_THINKPAD_SSDT_DESC" = "Phân tích DSDT, SSDT và helper EC/HKEY đang chạy; dùng iasl để biên dịch phần còn thiếu. Giữ các bản vá EC/pin riêng và xác minh sau khởi động lại.";
 "DIAGNOSTICS_TOOLS_DESC" = "Kiểm tra các giao diện phần cứng đã được driver xác thực, xuất báo cáo chẩn đoán hoặc tạo ACPI Bridge SSDT.";
 "DIAGNOSTICS_IDENTITY_HEADER" = "Thông tin nhận diện và nguồn dữ liệu";
 "DIAGNOSTICS_FIRMWARE_DEVICE" = "Thiết bị firmware";
@@ -175,7 +184,7 @@
 "BATTERY_CHARGE" = "Mức pin";
 "PERCENT_FORMAT" = "%d phần trăm";
 "BATTERY_MACOS" = "Pin macOS";
-"BATTERY_PACK_FORMAT" = "Pin %d — Lenovo ACPI";
+"BATTERY_PACK_FORMAT" = "Pin %d - Lenovo ACPI";
 "SOURCE_FORMAT" = "Nguồn: %@";
 "RETAINED_FORMAT" = "%.1f%% dung lượng thiết kế";
 "THINKPAD_FANS" = "Quạt EC ThinkPad";
@@ -184,7 +193,7 @@
 "FAN_AUTO" = "Tự động";
 "FAN_FULL_SPEED" = "Tốc độ tối đa";
 "FAN_LEVEL_FORMAT" = "Mức %d";
-"FAN_INTERFACE_REQUIRED" = "Cần giao diện đọc/ghi EC ThinkPad để điều khiển quạt.";
+"FAN_INTERFACE_REQUIRED" = "Trong Chẩn đoán, chọn Tạo SSDT ThinkPad…. Kiểm tra bản phân tích, thêm AML đã biên dịch vào ACPI → Add của OpenCore rồi khởi động lại. Giữ các bản vá EC/pin đang dùng. Sau đó chọn Xác minh SSDT ThinkPad.";
 "CHARGE_THRESHOLDS" = "Ngưỡng sạc";
 "BATTERY_PRIMARY" = "Chính";
 "BATTERY_SECONDARY" = "Phụ";
@@ -219,8 +228,7 @@
 "ACPI backlight unavailable; RGB may use USB HID" = "Đèn bàn phím ACPI không khả dụng; RGB có thể dùng USB HID";
 "ACPI bridge" = "Cầu nối ACPI";
 "ACPI bridge / precise EC RPM" = "Cầu nối ACPI / tốc độ quạt EC chính xác";
-"ACPI bridge source saved — compile and review before booting" = "Đã lưu mã nguồn cầu nối ACPI — hãy biên dịch và kiểm tra trước khi khởi động";
-"ACPI bridge source saved. Install iasl to compile it." = "Đã lưu mã nguồn cầu nối ACPI. Cài iasl để biên dịch.";
+"ACPI bridge source saved - compile and review before booting" = "Đã lưu mã nguồn cầu nối ACPI - hãy biên dịch và kiểm tra trước khi khởi động";
 "ACPI profile" = "Hồ sơ ACPI";
 "ACPI profile discovery disabled by -reynobridge" = "Đã tắt tìm hồ sơ ACPI bằng -reynobridge";
 "ACPI template contains unresolved fields" = "Mẫu ACPI còn trường chưa được điền";
@@ -235,7 +243,7 @@
 "AppleSMC service is unavailable" = "Dịch vụ AppleSMC không khả dụng";
 "Applied colors and effects return when this app opens. Breathing and Spectrum run while it is open." = "Màu và hiệu ứng đã áp dụng sẽ được khôi phục khi mở ứng dụng. Hiệu ứng nhịp thở và quang phổ chạy khi ứng dụng đang mở.";
 "Applied minimum: %d RPM" = "Mức tối thiểu đã áp dụng: %d RPM";
-"Applied minimum: —" = "Mức tối thiểu đã áp dụng: —";
+"Applied minimum: -" = "Mức tối thiểu đã áp dụng: -";
 "Approve ReYogaSMC in System Settings → Login Items." = "Cho phép ReYogaSMC trong Cài đặt hệ thống → Mục đăng nhập.";
 "Automatic fan restoration failed; inspect firmware and restart" = "Khôi phục quạt tự động thất bại; hãy kiểm tra firmware và khởi động lại";
 "Automatic update checks: %@" = "Tự kiểm tra cập nhật: %@";
@@ -291,7 +299,7 @@
 "Could not open %@: %@" = "Không mở được %@: %@";
 "Could not open ReYogaSMC" = "Không mở được ReYogaSMC";
 "Could not package diagnostics. Open Logs to inspect the local files." = "Không đóng gói được chẩn đoán. Mở Nhật ký để kiểm tra các tệp cục bộ.";
-"Current %d W - Range %d–%d W - Step %d W" = "Hiện tại %d W - Khoảng %d–%d W - Bước %d W";
+"Current %d W - Range %d-%d W - Step %d W" = "Hiện tại %d W - Khoảng %d-%d W - Bước %d W";
 "Cycle count" = "Số chu kỳ sạc";
 "DSDT OEM vendor is not LENOVO; generic interfaces remain available" = "Nhà sản xuất OEM trong DSDT không phải LENOVO; các giao diện chung vẫn khả dụng";
 "DSDT checksum is invalid" = "Checksum DSDT không hợp lệ";
@@ -302,7 +310,6 @@
 "DSDT unavailable or outside the validated size range" = "DSDT không khả dụng hoặc vượt giới hạn kích thước đã xác minh";
 "DYTC desk thermal profiles unavailable" = "Các hồ sơ nhiệt DYTC không khả dụng";
 "Detailed Logging: %@" = "Ghi nhật ký chi tiết: %@";
-"Device support: %@" = "Hỗ trợ thiết bị: %@";
 "Diagnostic report saved locally" = "Đã lưu báo cáo chẩn đoán trên máy";
 "Direct colors have transport acknowledgement; color readback is unavailable" = "Đã xác nhận truyền màu; không thể đọc lại màu thực tế";
 "Disabled" = "Đã tắt";
@@ -324,7 +331,7 @@
 "Event %@" = "Sự kiện %@";
 "Export hardware status and recent app logs locally. Review the archive before attaching it to an issue." = "Xuất trạng thái phần cứng và nhật ký ứng dụng gần đây trên máy. Kiểm tra tệp nén trước khi đính kèm vào báo lỗi.";
 "Exported ACPI table is not a valid DSDT" = "Bảng ACPI đã xuất không phải DSDT hợp lệ";
-"F1–F12 keys" = "Các phím F1–F12";
+"F1-F12 keys" = "Các phím F1-F12";
 "Factory" = "Mặc định";
 "Factory effects are selected with Fn+Space. The app releases RGB control." = "Chọn hiệu ứng mặc định bằng Fn+Space. Ứng dụng sẽ nhả quyền điều khiển RGB.";
 "Fan %@" = "Quạt %@";
@@ -352,9 +359,9 @@
 "Firmware driver unavailable. Independent battery, SMC and USB RGB functions remain accessible." = "Driver firmware không khả dụng. Vẫn có thể dùng pin, cảm biến SMC và USB RGB độc lập.";
 "Firmware error" = "Lỗi firmware";
 "Firmware identity sources disagree; model-specific access disabled" = "Các nguồn thông tin nhận diện firmware mâu thuẫn; đã tắt truy cập riêng theo model";
-"Firmware identity unverified • %@" = "Chưa xác minh thông tin nhận diện firmware • %@";
+"Firmware identity unverified: %@" = "Chưa xác minh thông tin nhận diện firmware: %@";
 "Firmware profile unavailable" = "Hồ sơ firmware không khả dụng";
-"Firmware profile unavailable • %@" = "Hồ sơ firmware không khả dụng • %@";
+"Firmware profile unavailable: %@" = "Hồ sơ firmware không khả dụng: %@";
 "Firmware readback matched" = "Giá trị đọc lại từ firmware khớp yêu cầu";
 "Firmware reports this capability unavailable" = "Firmware báo không hỗ trợ khả năng này";
 "Firmware state refreshed" = "Đã làm mới trạng thái firmware";
@@ -364,6 +371,7 @@
 "Fn+Space" = "Fn+Space";
 "Fn-Q Cooling" = "Làm mát Fn+Q";
 "FnLock" = "Fn Lock";
+"Privacy Screen Guard" = "Bảo vệ riêng tư màn hình";
 "Fully charged" = "Đã sạc đầy";
 "GPU Overclock" = "Ép xung GPU";
 "GPU Power Limit" = "Giới hạn công suất GPU";
@@ -416,7 +424,7 @@
 "Lenovo firmware identity" = "Nhận diện firmware Lenovo";
 "Lighting capability record missing or query failed" = "Thiếu bản ghi khả năng điều khiển đèn hoặc truy vấn thất bại";
 "Live" = "Trực tiếp";
-"Live • %@ ms" = "Trực tiếp • %@ ms";
+"Live (%@ ms)" = "Trực tiếp (%@ ms)";
 "Login item: %@" = "Mục đăng nhập: %@";
 "Logo" = "Logo";
 "Logo LED" = "Đèn logo";
@@ -471,7 +479,7 @@
 "Notification registration failed" = "Đăng ký thông báo thất bại";
 "OK" = "OK";
 "Off" = "Tắt";
-"Off — native media keys remain active." = "Tắt — các phím đa phương tiện gốc vẫn hoạt động.";
+"Off - native media keys remain active." = "Tắt - các phím đa phương tiện gốc vẫn hoạt động.";
 "On" = "Bật";
 "Original machine type or BIOS family unavailable; generic ACPI/WMI interfaces remain available" = "Không có mã máy gốc hoặc họ BIOS; các giao diện ACPI/WMI chung vẫn khả dụng";
 "PCI subsystem ID" = "ID subsystem PCI";
@@ -531,8 +539,7 @@
 "SMC key descriptor unavailable" = "Không có mô tả khóa SMC";
 "SMC read failed: transport=0x%08x result=%u bytes=%u" = "Đọc SMC thất bại: truyền=0x%08x kết quả=%u số byte=%u";
 "SSDT compilation failed. The source and compile.log are saved for inspection." = "Biên dịch SSDT thất bại. Đã lưu mã nguồn và compile.log để kiểm tra.";
-"SSDT compiled — review it and add it to OpenCore before rebooting" = "Đã biên dịch SSDT — kiểm tra và thêm vào OpenCore trước khi khởi động lại";
-"Save ACPI source for review and compilation with iasl. It will not be installed." = "Lưu mã nguồn ACPI để kiểm tra và biên dịch bằng iasl. Không tự cài đặt.";
+"SSDT compiled - review it and add it to OpenCore before rebooting" = "Đã biên dịch SSDT - kiểm tra và thêm vào OpenCore trước khi khởi động lại";
 "Saved mapping is paused: grant Accessibility and Input Monitoring, then enable it." = "Ánh xạ đã lưu đang tạm dừng: cấp quyền Trợ năng và Giám sát đầu vào, rồi bật lại.";
 "Screen Off" = "Tắt màn hình";
 "Screen On" = "Bật màn hình";
@@ -551,16 +558,13 @@
 "Start with macOS: %@" = "Khởi động cùng macOS: %@";
 "Static" = "Tĩnh";
 "Status" = "Trạng thái";
-"Stopped — error" = "Đã dừng — lỗi";
+"Stopped - error" = "Đã dừng - lỗi";
 "Strip" = "Dải đèn";
-"Support report ready" = "Báo cáo hỗ trợ đã sẵn sàng";
-"Support report ready — review and submit the issue" = "Báo cáo hỗ trợ đã sẵn sàng — kiểm tra rồi gửi báo lỗi";
-"Support repository URL is invalid" = "URL kho hỗ trợ không hợp lệ";
 "System Prefereces" = "Cài đặt hệ thống";
 "System Preferences" = "Cài đặt hệ thống";
 "System battery" = "Pin hệ thống";
 "Tablet Mode" = "Chế độ máy tính bảng";
-"Telemetry stale — check driver log" = "Dữ liệu cảm biến đã cũ — kiểm tra nhật ký driver";
+"Telemetry stale - check driver log" = "Dữ liệu cảm biến đã cũ - kiểm tra nhật ký driver";
 "Tent Mode" = "Chế độ lều";
 "The active driver has no validated manual fan control for this firmware" = "Driver đang nạp không có điều khiển quạt thủ công đã xác minh cho firmware này";
 "The active driver has no validated manual fan control for this firmware." = "Driver đang nạp không có điều khiển quạt thủ công đã xác minh cho firmware này.";
@@ -593,7 +597,7 @@
 "Touchpad Lock" = "Khóa Touchpad";
 "USB Charging" = "Sạc qua USB";
 "USB HID" = "USB HID";
-"USB HID • %@" = "USB HID • %@";
+"USB HID (%@)" = "USB HID (%@)";
 "USB RGB owns lighting" = "USB RGB đang điều khiển đèn";
 "USB report transport only" = "Chỉ xác nhận truyền báo cáo USB";
 "USB transmission only; the device does not report the physical LED state" = "Chỉ xác nhận truyền USB; thiết bị không báo trạng thái LED thực tế";
@@ -648,7 +652,7 @@
 "Expected JSON: zone -> LED name or ID -> #RRGGBB" = "Cần JSON: vùng -> tên hoặc mã LED -> #RRGGBB";
 
 "Firmware profile not verified" = "Chưa xác minh hồ sơ firmware";
-"Firmware profile not verified • %@" = "Chưa xác minh hồ sơ firmware • %@";
+"Firmware profile not verified: %@" = "Chưa xác minh hồ sơ firmware: %@";
 
 "pci_matched" = "Nhận diện qua ID subsystem PCI";
 
@@ -667,3 +671,140 @@
 "PCI subsystem ID and DSDT OEM table matched" = "ID subsystem PCI và bảng OEM DSDT khớp";
 
 "Machine type and DSDT OEM table matched" = "Mã máy và bảng OEM DSDT khớp";
+"Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC." = "Điều khiển giới hạn công suất CPU trực tiếp chưa được triển khai hoặc xác minh cho ThinkPad này. Cấu hình hiệu năng do firmware quản lý có thể khả dụng qua DYTC.";
+"RGB JSON exceeds 256 KiB" = "JSON RGB vượt quá 256 KiB";
+"DSDT source is not valid UTF-8" = "Tệp nguồn DSDT không có mã hóa UTF-8 hợp lệ";
+"Fan status is unavailable. Try Auto or reconnect the driver." = "Chưa đọc được trạng thái quạt. Hãy thử Auto hoặc kết nối lại trình điều khiển.";
+"ACPI template SSDT-ThinkPad.template.dsl not found" = "Không tìm thấy mẫu ACPI SSDT-ThinkPad.template.dsl";
+
+
+"The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT." = "Driver chưa cung cấp đường dẫn ACPI hợp lệ của EC và HKEY. Kết nối lại bằng driver tương thích trước khi tạo SSDT.";
+
+
+"Power profile readback unavailable. Refresh to retry." = "Chưa đọc được chế độ nguồn. Làm mới để thử lại.";
+
+"Fan control mode" = "Chế độ điều khiển quạt";
+
+"BIOS Auto" = "BIOS tự động";
+
+"Manual" = "Thủ công";
+
+"Custom Curve" = "Đường cong tùy chỉnh";
+
+"CPU temperature curve" = "Đường cong theo nhiệt độ CPU";
+
+"Fan level" = "Mức quạt";
+
+"Use increasing temperatures and fan levels, ending in Full Speed by 95°C." = "Đặt nhiệt độ và mức quạt tăng dần, kết thúc ở tốc độ tối đa không quá 95°C.";
+
+"Curve is experimental. Full Speed uses disengaged mode; calibrate on your laptop. Restart after sleep or reconnect." = "Đường cong đang thử nghiệm. Tốc độ tối đa dùng chế độ disengaged; cần kiểm chứng trên máy. Bật lại sau khi ngủ hoặc kết nối lại.";
+
+"Curve stopped; automatic recovery pending" = "Đã dừng đường cong; đang chờ khôi phục tự động";
+
+"Level %d" = "Mức %d";
+
+
+"Verify ThinkPad SSDT" = "Xác minh SSDT ThinkPad";
+"Analyzing running ACPI tables…" = "Đang phân tích các bảng ACPI đang chạy…";
+"Checking loaded SSDT and EC helpers…" = "Đang kiểm tra SSDT đã nạp và helper EC…";
+"Driver connection changed; verify again." = "Kết nối driver đã thay đổi; hãy xác minh lại.";
+"Analyze running ACPI tables and save only missing ThinkPad helpers. Requires iasl. Keep existing EC and battery patches." = "Phân tích các bảng ACPI đang chạy và chỉ bổ sung helper ThinkPad còn thiếu. Cần iasl. Giữ các bản vá EC và pin đang dùng.";
+"SSDT compiled. Review the analysis, install in OpenCore, reboot, then verify." = "Đã biên dịch SSDT. Kiểm tra bản phân tích, cài vào OpenCore, khởi động lại rồi xác minh.";
+"SSDT loaded, EC helpers and fan readback confirmed. Fan writes still require a hardware test." = "SSDT đã nạp, helper EC và dữ liệu đọc lại từ quạt đã được xác nhận. Cần thử lệnh điều khiển quạt trên máy thật.";
+"ACPI capture failed. Check driver permissions, Safe Mode and ACPIExportStatus." = "Không thu thập được ACPI. Kiểm tra quyền truy cập driver, Safe Mode và ACPIExportStatus.";
+"ACPI disassembly failed or timed out. Review the analysis report." = "Giải mã ACPI thất bại hoặc quá thời gian. Kiểm tra bản phân tích.";
+"ACPI parent path escapes the root" = "Đường dẫn cha ACPI vượt quá namespace gốc";
+"ACPI scope nesting exceeds the analysis limit" = "Độ lồng Scope ACPI vượt giới hạn phân tích";
+"ACPI source exceeds 16 MiB" = "Mã nguồn ACPI vượt 16 MiB";
+"ACPI table capture is empty or exceeds the analysis limit" = "Không có bảng ACPI được thu thập hoặc dữ liệu vượt giới hạn phân tích";
+"ACPI table length or checksum is invalid" = "Độ dài hoặc checksum của bảng ACPI không hợp lệ";
+"ACPI token count exceeds the analysis limit" = "Số token ACPI vượt giới hạn phân tích";
+"All ThinkPad helpers already exist; no SSDT is needed. Export diagnostics if fan access still fails." = "Đã có đủ helper ThinkPad; không cần thêm SSDT. Xuất diagnostics nếu vẫn không truy cập được quạt.";
+"Combined ACPI source exceeds the analysis limit" = "Tổng mã nguồn ACPI vượt giới hạn phân tích";
+"Conflicting object or method argument count at %@" = "Xung đột object hoặc số tham số method tại %@";
+"Generated SSDT is not loaded for this firmware. Check OpenCore ACPI Add and reboot." = "SSDT đã tạo chưa được nạp cho firmware này. Kiểm tra ACPI Add của OpenCore rồi khởi động lại.";
+"Inactive helper already exists in an ACPI table; review its condition and replace only the superseded helper table: %@" = "Helper đã được khai báo nhưng không hoạt động; kiểm tra điều kiện và chỉ thay bảng helper cũ đã bị thay thế: %@";
+"Invalid ACPI namespace path: %@" = "Đường dẫn namespace ACPI không hợp lệ: %@";
+"Live helper is absent from captured tables: %@" = "Helper đang tồn tại nhưng không có trong các bảng đã thu thập: %@";
+"Live namespace evidence is missing for %@" = "Thiếu bằng chứng namespace đang chạy cho %@";
+"Missing ACPI declaration name" = "Thiếu tên khai báo ACPI";
+"No generated SSDT is recorded for this firmware." = "Chưa ghi nhận SSDT đã tạo cho firmware này.";
+"No unique EC/HKEY relationship matches the running driver" = "Không tìm được quan hệ EC/HKEY duy nhất khớp với driver đang chạy";
+"SSDT compilation failed. Review the analysis report." = "Biên dịch SSDT thất bại. Kiểm tra bản phân tích.";
+"SSDT helpers are loaded but fan readback is unavailable. Export diagnostics and inspect ThinkFanStatus." = "Helper SSDT đã nạp nhưng chưa đọc lại được dữ liệu quạt. Xuất diagnostics và kiểm tra ThinkFanStatus.";
+"SSDT is loaded but its helpers or EC write capability are unavailable. Export diagnostics." = "SSDT đã nạp nhưng thiếu helper hoặc khả năng ghi EC. Hãy xuất diagnostics.";
+"Selected EC is not identified as PNP0C09 in the captured tables" = "EC được chọn không có định danh PNP0C09 trong các bảng đã thu thập";
+"Unbalanced ACPI source: %@" = "Mã nguồn ACPI có dấu ngoặc không cân bằng: %@";
+"Unexpected ACPI table signature or size" = "Chữ ký hoặc kích thước bảng ACPI không đúng";
+"Unterminated ACPI string or comment" = "Chuỗi hoặc chú thích ACPI chưa được đóng";
+"Update the driver to capture the running ACPI tables and namespace evidence." = "Cập nhật driver để thu thập các bảng ACPI và bằng chứng namespace đang chạy.";
+
+"Firmware call failed" = "Lệnh gọi firmware thất bại";
+"Firmware identity" = "Định danh firmware";
+"Native HFSP/HSPD fields do not match the fan-control and RPM layout reported by the driver. Export diagnostics for firmware review." = "Các field HFSP/HSPD không khớp layout điều khiển và RPM quạt do driver cung cấp. Xuất diagnostics để kiểm tra firmware.";
+"Curve watchdog: automatic fan restoration pending" = "Watchdog curve: đang chờ khôi phục quạt về Auto";
+"Fan selector restoration pending; Auto recovery will retry with readback" = "Đang chờ khôi phục bộ chọn quạt; sẽ thử lại chế độ Auto và đọc lại kết quả";
+"Fan selector recovery failed; automatic restoration remains pending" = "Khôi phục bộ chọn quạt thất bại; vẫn đang chờ khôi phục Auto";
+"Full Speed" = "Tốc độ tối đa";
+"Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off." = "Kết nối driver tương thích có hỗ trợ phân tích ACPI và đường dẫn EC/HKEY hợp lệ. Cần tắt Safe Mode.";
+"Custom Curve is not supported by this driver interface." = "Giao diện driver này không hỗ trợ Custom Curve.";
+"Safe Mode blocks fan control. Disable -reysafe and restart macOS." = "Safe Mode đang chặn điều khiển quạt. Bỏ -reysafe rồi khởi động lại macOS.";
+"Update the app and kext, then reconnect to enable ThinkPad fan control." = "Cập nhật app và kext, sau đó kết nối lại để bật điều khiển quạt ThinkPad.";
+"Manual fan control needs EC read/write helpers. Open Diagnostics → Generate ThinkPad SSDT… to check and add missing helpers." = "Điều khiển quạt thủ công cần helper đọc/ghi EC. Mở Chẩn đoán → Tạo SSDT ThinkPad… để kiểm tra và bổ sung helper còn thiếu.";
+"Fan access is paused pending selector recovery. Try Auto, then export diagnostics if recovery fails." = "Truy cập quạt đang tạm dừng để khôi phục bộ chọn quạt. Thử Auto; nếu thất bại, hãy xuất diagnostics.";
+"Custom Curve needs a driver watchdog. Update both the app and kext, then restart macOS." = "Custom Curve cần watchdog trong driver. Cập nhật cả app và kext rồi khởi động lại macOS.";
+"CPU temperature is unavailable or stale. Wait for a fresh reading before starting Custom Curve." = "Nhiệt độ CPU chưa có hoặc đã cũ. Chờ dữ liệu mới trước khi bật Custom Curve.";
+"The driver connection is unavailable. Reconnect before starting Custom Curve." = "Chưa có kết nối driver. Kết nối lại trước khi bật Custom Curve.";
+"Fan controls are disabled by saved app preferences." = "Điều khiển quạt đang bị tắt trong cấu hình app đã lưu.";
+"Reconnect the driver to initialize fan controls." = "Kết nối lại driver để khởi tạo điều khiển quạt.";
+"Open Diagnostics" = "Mở Chẩn đoán";
+"Curve stopped: CPU temperature updates timed out." = "Curve đã dừng: quá thời gian chờ cập nhật nhiệt độ CPU.";
+"Curve stopped: fan status or CPU temperature is unavailable." = "Curve đã dừng: chưa có trạng thái quạt hoặc nhiệt độ CPU hợp lệ.";
+"Curve stopped: a fan command or its readback failed." = "Curve đã dừng: lệnh quạt hoặc bước đọc lại kết quả thất bại.";
+"Curve stopped: fan capability or fresh temperature is unavailable." = "Curve đã dừng: mất khả năng điều khiển quạt hoặc thiếu nhiệt độ mới.";
+"Single battery platform" = "Máy chỉ có một pin";
+"Unavailable while lap mode masks the thermal profile" = "Chưa đọc được profile nhiệt khi chế độ đặt máy trên đùi che trạng thái này";
+"Watchdog confirmed BIOS Auto" = "Watchdog đã xác nhận BIOS Auto";
+"State-control interface advertised" = "Firmware đã công bố giao diện điều khiển trạng thái";
+
+"Restore fan mode at startup" = "Khôi phục chế độ quạt khi khởi động";
+
+"Unavailable while custom mode masks the thermal profile" = "Chưa xác định được cấu hình nhiệt do chế độ tùy chỉnh che trạng thái";
+"Cached iasl is not executable. Remove the app's iasl cache and retry." = "iasl trong bộ nhớ đệm không có quyền thực thi. Xóa bộ nhớ đệm iasl của ứng dụng rồi thử lại.";
+"Could not download iasl. Check your connection or set IASLPath to an existing compiler, then retry." = "Không tải được iasl. Kiểm tra kết nối hoặc đặt IASLPath tới trình biên dịch có sẵn rồi thử lại.";
+"iasl checksum or size validation failed. The compiler was not installed or executed." = "iasl không đạt kiểm tra mã băm hoặc kích thước. Trình biên dịch chưa được cài đặt hay thực thi.";
+"Choose a different output file to preserve the original DSDT source." = "Chọn file đầu ra khác để giữ nguyên mã nguồn DSDT gốc.";
+"The driver did not provide a valid current value for this control." = "Driver không cung cấp giá trị hiện tại hợp lệ cho điều khiển này.";
+"Firmware readback did not match before the retry limit." = "Giá trị đọc lại từ firmware vẫn không khớp sau số lần thử cho phép.";
+
+"Auto, Manual and Full Speed can be restored. Custom Curve keeps its draft and requires Start after restart or wake." = "Có thể khôi phục Auto, Thủ công và Tốc độ tối đa. Đường cong tùy chỉnh giữ bản nháp và cần Bắt đầu lại sau khi khởi động hoặc thức máy.";
+
+"Authorizing fan control…" = "Đang cấp quyền điều khiển quạt…";
+
+"Authorize Fan Control…" = "Cấp quyền điều khiển quạt…";
+
+"Fan authorization failed (0x%08x). Reconnect the driver and retry authorization." = "Cấp quyền quạt thất bại (0x%08x). Kết nối lại driver rồi thử cấp quyền lại.";
+
+"The fan authorization helper is missing or invalid. Reinstall the app." = "Trình trợ giúp cấp quyền quạt bị thiếu hoặc không hợp lệ. Cài lại ứng dụng.";
+
+"Fan authorization requires a valid app signature. Reinstall a signed app build." = "Cấp quyền quạt yêu cầu chữ ký ứng dụng hợp lệ. Cài lại bản ứng dụng đã ký.";
+
+"Could not request administrator authorization." = "Không thể yêu cầu cấp quyền quản trị.";
+
+"Fan authorization was cancelled. Fan controls remain unavailable." = "Đã hủy cấp quyền quạt. Chưa thể điều khiển quạt.";
+
+
+"Update the app and kext to use compatible fan authorization." = "Cập nhật ứng dụng và kext để dùng giao thức cấp quyền quạt tương thích.";
+
+"Fan control permission was denied. Update both app and kext, then reconnect and authorize fan control." = "Quyền điều khiển quạt bị từ chối. Cập nhật cả ứng dụng và kext, rồi kết nối lại và cấp quyền điều khiển quạt.";
+
+"Could not install the fan authorization helper (%@): %@" = "Không thể cài trình trợ giúp cấp quyền quạt (%@): %@";
+"Read-only bridge cannot validate writes" = "Cầu nối chỉ đọc không thể xác nhận quyền ghi";
+"Unsupported bridge kind" = "Loại cầu nối không được hỗ trợ";
+"ACPI bridge / firmware RPM resolution" = "Cầu nối ACPI / độ phân giải RPM của firmware";
+"Current fan mode: %@" = "Chế độ quạt hiện tại: %@";
+"Auto, Manual, Custom Curve and Full Speed are restored automatically when valid thermal data is available." = "Tự động, Thủ công, Curve tùy chỉnh và Tốc độ tối đa sẽ tự động khôi phục khi có dữ liệu nhiệt độ hợp lệ.";
+"Set your own fan speeds based on temperature." = "Tùy chỉnh tốc độ quạt theo ngưỡng nhiệt độ.";
+"Waiting for fresh thermal readings before resuming curve…" = "Đang chờ dữ liệu nhiệt độ mới để tiếp tục chạy curve…";
+"Curve paused: waiting for valid CPU temperature readings." = "Đã tạm dừng curve: đang chờ dữ liệu nhiệt độ CPU hợp lệ.";
+"Curve paused: thermal readings not available after wake." = "Đã tạm dừng curve: không có dữ liệu nhiệt độ sau khi đánh thức máy.";

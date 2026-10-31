@@ -12,7 +12,10 @@ def table_valid(data):
 
 def registry_tables(directory):
     import winreg
-    files = []; seen = set(); sources = []; errors = []
+    files = []
+    seen = set()
+    sources = []
+    errors = []
     def walk(key, names, depth=0):
         if depth > 12:
             return
@@ -26,7 +29,8 @@ def registry_tables(directory):
                         seen.add(digest)
                         tag = re.sub('[^A-Za-z0-9_-]', '_', names[0] if names else 'root')[:24]
                         path = directory / (data[:4].decode() + '-' + tag + '-' + digest[:12] + '.aml')
-                        path.write_bytes(data); files.append(path)
+                        path.write_bytes(data)
+                        files.append(path)
                         sources.append({'file': path.name, 'registry_key': '/'.join(names), 'sha256': digest})
         except OSError:
             pass

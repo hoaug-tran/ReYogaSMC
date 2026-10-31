@@ -18,6 +18,7 @@ if [ -e "$build_dir" ] && [ ! -w "$build_dir" ]; then
 fi
 
 package_products="$build_dir/$package_config"
+python3 "$package_root/Scripts/release.py" verify-snapshot --snapshot "$build_dir/$package_config-source.json"
 package_output="$build_dir/packages/$package_config"
 package_stage="$(mktemp -d)"
 trap 'rm -rf "$package_stage"' EXIT
@@ -25,6 +26,7 @@ package_label="$(printf '%s' "$package_config" | tr '[:lower:]' '[:upper:]')"
 package_version="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$package_products/ReYogaSMC.kext/Contents/Info.plist")"
 if [ -n "${BUILD_VERSION:-}" ] && [ "$package_version" != "$BUILD_VERSION" ]; then echo 'Build version mismatch' >&2; exit 1; fi
 mkdir -p "$package_output"
+cp "$build_dir/$package_config-source.json" "$package_output/source-manifest.json"
 
 # 1. Package ReYogaSMC.kext (ONLY the .kext inside zip)
 kext_dir="$package_products/ReYogaSMC.kext"

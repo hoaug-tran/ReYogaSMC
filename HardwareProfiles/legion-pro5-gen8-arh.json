@@ -4,8 +4,7 @@
   "id": "legion-pro5-gen8-arh",
   "name": "Lenovo Legion Pro 5 16ARX8",
   "machine_types": [
-    "82WM",
-    "82WQ"
+    "82WM"
   ],
   "bios_families": [
     "LPCN"
@@ -36,7 +35,9 @@
     }
   ],
   "sources": [
-    "https://github.com/johnfanv2/LenovoLegionLinux/blob/main/kernel_module/legion-laptop.c",
-    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/master/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
+    "https://pcsupport.lenovo.com/us/en/products/laptops-and-netbooks/legion-series/legion-pro-5-16arx8/82wm",
+    "https://pcsupport.lenovo.com/us/en/products/laptops-and-netbooks/legion-series/legion-pro-7-16irx8h/82wq",
+    "https://github.com/johnfanv2/LenovoLegionLinux/blob/ff72e4c2b437ec605d5f2e34c5b34111c57c9cc0/kernel_module/legion-laptop.c",
+    "https://github.com/LenovoLegionToolkit-Team/LenovoLegionToolkit/blob/0bb045be29c4fd772ba9887a3507b6a9b0b56d58/LenovoLegionToolkit.Lib/Utils/Compatibility.cs"
   ]
 }

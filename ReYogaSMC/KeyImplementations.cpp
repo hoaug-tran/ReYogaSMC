@@ -21,29 +21,33 @@ SMC_RESULT BDVT::update(const SMC_DATA *src) {
     drv->dispatchMessage(kSMC_setConservation, &newValue);
     bool actual = !newValue;
     drv->dispatchMessage(kSMC_getConservation, &actual);
-    if (actual != newValue) return SmcError;
+    if (actual != newValue)
+        return SmcError;
     *oldValue = actual;
     return SmcSuccess;
 }
 
 SMC_RESULT atomicSpKey::readAccess() {
     uint32_t value = atomic_load_explicit(currentSensor, memory_order_acquire);
-    if (!value || value >= 150) return SmcNotReadable;
+    if (!value || value >= 150)
+        return SmcNotReadable;
     *reinterpret_cast<uint16_t *>(data) = VirtualSMCAPI::encodeSp(type, value);
     return SmcSuccess;
 }
 
 SMC_RESULT atomicSpMilliCelsiusKey::readAccess() {
     const uint32_t value = atomic_load_explicit(currentSensor, memory_order_acquire);
-    if (!value || value >= 125000) return SmcNotReadable;
+    if (!value || value >= 125000)
+        return SmcNotReadable;
     *reinterpret_cast<uint16_t *>(data) = VirtualSMCAPI::encodeSp(type, static_cast<double>(value) / 1000.0);
     return SmcSuccess;
 }
 
 SMC_RESULT atomicSpDeciKelvinKey::readAccess() {
     uint32_t value = atomic_load_explicit(currentSensor, memory_order_acquire);
-    if (value <= 2731 || value >= 4231) return SmcNotReadable;
-    *reinterpret_cast<uint16_t *>(data) = VirtualSMCAPI::encodeSp(type, ((double)value - 2731)/10);
+    if (value <= 2731 || value >= 4231)
+        return SmcNotReadable;
+    *reinterpret_cast<uint16_t *>(data) = VirtualSMCAPI::encodeSp(type, ((double)value - 2731) / 10);
     return SmcSuccess;
 }
 
@@ -55,7 +59,8 @@ SMC_RESULT atomicFltKey::readAccess() {
 
 SMC_RESULT atomicFpKey::readAccess() {
     uint32_t value = atomic_load_explicit(currentSensor, memory_order_acquire);
-    if (value >= 0x4000) return SmcNotReadable;
+    if (value >= 0x4000)
+        return SmcNotReadable;
     *reinterpret_cast<uint16_t *>(data) = VirtualSMCAPI::encodeIntFp(type, value);
     return SmcSuccess;
 }

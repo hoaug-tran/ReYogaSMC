@@ -29,6 +29,8 @@ class FirmwareProfilesTests(unittest.TestCase):
         unreviewed["machine_types"] = ["ZZZZ"]
         unreviewed["bios_families"] = ["ZZZZ"]
         unreviewed.pop("native_telemetry")
+        unreviewed.pop("reviewed_aml_hashes", None)
+        unreviewed.pop("reviewed_dsdt_hashes", None)
         rendered = generator.render([self.profile, unreviewed])
         self.assertEqual(rendered, generator.render([self.profile]))
     def test_bad_units_and_fields_are_rejected(self):
@@ -70,6 +72,15 @@ class FirmwareProfilesTests(unittest.TestCase):
             profile["pci_subsystem_ids"] = ["17aa:1234"]
         with self.assertRaises(ValueError):
             generator.render([self.profile, other])
+
+    def test_shared_machine_type_cannot_name_two_models(self):
+        other = copy.deepcopy(self.profile)
+        other.update(id="other-model", name="Other Lenovo", bios_families=["ZZCN"],
+                     reviewed_aml_hashes=[], reviewed_dsdt_hashes=[], pci_subsystem_ids=[])
+        with self.assertRaisesRegex(ValueError, 'machine type'):
+            generator.render([self.profile, other])
+        other['name'] = self.profile['name']
+        self.assertIn('other-model', generator.render([self.profile, other]))
 
     def test_write_validation_cannot_be_inferred_from_truthy_metadata(self):
         for value in (True, "1", 2, -1):

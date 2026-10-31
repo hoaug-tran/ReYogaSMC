@@ -9,10 +9,9 @@
 #include "ControlValidation.hpp"
 #include "ReYogaBaseService.hpp"
 
-OSDefineMetaClassAndStructors(ReYogaBaseService, IOService)
+OSDefineMetaClassAndStructors(ReYogaBaseService, IOService);
 
-bool ReYogaBaseService::init(OSDictionary *dictionary)
-{
+bool ReYogaBaseService::init(OSDictionary *dictionary) {
     if (!super::init(dictionary))
         return false;
 
@@ -24,18 +23,21 @@ bool ReYogaBaseService::init(OSDictionary *dictionary)
 
     _notificationServices = OSSet::withCapacity(1);
 
-    if (!_notificationServices) { OSSafeReleaseNULL(_deliverNotification); return false; }
+    if (!_notificationServices) {
+        OSSafeReleaseNULL(_deliverNotification);
+        return false;
+    }
     return true;
 }
 
-IOService *ReYogaBaseService::probe(IOService *provider, SInt32 *score)
-{
+IOService *ReYogaBaseService::probe(IOService *provider, SInt32 *score) {
     iname = provider->getName();
     return this;
 }
 
-bool ReYogaBaseService::start(IOService *provider)
-{
+bool ReYogaBaseService::start(IOService *provider) {
+    if (!super::start(provider))
+        return false;
 #ifndef ALTER
     setProperty("VersionInfo", kextVersion);
 #else
@@ -51,29 +53,30 @@ bool ReYogaBaseService::start(IOService *provider)
         AlwaysLog("Failed to add commandGate");
         OSSafeReleaseNULL(commandGate);
         OSSafeReleaseNULL(workLoop);
+        super::stop(provider);
         return false;
     }
 
-    OSDictionary * propertyMatch = propertyMatching(_deliverNotification, kOSBooleanTrue);
+    OSDictionary *propertyMatch = propertyMatching(_deliverNotification, kOSBooleanTrue);
     if (propertyMatch) {
-      IOServiceMatchingNotificationHandler notificationHandler = OSMemberFunctionCast(IOServiceMatchingNotificationHandler, this, &ReYogaBaseService::notificationHandler);
+        IOServiceMatchingNotificationHandler notificationHandler = OSMemberFunctionCast(IOServiceMatchingNotificationHandler, this, &ReYogaBaseService::notificationHandler);
 
-      //
-      // Register notifications for availability of any IOService objects wanting to consume our message events
-      //
-      _publishNotify = addMatchingNotification(gIOFirstPublishNotification,
-                                             propertyMatch,
-                                             notificationHandler,
-                                             this,
-                                             0, 10000);
+        //
+        // Register notifications for availability of any IOService objects wanting to consume our message events
+        //
+        _publishNotify = addMatchingNotification(gIOFirstPublishNotification,
+                                                 propertyMatch,
+                                                 notificationHandler,
+                                                 this,
+                                                 0, 10000);
 
-      _terminateNotify = addMatchingNotification(gIOTerminatedNotification,
-                                               propertyMatch,
-                                               notificationHandler,
-                                               this,
-                                               0, 10000);
+        _terminateNotify = addMatchingNotification(gIOTerminatedNotification,
+                                                   propertyMatch,
+                                                   notificationHandler,
+                                                   this,
+                                                   0, 10000);
 
-      propertyMatch->release();
+        propertyMatch->release();
     }
 
     if (isPMsupported) {
@@ -85,17 +88,22 @@ bool ReYogaBaseService::start(IOService *provider)
     return true;
 }
 
-void ReYogaBaseService::stop(IOService *provider)
-{
-    if (_publishNotify) { _publishNotify->remove(); _publishNotify = nullptr; }
-    if (_terminateNotify) { _terminateNotify->remove(); _terminateNotify = nullptr; }
-    if (_notificationServices) _notificationServices->flushCollection();
-    OSSafeReleaseNULL(_notificationServices);
-    OSSafeReleaseNULL(_deliverNotification);
-
-    if (workLoop && commandGate) workLoop->removeEventSource(commandGate);
-    OSSafeReleaseNULL(commandGate);
-    OSSafeReleaseNULL(workLoop);
+void ReYogaBaseService::stop(IOService *provider) {
+    if (commandGate)
+        commandGate->runAction([](OSObject *owner, void *, void *, void *, void *) -> IOReturn {
+            static_cast<ReYogaBaseService *>(owner)->stopping = true;
+            return kIOReturnSuccess;
+        });
+    if (_publishNotify) {
+        _publishNotify->remove();
+        _publishNotify = nullptr;
+    }
+    if (_terminateNotify) {
+        _terminateNotify->remove();
+        _terminateNotify = nullptr;
+    }
+    if (_notificationServices)
+        _notificationServices->flushCollection();
 
     if (isPMsupported)
         PMstop();
@@ -103,33 +111,47 @@ void ReYogaBaseService::stop(IOService *provider)
     super::stop(provider);
 }
 
-void ReYogaBaseService::dispatchMessageGated(int* message, void* data)
-{
-    OSCollectionIterator* i = OSCollectionIterator::withCollection(_notificationServices);
+void ReYogaBaseService::free() {
+    // Userclients retain their provider; keep the gate valid until the final client releases it.
+    if (workLoop && commandGate)
+        workLoop->removeEventSource(commandGate);
+    OSSafeReleaseNULL(commandGate);
+    OSSafeReleaseNULL(workLoop);
+    OSSafeReleaseNULL(_notificationServices);
+    OSSafeReleaseNULL(_deliverNotification);
+    super::free();
+}
+
+void ReYogaBaseService::dispatchMessageGated(int *message, void *data) {
+    if (stopping)
+        return;
+    OSCollectionIterator *i = OSCollectionIterator::withCollection(_notificationServices);
 
     if (i) {
-        while (IOService* service = OSDynamicCast(IOService, i->getNextObject())) {
+        while (IOService *service = OSDynamicCast(IOService, i->getNextObject())) {
             service->message(*message, this, data);
         }
         i->release();
     }
 }
 
-void ReYogaBaseService::dispatchMessage(int message, void* data)
-{
+void ReYogaBaseService::dispatchMessage(int message, void *data) {
     if (!_notificationServices || _notificationServices->getCount() == 0) {
         AlwaysLog("No available notification consumer");
         return;
     }
-    if (!commandGate) return;
+    if (!commandGate)
+        return;
     commandGate->runAction([](OSObject *owner, void *message, void *data, void *, void *) -> IOReturn {
         static_cast<ReYogaBaseService *>(owner)->dispatchMessageGated(static_cast<int *>(message), data);
         return kIOReturnSuccess;
-    }, &message, data);
+    },
+                           &message, data);
 }
 
-void ReYogaBaseService::notificationHandlerGated(IOService *newService, IONotifier *notifier)
-{
+void ReYogaBaseService::notificationHandlerGated(IOService *newService, IONotifier *notifier) {
+    if (stopping || !newService || !_notificationServices)
+        return;
     if (notifier == _publishNotify) {
         DebugLog("Notification consumer published: %s", newService->getName());
         _notificationServices->setObject(newService);
@@ -141,21 +163,24 @@ void ReYogaBaseService::notificationHandlerGated(IOService *newService, IONotifi
     }
 }
 
-bool ReYogaBaseService::notificationHandler(void *refCon, IOService *newService, IONotifier *notifier)
-{
-    if (!commandGate) return false;
+bool ReYogaBaseService::notificationHandler(void *refCon, IOService *newService, IONotifier *notifier) {
+    if (!commandGate)
+        return false;
     commandGate->runAction([](OSObject *owner, void *service, void *notifier, void *, void *) -> IOReturn {
         static_cast<ReYogaBaseService *>(owner)->notificationHandlerGated(static_cast<IOService *>(service), static_cast<IONotifier *>(notifier));
         return kIOReturnSuccess;
-    }, newService, notifier);
+    },
+                           newService, notifier);
     return true;
 }
 
 bool ReYogaBaseService::findPNP(const char *id, IOACPIPlatformDevice **dev) {
     DebugLog("findPNP for %s", id);
-    if (!id || !dev) return false;
+    if (!id || !dev)
+        return false;
     auto pnp = OSString::withCString(id);
-    if (!pnp) return false;
+    if (!pnp)
+        return false;
     if ((*dev) && (*dev)->compareName(pnp, nullptr)) {
         DebugLog("found %s at %s", id, (*dev)->getName());
     } else {
@@ -167,8 +192,14 @@ bool ReYogaBaseService::findPNP(const char *id, IOACPIPlatformDevice **dev) {
             while (auto entry = iterator->getNextObject()) {
                 if (entry->compareName(pnp, nullptr)) {
                     DebugLog("found %s at %s", id, entry->getName());
-                    if ((*dev = OSDynamicCast(IOACPIPlatformDevice, entry)))
-                        break;
+                    if (auto candidate = OSDynamicCast(IOACPIPlatformDevice, entry)) {
+                        if (*dev) {
+                            AlwaysLog("Ambiguous %s devices; refusing an arbitrary EC selection", id);
+                            *dev = nullptr;
+                            break;
+                        }
+                        *dev = candidate;
+                    }
                 }
             }
             iterator->release();
@@ -211,7 +242,7 @@ bool ReYogaBaseService::updateTopCase() {
     return true;
 }
 
-IOReturn ReYogaBaseService::setPowerState(unsigned long powerStateOrdinal, IOService * whatDevice) {
+IOReturn ReYogaBaseService::setPowerState(unsigned long powerStateOrdinal, IOService *whatDevice) {
     DebugLog("powerState %ld : %s", powerStateOrdinal, powerStateOrdinal ? "on" : "off");
     if (whatDevice != this)
         return kIOReturnInvalid;
@@ -219,43 +250,47 @@ IOReturn ReYogaBaseService::setPowerState(unsigned long powerStateOrdinal, IOSer
     return kIOPMAckImplied;
 }
 
-IOReturn ReYogaBaseService::readECName(const char* name, UInt32 *result) {
-    if (!ec) return kIOReturnNoDevice;
-    if (!name || !result) return kIOReturnBadArgument;
+IOReturn ReYogaBaseService::readECName(const char *name, UInt32 *result) {
+    if (!ec)
+        return kIOReturnNoDevice;
+    if (!name || !result)
+        return kIOReturnBadArgument;
     IOReturn ret = ec->evaluateInteger(name, result);
     switch (ret) {
-        case kIOReturnSuccess:
-            break;
+    case kIOReturnSuccess:
+        break;
 
-        case kIOReturnBadArgument:
-            AlwaysLog("read %s failed, bad argument (field size too large?)", name);
-            break;
-            
-        default:
-            AlwaysLog("read %s failed %x", name, ret);
-            break;
+    case kIOReturnBadArgument:
+        AlwaysLog("read %s failed, bad argument (field size too large?)", name);
+        break;
+
+    default:
+        AlwaysLog("read %s failed %x", name, ret);
+        break;
     }
     return ret;
 }
 
-IOReturn ReYogaBaseService::method_re1b(UInt32 offset, UInt8 *result) {
+IOReturn ReYogaBaseService::method_re1b(UInt32 offset, UInt8 *result, bool logFailure) {
     if (!ec || !(ECAccessCap & ECReadCap))
         return kIOReturnUnsupported;
 
-    if (!result || offset >= 0x100) return kIOReturnBadArgument;
+    if (!result || offset >= 0x100)
+        return kIOReturnBadArgument;
     UInt32 raw = 0;
-    OSObject* params[1] = {
-        OSNumber::withNumber(offset, 32)
-    };
+    OSObject *params[1] = {
+        OSNumber::withNumber(offset, 32)};
 
-    if (!params[0]) return kIOReturnNoMemory;
+    if (!params[0])
+        return kIOReturnNoMemory;
     IOReturn ret = ec->evaluateInteger(readECOneByte, &raw, params, 1);
     params[0]->release();
 
-    if (ret != kIOReturnSuccess)
+    if (ret != kIOReturnSuccess && logFailure)
         AlwaysLog("read 0x%02x failed", offset);
 
-    if (ret == kIOReturnSuccess && raw > 0xff) return kIOReturnBadArgument;
+    if (ret == kIOReturnSuccess && raw > 0xff)
+        return kIOReturnBadArgument;
     *result = raw;
     return ret;
 }
@@ -272,7 +307,8 @@ IOReturn ReYogaBaseService::method_recb(UInt32 offset, UInt32 size, OSData **dat
         UInt8 bytes[0x100];
         for (UInt32 i = 0; i < size; ++i) {
             IOReturn status = method_re1b(offset + i, &bytes[i]);
-            if (status != kIOReturnSuccess) return status;
+            if (status != kIOReturnSuccess)
+                return status;
         }
         *data = OSData::withBytes(bytes, size);
         return *data ? kIOReturnSuccess : kIOReturnNoMemory;
@@ -280,10 +316,9 @@ IOReturn ReYogaBaseService::method_recb(UInt32 offset, UInt32 size, OSData **dat
 
     // Arg0 - offset in bytes from zero-based EC
     // Arg1 - size of buffer in bits
-    OSObject* params[2] = {
+    OSObject *params[2] = {
         OSNumber::withNumber(offset, 32),
-        OSNumber::withNumber(size * 8, 32)
-    };
+        OSNumber::withNumber(size * 8, 32)};
     if (!params[0] || !params[1]) {
         OSSafeReleaseNULL(params[0]);
         OSSafeReleaseNULL(params[1]);
@@ -312,15 +347,15 @@ IOReturn ReYogaBaseService::method_recb(UInt32 offset, UInt32 size, OSData **dat
     return ret;
 }
 
-IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value) {
+IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value, bool logFailure) {
     if (!ec || !(ECAccessCap & ECWriteCap))
         return kIOReturnUnsupported;
 
-    if (offset >= 0x100) return kIOReturnBadArgument;
-    OSObject* params[2] = {
+    if (offset >= 0x100)
+        return kIOReturnBadArgument;
+    OSObject *params[2] = {
         OSNumber::withNumber(offset, 32),
-        OSNumber::withNumber(value, 8)
-    };
+        OSNumber::withNumber(value, 8)};
     if (!params[0] || !params[1]) {
         OSSafeReleaseNULL(params[0]);
         OSSafeReleaseNULL(params[1]);
@@ -331,9 +366,9 @@ IOReturn ReYogaBaseService::method_we1b(UInt32 offset, UInt8 value) {
     params[0]->release();
     params[1]->release();
 
-    if (ret != kIOReturnSuccess)
+    if (ret != kIOReturnSuccess && logFailure)
         AlwaysLog("write 0x%02x @ 0x%02x failed", value, offset);
-    else
+    else if (ret == kIOReturnSuccess)
         DebugLog("write 0x%02x @ 0x%02x success", value, offset);
     return ret;
 }

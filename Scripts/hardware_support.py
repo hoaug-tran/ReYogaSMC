@@ -28,26 +28,73 @@ def profiles():
         item = json.loads(path.read_text(encoding='utf-8'))
         if item.get('schema_version') != 1 or item.get('kind') != 'acpi':
             continue
-        if not item.get('required_patterns') or not (item.get('reviewed_dsdt_hashes') or item.get('reviewed_aml_hashes')) or not item.get('offsets'):
+        if not item.get('required_patterns') or not item.get('offsets'):
+            continue
+        if item.get('verified_writes', 0) != 0 and not (item.get('reviewed_dsdt_hashes') or item.get('reviewed_aml_hashes')):
             continue
         result.append(item)
     return result
 
 
+MAX_DSL_BYTES = 16 * 1024 * 1024
+
+
+def read_dsl(path):
+    with path.open('rb') as stream:
+        data = stream.read(MAX_DSL_BYTES + 1)
+    if len(data) > MAX_DSL_BYTES:
+        raise ValueError('DSL input exceeds 16 MiB')
+    return data.decode('utf-8', errors='replace')
+
+
 def normalized_hash(source):
-    # Preserve quoted AML strings: whitespace and comment markers inside them
-    # are firmware data, and changing them must change the fingerprint.
-    tokens = re.findall(r'"(?:\\.|[^"\\])*"|/\*.*?\*/|//[^\n]*|[^\s]', source, re.S)
-    normalized = ''.join(token for token in tokens if not token.startswith(('/*', '//')))
-    return hashlib.sha256(normalized.encode()).hexdigest()
+    if len(source) > MAX_DSL_BYTES or len(source.encode('utf-8')) > MAX_DSL_BYTES:
+        raise ValueError('DSL input exceeds 16 MiB')
+    tokens = []
+    i = 0
+    while i < len(source):
+        if source.startswith('/*', i):
+            end = source.find('*/', i + 2)
+            if end < 0:
+                raise ValueError('Unterminated DSL comment')
+            i = end + 2
+        elif source.startswith('//', i):
+            end = source.find('\n', i + 2)
+            i = len(source) if end < 0 else end
+        elif source[i] == '"':
+            start = i
+            i += 1
+            while i < len(source):
+                if source[i] == '\\':
+                    i += 2
+                elif source[i] == '"':
+                    i += 1
+                    break
+                else:
+                    i += 1
+            else:
+                raise ValueError('Unterminated DSL string')
+            tokens.append(source[start:i])
+        else:
+            if not source[i].isspace():
+                tokens.append(source[i])
+            i += 1
+    return hashlib.sha256(''.join(tokens).encode()).hexdigest()
 
 
 def match_profile(source, candidates, aml_hashes=()):
     digest = normalized_hash(source)
-    matches = [p for p in candidates
-               if (digest in p.get('reviewed_dsdt_hashes', []) or
-                   any(h in p.get('reviewed_aml_hashes', []) for h in aml_hashes))
-               and all(re.search(pattern, source) for pattern in p['required_patterns'])]
+    matches = []
+    for p in candidates:
+        if not all(re.search(pattern, source) for pattern in p['required_patterns']):
+            continue
+        dsdt_hashes = p.get('reviewed_dsdt_hashes')
+        aml_h = p.get('reviewed_aml_hashes')
+        if dsdt_hashes is not None or aml_h is not None:
+            if digest in (dsdt_hashes or []) or any(h in (aml_h or []) for h in aml_hashes):
+                matches.append(p)
+        elif p.get('verified_writes', 0) == 0 and p.get('native_telemetry'):
+            matches.append(p)
     if len(matches) != 1:
         raise ValueError('No unique reviewed firmware profile matched. The report is ready for a device-support issue.')
     return matches[0]
@@ -56,7 +103,16 @@ def match_profile(source, candidates, aml_hashes=()):
 def render(profile):
     values = dict(profile, profile_name=profile['name'], **profile['offsets'])
     values['verified_writes'] = 1 if profile.get('verified_writes') == 1 else 0
-    source = (ROOT / 'HardwareProfiles/SSDT-ReYoga.template.dsl').read_text(encoding='utf-8')
+    kind = profile.get('bridge_kind')
+    if not kind:
+        kind = 'named-fields-readonly' if profile.get('native_telemetry') else 'raw-offsets'
+    templates = {'raw-offsets': 'SSDT-ReYoga.template.dsl',
+                 'named-fields-readonly': 'SSDT-ReYoga-readonly.template.dsl'}
+    if kind not in templates:
+        raise ValueError('Unsupported bridge kind')
+    if kind == 'named-fields-readonly' and profile.get('verified_writes', 0) != 0:
+        raise ValueError('Read-only bridge cannot validate writes')
+    source = (ROOT / 'HardwareProfiles' / templates[kind]).read_text(encoding='utf-8')
     for key, value in values.items():
         source = source.replace('{{' + key + '}}', str(value))
     if '{{' in source:
@@ -91,15 +147,17 @@ def compiler(offline=False):
     directory.mkdir(parents=True, exist_ok=True)
     executable = directory / ('iasl.exe' if platform.system() == 'Windows' else 'iasl')
     # Cached downloaded executables are checked on every use.
-    if platform.system() == 'Windows':
-        item = lock['Windows']['iasl']
-        if offline and not executable.exists():
-            raise ValueError('iasl unavailable in offline mode')
-        if offline:
+    if platform.system() in ('Windows', 'Darwin'):
+        item = lock[platform.system()]['iasl']
+        if executable.exists():
             if hashlib.sha256(executable.read_bytes()).hexdigest() != item['sha256']:
                 raise ValueError('Cached iasl checksum mismatch')
+        elif offline:
+            raise ValueError('iasl unavailable in offline mode')
         else:
             download(item, executable)
+        if platform.system() == 'Darwin':
+            executable.chmod(0o700)
         return executable
     if executable.exists():
         return executable
@@ -211,7 +269,8 @@ def split_terms(text):
         elif char == ')':
             depth -= 1
         elif char == ',' and depth == 0:
-            terms.append(text[start:index].strip()); start = index + 1
+            terms.append(text[start:index].strip())
+            start = index + 1
     terms.append(text[start:].strip())
     return terms
 
@@ -231,9 +290,11 @@ def scan_fields(clean, regions):
             if offset:
                 value = constant(offset.group(1))
                 bit_offset = value * 8 if value is not None else None
-                index += 1; continue
+                index += 1
+                continue
             if term.startswith(('AccessAs', 'Connection', 'ExtendedAccess')):
-                index += 1; continue
+                index += 1
+                continue
             if index + 1 >= len(terms):
                 break
             width = constant(terms[index + 1])
@@ -298,8 +359,7 @@ def table_signature(path):
     return header[:4].decode('ascii', errors='replace')
 
 
-def main():
-    import ec_reader
+def parse_arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--acpi', type=pathlib.Path, help='Directory of AML/DAT/DSL tables, or a single table')
     parser.add_argument('--dsdt', type=pathlib.Path, help='Alias for a DSDT input')
@@ -312,30 +372,15 @@ def main():
     parser.add_argument('--ec-read', action='store_true', help='Collect a live unbanked EC snapshot on Windows/Linux')
     parser.add_argument('--windows-live', action='store_true', help='Run reviewed Windows getter probes; no setters')
     parser.add_argument('--windows-report', type=pathlib.Path, help='Attach a previously collected Windows JSON report')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if not (args.acpi or args.dsdt) and platform.system() == 'Darwin' and sys.stdin.isatty():
         path = input('ACPI dump directory or DSDT path (blank for runtime report only): ').strip().strip('"\'')
         if path:
             args.acpi = pathlib.Path(path).expanduser()
-    output = args.output.resolve()
-    # Keep exports isolated so source files and prior reports cannot be overwritten.
-    if pathlib.Path(str(output) + '.zip').exists():
-        raise ValueError('Export ZIP already exists; choose a new output directory')
-    output.mkdir(parents=True, exist_ok=False)
-    tables = output / 'tables'; tables.mkdir()
-    report = {'schema_version': 1, 'tool': 'ReYoga', 'errors': [], 'excluded_tables': [], 'acpi': [], 'generation': {'status': 'unmatched'}}
-    try:
-        report['inventory'] = inventory(args.windows_live)
-    except (OSError, ValueError, subprocess.SubprocessError) as error:
-        report['errors'].append({'stage': 'inventory', 'reason': str(error)})
-    if args.windows_report:
-        try:
-            imported = json.loads(args.windows_report.read_text(encoding='utf-8-sig'))
-            report['windows_evidence'] = {'source_sha256': hashlib.sha256(args.windows_report.read_bytes()).hexdigest(),
-                'data': imported, 'live_wmi_present': bool(imported.get('live_wmi_results') or imported.get('probes')),
-                'live_ec_present': bool(imported.get('live_ec_dump'))}
-        except (OSError, ValueError) as error:
-            report['errors'].append({'stage': 'windows_report', 'reason': str(error)})
+    return args
+
+
+def collect_tables(args, tables, report):
     inputs = []
     input_path = args.acpi or args.dsdt
     if input_path:
@@ -363,10 +408,15 @@ def main():
         for path in sorted(pathlib.Path('/sys/firmware/acpi/tables').glob('*')):
             if path.name.startswith(('DSDT', 'SSDT')) and path.is_file():
                 try:
-                    target = tables / (path.name + '.aml'); target.write_bytes(path.read_bytes()); inputs.append(target)
+                    target = tables / (path.name + '.aml')
+                    target.write_bytes(path.read_bytes())
+                    inputs.append(target)
                 except OSError as error:
                     report['errors'].append({'stage': 'firmware_dump', 'reason': str(error)})
-    binaries = [p for p in inputs if p.suffix.lower() != '.dsl']
+    return inputs
+
+
+def disassemble_tables(args, binaries, tables, report):
     iasl = None
     if binaries or args.compile:
         try:
@@ -383,6 +433,10 @@ def main():
                         report['errors'].append({'stage': 'disassembly', 'reason': 'Some tables failed individual disassembly; inspect the retained compiler results'})
         except (OSError, ValueError, subprocess.SubprocessError) as error:
             report['errors'].append({'stage': 'compiler', 'reason': str(error)})
+    return iasl
+
+
+def analyze_tables(binaries, tables, report):
     aml_hashes = []
     for path in binaries:
         data = path.read_bytes()
@@ -392,48 +446,58 @@ def main():
             aml_hashes.append(item['sha256'])
         report['acpi'].append(item)
     sources = sorted(p for p in tables.iterdir() if p.suffix.lower() == '.dsl')
+    combined_parts = []
+    combined_size = 0
     for path in sources:
-        source = path.read_text(errors='replace', encoding='utf-8')
+        source = read_dsl(path)
+        combined_size += len(source.encode('utf-8')) + 1
+        if combined_size > MAX_DSL_BYTES:
+            raise ValueError('Combined DSL input exceeds 16 MiB')
         report['acpi'].append({'file': path.name, 'normalized_sha256': normalized_hash(source), 'declarations': scan(source)})
-    combined = '\n'.join(p.read_text(errors='replace', encoding='utf-8') for p in sources)
+        combined_parts.append(source)
+    combined = '\n'.join(combined_parts)
+    return sources, combined, aml_hashes
+
+
+def select_bridge_profile(combined, sources, aml_hashes):
+    candidates = profiles()
     try:
-        profile = match_profile(combined, profiles(), aml_hashes)
+        profile = match_profile(combined, candidates, aml_hashes)
         # Hashes of individual DSL inputs must also work with a full table bundle.
     except ValueError:
         profile = None
         for path in sources:
             try:
-                profile = match_profile(path.read_text(errors='replace', encoding='utf-8'), profiles(), aml_hashes)
+                profile = match_profile(read_dsl(path), candidates, aml_hashes)
                 break
             except ValueError:
                 pass
-    if profile:
-        label = re.sub(r'[^A-Za-z0-9]+', '-', args.model or profile['id']).strip('-')[:32] or 'device'
-        bridge = output / f'SSDT-ReYoga-{label}.dsl'
-        bridge.write_text(render(profile), encoding='utf-8')
-        report['generation'] = {'status': 'generated', 'profile': profile['id'], 'source': bridge.name,
-                                'validation': profile['validation'], 'fan_writes': profile.get('verified_writes') == 1}
-        if not args.source_only and not iasl:
-            try:
-                iasl = args.iasl.resolve() if args.iasl else compiler(args.offline)
-                report['compiler'] = run([iasl, '-v'])
-            except (OSError, ValueError, subprocess.SubprocessError) as error:
-                report['errors'].append({'stage': 'compiler', 'reason': str(error)})
-        if not args.source_only and iasl:
-            result = run([iasl, '-tc', bridge], cwd=output)
-            report['generation']['compile'] = result
-            if result['status']:
-                report['errors'].append({'stage': 'compile', 'reason': 'Compilation failed; do not install the AML'})
-    report['ec'] = ec_reader.collect(output, combined, args.ec_read, args.offline)
-    if args.ec_read and report['ec']['status'] in ('unavailable', 'partial'):
-        report['errors'].append({'stage': 'ec', 'reason': report['ec'].get('reason', 'Snapshot stopped after an EC transaction failure; inspect the per-byte failures')})
-    report['coverage'] = {
-        'table_count': len(inputs), 'source_count': len(sources),
-        'profile_matched': profile is not None,
-        'compiler_available': iasl is not None,
-        'collected': ['ACPI source declarations', 'table fingerprints', 'OS inventory', 'available runtime capabilities', 'requested Windows getter results and EC snapshot status'],
-        'requires_review': ['EC field meaning and units', 'WMI method payloads', 'USB HID protocol', 'hotkey mapping', 'fan-write safety'],
-        'reason': 'ACPI does not describe every firmware interface. No register writes or firmware-method calls are performed. EC snapshots cover only the declared standard address space.'}
+    return profile
+
+
+def export_bridge(args, profile, output, iasl, report):
+    if not profile:
+        return iasl
+    label = re.sub(r'[^A-Za-z0-9]+', '-', args.model or profile['id']).strip('-')[:32] or 'device'
+    bridge = output / f'SSDT-ReYoga-{label}.dsl'
+    bridge.write_text(render(profile), encoding='utf-8')
+    report['generation'] = {'status': 'generated', 'profile': profile['id'], 'source': bridge.name,
+                            'validation': profile['validation'], 'fan_writes': profile.get('verified_writes') == 1}
+    if not args.source_only and not iasl:
+        try:
+            iasl = args.iasl.resolve() if args.iasl else compiler(args.offline)
+            report['compiler'] = run([iasl, '-v'])
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            report['errors'].append({'stage': 'compiler', 'reason': str(error)})
+    if not args.source_only and iasl:
+        result = run([iasl, '-tc', bridge], cwd=output)
+        report['generation']['compile'] = result
+        if result['status']:
+            report['errors'].append({'stage': 'compile', 'reason': 'Compilation failed; do not install the AML'})
+    return iasl
+
+
+def write_report(output, report):
     (output / 'report.json').write_text(json.dumps(report, indent=2, default=str) + '\n', encoding='utf-8')
     summary = '# ReYoga device support\n\n' + \
         'Generation: ' + report['generation']['status'] + '\n\n' + \
@@ -453,6 +517,48 @@ def main():
     if report['generation']['status'] == 'unmatched':
         print('Unknown firmware: export is ready; an SSDT needs a reviewed profile.')
     return 1 if report['errors'] else 0
+
+
+def main(argv=None):
+    import ec_reader
+    args = parse_arguments(argv)
+    output = args.output.resolve()
+    # Keep exports isolated so source files and prior reports cannot be overwritten.
+    if pathlib.Path(str(output) + '.zip').exists():
+        raise ValueError('Export ZIP already exists; choose a new output directory')
+    output.mkdir(parents=True, exist_ok=False)
+    tables = output / 'tables'
+    tables.mkdir()
+    report = {'schema_version': 1, 'tool': 'ReYoga', 'errors': [], 'excluded_tables': [], 'acpi': [], 'generation': {'status': 'unmatched'}}
+    try:
+        report['inventory'] = inventory(args.windows_live)
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        report['errors'].append({'stage': 'inventory', 'reason': str(error)})
+    if args.windows_report:
+        try:
+            imported = json.loads(args.windows_report.read_text(encoding='utf-8-sig'))
+            report['windows_evidence'] = {'source_sha256': hashlib.sha256(args.windows_report.read_bytes()).hexdigest(),
+                'data': imported, 'live_wmi_present': bool(imported.get('live_wmi_results') or imported.get('probes')),
+                'live_ec_present': bool(imported.get('live_ec_dump'))}
+        except (OSError, ValueError) as error:
+            report['errors'].append({'stage': 'windows_report', 'reason': str(error)})
+    inputs = collect_tables(args, tables, report)
+    binaries = [path for path in inputs if path.suffix.lower() != '.dsl']
+    iasl = disassemble_tables(args, binaries, tables, report)
+    sources, combined, aml_hashes = analyze_tables(binaries, tables, report)
+    profile = select_bridge_profile(combined, sources, aml_hashes)
+    iasl = export_bridge(args, profile, output, iasl, report)
+    report['ec'] = ec_reader.collect(output, combined, args.ec_read, args.offline)
+    if args.ec_read and report['ec']['status'] in ('unavailable', 'partial'):
+        report['errors'].append({'stage': 'ec', 'reason': report['ec'].get('reason', 'Snapshot stopped after an EC transaction failure; inspect the per-byte failures')})
+    report['coverage'] = {
+        'table_count': len(inputs), 'source_count': len(sources),
+        'profile_matched': profile is not None,
+        'compiler_available': iasl is not None,
+        'collected': ['ACPI source declarations', 'table fingerprints', 'OS inventory', 'available runtime capabilities', 'requested Windows getter results and EC snapshot status'],
+        'requires_review': ['EC field meaning and units', 'WMI method payloads', 'USB HID protocol', 'hotkey mapping', 'fan-write safety'],
+        'reason': 'ACPI does not describe every firmware interface. No register writes or firmware-method calls are performed. EC snapshots cover only the declared standard address space.'}
+    return write_report(output, report)
 
 
 if __name__ == '__main__':

@@ -1,330 +1,114 @@
-//  SPDX-License-Identifier: GPL-2.0-only
-//
-//  ReYogaVPC.hpp
-//  ReYogaSMC
-//
-//  Created by Zhen on 2020/7/10.
-//  Copyright © 2020 Zhen. All rights reserved.
-//
-
+// SPDX-License-Identifier: GPL-2.0-only
+// Original work: Copyright (c) 2020 Zhen.
 #ifndef ReYogaVPC_hpp
 #define ReYogaVPC_hpp
 
 #include "DYTC.h"
+#include "ControlValidation.hpp"
 #include "ReYogaBaseService.hpp"
 #include "ReYogaSMCUserClientPrivate.hpp"
 
-class ReYogaSMCUserClient;
-class ReYogaVPC : public ReYogaBaseService
-{
-  typedef ReYogaBaseService super;
-  OSDeclareDefaultStructors(ReYogaVPC);
+class ReYogaVPC : public ReYogaBaseService {
+    typedef ReYogaBaseService super;
+    OSDeclareDefaultStructors(ReYogaVPC);
 
 private:
-    /**
-     *  Related ACPI methods
-     *  See SSDTexamples
-     */
-    static constexpr const char *getClamshellMode  = "GCSM";
-    static constexpr const char *setClamshellMode  = "SCSM";
-
-    /* Dynamic thermal control, available on IdeaVPC, ThinkVPC */
+    static constexpr const char *getClamshellMode = "GCSM";
+    static constexpr const char *setClamshellMode = "SCSM";
     static constexpr const char *setThermalControl = "DYTC";
-
-    /**
-     *  Clamshell mode capability, will be update on init
-     */
-    bool clamshellCap {false};
-
-    /**
-     *  Update clamshell mode status
-     *
-     *  @param update  only update internal status when false
-     *
-     *  @return true if success
-     */
-    bool updateClamshell(bool update=true);
-
-    /**
-     *  Toggle clamshell mode
-     *
-     *  @return true if success
-     */
+    bool clamshellCap{false};
+    bool updateClamshell(bool publish = true);
     bool toggleClamshell();
-
-    /**
-     *  Dump desired EC field
-     *
-     *  @param value = offset | size << 8
-     *
-     *  @return true if success
-     */
-    bool dumpECOffset(UInt32 value);
-
-    /**
-     *  DYTC capability, will be update on init
-     */
-    UInt16 DYTCCap {0};
-    UInt8 DYTCRevision {0};
-
-    /**
-     *  Simple lock to prevent DYTC update when user setting is in progress
-     */
-    bool DYTCLock {false};
-    
-    /**
-     *  Set DYTC mode
-     *
-     *  @param command  see DYTC_command
-     *  @param result result
-     *  @param ICFunc function
-     *  @param ICMode mode
-     *  @param ValidF on / off
-     *
-     *  @return true if success
-     */
-    bool DYTCCommand(DYTC_CMD command, DYTC_RESULT* result, UInt8 ICFunc=0, UInt8 ICMode=0, bool ValidF=false);
-
-    /**
-     *  Initialize DYTC property
-     */
+    bool dumpECOffset(UInt32 request);
+    // A reentrancy guard, not a lock; hardware requests use commandGate.
+    bool DYTCLock{false};
+    bool DYTCCommand(DYTC_CMD command, DYTC_RESULT *result, UInt8 function = 0, UInt8 mode = 0, bool enabled = false);
     void initDYTC();
-
-    /**
-     *  Parse DYTC status
-     *
-     *  @param result result from DYTC command
-     *
-     *  @return true if success
-     */
     bool parseDYTC(DYTC_RESULT result);
-    
-    /**
-     *  DYTC Version
-     */
-    OSDictionary *DYTCVersion {nullptr};
-
-    /**
-     *  Probe compatible WMI devices
-     */
+    OSDictionary *DYTCVersion{nullptr}; // Owned; released by exitVPC().
     void probeWMI();
+    void backlightRest(OSObject *owner, IOTimerEventSource *timer);
 
 protected:
     bool supportsThermalProfiles() const { return (DYTCCap & (BIT(DYTC_FUNCTION_MMC) | BIT(DYTC_FUNCTION_PSC))) != 0; }
     int pscThermalMode(UInt32 profile) const {
-        return DYTCRevision >= 9 ? (profile == 1 ? 1 : profile == 2 ? 3 : 4) :
-            (profile == 1 ? 3 : profile == 2 ? 5 : 7);
+        return DYTCRevision >= 9 ? (profile == 1 ? 1 : profile == 2 ? 3
+                                                                    : 4)
+                                 : (profile == 1 ? 3 : profile == 2 ? 5
+                                                                    : 7);
     }
     bool supportsMMCThermal() const { return (DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0; }
+    bool evaluateNamedThermalMode(const char *name, UInt32 *out);
 
-    /**
-     *  VPC device
-     */
-    IOACPIPlatformDevice *vpc {nullptr};
-    
-    OSOrderedSet *WMICollection {nullptr};
-    OSOrderedSet *WMIProvCollection {nullptr};
+    // FCAP bits 16..31, indexed by the four-bit function ID.
+    UInt16 DYTCCap{0};
+    UInt8 DYTCRevision{0};
+    bool mmcGetCap{false};
+    UInt32 activeThermalProfile{2};
+    IOACPIPlatformDevice *vpc{nullptr};       // Borrowed provider.
+    OSOrderedSet *WMICollection{nullptr};     // Own retained service elements.
+    OSOrderedSet *WMIProvCollection{nullptr}; // Own retained provider elements.
+    bool clamshellMode{false};
+    bool vendorWMISupport{false};
 
-    /**
-     *  Clamshell mode status, default to false (same in SSDT)
-     */
-    bool clamshellMode {false};
-
-    /**
-     *  Vendor specific WMI support
-     */
-    bool vendorWMISupport {false};
-    UInt8 thinkFanModifiedMask {0};
-
-    /**
-     *  Initialize WMI
-     *
-     *  @param instance WMI instance
-     *
-     *  @return Initialized ReYogaWMI instance
-     */
-    inline virtual IOService* initWMI(WMI *instance) {return nullptr;};
-
-    /**
-     *  Examine WMI
-     *
-     *  @param provider service provider
-     *
-     *  @return true if success
-     */
-    inline virtual bool examineWMI(IOService *provider) {return true;};
-
-    /**
-     *  Initialize VPC EC, get config and update status
-     *
-     *  @return true if success
-     */
+    virtual IOService *initWMI(WMI *) { return nullptr; }
+    virtual bool examineWMI(IOService *) { return true; }
+    virtual bool probeVPC(IOService *) { return true; }
+    virtual void updateVPC(UInt32 event = 0) {}
     virtual bool initVPC();
-
-    /**
-     *  Probe VPC
-     *
-     *  @param provider service provider
-     *
-     *  @return true if success
-     */
-    inline virtual bool probeVPC(IOService *provider) {return true;};
-
-    /**
-     *  Update VPC EC status
-     *
-     *  @param event Event ID
-     */
-    inline virtual void updateVPC(UInt32 event=0) {return;};
-
-    /**
-     *  Update all status
-     */
-    virtual void updateAll();
-
-    /**
-     *  Restore VPC EC status
-     */
     virtual bool exitVPC();
+    virtual void updateAll();
+    virtual void setPropertiesGated(OSObject *properties);
+    void setPropertyGated(const char *key, OSObject *rawValue);
+    virtual IOReturn accessPlatformFan(UInt32 fan, UInt32 request, UInt8 output[3]);
+    virtual IOReturn accessPlatformFanCurve(UInt32 fan, UInt32 request, UInt8 output[3]);
+    virtual IOReturn readPlatformFanRPM(UInt32 fan, UInt32 &rpm, UInt8 *control);
+    virtual void restorePlatformFans() {}
+    virtual void initPlatformControls() {}
+    virtual void exitPlatformControls() {}
+    virtual void exportACPITables();
 
-    virtual void setPropertiesGated(OSObject* props);
-
-    /**
-     *  Automatically turn off backlight mode on sleep
-     *  BIT 0 Keyboard backlight
-     *  BIT 1 Keyboard backlight on yoga mode
-     *  BIT 2 _SI._SST
-     *  BIT 3 Mute LED
-     *  BIT 4 Mic Mute LED
-     */
-    UInt32 automaticBacklightMode {0x17};
-
-    /**
-     *  Backlight mode capability, will be update on init
-     */
-    bool backlightCap {false};
-
-    /**
-     *  Backlight level
-     */
-    UInt32 backlightLevel {0};
-
-    /**
-     *  Saved backlight level for sleep, yoga mode change and timeout
-     */
-    UInt32 backlightLevelSaved {0};
-
-    /**
-     *  Backlight timeout
-     */
-    UInt32 backlightTimeout {0};
-
-    /**
-     *  Last backlight change timestamp for timeout
-     */
-    UInt64 backlightStimulation {0};
-
-    /**
-     *  Backlight poller
-     */
-    IOTimerEventSource* backlightPoller {nullptr};
-
-    /**
-     *  Action for backlight poller
-     */
-    void backlightRest(OSObject* owner, IOTimerEventSource* timer);
-
-    /**
-     *  Update keyboad backlight status
-     *
-     *  @param update true if triggered from hardware
-     *
-     *  @return true if success
-     */
-    inline virtual bool updateBacklight(bool update=false) {return false;};
-
-    /**
-     *  Set backlight mode
-     *
-     *  @return true if success
-     */
-    inline virtual bool setBacklight(UInt32 level) {return false;};
-
-    /**
-     *  Fn lock mode status
-     */
-    bool FnlockMode {false};
-
-    /**
-     *  Get FnLock status
-     *
-     *  @param update true if triggered from hardware
-     *
-     *  @return true if success
-     */
-    inline virtual bool updateFnLock(bool update=false) {return false;};
-
-    /**
-     *  Set FnLock status
-     *
-     *  @param enable enable FnLock mode
-     *
-     *  @return true if success
-     */
-    inline virtual bool setFnLock(bool enable) {return false;};
-
-    /**
-     *  Notify battery on conservation mode change
-     *
-     *  @return true if success
-     */
+    // Policy bits: sleep backlight, convertible backlight, _SST, mute, mic mute.
+    UInt32 automaticBacklightMode{0x17};
+    bool backlightCap{false};
+    UInt32 backlightLevel{0};
+    UInt32 backlightLevelSaved{0};
+    bool backlightAutomaticOff{false};
+    UInt32 backlightTimeout{0};
+    static constexpr UInt32 maximumBacklightTimeoutSeconds = 3600;
+    UInt64 backlightStimulation{0};
+    IOTimerEventSource *backlightPoller{nullptr}; // Owned event source.
+    virtual bool updateBacklight(bool logChanges = false) { return false; }
+    virtual bool setBacklight(UInt32 level) { return false; }
+    bool setUserBacklight(UInt32 level);
+    void rememberBacklight(UInt32 level);
+    void stimulateBacklight();
+    IOReturn setBacklightPowerState(unsigned long state, IOService *device);
+    bool FnlockMode{false};
+    virtual bool updateFnLock(bool logChanges = false) { return false; }
+    virtual bool setFnLock(bool enabled) { return false; }
     bool notifyBattery();
-
-    /**
-     *  Update DYTC status
-     *
-     *  @return true if success
-     */
     bool updateDYTC();
-
-    /**
-     *  Set DYTC status
-     *
-     *  @param funcmode Function mode
-     *  @param perfmode Performance mode
-     *
-     *  @return true if success
-     */
-    bool setDYTC(int funcmode, int perfmode);
-
-    /**
-     *  Wrapper for single param integer evaluation
-     *
-     *  @param objectName    ACPI method name
-     *  @param resultInt32  Pointer to result, skipped if null
-     *  @param paramInt32    Single integer param
-     *
-     *  @return kIOReturnSuccess if success
-     */
-    IOReturn evaluateIntegerParam(const char *objectName, UInt32 *resultInt32 , UInt32 paramInt32);
+    bool setDYTC(int function, int mode);
+    bool setThermalProfile(UInt32 profile);
+    IOReturn evaluateIntegerParam(const char *method, UInt32 *result, UInt32 argument);
 
 public:
-    virtual IOService *probe(IOService *provider, SInt32 *score) APPLE_KEXT_OVERRIDE;
+    IOService *probe(IOService *provider, SInt32 *score) APPLE_KEXT_OVERRIDE;
+    bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+    void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
+    void free() APPLE_KEXT_OVERRIDE;
+    IOReturn setProperties(OSObject *properties) APPLE_KEXT_OVERRIDE;
+    IOReturn message(UInt32 type, IOService *provider, void *argument) APPLE_KEXT_OVERRIDE;
+    IOReturn setPowerState(unsigned long state, IOService *device) APPLE_KEXT_OVERRIDE;
 
-    virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
-    virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
-
-    virtual IOReturn setProperties(OSObject* props) APPLE_KEXT_OVERRIDE;
-    virtual IOReturn message(UInt32 type, IOService *provider, void *argument) APPLE_KEXT_OVERRIDE;
-    virtual IOReturn setPowerState(unsigned long powerState, IOService * whatDevice) APPLE_KEXT_OVERRIDE;
-
-    /**
-     *  VPC UserClient
-     */
-    ReYogaSMCUserClient *client {nullptr};
-    IOReturn accessThinkFan(UInt32 fan, UInt32 requested, UInt8 output[3]);
+    ReYogaSMCUserClient *client{nullptr}; // Borrowed; cleared under commandGate.
+    // Keep the user-client and ThinkSMC entry points; other families fail closed.
+    IOReturn accessThinkFanCurve(UInt32 fan, UInt32 request, UInt8 output[3]);
+    IOReturn accessThinkFan(UInt32 fan, UInt32 request, UInt8 output[3]);
+    IOReturn readThinkFanRPM(UInt32 fan, UInt32 &rpm, UInt8 *control = nullptr);
     void restoreThinkFans();
     virtual void restoreUserControls() { restoreThinkFans(); }
 };
 
-#endif /* ReYogaVPC_hpp */
+#endif

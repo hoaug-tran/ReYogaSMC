@@ -1,5 +1,37 @@
 # Releases
 
+## 2.2.0
+
+### Added
+
+- Add ThinkPad Custom Curve with editable temperature points, levels 1-7 and Full Speed. Require fresh CPU temperature, EC read/write helpers and a driver watchdog; return to BIOS Auto when the curve stops and require an explicit restart after wake or reconnect.
+- Add ThinkPad SSDT generation and post-boot verification in Diagnostics. Validate captured ACPI tables and helper layouts, preserve existing patches and export DSL, AML and an analysis file. Installation remains manual.
+- Add automatic iasl download when no installed compiler is found. Use a pinned binary with SHA-256 verification and keep it in the app cache.
+- Add firmware-specific fan drafts, Full Speed fan toggle and power profile selector on Cooling page, and opt-in startup fan-mode restoration.
+- Add a shared laptop-name catalog, a separate ThinkPad System Settings shortcut and Reset to defaults for event mappings.
+
+### Fixed
+
+- Fix ThinkPad DYTC profile readback when CSC or CQL hides the active mode; preserve lap mode and keep profile controls available for retry.
+- Fix ThinkPad fan telemetry, mode readback and dual-fan selector recovery. Keep manual selections until Apply and detect individual battery addressing before offering battery selection.
+- Fix keyboard-backlight keypress recovery overriding explicit Off. Restore lighting only after idle timeout Off.
+- Fix control requests reporting success before pending readback completes. Validate current values and ranges before applying or restoring settings, and save only confirmed results.
+- Fix Legion, IdeaPad and LOQ profile matches, including 82EY, 82WQ and LOQ 15AHP9 83DX/NZCN. Model recognition does not enable unverified firmware writes.
+- Fix HP WMI string and sensor validation, RGB controller matching and RGB setting imports. Preserve LED IDs and legacy import aliases.
+- Fix stale Login Items errors after successful retries on macOS 11/12, and complete English/Vietnamese app menu and permission messages.
+
+### Changed
+
+- Reorganize app and driver code by responsibility. Separate views, hardware services, driver connections, platform backends, SMC and WMI code; update Xcode groups and build inputs.
+- Harden allocation cleanup, request queues, reconnect and shutdown handling. Keep diagnostics bounded and redact device identifiers.
+- Verify pinned build dependencies and package source manifests; include build provenance and archive checksums. Keep pull-request validation separate from publishing.
+- Expand production-code tests for controls, ACPI, fan recovery and device lifecycle. Rewrite setup, compatibility and hardware-tool documentation.
+
+### Thanks
+
+- Thanks @5T33Z0, @medkintos, @bimacakra30 and @froschwerk for testing, reporting issues and sharing diagnostics.
+- Special thanks to @5T33Z0 for the Cooling interface suggestions in #1.
+
 ## 2.1.0
 
 ### Driver

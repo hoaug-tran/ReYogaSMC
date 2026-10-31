@@ -1,7 +1,6 @@
 """Automated validation of all hardware profile JSON files in HardwareProfiles/"""
-import glob
 import json
-import os
+import pathlib
 import unittest
 
 REQUIRED_KEYS_COMMON = {
@@ -21,14 +20,16 @@ REQUIRED_KEYS_ACPI = {
     "native_telemetry"
 }
 
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
 class TestProfileSchemas(unittest.TestCase):
     def test_all_json_profiles(self):
-        profiles_dir = os.path.join(os.path.dirname(__file__), "..", "HardwareProfiles")
-        json_files = glob.glob(os.path.join(profiles_dir, "*.json"))
+        json_files = sorted((ROOT / 'HardwareProfiles').glob('*.json'))
         self.assertGreater(len(json_files), 0, "No profile JSON files found")
 
         for path in json_files:
-            filename = os.path.basename(path)
+            filename = path.name
             with self.subTest(file=filename):
                 with open(path, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -39,6 +40,7 @@ class TestProfileSchemas(unittest.TestCase):
                 self.assertEqual(data["schema_version"], 1)
                 self.assertIsInstance(data["id"], str)
                 self.assertIsInstance(data["name"], str)
+                self.assertIsInstance(data["sources"], list)
                 self.assertIn(data["kind"], ["acpi", "rgb"])
 
                 if data["kind"] == "acpi":
@@ -68,6 +70,20 @@ class TestProfileSchemas(unittest.TestCase):
                         self.assertTrue(data["reviewed_aml_hashes"])
                         for digest in data["reviewed_aml_hashes"]:
                             self.assertRegex(digest, r"^[a-f0-9]{64}$")
+
+    def test_unique_ids_and_embedded_hotkey_references(self):
+        profiles = [json.loads(path.read_text(encoding='utf-8')) for path in (ROOT / 'HardwareProfiles').glob('*.json')]
+        ids = [profile['id'] for profile in profiles]
+        self.assertEqual(len(ids), len(set(ids)))
+        hotkeys = []
+        for profile in profiles:
+            if 'hotkeys' in profile:
+                hotkeys.append(profile['hotkeys'])
+                self.assertIn(profile['id'], profile['hotkeys']['matchProfiles'])
+                self.assertTrue(set(profile['hotkeys']['matchProfiles']).issubset(ids))
+        self.assertTrue(hotkeys)
+        self.assertEqual(len({item['id'] for item in hotkeys}), len(hotkeys))
+
 
 if __name__ == "__main__":
     unittest.main()

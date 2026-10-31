@@ -1,59 +1,83 @@
-# ReYoga hardware tool
+# Hardware reports
 
-The tool exports evidence for firmware support and compiles an SSDT when a reviewed profile matches. It does not install tables, edit EFI, write EC registers or invoke arbitrary WMI methods.
+The hardware tool collects firmware tables and device information on Windows, macOS and Linux. When a reviewed profile matches, it can also generate and compile an SSDT bridge. It does not install tables, edit EFI or enable controls for unknown firmware.
 
-## Run the tool
+## Collect a report
 
-Install Python 3.9 or newer and run from a source checkout. On Windows, open `ReYoga.cmd`; it requests reviewed live getter probes and an EC snapshot. An unavailable backend is recorded as a collection error. On macOS, open `ReYoga.command`; you can enter the path to an ACPI dump or leave it blank for a runtime report. Command-line use works on Windows, macOS and Linux:
+Install Python 3.9 or newer and open a source checkout.
+
+| Platform | Launcher | Input |
+| --- | --- | --- |
+| Windows | `ReYoga.cmd` | Live device inventory, reviewed getter probes and an EC snapshot when available |
+| macOS | `ReYoga.command` | ACPI dump path, or leave it blank for a runtime report |
+| Any supported platform | Command below | Directory of tables or one AML/DAT/DSL file |
 
 ```sh
 python3 Scripts/hardware_support.py --acpi /path/to/tables --model My-Laptop
 ```
 
-| Option | Behavior |
-| :--- | :--- |
+Choose a new output directory. An existing export is not overwritten. Unavailable collectors are recorded as errors so the remaining report can still be used.
+
+## Options
+
+| Option | Purpose |
+| --- | --- |
 | `--acpi PATH` | Read a table directory or one AML/DAT/DSL file |
 | `--dsdt PATH` | Alias for one DSDT input |
-| `--model LABEL` | Set the generated SSDT filename label, limited to 32 characters |
-| `--output PATH` | Choose a new export directory; existing files are preserved |
-| `--iasl PATH` | Use your compiler |
+| `--model LABEL` | Set the SSDT filename label, up to 32 characters |
+| `--output PATH` | Use a new export directory |
+| `--iasl PATH` | Use a specific compiler |
 | `--offline` | Disable downloads |
-| `--source-only` | Export the reviewed SSDT without compiling it |
-| `--windows-live` | Collect reviewed Windows getter results, including output parameters and provider errors |
-| `--windows-report PATH` | Attach an existing Windows JSON report for offline review |
-| `--ec-read` | Capture the standard 256-byte EC space on Windows/Linux |
-| `--compile` | Request compiler setup for source input as well |
+| `--source-only` | Generate source without compiling |
+| `--compile` | Set up the compiler for source input too |
+| `--windows-live` | Collect reviewed Windows getter results and provider errors |
+| `--windows-report PATH` | Include an existing Windows JSON report |
+| `--ec-read` | Read the standard 256-byte EC space on Windows/Linux |
 
-With no compiler on PATH, Windows downloads the pinned ACPICA iasl executable. On macOS/Linux, the tool downloads verified ACPICA source and builds it. Those hosts need system C build tools installed once. Cache location: `~/.cache/reyoga/acpica`. Source/compiler failures are recorded so the rest of the report can still be reviewed.
+An installed `iasl` on PATH is used first. Otherwise:
 
-## Export contents
+- Windows downloads the pinned ACPICA executable.
+- macOS downloads the pinned Acidanthera/MaciASL binary.
+- Linux downloads ACPICA source and builds it with the system C compiler and `make`.
 
-The dated directory and ZIP contain `report.json`, `device-support.md`, copied DSDT/SSDT input and available disassembly. Unrelated tables, including licensing tables, are excluded. When fingerprints and required bridge data match a reviewed profile, the export also includes `SSDT-ReYoga-<model>.dsl` and compiled AML. The tool never generates a control profile for unmatched firmware.
+Downloads are checked against SHA-256 values in `Scripts/acpica.json`. The cache is `~/.cache/reyoga/acpica`. A corrupt cached executable is reported without replacement. Offline mode needs an installed or valid cached compiler. Compiler errors remain in the report.
 
-Windows inventory also preserves instance data and method parameter directions. Getter results include every returned output field, with failures recorded individually. The collector never invokes methods merely because they have no input parameters.
+## Exported files
 
-The report contains table hashes, checksum status, method declarations, literal operation regions, static field/bit offsets and decoded WMI GUID records. Windows adds model/BIOS, ACPI/USB devices and available WMI class qualifiers, method IDs and parameter metadata. macOS adds driver capabilities, sensor status, raw lighting/fan-boost states and the last correlated command result.
+The dated directory and ZIP contain:
 
-Literal field offsets identify declarations. They do not establish units, writable semantics or safe values. Dynamic expressions, aliases, banked/indexed fields and incomplete table dumps need review. Unknown firmware still gets an export, with generation marked unmatched.
+| File | Contents |
+| --- | --- |
+| `report.json` | Device information, table hashes, collector results and errors |
+| `device-support.md` | Summary for a device-support request |
+| DSDT/SSDT files | Copies of accepted input tables and available disassembly |
+| `SSDT-ReYoga-<model>.dsl` / `.aml` | Bridge source and compiled output, only when reviewed fingerprints and required fields match |
+| `ec-*.bin` | Complete EC snapshots when requested and available |
 
-Windows registry ACPI tables supplement the firmware API, including multiple SSDTs when present. Tables are checked for length and checksum and deduplicated by content. The firmware API cannot retrieve every repeated SSDT by signature. Supply a complete dump when companion SSDTs are required. On Linux, table access can require permission. On macOS, provide the dump or use the app's supported DSDT export.
+The report lists declared methods, literal operation regions, field offsets and WMI GUID records. An offset in a declaration does not establish its units or whether it is safe to write. Dynamic fields, aliases and incomplete dumps need review.
 
-ThinkPad does not need an IdeaPad/Legion bridge. An unmatched bridge result does not establish that ThinkPad hotkeys, battery thresholds or fan control are unsupported.
+Unrelated tables, including licensing tables, are excluded. Windows registry tables supplement the firmware API; repeated SSDTs are checked and deduplicated by content. Supply a complete dump when other tables are needed to resolve external references. On Linux, reading tables can require permission.
 
-## Live EC values
+ThinkPad helper generation is provided by the [macOS app](../README.md#thinkpad-acpi-helpers). An unmatched IdeaPad/Legion bridge does not mean ThinkPad controls are unsupported.
 
-Add `--ec-read` for a register snapshot. Linux reads `/sys/kernel/debug/ec/ec*/io` through `ec_sys`. If the interface is missing, load `ec_sys` with `write_support=0`, mount debugfs and run with read permission. The tool opens the interface read-only.
+## EC snapshots
 
-Windows requires the signed [PawnIO driver](https://pawnio.eu/) installed separately and administrator access. The tool downloads a pinned, checksum-verified [LpcACPIEC module](https://github.com/namazso/PawnIO.Modules/blob/main/LpcACPIEC.p) and uses the shared `Global\Access_EC` mutex. A disassembled EC declaration with standard ports 0x62/0x66 is required. It sends only ACPI READ transactions and stops after a timeout. Driver installation and Windows security settings are not changed.
+`--ec-read` captures the standard EC space sequentially. It is not an atomic snapshot and does not cover extended MMIO or banked vendor registers.
 
-`report.json` records the backend, timestamp, values and failures; complete snapshots also include `ec-*.bin`. These are sequential samples, not an atomic image. The standard space does not cover extended MMIO, indexed or banked vendor registers. A snapshot cannot establish which values safely control a feature. Compare exports from known operating states and review them with the ACPI declarations.
+### Linux
 
-The downloaded module is LGPL-2.1-or-later; its source and license are linked in `Scripts/pawnio.json`. Windows/Linux live collection still needs validation on those operating systems.
+The tool opens `/sys/kernel/debug/ec/ec*/io` read-only. If missing, load `ec_sys` with `write_support=0`, mount debugfs and grant the required read permission.
 
-## Sharing a report
+### Windows
 
-Read the export before publishing it. Device IDs, local paths and firmware tables can contain identifying information. The tool keeps reports local; submitting an issue or PR is your choice.
+Install the signed [PawnIO driver](https://pawnio.eu/) separately and run with administrator access. The tool downloads a pinned [LpcACPIEC module](https://github.com/namazso/PawnIO.Modules/blob/main/LpcACPIEC.p) and checks its checksum. It requires a disassembled EC declaration using standard ports `0x62`/`0x66`, uses the shared `Global\Access_EC` mutex and sends only ACPI READ transactions.
 
-Describe the exact model and BIOS, the feature, expected/actual behavior and AC/battery or sleep/wake differences. Do not repeat a command that caused shutdown. A maintainer must review field meaning and write safety before enabling a new control.
+The collector stops on timeout. It does not install drivers or change Windows security settings. Module source and LGPL-2.1-or-later license references are in `Scripts/pawnio.json`.
 
-For profile review and code changes, see [contributing](../CONTRIBUTING.md).
+## Share a report
+
+Read the export before attaching it to an issue. Firmware tables and inventory can contain device identifiers or local paths. Reports stay local until you share them.
+
+Include the exact model, BIOS, OS, app/kext versions, requested action and observed result. Note any difference between AC/battery or before/after sleep. Stop repeating a command that caused shutdown or loss of cooling.
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for profile changes and firmware validation.

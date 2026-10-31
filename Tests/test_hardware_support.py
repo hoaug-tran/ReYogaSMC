@@ -1,12 +1,16 @@
 """Profile trust boundaries and report recovery, without firmware calls."""
+import copy
 import hashlib
 import importlib.util
 import json
 import pathlib
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('hardware_support', ROOT / 'Scripts/hardware_support.py')
@@ -15,6 +19,73 @@ SPEC.loader.exec_module(support)
 
 
 class HardwareSupportTests(unittest.TestCase):
+    def test_existing_compiler_is_used_without_download(self):
+        with patch.object(support.shutil, 'which', return_value='/existing/iasl'), \
+             patch.object(support, 'download') as download:
+            self.assertEqual(support.compiler(), pathlib.Path('/existing/iasl'))
+            download.assert_not_called()
+
+    def test_macos_compiler_download_cache_and_offline_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = b'fixture compiler'
+            item = {'url': 'https://example.invalid/iasl', 'sha256': hashlib.sha256(data).hexdigest()}
+            lock = {'release': 'fixture', 'Darwin': {'iasl': item}}
+            cache = pathlib.Path(directory)
+            def download(_, target):
+                target.write_bytes(data)
+            with patch.object(support, 'CACHE', cache), \
+                 patch.object(support.shutil, 'which', return_value=None), \
+                 patch.object(support.platform, 'system', return_value='Darwin'), \
+                 patch.object(support.json, 'loads', return_value=lock), \
+                 patch.object(support, 'download', side_effect=download) as fetch:
+                with self.assertRaisesRegex(ValueError, 'offline'):
+                    support.compiler(offline=True)
+                fetch.assert_not_called()
+                compiler = support.compiler()
+                self.assertEqual(compiler.read_bytes(), data)
+                self.assertEqual(fetch.call_count, 1)
+                self.assertEqual(support.compiler(offline=True), compiler)
+                self.assertEqual(support.compiler(), compiler)
+                self.assertEqual(fetch.call_count, 1)
+                compiler.write_bytes(b'preserve corrupt cache')
+                with self.assertRaisesRegex(ValueError, 'checksum'):
+                    support.compiler()
+                self.assertEqual(compiler.read_bytes(), b'preserve corrupt cache')
+                self.assertEqual(fetch.call_count, 1)
+
+    def test_app_and_cli_pin_the_same_macos_compiler(self):
+        item = json.loads((ROOT / 'Scripts/acpica.json').read_text(encoding='utf-8'))['Darwin']['iasl']
+        source = (ROOT / 'ReYogaSMCApp/Hardware/ACPI/IASLCompiler.swift').read_text(encoding='utf-8')
+        self.assertEqual(re.search(r'static let downloadURL = "([^"]+)"', source).group(1), item['url'])
+        self.assertEqual(re.search(r'static let sha256 = "([^"]+)"', source).group(1), item['sha256'])
+
+    def test_report_pipeline_retains_sources_and_rejects_overwrite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            source = root / 'DSDT.dsl'
+            source.write_text('DefinitionBlock ("", "DSDT", 2, "TEST", "TEST", 1) {}', encoding='utf-8')
+            output = root / 'export'
+            command = [sys.executable, str(ROOT / 'Scripts/hardware_support.py'),
+                       '--acpi', str(source), '--output', str(output), '--offline', '--source-only']
+            with patch.object(support, 'inventory', return_value={}):
+                args = support.parse_arguments(command[2:])
+                tables = root / 'tables'
+                tables.mkdir()
+                report = {'errors': [], 'excluded_tables': [], 'acpi': []}
+                inputs = support.collect_tables(args, tables, report)
+                sources, combined, hashes = support.analyze_tables([], tables, report)
+            self.assertEqual(len(inputs), 1)
+            self.assertEqual(sources, inputs)
+            self.assertEqual(combined, source.read_text(encoding='utf-8'))
+            self.assertEqual(hashes, [])
+            self.assertEqual(report['acpi'][0]['normalized_sha256'], support.normalized_hash(combined))
+            output.mkdir()
+            sentinel = output / 'keep.txt'
+            sentinel.write_text('existing report', encoding='utf-8')
+            result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(sentinel.read_text(encoding='utf-8'), 'existing report')
+
     def test_reviewed_legion_battery_mapping_does_not_swap_charge_modes(self):
         profile = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text(encoding='utf-8'))
         # Lenovo Storage uses BTSM/bit 5; Quick uses QCHO/bit 2.
@@ -108,12 +179,72 @@ class HardwareSupportTests(unittest.TestCase):
             support.match_profile(source, [profile, profile])
 
     def test_shipped_bridge_refuses_unvalidated_writes(self):
-        for profile in support.profiles():
-            source = support.render(profile)
-            self.assertNotIn('{{', source)
-            self.assertEqual(profile.get('verified_writes', 0), 0)
-            self.assertIn('Method (RYVW, 0, Serialized) { Return (0) }', source)
-            self.assertIn('If (!RYVW ()) { Return (One) }', source)
+        complete = json.loads((ROOT / 'HardwareProfiles/legion7-16achg6.json').read_text(encoding='utf-8'))
+        fixture = copy.deepcopy(complete)
+        synthetic_source = 'Method (GBMD, 0, NotSerialized) { Return (Zero) }'
+        fixture['required_patterns'] = [r'Method \(GBMD, 0']
+        fixture['reviewed_dsdt_hashes'] = [support.normalized_hash(synthetic_source)]
+        fixture['verified_writes'] = 0
+        fixture['bridge_kind'] = 'raw-offsets'
+
+        telemetry = json.loads((ROOT / 'HardwareProfiles/ideapad-gaming3-gen5.json').read_text(encoding='utf-8'))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_root = pathlib.Path(tmp)
+            hp_dir = tmp_root / 'HardwareProfiles'
+            hp_dir.mkdir(parents=True)
+            shutil.copy(ROOT / 'HardwareProfiles/SSDT-ReYoga.template.dsl', hp_dir / 'SSDT-ReYoga.template.dsl')
+            (hp_dir / 'telemetry-only.json').write_text(json.dumps(telemetry), encoding='utf-8')
+
+            with patch.object(support, 'ROOT', tmp_root):
+                self.assertEqual(support.profiles(), [])
+                (hp_dir / 'legion-fixture.json').write_text(json.dumps(fixture), encoding='utf-8')
+                candidates = support.profiles()
+                self.assertEqual(len(candidates), 1)
+                self.assertEqual(candidates[0]['id'], fixture['id'])
+                self.assertEqual(support.match_profile(synthetic_source, candidates), fixture)
+
+                source = support.render(candidates[0])
+                self.assertNotIn('{{', source)
+                self.assertEqual(candidates[0].get('verified_writes', 0), 0)
+                self.assertIn('Method (RYVW, 0, Serialized) { Return (0) }', source)
+
+                # Defaulting without verified_writes also fails closed.
+                fixture_default = copy.deepcopy(fixture)
+                fixture_default.pop('verified_writes', None)
+                self.assertIn('Method (RYVW, 0, Serialized) { Return (0) }', support.render(fixture_default))
+
+                ryfs = re.search(r'Method\s*\(RYFS,\s*2,\s*Serialized\)\s*\{(.*?)\s*Method\s*\(RYFA', source, re.DOTALL)
+                self.assertIsNotNone(ryfs)
+                body = ryfs.group(1)
+                gate = 'If (!RYVW ()) { Return (One) }'
+                gate_pos = body.find(gate)
+                self.assertNotEqual(gate_pos, -1)
+                for unsafe in ('RYB0 =', 'RYB1 =', 'RYC0 =', 'RYC1 =', 'RYRC ()', 'RYA0 = One', 'RYA1 = One'):
+                    write_pos = body.find(unsafe)
+                    self.assertNotEqual(write_pos, -1)
+                    self.assertLess(gate_pos, write_pos)
+
+    def test_legion_review_exports_only_named_field_reads(self):
+        profile = next(p for p in support.profiles() if p['id'] == 'legion7-16achg6-gkcn')
+        digest = 'c803c21a14bd4063c7dd29ff3a11f3ac04c3aeb8552b89c075bbfff9899e1ed1'
+        source = ' '.join(['OEM ID "LENOVO"',
+                           'OperationRegion (ERAX, SystemMemory, 0xFE00D400, 0xFF)',
+                           'Method (WMB2, 3, NotSerialized)', 'Method (GBMD, 0, NotSerialized)',
+                           'Method (SBMC, 1, NotSerialized)',
+                           'QCBX, 1 QCHO, 1 BTSM, 1 CPUT, 8 GPUT, 8 FANS, 8 FA2S, 8 SPMO, 4'])
+        self.assertEqual(support.match_profile(source, [profile]), profile)
+        with self.assertRaises(ValueError):
+            support.match_profile('OEM ID "OTHER"', [profile])
+        bridge = support.render(profile)
+        for token in ('OperationRegion', 'RYFS', 'RYFA', 'RYFF', 'NCMD', '0xFE00D400'):
+            self.assertNotIn(token, bridge)
+        self.assertIn('Return (0x52590101)', bridge)
+        for field in ('FANS', 'FA2S', 'CPUT', 'GPUT'):
+            self.assertIn('.' + field + ', FieldUnitObj)', bridge)
+        self.assertIn('Return (FANS * 100)', bridge)
+        with self.assertRaises(ValueError):
+            support.render(dict(profile, verified_writes=1))
 
     def test_unknown_device_and_bad_compiler_still_export_evidence(self):
         with tempfile.TemporaryDirectory() as tmp:

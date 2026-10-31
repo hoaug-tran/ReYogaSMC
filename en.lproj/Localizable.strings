@@ -39,6 +39,11 @@
 "SETTINGS_LOGGING_HEADER" = "Diagnostics & logging";
 "SETTINGS_DETAILED_LOGGING" = "Detailed logging";
 "SETTINGS_DETAILED_LOGGING_DESC" = "Saves additional hardware samples to the app’s local diagnostic logs.";
+"SETTINGS_SHORTCUTS_HEADER" = "Keyboard shortcuts";
+"SETTINGS_RESET_SHORTCUTS_TITLE" = "Reset shortcuts to defaults";
+"SETTINGS_RESET_SHORTCUTS_DESC" = "Restores all Fn hotkey mappings (such as Fn+F9 opening System Settings) back to factory defaults.";
+"SETTINGS_RESET_SHORTCUTS_BUTTON" = "Reset";
+"Shortcuts reset to defaults" = "Shortcuts reset to defaults";
 
 "OVERVIEW_SECTION_TELEMETRY" = "Sensors";
 "OVERVIEW_SECTION_BATTERY" = "Battery";
@@ -69,6 +74,8 @@
 "COOLING_MANUAL_FAN_DESC" = "Set a minimum fan speed when a verified firmware interface is available.";
 "COOLING_LIVE_READINGS_NOTICE" = "Live temperatures, fan readings and power profiles are in Overview.";
 "COOLING_WHY_UNAVAILABLE" = "Why are these unavailable?";
+"COOLING_WHY_FAN_UNAVAILABLE" = "Why is fan control unavailable?";
+"COOLING_WHY_POWER_UNAVAILABLE" = "Why are CPU power limits unavailable?";
 "COOLING_RETRY" = "Retry";
 "COOLING_RESTORE_AUTO" = "Restore auto";
 "COOLING_APPLY" = "Apply";
@@ -142,6 +149,8 @@
 "DIAGNOSTICS_OPEN_LOGS" = "Open logs";
 "DIAGNOSTICS_GENERATE_BRIDGE" = "Generate ACPI bridge…";
 "DIAGNOSTICS_BRIDGE_DESC" = "The ACPI Bridge SSDT routes native fan and thermal registers directly to macOS when required.";
+"DIAGNOSTICS_GENERATE_THINKPAD_SSDT" = "Generate ThinkPad SSDT…";
+"DIAGNOSTICS_THINKPAD_SSDT_DESC" = "Analyze DSDT, SSDTs and live EC/HKEY helpers; compile only missing helpers with iasl. Preserve custom EC/battery patches and verify after reboot.";
 "DIAGNOSTICS_TOOLS_DESC" = "Inspect which interfaces the driver has verified, export diagnostics, or generate an ACPI bridge SSDT.";
 "DIAGNOSTICS_IDENTITY_HEADER" = "Identity & source";
 "DIAGNOSTICS_FIRMWARE_DEVICE" = "Firmware device";
@@ -173,7 +182,7 @@
 "BATTERY_CHARGE" = "Battery charge";
 "PERCENT_FORMAT" = "%d percent";
 "BATTERY_MACOS" = "macOS battery";
-"BATTERY_PACK_FORMAT" = "Battery %d — Lenovo ACPI";
+"BATTERY_PACK_FORMAT" = "Battery %d - Lenovo ACPI";
 "SOURCE_FORMAT" = "Source: %@";
 "RETAINED_FORMAT" = "%.1f%% of design";
 "THINKPAD_FANS" = "ThinkPad EC fans";
@@ -182,7 +191,7 @@
 "FAN_AUTO" = "Auto";
 "FAN_FULL_SPEED" = "Full speed";
 "FAN_LEVEL_FORMAT" = "Level %d";
-"FAN_INTERFACE_REQUIRED" = "Requires the ThinkPad EC read/write interface. No fan command is available.";
+"FAN_INTERFACE_REQUIRED" = "In Diagnostics, choose Generate ThinkPad SSDT…. Review the analysis, add the compiled AML in OpenCore ACPI → Add and reboot. Keep existing EC/battery patches. Then choose Verify ThinkPad SSDT.";
 "CHARGE_THRESHOLDS" = "Charge thresholds";
 "BATTERY_PRIMARY" = "Primary";
 "BATTERY_SECONDARY" = "Secondary";
@@ -217,8 +226,7 @@
 "ACPI backlight unavailable; RGB may use USB HID" = "ACPI backlight unavailable; RGB may use USB HID";
 "ACPI bridge" = "ACPI bridge";
 "ACPI bridge / precise EC RPM" = "ACPI bridge / precise EC RPM";
-"ACPI bridge source saved — compile and review before booting" = "ACPI bridge source saved — compile and review before booting";
-"ACPI bridge source saved. Install iasl to compile it." = "ACPI bridge source saved. Install iasl to compile it.";
+"ACPI bridge source saved - compile and review before booting" = "ACPI bridge source saved - compile and review before booting";
 "ACPI profile" = "ACPI profile";
 "ACPI profile discovery disabled by -reynobridge" = "ACPI profile discovery disabled by -reynobridge";
 "ACPI template contains unresolved fields" = "ACPI template contains unresolved fields";
@@ -233,7 +241,7 @@
 "AppleSMC service is unavailable" = "AppleSMC service is unavailable";
 "Applied colors and effects return when this app opens. Breathing and Spectrum run while it is open." = "Applied colors and effects return when this app opens. Breathing and Spectrum run while it is open.";
 "Applied minimum: %d RPM" = "Applied minimum: %d RPM";
-"Applied minimum: —" = "Applied minimum: —";
+"Applied minimum: -" = "Applied minimum: -";
 "Approve ReYogaSMC in System Settings → Login Items." = "Approve ReYogaSMC in System Settings → Login Items.";
 "Automatic fan restoration failed; inspect firmware and restart" = "Automatic fan restoration failed; inspect firmware and restart";
 "Automatic update checks: %@" = "Automatic update checks: %@";
@@ -289,7 +297,7 @@
 "Could not open %@: %@" = "Could not open %@: %@";
 "Could not open ReYogaSMC" = "Could not open ReYogaSMC";
 "Could not package diagnostics. Open Logs to inspect the local files." = "Could not package diagnostics. Open Logs to inspect the local files.";
-"Current %d W - Range %d–%d W - Step %d W" = "Current %d W - Range %d–%d W - Step %d W";
+"Current %d W - Range %d-%d W - Step %d W" = "Current %d W - Range %d-%d W - Step %d W";
 "Cycle count" = "Cycle count";
 "DSDT OEM vendor is not LENOVO; generic interfaces remain available" = "DSDT OEM vendor is not LENOVO; generic interfaces remain available";
 "DSDT checksum is invalid" = "DSDT checksum is invalid";
@@ -300,7 +308,6 @@
 "DSDT unavailable or outside the validated size range" = "DSDT unavailable or outside the validated size range";
 "DYTC desk thermal profiles unavailable" = "DYTC desk thermal profiles unavailable";
 "Detailed Logging: %@" = "Detailed logging: %@";
-"Device support: %@" = "Device support: %@";
 "Diagnostic report saved locally" = "Diagnostic report saved locally";
 "Direct colors have transport acknowledgement; color readback is unavailable" = "Direct colors have transport acknowledgement; color readback is unavailable";
 "Disabled" = "Disabled";
@@ -322,7 +329,7 @@
 "Event %@" = "Event %@";
 "Export hardware status and recent app logs locally. Review the archive before attaching it to an issue." = "Export hardware status and recent app logs locally. Review the archive before attaching it to an issue.";
 "Exported ACPI table is not a valid DSDT" = "Exported ACPI table is not a valid DSDT";
-"F1–F12 keys" = "F1–F12 keys";
+"F1-F12 keys" = "F1-F12 keys";
 "Factory" = "Factory";
 "Factory effects are selected with Fn+Space. The app releases RGB control." = "Factory effects are selected with Fn+Space. The app releases RGB control.";
 "Fan %@" = "Fan %@";
@@ -350,9 +357,9 @@
 "Firmware driver unavailable. Independent battery, SMC and USB RGB functions remain accessible." = "Firmware driver unavailable. Independent battery, SMC and USB RGB functions remain accessible.";
 "Firmware error" = "Firmware error";
 "Firmware identity sources disagree; model-specific access disabled" = "Firmware identity sources disagree; model-specific access disabled";
-"Firmware identity unverified • %@" = "Firmware identity unverified • %@";
+"Firmware identity unverified: %@" = "Firmware identity unverified: %@";
 "Firmware profile unavailable" = "Firmware profile unavailable";
-"Firmware profile unavailable • %@" = "Firmware profile unavailable • %@";
+"Firmware profile unavailable: %@" = "Firmware profile unavailable: %@";
 "Firmware readback matched" = "Firmware readback matched";
 "Firmware reports this capability unavailable" = "Firmware reports this capability unavailable";
 "Firmware state refreshed" = "Firmware state refreshed";
@@ -362,6 +369,7 @@
 "Fn+Space" = "Fn+space";
 "Fn-Q Cooling" = "Fn-Q cooling";
 "FnLock" = "FnLock";
+"Privacy Screen Guard" = "Privacy Screen Guard";
 "Fully charged" = "Fully charged";
 "GPU Overclock" = "GPU overclock";
 "GPU Power Limit" = "GPU power limit";
@@ -414,7 +422,7 @@
 "Lenovo firmware identity" = "Lenovo firmware identity";
 "Lighting capability record missing or query failed" = "Lighting capability record missing or query failed";
 "Live" = "Live";
-"Live • %@ ms" = "Live • %@ ms";
+"Live (%@ ms)" = "Live (%@ ms)";
 "Login item: %@" = "Login item: %@";
 "Logo" = "Logo";
 "Logo LED" = "Logo LED";
@@ -469,7 +477,7 @@
 "Notification registration failed" = "Notification registration failed";
 "OK" = "OK";
 "Off" = "Off";
-"Off — native media keys remain active." = "Off — native media keys remain active.";
+"Off - native media keys remain active." = "Off - native media keys remain active.";
 "On" = "On";
 "Original machine type or BIOS family unavailable; generic ACPI/WMI interfaces remain available" = "Original machine type or BIOS family unavailable; generic ACPI/WMI interfaces remain available";
 "PCI subsystem ID" = "PCI subsystem ID";
@@ -529,8 +537,7 @@
 "SMC key descriptor unavailable" = "SMC key descriptor unavailable";
 "SMC read failed: transport=0x%08x result=%u bytes=%u" = "SMC read failed: transport=0x%08x result=%u bytes=%u";
 "SSDT compilation failed. The source and compile.log are saved for inspection." = "SSDT compilation failed. The source and compile.log are saved for inspection.";
-"SSDT compiled — review it and add it to OpenCore before rebooting" = "SSDT compiled — review it and add it to OpenCore before rebooting";
-"Save ACPI source for review and compilation with iasl. It will not be installed." = "Save ACPI source for review and compilation with iasl. It will not be installed.";
+"SSDT compiled - review it and add it to OpenCore before rebooting" = "SSDT compiled - review it and add it to OpenCore before rebooting";
 "Saved mapping is paused: grant Accessibility and Input Monitoring, then enable it." = "Saved mapping is paused: grant Accessibility and Input Monitoring, then enable it.";
 "Screen Off" = "Screen off";
 "Screen On" = "Screen on";
@@ -549,16 +556,13 @@
 "Start with macOS: %@" = "Start with macOS: %@";
 "Static" = "Static";
 "Status" = "Status";
-"Stopped — error" = "Stopped — error";
+"Stopped - error" = "Stopped - error";
 "Strip" = "Strip";
-"Support report ready" = "Support report ready";
-"Support report ready — review and submit the issue" = "Support report ready — review and submit the issue";
-"Support repository URL is invalid" = "Support repository URL is invalid";
 "System Prefereces" = "System prefereces";
 "System Preferences" = "System preferences";
 "System battery" = "System battery";
 "Tablet Mode" = "Tablet mode";
-"Telemetry stale — check driver log" = "Telemetry stale — check driver log";
+"Telemetry stale - check driver log" = "Telemetry stale - check driver log";
 "Tent Mode" = "Tent mode";
 "The active driver has no validated manual fan control for this firmware" = "The active driver has no validated manual fan control for this firmware";
 "The active driver has no validated manual fan control for this firmware." = "The active driver has no validated manual fan control for this firmware.";
@@ -591,7 +595,7 @@
 "Touchpad Lock" = "Touchpad lock";
 "USB Charging" = "USB charging";
 "USB HID" = "USB HID";
-"USB HID • %@" = "USB HID • %@";
+"USB HID (%@)" = "USB HID (%@)";
 "USB RGB owns lighting" = "USB RGB owns lighting";
 "USB report transport only" = "USB report transport only";
 "USB transmission only; the device does not report the physical LED state" = "USB transmission only; the device does not report the physical LED state";
@@ -646,7 +650,7 @@
 "Expected JSON: zone -> LED name or ID -> #RRGGBB" = "Expected JSON: zone -> LED name or ID -> #RRGGBB";
 
 "Firmware profile not verified" = "Firmware profile not verified";
-"Firmware profile not verified • %@" = "Firmware profile not verified • %@";
+"Firmware profile not verified: %@" = "Firmware profile not verified: %@";
 
 "pci_matched" = "Matched by PCI subsystem ID";
 
@@ -665,3 +669,140 @@
 "PCI subsystem ID and DSDT OEM table matched" = "PCI subsystem ID and DSDT OEM table matched";
 
 "Machine type and DSDT OEM table matched" = "Machine type and DSDT OEM table matched";
+"Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC." = "Direct CPU power-limit control is not implemented or validated for this ThinkPad. Firmware-managed performance profiles may be available through DYTC.";
+"RGB JSON exceeds 256 KiB" = "RGB JSON exceeds 256 KiB";
+"DSDT source is not valid UTF-8" = "DSDT source is not valid UTF-8";
+"Fan status is unavailable. Try Auto or reconnect the driver." = "Fan status is unavailable. Try Auto or reconnect the driver.";
+"ACPI template SSDT-ThinkPad.template.dsl not found" = "ACPI template SSDT-ThinkPad.template.dsl not found";
+
+
+"The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT." = "The driver did not report valid EC and HKEY ACPI paths. Reconnect with a matching driver before generating an SSDT.";
+
+
+"Power profile readback unavailable. Refresh to retry." = "Power profile readback unavailable. Refresh to retry.";
+
+"Fan control mode" = "Fan control mode";
+
+"BIOS Auto" = "BIOS Auto";
+
+"Manual" = "Manual";
+
+"Custom Curve" = "Custom Curve";
+
+"CPU temperature curve" = "CPU temperature curve";
+
+"Fan level" = "Fan level";
+
+"Use increasing temperatures and fan levels, ending in Full Speed by 95°C." = "Use increasing temperatures and fan levels, ending in Full Speed by 95°C.";
+
+"Curve is experimental. Full Speed uses disengaged mode; calibrate on your laptop. Restart after sleep or reconnect." = "Curve is experimental. Full Speed uses disengaged mode; calibrate on your laptop. Restart after sleep or reconnect.";
+
+"Curve stopped; automatic recovery pending" = "Curve stopped; automatic recovery pending";
+
+"Level %d" = "Level %d";
+
+
+"Verify ThinkPad SSDT" = "Verify ThinkPad SSDT";
+"Analyzing running ACPI tables…" = "Analyzing running ACPI tables…";
+"Checking loaded SSDT and EC helpers…" = "Checking loaded SSDT and EC helpers…";
+"Driver connection changed; verify again." = "Driver connection changed; verify again.";
+"Analyze running ACPI tables and save only missing ThinkPad helpers. Requires iasl. Keep existing EC and battery patches." = "Analyze running ACPI tables and save only missing ThinkPad helpers. Requires iasl. Keep existing EC and battery patches.";
+"SSDT compiled. Review the analysis, install in OpenCore, reboot, then verify." = "SSDT compiled. Review the analysis, install in OpenCore, reboot, then verify.";
+"SSDT loaded, EC helpers and fan readback confirmed. Fan writes still require a hardware test." = "SSDT loaded, EC helpers and fan readback confirmed. Fan writes still require a hardware test.";
+"ACPI capture failed. Check driver permissions, Safe Mode and ACPIExportStatus." = "ACPI capture failed. Check driver permissions, Safe Mode and ACPIExportStatus.";
+"ACPI disassembly failed or timed out. Review the analysis report." = "ACPI disassembly failed or timed out. Review the analysis report.";
+"ACPI parent path escapes the root" = "ACPI parent path escapes the root";
+"ACPI scope nesting exceeds the analysis limit" = "ACPI scope nesting exceeds the analysis limit";
+"ACPI source exceeds 16 MiB" = "ACPI source exceeds 16 MiB";
+"ACPI table capture is empty or exceeds the analysis limit" = "ACPI table capture is empty or exceeds the analysis limit";
+"ACPI table length or checksum is invalid" = "ACPI table length or checksum is invalid";
+"ACPI token count exceeds the analysis limit" = "ACPI token count exceeds the analysis limit";
+"All ThinkPad helpers already exist; no SSDT is needed. Export diagnostics if fan access still fails." = "All ThinkPad helpers already exist; no SSDT is needed. Export diagnostics if fan access still fails.";
+"Combined ACPI source exceeds the analysis limit" = "Combined ACPI source exceeds the analysis limit";
+"Conflicting object or method argument count at %@" = "Conflicting object or method argument count at %@";
+"Generated SSDT is not loaded for this firmware. Check OpenCore ACPI Add and reboot." = "Generated SSDT is not loaded for this firmware. Check OpenCore ACPI Add and reboot.";
+"Inactive helper already exists in an ACPI table; review its condition and replace only the superseded helper table: %@" = "Inactive helper already exists in an ACPI table; review its condition and replace only the superseded helper table: %@";
+"Invalid ACPI namespace path: %@" = "Invalid ACPI namespace path: %@";
+"Live helper is absent from captured tables: %@" = "Live helper is absent from captured tables: %@";
+"Live namespace evidence is missing for %@" = "Live namespace evidence is missing for %@";
+"Missing ACPI declaration name" = "Missing ACPI declaration name";
+"No generated SSDT is recorded for this firmware." = "No generated SSDT is recorded for this firmware.";
+"No unique EC/HKEY relationship matches the running driver" = "No unique EC/HKEY relationship matches the running driver";
+"SSDT compilation failed. Review the analysis report." = "SSDT compilation failed. Review the analysis report.";
+"SSDT helpers are loaded but fan readback is unavailable. Export diagnostics and inspect ThinkFanStatus." = "SSDT helpers are loaded but fan readback is unavailable. Export diagnostics and inspect ThinkFanStatus.";
+"SSDT is loaded but its helpers or EC write capability are unavailable. Export diagnostics." = "SSDT is loaded but its helpers or EC write capability are unavailable. Export diagnostics.";
+"Selected EC is not identified as PNP0C09 in the captured tables" = "Selected EC is not identified as PNP0C09 in the captured tables";
+"Unbalanced ACPI source: %@" = "Unbalanced ACPI source: %@";
+"Unexpected ACPI table signature or size" = "Unexpected ACPI table signature or size";
+"Unterminated ACPI string or comment" = "Unterminated ACPI string or comment";
+"Update the driver to capture the running ACPI tables and namespace evidence." = "Update the driver to capture the running ACPI tables and namespace evidence.";
+
+"Firmware call failed" = "Firmware call failed";
+"Firmware identity" = "Firmware identity";
+"Native HFSP/HSPD fields do not match the fan-control and RPM layout reported by the driver. Export diagnostics for firmware review." = "Native HFSP/HSPD fields do not match the fan-control and RPM layout reported by the driver. Export diagnostics for firmware review.";
+"Curve watchdog: automatic fan restoration pending" = "Curve watchdog: automatic fan restoration pending";
+"Fan selector restoration pending; Auto recovery will retry with readback" = "Fan selector restoration pending; Auto recovery will retry with readback";
+"Fan selector recovery failed; automatic restoration remains pending" = "Fan selector recovery failed; automatic restoration remains pending";
+"Full Speed" = "Full Speed";
+"Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off." = "Connect a matching driver with ACPI analysis support and valid EC/HKEY paths. Safe Mode must be off.";
+"Custom Curve is not supported by this driver interface." = "Custom Curve is not supported by this driver interface.";
+"Safe Mode blocks fan control. Disable -reysafe and restart macOS." = "Safe Mode blocks fan control. Disable -reysafe and restart macOS.";
+"Update the app and kext, then reconnect to enable ThinkPad fan control." = "Update the app and kext, then reconnect to enable ThinkPad fan control.";
+"Manual fan control needs EC read/write helpers. Open Diagnostics → Generate ThinkPad SSDT… to check and add missing helpers." = "Manual fan control needs EC read/write helpers. Open Diagnostics → Generate ThinkPad SSDT… to check and add missing helpers.";
+"Fan access is paused pending selector recovery. Try Auto, then export diagnostics if recovery fails." = "Fan access is paused pending selector recovery. Try Auto, then export diagnostics if recovery fails.";
+"Custom Curve needs a driver watchdog. Update both the app and kext, then restart macOS." = "Custom Curve needs a driver watchdog. Update both the app and kext, then restart macOS.";
+"CPU temperature is unavailable or stale. Wait for a fresh reading before starting Custom Curve." = "CPU temperature is unavailable or stale. Wait for a fresh reading before starting Custom Curve.";
+"The driver connection is unavailable. Reconnect before starting Custom Curve." = "The driver connection is unavailable. Reconnect before starting Custom Curve.";
+"Fan controls are disabled by saved app preferences." = "Fan controls are disabled by saved app preferences.";
+"Reconnect the driver to initialize fan controls." = "Reconnect the driver to initialize fan controls.";
+"Open Diagnostics" = "Open Diagnostics";
+"Curve stopped: CPU temperature updates timed out." = "Curve stopped: CPU temperature updates timed out.";
+"Curve stopped: fan status or CPU temperature is unavailable." = "Curve stopped: fan status or CPU temperature is unavailable.";
+"Curve stopped: a fan command or its readback failed." = "Curve stopped: a fan command or its readback failed.";
+"Curve stopped: fan capability or fresh temperature is unavailable." = "Curve stopped: fan capability or fresh temperature is unavailable.";
+"Single battery platform" = "Single battery platform";
+"Unavailable while lap mode masks the thermal profile" = "Unavailable while lap mode masks the thermal profile";
+"Watchdog confirmed BIOS Auto" = "Watchdog confirmed BIOS Auto";
+"State-control interface advertised" = "State-control interface advertised";
+
+"Restore fan mode at startup" = "Restore fan mode at startup";
+
+"Unavailable while custom mode masks the thermal profile" = "Unavailable while custom mode masks the thermal profile";
+"Cached iasl is not executable. Remove the app's iasl cache and retry." = "Cached iasl is not executable. Remove the app's iasl cache and retry.";
+"Could not download iasl. Check your connection or set IASLPath to an existing compiler, then retry." = "Could not download iasl. Check your connection or set IASLPath to an existing compiler, then retry.";
+"iasl checksum or size validation failed. The compiler was not installed or executed." = "iasl checksum or size validation failed. The compiler was not installed or executed.";
+"Choose a different output file to preserve the original DSDT source." = "Choose a different output file to preserve the original DSDT source.";
+"The driver did not provide a valid current value for this control." = "The driver did not provide a valid current value for this control.";
+"Firmware readback did not match before the retry limit." = "Firmware readback did not match before the retry limit.";
+
+"Auto, Manual and Full Speed can be restored. Custom Curve keeps its draft and requires Start after restart or wake." = "Auto, Manual and Full Speed can be restored. Custom Curve keeps its draft and requires Start after restart or wake.";
+
+"Authorizing fan control…" = "Authorizing fan control…";
+
+"Authorize Fan Control…" = "Authorize Fan Control…";
+
+"Fan authorization failed (0x%08x). Reconnect the driver and retry authorization." = "Fan authorization failed (0x%08x). Reconnect the driver and retry authorization.";
+
+"The fan authorization helper is missing or invalid. Reinstall the app." = "The fan authorization helper is missing or invalid. Reinstall the app.";
+
+"Fan authorization requires a valid app signature. Reinstall a signed app build." = "Fan authorization requires a valid app signature. Reinstall a signed app build.";
+
+"Could not request administrator authorization." = "Could not request administrator authorization.";
+
+"Fan authorization was cancelled. Fan controls remain unavailable." = "Fan authorization was cancelled. Fan controls remain unavailable.";
+
+
+"Update the app and kext to use compatible fan authorization." = "Update the app and kext to use compatible fan authorization.";
+
+"Fan control permission was denied. Update both app and kext, then reconnect and authorize fan control." = "Fan control permission was denied. Update both app and kext, then reconnect and authorize fan control.";
+
+"Could not install the fan authorization helper (%@): %@" = "Could not install the fan authorization helper (%@): %@";
+"Read-only bridge cannot validate writes" = "Read-only bridge cannot validate writes";
+"Unsupported bridge kind" = "Unsupported bridge kind";
+"ACPI bridge / firmware RPM resolution" = "ACPI bridge / firmware RPM resolution";
+"Current fan mode: %@" = "Current fan mode: %@";
+"Auto, Manual, Custom Curve and Full Speed are restored automatically when valid thermal data is available." = "Auto, Manual, Custom Curve and Full Speed are restored automatically when valid thermal data is available.";
+"Set your own fan speeds based on temperature." = "Set your own fan speeds based on temperature.";
+"Waiting for fresh thermal readings before resuming curve…" = "Waiting for fresh thermal readings before resuming curve…";
+"Curve paused: waiting for valid CPU temperature readings." = "Curve paused: waiting for valid CPU temperature readings.";
+"Curve paused: thermal readings not available after wake." = "Curve paused: thermal readings not available after wake.";
