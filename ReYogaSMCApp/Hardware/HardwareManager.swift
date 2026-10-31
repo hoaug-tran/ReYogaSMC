@@ -837,9 +837,12 @@ extension HardwareManager {
         }
         guard service != 0, featureStatus[key]?.available == true else {
             let reason = featureStatus[key]?.reason ?? "Driver unavailable"
-            feedback(.control(key: key, target: target, title: title, failure: reason))
+            if !restoring {
+                feedback(.control(key: key, target: target, title: title, failure: reason))
+            }
             ReYogaDiagnostics.shared.record("control_unavailable", ["property": key, "reason": reason])
             dequeueControl()
+            if restoring { DispatchQueue.main.async { self.restoreNextControl() } }
             return
         }
         isApplying = true

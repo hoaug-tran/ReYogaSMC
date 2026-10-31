@@ -29,7 +29,11 @@ Native ACPI sensors use the [profile catalog](../HardwareProfiles/README.md). Ma
 
 Each sensor is checked separately. Failed native reads may use a supported WMI source. A model match does not enable raw-offset writes. Bridge generation needs a reviewed firmware fingerprint and complete bridge data; manual fan writes need separate write/recovery validation. Current ACPI profiles keep those writes disabled.
 
-Legion Game Zone controls vary by firmware. CPU power access is disabled by default, including getters. `-reycpupower` enables supported requests; range, step and readback checks still apply. Saved limits stay associated with the power profile that was edited.
+Legion Game Zone controls vary by firmware:
+- **Full Speed mode**: Older models (Y540, Y740) support `NCMD(0x59, 0x70)` and report non-zero fan cooling capability. On modern models (such as Legion 7 16ACHg6 with GKCN BIOS), Lenovo dropped this command from the EC firmware and reports capability `0x0C` as `0`. ReYogaSMC verifies capability `0x0C` and only exposes Full Speed when supported by firmware.
+- **Vapor chamber cooling on macOS**: Because the dedicated GPU is disabled on macOS (`SSDT-dGPU-OFF`), the GPU temperature sensor remains cold. The EC's dual-sensor fan curve keeps the GPU fan around low speed (~2500–2700 RPM) and limits the CPU fan (~3000–3500 RPM) to maintain acoustic thresholds. Because only one half of the vapor chamber is actively exhausted, CPU temperatures stay higher under load than on Windows.
+- **Manual fan curves**: Raw writes into the EC internal memory tables are intentionally disabled. Direct EC RAM modifications on Legion hardware risk immediate power-offs and thermal lockups.
+- **CPU power access**: Disabled by default, including getters. `-reycpupower` enables supported requests; range, step and readback checks still apply. Saved limits stay associated with the power profile that was edited.
 
 ## HP and Intel HID
 

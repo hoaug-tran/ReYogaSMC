@@ -418,6 +418,9 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
                 setProperty(fullFanPrompt, target != 0);
             return ecResult == 0 ? kIOReturnSuccess : kIOReturnIOError;
         }
+        UInt32 coolingCapability = 0;
+        if (wmig && wmig->getGameZoneData(GAME_ZONE_WMI_CAP_FAN_COOLING, &coolingCapability) && coolingCapability == 0)
+            return kIOReturnUnsupported;
         setProperty("FanFullSpeedCommandBackend", "WMI / firmware discards EC return status");
         bool res = wmig && wmig->setFanFullSpeed(target != 0);
         if (res) {
