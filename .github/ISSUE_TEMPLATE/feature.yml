@@ -1,0 +1,42 @@
+name: Feature Request
+description: Suggest an enhancement or new feature for ReYogaSMC driver or app.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to improve ReYogaSMC or ReYogaSMCApp? We would love to hear it!
+
+        For open-ended discussions or community brainstorming, consider starting a thread in [Discussions](https://github.com/hoaug-tran/ReYogaSMC/discussions/categories/ideas) first.
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Clear and concise description of what feature you would like to see added.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: What problem does this solve, or what workflow does it improve?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Proposed Solution or Alternatives
+      description: Describe any alternative solutions or features you have considered.
+    validations:
+      required: false
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Feature Scope
+      options:
+        - ReYogaSMCApp (Menu bar, Settings UI, HUD, Charts)
+        - ReYogaSMC.kext (Kernel driver, ACPI/WMI handling)
+        - VirtualSMC Plugins & Sensor Keys
+        - Hotkey & Event Handling
+        - Tooling & Scripts (SSDT Generator, Diagnostics)

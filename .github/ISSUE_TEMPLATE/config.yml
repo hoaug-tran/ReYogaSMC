@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Community Discussions & Hardware Q&A
+  - name: Community Discussions & Q&A
     url: https://github.com/hoaug-tran/ReYogaSMC/discussions
-    about: Ask questions, get help with OpenCore setup/SSDTs, or share your laptop experience.
+    about: Ask questions, get OpenCore/EFI setup advice, or discuss laptop configurations.
+  - name: Security Vulnerability Reporting
+    url: https://github.com/hoaug-tran/ReYogaSMC/security/policy
+    about: Privately report potential security vulnerabilities in ReYogaSMC.

@@ -1,30 +1,88 @@
-name: Bug report
-description: Report a reproducible driver or app problem.
-title: "[Bug] "
+name: Bug Report
+description: Report a bug, crash, or unexpected behavior in the kext or app.
+title: "[Bug]: "
+labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please make sure you are running the latest release of ReYogaSMC before submitting.
+
+        If this is a general question or setup advice, please use [GitHub Discussions](https://github.com/hoaug-tran/ReYogaSMC/discussions) instead.
   - type: input
     id: hardware
     attributes:
-      label: Model and BIOS
-      description: Exact model, machine type and firmware version.
+      label: Laptop Model & Machine Type
+      description: Exact model and machine type (from BIOS or System Information).
+      placeholder: e.g. Lenovo Legion 7 16ACHg6 (Type 82N6) / ThinkPad T490 (Type 20N3)
     validations:
       required: true
   - type: input
-    id: versions
+    id: bios
     attributes:
-      label: Software versions
-      description: macOS, ReYogaSMC kext/app and OpenCore versions.
+      label: BIOS Version
+      description: Firmware version reported by BIOS or System Information.
+      placeholder: e.g. GKCN60WW / N2IET95W (1.85)
+    validations:
+      required: true
+  - type: input
+    id: os-versions
+    attributes:
+      label: macOS, OpenCore & ReYogaSMC Versions
+      placeholder: e.g. macOS Sonoma 14.5, OpenCore 1.0.0, ReYogaSMC 2.2.0 (Release)
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Subsystem
+      options:
+        - Fan Control & Telemetry (RPM, Full Speed, Custom Curve)
+        - Battery & Charging (Conservation Mode, Rapid Charge, Thresholds)
+        - Power Profiles (DYTC Performance / Balanced / Quiet)
+        - Keyboard Backlight & Function Hotkeys
+        - Lighting & RGB (ITE USB RGB / Logo / Ports)
+        - Temperature Sensors (CPU / GPU / Ambient)
+        - ReYogaSMCApp UI & Settings
+        - Kernel Driver (Panic, Boot Loop, Sleep/Wake)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Bug
+      description: A clear and concise description of what the bug is, including expected vs actual behavior.
     validations:
       required: true
   - type: textarea
     id: reproduction
     attributes:
-      label: Steps and observed behavior
-      description: What you requested, what happened, what you expected, and whether AC/battery or sleep changes it. Do not repeat a command that caused shutdown.
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the problem.
+      placeholder: |
+        1. Open ReYogaSMC App
+        2. Navigate to Cooling
+        3. Toggle Full Speed
+        4. Observe error message / behavior
     validations:
       required: true
   - type: textarea
-    id: evidence
+    id: diagnostics
     attributes:
-      label: Diagnostics
-      description: Attach a reviewed report, correlated result and relevant logs. Remove private identifiers first.
+      label: Diagnostics & Logs
+      description: Please attach the diagnostic archive (ReYogaSMCApp -> Diagnostics -> Export diagnostics) or relevant Console / OpenCore logs.
+    validations:
+      required: false
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Checklist
+      options:
+        - label: I have verified that I am using the latest release of ReYogaSMC.
+          required: true
+        - label: I have checked the [Compatibility Guide](https://github.com/hoaug-tran/ReYogaSMC/blob/main/Docs/compatibility.md) for known limitations.
+          required: true
+        - label: I do not have conflicting legacy kexts loaded (YogaSMC.kext, ReYogaSMCAlter.kext, etc.).
+          required: true
+        - label: I have not repeatedly executed any control that caused an emergency system shutdown.
+          required: true
