@@ -42,9 +42,12 @@ func testFanCurvePolicy() {
     precondition(policy.sample(50, now: 101, points: curve) == 0x47)
     precondition(policy.sample(50, now: 110, points: curve) == 0x47)
     precondition(policy.sample(50, now: 111, points: curve) == 7, "Must step down incrementally to 7 rather than dropping to 4")
-    precondition(policy.sample(50, now: 120, points: curve) == 7)
-    precondition(policy.sample(50, now: 121, points: curve) == 5, "Must step down incrementally to 5")
-    precondition(policy.sample(50, now: 131, points: curve) == 4, "Must step down incrementally to 4")
+    precondition(policy.sample(50, now: 112, points: curve) == 7)
+    precondition(policy.sample(50, now: 121, points: curve) == 7)
+    precondition(policy.sample(50, now: 122, points: curve) == 5, "Must step down incrementally to 5")
+    precondition(policy.sample(50, now: 123, points: curve) == 5)
+    precondition(policy.sample(50, now: 132, points: curve) == 5)
+    precondition(policy.sample(50, now: 133, points: curve) == 4, "Must step down incrementally to 4")
 
     precondition(CurveStopReason.allCases.map { $0.rawValue } == [
         "user_or_lifecycle", "hardware_identity_changed", "temperature_timeout",
