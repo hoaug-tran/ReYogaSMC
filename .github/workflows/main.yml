@@ -1,15 +1,15 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/develop' }}
 jobs:
   test:
     name: Test (${{ matrix.os }})
@@ -19,17 +19,17 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v4.2.2
         with:
           persist-credentials: false
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v5.3.0
         with:
           python-version: '3.11'
       - name: Install ACPI compiler
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y acpica-tools
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y -qq acpica-tools
       - name: Test support tools and release policy
         run: python -B -m unittest discover -s Tests -p "test_*.py"
       - name: Check shared formatting rules
@@ -41,13 +41,18 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       publish: ${{ steps.version.outputs.publish }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v4.2.2
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Plan release
         id: version
         run: python3 Scripts/release.py plan
+      - name: Cache MacKernelSDK
+        uses: actions/cache@d4323d4df104b026a6aa633fdb11d772146be0bf # v4.2.2
+        with:
+          path: MacKernelSDK
+          key: ${{ runner.os }}-MacKernelSDK-${{ hashFiles('Scripts/dependencies.json') }}
       - name: Bootstrap locked dependencies
         run: bash Scripts/bootstrap.sh
       - name: Check support adapters
@@ -57,9 +62,9 @@ jobs:
           BUILD_VERSION: ${{ steps.version.outputs.version }}
         run: |
           python3 Scripts/release.py snapshot --snapshot build/Debug-source.json
-          xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Debug CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO > build/debug.log 2>&1 || { tail -n 100 build/debug.log; exit 1; }
+          xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Debug CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO -parallelizeTargets > build/debug.log 2>&1 || { tail -n 100 build/debug.log; exit 1; }
           python3 Scripts/release.py snapshot --snapshot build/Release-source.json
-          xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Release CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO > build/release.log 2>&1 || { tail -n 100 build/release.log; exit 1; }
+          xcodebuild -project ReYogaSMC.xcodeproj -target BuildAll -configuration Release CURRENT_PROJECT_VERSION="$BUILD_VERSION" CODE_SIGNING_ALLOWED=NO -parallelizeTargets > build/release.log 2>&1 || { tail -n 100 build/release.log; exit 1; }
       - name: Sign and verify apps
         run: |
           bash Scripts/sign-app.sh - build/Debug

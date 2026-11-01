@@ -123,10 +123,10 @@ class ProjectStructureTests(unittest.TestCase):
     def test_ci_routes_pr_and_main_without_duplicate_develop_push_builds(self):
         workflow = (ROOT / '.github/workflows/main.yml').read_text(encoding='utf-8')
         events = workflow.split('permissions:', 1)[0]
-        self.assertIn('push:\n    branches: [main]\n', events)
+        self.assertIn('push:\n    branches: [main, develop]\n', events)
         self.assertIn('pull_request:\n    branches: [main, develop]\n', events)
         self.assertIn('workflow_dispatch:', events)
-        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", workflow)
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/develop' }}", workflow)
 
     def test_brand_generator_updates_shipped_icns(self):
         generator = (ROOT / 'Scripts/render-brand.swift').read_text(encoding='utf-8')
