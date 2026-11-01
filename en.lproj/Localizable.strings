@@ -487,6 +487,7 @@
 "Per-key RGB" = "Per-key RGB";
 "Performance" = "Performance";
 "Performance (Reduced as lapmode active)" = "Performance (reduced as lapmode active)";
+"Performance (Reduced as thermal protection active)" = "Performance (reduced as thermal protection active)";
 "Photo Booth" = "Photo booth";
 "Port Lighting" = "Port lighting";
 "Power Profile" = "Power profile";

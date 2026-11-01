@@ -489,6 +489,7 @@
 "Per-key RGB" = "RGB từng phím";
 "Performance" = "Hiệu năng";
 "Performance (Reduced as lapmode active)" = "Hiệu năng (giảm khi đang đặt trên đùi)";
+"Performance (Reduced as thermal protection active)" = "Hiệu năng (giảm khi bảo vệ nhiệt hoạt động)";
 "Photo Booth" = "Photo Booth";
 "Port Lighting" = "Đèn cổng kết nối";
 "Power Profile" = "Chế độ hiệu năng";

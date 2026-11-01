@@ -17,8 +17,6 @@ Laptop sensors, hotkeys and hardware controls for macOS.
 
 ReYogaSMC is a fork of [YogaSMC](https://github.com/zhen-zen/YogaSMC) by [Zhen](https://github.com/zhen-zen). It includes a VirtualSMC plugin, Lenovo ACPI/WMI controls, HP WMI sensor support and a macOS app in English and Vietnamese.
 
-This branch contains changes for **2.2.0**. The release page provides the latest published build.
-
 <p align="center">
   <a href="Assets/Screenshots/overview.png"><img src="Assets/Screenshots/overview.png" alt="Temperatures, fan readings and battery status on a Lenovo Legion 7" width="900"></a>
 </p>
@@ -27,25 +25,25 @@ This branch contains changes for **2.2.0**. The release page provides the latest
 
 Features depend on the interfaces exposed by each laptop's firmware.
 
-| Device or interface | Functions |
-| --- | --- |
-| ThinkPad HKEY | Hotkeys, Fn Lock, keyboard backlight, charge thresholds, DYTC power profiles, mute LEDs and EC fan control |
-| IdeaPad, Yoga, Legion and LOQ | Battery conservation, rapid charge, power profiles, fan readings, backlight and USB power |
-| Legion Game Zone WMI | Full Speed, CPU power limits, display overdrive, touchpad/Win key lock and supported logo/port lights |
-| HP WMI and Intel HID | Mapped sensors and supported hotkey events |
-| AppleSmartBattery and AppleSMC | Battery capacity, health and electrical readings; available CPU/GPU temperatures |
-| ITE c968 USB RGB (`048d:c968`) | Lighting modes, zone colors and per-key color import |
+| Device or interface            | Functions                                                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| ThinkPad HKEY                  | Hotkeys, Fn Lock, keyboard backlight, charge thresholds, DYTC power profiles, mute LEDs and EC fan control |
+| IdeaPad, Yoga, Legion and LOQ  | Battery conservation, rapid charge, power profiles, fan readings, backlight and USB power                  |
+| Legion Game Zone WMI           | Full Speed, CPU power limits, display overdrive, touchpad/Win key lock and supported logo/port lights      |
+| HP WMI and Intel HID           | Mapped sensors and supported hotkey events                                                                 |
+| AppleSmartBattery and AppleSMC | Battery capacity, health and electrical readings; available CPU/GPU temperatures                           |
+| ITE c968 USB RGB (`048d:c968`) | Lighting modes, zone colors and per-key color import                                                       |
 
 The app groups controls into Overview, Device, Cooling, Battery, Lighting, Diagnostics and Settings. Battery, SMC temperatures and supported USB RGB controllers can work without a VPC driver connection. Updates are downloaded and installed manually.
 
 ### ThinkPad fan control
 
-| Mode | Action |
-| --- | --- |
-| BIOS Auto | Return fan control to firmware immediately |
-| Manual | Choose a fan level, then select Apply |
+| Mode         | Action                                                    |
+| ------------ | --------------------------------------------------------- |
+| BIOS Auto    | Return fan control to firmware immediately                |
+| Manual       | Choose a fan level, then select Apply                     |
 | Custom Curve | Edit temperature points and fan levels, then select Apply |
-| Full Speed | Request the firmware's Full Speed mode immediately |
+| Full Speed   | Request the firmware's Full Speed mode immediately        |
 
 Manual control needs working EC read/write helpers. Custom Curve also needs the driver watchdog and a fresh CPU temperature. The app must remain open while a curve runs. Sleep, lost readings, disconnect or app shutdown stops the curve and requests BIOS Auto. The driver watchdog also requests Auto if updates stop.
 
@@ -70,12 +68,12 @@ See [compatibility](Docs/compatibility.md) for control limits and unavailable st
 
 Screenshots show a Legion 7 16ACHg6 as an example. Other machines expose different controls.
 
-| Device | Battery |
-| --- | --- |
+| Device                                                                             | Battery                                                                               |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | [![Device controls](Assets/Screenshots/device.png)](Assets/Screenshots/device.png) | [![Battery readings](Assets/Screenshots/battery.png)](Assets/Screenshots/battery.png) |
 
-| Cooling | Lighting |
-| --- | --- |
+| Cooling                                                                               | Lighting                                                                                 |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | [![Cooling controls](Assets/Screenshots/cooling.png)](Assets/Screenshots/cooling.png) | [![Lighting controls](Assets/Screenshots/lighting.png)](Assets/Screenshots/lighting.png) |
 
 [![Diagnostics](Assets/Screenshots/diagnostics.png)](Assets/Screenshots/diagnostics.png)
@@ -97,12 +95,12 @@ Keep a working EFI backup before changing kexts or ACPI tables.
 
 1. Download the kext and app from [Releases](https://github.com/hoaug-tran/ReYogaSMC/releases/latest). Use RELEASE builds for normal use and DEBUG builds when collecting logs.
 
-   | Archive | Contents |
-   | --- | --- |
-   | `ReYogaSMC-<version>-RELEASE.zip` | Release kext |
-   | `ReYogaSMC-<version>-DEBUG.zip` | Debug kext |
-   | `ReYogaSMC-App-<version>-RELEASE.zip` | App and login helper |
-   | `ReYogaSMC-App-<version>-DEBUG.zip` | Debug app and login helper |
+   | Archive                               | Contents                   |
+   | ------------------------------------- | -------------------------- |
+   | `ReYogaSMC-<version>-RELEASE.zip`     | Release kext               |
+   | `ReYogaSMC-<version>-DEBUG.zip`       | Debug kext                 |
+   | `ReYogaSMC-App-<version>-RELEASE.zip` | App and login helper       |
+   | `ReYogaSMC-App-<version>-DEBUG.zip`   | Debug app and login helper |
 
    Download `SHA256SUMS.txt` alongside the archives and run `shasum -a 256 -c SHA256SUMS.txt`. Missing archives are reported separately; the archives you downloaded must match their checksums.
 
@@ -153,15 +151,15 @@ Other samples are listed in [ACPI patches](Docs/compatibility.md#acpi-patches). 
 
 ## Troubleshooting
 
-| Problem | Check |
-| --- | --- |
-| Driver missing | OpenCore entry, dependency order, matching versions and kernel log |
-| Temperature unavailable | Active sensor source in Diagnostics; add the appropriate optional SMC sensor plugin if needed |
-| Fan controls unavailable | EC helper status, driver protocol and Safe Mode; use the reason shown in Cooling |
-| Power profile read error | Refresh the connection and retry; export diagnostics if firmware still returns no valid mode |
-| Verify says no generated SSDT is recorded | Generate for this firmware first; follow the helper steps above |
-| Start with macOS needs approval | App location, signature and Login Items settings |
-| Hotkey mapping is inactive | Accessibility/Input Monitoring permissions and a supported mapping |
+| Problem                                   | Check                                                                                         |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Driver missing                            | OpenCore entry, dependency order, matching versions and kernel log                            |
+| Temperature unavailable                   | Active sensor source in Diagnostics; add the appropriate optional SMC sensor plugin if needed |
+| Fan controls unavailable                  | EC helper status, driver protocol and Safe Mode; use the reason shown in Cooling              |
+| Power profile read error                  | Refresh the connection and retry; export diagnostics if firmware still returns no valid mode  |
+| Verify says no generated SSDT is recorded | Generate for this firmware first; follow the helper steps above                               |
+| Start with macOS needs approval           | App location, signature and Login Items settings                                              |
+| Hotkey mapping is inactive                | Accessibility/Input Monitoring permissions and a supported mapping                            |
 
 Enable **Detailed Logging**, repeat the failing action once, then use **Diagnostics → Export diagnostics**. Review the archive before sharing it. Reports can include device identifiers, firmware tables and local paths.
 

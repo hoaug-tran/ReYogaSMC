@@ -117,6 +117,7 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
         return false;
 
     bool lapmode = false;
+    bool stpmode = false;
 
     OSDictionary *functionStatus = OSDictionary::withCapacity(16);
     if (!functionStatus) {
@@ -149,6 +150,8 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
                 if (func_status)
                     DebugLog("DYTC_FUNCTION_STP on");
                 ReYogaProperty::setBoolean(functionStatus, "STP", func_status);
+                ReYogaProperty::setBoolean(DYTCStatus, "stpmode", func_status);
+                stpmode = func_status;
                 break;
 
             case DYTC_FUNCTION_MMC:
@@ -196,10 +199,10 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
 
     unsigned readbackFunction = result.get.funcmode;
     ReYogaProperty::setString(DYTCStatus, "ReadbackSource", "DYTC GET");
-    if (readbackFunction == DYTC_FUNCTION_CQL || readbackFunction == DYTC_FUNCTION_CSC) {
+    if (readbackFunction == DYTC_FUNCTION_CQL || readbackFunction == DYTC_FUNCTION_CSC || readbackFunction == DYTC_FUNCTION_STP) {
         const bool mmcActive = (result.get.func_sta & DYTCCap & BIT(DYTC_FUNCTION_MMC)) != 0;
         const bool pscActive = (result.get.func_sta & DYTCCap & BIT(DYTC_FUNCTION_PSC)) != 0;
-        const bool mmcReadable = mmcActive || (readbackFunction == DYTC_FUNCTION_CSC && supportsMMCThermal());
+        const bool mmcReadable = mmcActive || ((readbackFunction == DYTC_FUNCTION_CSC || readbackFunction == DYTC_FUNCTION_STP) && supportsMMCThermal());
         const bool pscReadable = pscActive || (!supportsMMCThermal() && (DYTCCap & BIT(DYTC_FUNCTION_PSC)) != 0);
         UInt32 mode = 0;
         if (mmcActive && mmcGetCap) {
@@ -213,7 +216,7 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
                 }
             }
         }
-        if (readbackFunction == DYTC_FUNCTION_CQL || readbackFunction == DYTC_FUNCTION_CSC) {
+        if (readbackFunction == DYTC_FUNCTION_CQL || readbackFunction == DYTC_FUNCTION_CSC || readbackFunction == DYTC_FUNCTION_STP) {
             if (mmcReadable && evaluateNamedThermalMode("SMMC", &mode) &&
                 (mode == 0 || mode == DYTC_MODE_PERFORM || mode == DYTC_MODE_QUIET || mode == DYTC_MODE_BALANCE)) {
                 readbackFunction = DYTC_FUNCTION_MMC;
@@ -224,7 +227,17 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
                 readbackFunction = DYTC_FUNCTION_PSC;
                 result.get.perfmode = mode;
                 ReYogaProperty::setString(DYTCStatus, "ReadbackSource", "ACPI SPSC");
-            } else if (readbackFunction == DYTC_FUNCTION_CQL && !mmcActive && !pscActive) {
+            } else if (readbackFunction == DYTC_FUNCTION_STP && pscReadable) {
+                readbackFunction = DYTC_FUNCTION_PSC;
+                const UInt32 profile = (activeThermalProfile >= 1 && activeThermalProfile <= 3) ? activeThermalProfile : 2;
+                result.get.perfmode = pscThermalMode(profile);
+                ReYogaProperty::setString(DYTCStatus, "ReadbackSource", activeThermalProfile ? "Configured profile" : "Platform default profile");
+            } else if (readbackFunction == DYTC_FUNCTION_STP && mmcReadable) {
+                readbackFunction = DYTC_FUNCTION_MMC;
+                const UInt32 profile = (activeThermalProfile >= 1 && activeThermalProfile <= 3) ? activeThermalProfile : 2;
+                result.get.perfmode = profile == 1 ? DYTC_MODE_QUIET : profile == 2 ? DYTC_MODE_BALANCE : DYTC_MODE_PERFORM;
+                ReYogaProperty::setString(DYTCStatus, "ReadbackSource", activeThermalProfile ? "Configured profile" : "Platform default profile");
+            } else if ((readbackFunction == DYTC_FUNCTION_CQL || readbackFunction == DYTC_FUNCTION_STP) && !mmcActive && !pscActive) {
                 readbackFunction = DYTC_FUNCTION_STD;
                 ReYogaProperty::setString(DYTCStatus, "ReadbackSource", "DYTC function status");
             }
@@ -236,6 +249,8 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
         activeThermalProfile = 2;
         ReYogaProperty::setString(DYTCStatus, "FuncMode", "Standard");
         ReYogaProperty::setString(DYTCStatus, "PerfMode", "Balance");
+        if (!activeThermalProfile)
+            activeThermalProfile = 2;
         break;
 
     case DYTC_FUNCTION_CQL:
@@ -247,19 +262,33 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
         ReYogaProperty::setString(DYTCStatus, "FuncMode", lapmode ? "Lap" : "Desk");
         switch (result.get.perfmode) {
         case DYTC_MODE_PERFORM:
-            activeThermalProfile = 3;
-            ReYogaProperty::setString(DYTCStatus, "PerfMode", lapmode ? "Performance (Reduced as lapmode active)" : "Performance");
+            ReYogaProperty::setString(DYTCStatus, "PerfMode",
+                                      lapmode   ? "Performance (Reduced as lapmode active)"
+                                      : stpmode ? "Performance (Reduced as thermal protection active)"
+                                                : "Performance");
+            if (!lapmode && !stpmode)
+                activeThermalProfile = 3;
+            else if (!activeThermalProfile)
+                activeThermalProfile = 3;
             break;
 
         case DYTC_MODE_QUIET:
             activeThermalProfile = 1;
             ReYogaProperty::setString(DYTCStatus, "PerfMode", "Quiet");
+            if (!lapmode && !stpmode)
+                activeThermalProfile = 1;
+            else if (!activeThermalProfile)
+                activeThermalProfile = 1;
             break;
 
         case 0:
         case DYTC_MODE_BALANCE:
             activeThermalProfile = 2;
             ReYogaProperty::setString(DYTCStatus, "PerfMode", "Balance");
+            if (!lapmode && !stpmode)
+                activeThermalProfile = 2;
+            else if (!activeThermalProfile)
+                activeThermalProfile = 2;
             break;
 
         default:
@@ -278,14 +307,28 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
             (DYTCRevision < 9 && result.get.perfmode >= 1 && result.get.perfmode <= 4)) {
             activeThermalProfile = 1;
             ReYogaProperty::setString(DYTCStatus, "PerfMode", "Quiet");
+            if (!lapmode && !stpmode)
+                activeThermalProfile = 1;
+            else if (!activeThermalProfile)
+                activeThermalProfile = 1;
         } else if ((DYTCRevision >= 9 && result.get.perfmode == pscThermalMode(2)) ||
                    (DYTCRevision < 9 && result.get.perfmode >= 5 && result.get.perfmode <= 6)) {
             activeThermalProfile = 2;
             ReYogaProperty::setString(DYTCStatus, "PerfMode", "Balance");
+            if (!lapmode && !stpmode)
+                activeThermalProfile = 2;
+            else if (!activeThermalProfile)
+                activeThermalProfile = 2;
         } else if ((DYTCRevision >= 9 && result.get.perfmode == pscThermalMode(3)) ||
                    (DYTCRevision < 9 && result.get.perfmode >= 7 && result.get.perfmode <= 8)) {
-            activeThermalProfile = 3;
-            ReYogaProperty::setString(DYTCStatus, "PerfMode", lapmode ? "Performance (Reduced as lapmode active)" : "Performance");
+            ReYogaProperty::setString(DYTCStatus, "PerfMode",
+                                      lapmode   ? "Performance (Reduced as lapmode active)"
+                                      : stpmode ? "Performance (Reduced as thermal protection active)"
+                                                : "Performance");
+            if (!lapmode && !stpmode)
+                activeThermalProfile = 3;
+            else if (!activeThermalProfile)
+                activeThermalProfile = 3;
         } else {
             AlwaysLog(valueUnknown, DYTCPerfPrompt, result.get.perfmode);
             char Unknown[16];
@@ -297,6 +340,25 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
     case DYTC_FUNCTION_CSC:
         ReYogaProperty::setString(DYTCStatus, "FuncMode", "Custom");
         ReYogaProperty::setString(DYTCStatus, "PerfMode", "Unavailable while custom mode masks the thermal profile");
+        break;
+
+    case DYTC_FUNCTION_STP:
+        ReYogaProperty::setString(DYTCStatus, "FuncMode", "Skin");
+        switch (result.get.perfmode) {
+        case DYTC_MODE_PERFORM:
+            ReYogaProperty::setString(DYTCStatus, "PerfMode", "Performance (Reduced as thermal protection active)");
+            break;
+
+        case DYTC_MODE_QUIET:
+            ReYogaProperty::setString(DYTCStatus, "PerfMode", "Quiet");
+            break;
+
+        case 0:
+        case DYTC_MODE_BALANCE:
+        default:
+            ReYogaProperty::setString(DYTCStatus, "PerfMode", "Balance");
+            break;
+        }
         break;
 
     default:
@@ -312,6 +374,8 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
 
     if (lapmode)
         ReYogaProperty::setString(DYTCStatus, "FuncMode", "Lap");
+    else if (stpmode)
+        ReYogaProperty::setString(DYTCStatus, "FuncMode", "Skin");
     else if ((result.get.func_sta & DYTCCap & BIT(DYTC_FUNCTION_CSC)) != 0)
         ReYogaProperty::setString(DYTCStatus, "FuncMode", "Custom");
 

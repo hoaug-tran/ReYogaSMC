@@ -1,5 +1,13 @@
 # Releases
 
+## 2.2.1
+
+### Fixed
+
+- Fix ThinkPad DYTC power profile readback failure when Skin Temperature Protection (STP / Function 4) is triggered. Preserve the active configured profile, annotate reduced performance while thermal protection is active, and publish skin mode status.
+- Fix ThinkPad custom fan curve step-down to graduate levels incrementally across step delays, preventing thermal thrashing and heat buildup on chassis thermistors.
+- Hide unavailable GPU sensor telemetry in Overview, allowing CPU and fan readouts to expand and evenly divide the card width.
+
 ## 2.2.0
 
 ### Added

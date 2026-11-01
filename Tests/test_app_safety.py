@@ -89,4 +89,14 @@ class AppSafetyTests(unittest.TestCase):
         self.assertIn('HardwareProfiles.lightingOwnedByRGB', function(body, 'func ownsLighting('))
         self.assertNotIn('key == "YLogoStatus" || key == "PortLighting"', restore)
 
+    def test_overview_telemetry_hides_unavailable_gpu_and_distributes_tiles(self):
+        body = read('ReYogaSMCApp/Views/Components/TelemetrySummary.swift')
+        self.assertIn('HStack(spacing: 8)', body)
+        self.assertNotIn('LazyVGrid', body)
+        self.assertIn('if manager.gpuTemp > 0 {', body)
+        gpu_guard = body.split('if manager.gpuTemp > 0 {', 1)[1].split('}', 1)[0]
+        self.assertIn('thermalTile("GPU"', gpu_guard)
+        self.assertNotIn('isGPU', body)
+        self.assertNotIn('iGPU', body)
+
 if __name__ == '__main__': unittest.main()

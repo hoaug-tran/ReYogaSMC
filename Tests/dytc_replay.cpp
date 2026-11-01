@@ -91,7 +91,7 @@ struct ReYogaVPC {
     UInt16 DYTCCap = 0x7913;
     UInt8 DYTCRevision = 5;
     bool DYTCLock = false, disabled = false, mmcGetCap = false;
-    UInt32 activeThermalProfile{2};
+    UInt32 activeThermalProfile = 2;
     OSDictionary version, published, lastMutation, lastReadback;
     OSDictionary *DYTCVersion = &version;
     const char *setThermalControl = "DYTC";
@@ -145,6 +145,7 @@ int main(int argc, char **argv) {
             {5, 0x2013, 0x20015d01, "Balance"},
             {5, 0x2013, 0x0001f001, "Balance"},
             {5, 0x2013, 0x0001f101, "Balance"},
+            {5, 0x2013, 0x0011f401, "Balance"},
         };
         device.firmware.fieldsAvailable = false;
         for (const auto &capture : captures) {
@@ -273,6 +274,17 @@ int main(int argc, char **argv) {
         assert(device.parseDYTC(captured));
         assert(device.published.strings["PerfMode"] == "Balance");
         assert(device.published.strings["ReadbackSource"] == "DYTC function status");
+        device.activeThermalProfile = 3;
+        captured.raw = 0x0011f401;
+        assert(device.parseDYTC(captured));
+        assert(device.published.strings["PerfMode"] == "Performance (Reduced as thermal protection active)");
+        assert(device.published.strings["FuncMode"] == "Skin");
+        assert(device.published.numbers["stpmode"] == 1);
+        assert(device.published.strings["ReadbackSource"] == "Configured profile");
+        device.activeThermalProfile = 0;
+        assert(device.parseDYTC(captured));
+        assert(device.published.strings["PerfMode"] == "Balance");
+        assert(device.published.strings["ReadbackSource"] == "Platform default profile");
         device.firmware.fieldsAvailable = true;
         device.DYTCRevision = 9;
         for (unsigned profile : {1U, 2U, 3U}) {

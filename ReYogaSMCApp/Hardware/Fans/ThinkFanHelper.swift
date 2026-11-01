@@ -91,7 +91,16 @@ struct ThinkFanCurvePolicy {
         let threshold = points.first(where: { $0.level == current })?.temperature ?? 95
         guard temperature < Double(threshold - 3) else { lowerSince = nil; return current }
         if lowerSince == nil { lowerSince = now }
-        if now - (lowerSince ?? now) >= 10 { target = desired; lowerSince = nil }
+        if now - (lowerSince ?? now) >= 10 {
+            if let currentIndex = points.firstIndex(where: { $0.level == current }), currentIndex > 0 {
+                let desiredIndex = points.lastIndex(where: { temperature >= Double($0.temperature) }) ?? 0
+                let nextIndex = max(desiredIndex, currentIndex - 1)
+                target = points[nextIndex].level
+            } else {
+                target = desired
+            }
+            lowerSince = nil
+        }
         return target
     }
 }
