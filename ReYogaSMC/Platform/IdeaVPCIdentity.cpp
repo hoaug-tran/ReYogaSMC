@@ -347,6 +347,8 @@ void IdeaVPC::initBridge() {
         setProperty("ACPIBridgeReason", "Bridge requires a reviewed AML fingerprint and matching firmware identity");
     } else {
         removeProperty("ACPIBridgeReason");
+        if (ec && ec->validateObject("RYDM") == kIOReturnSuccess)
+            ec->evaluateObject("RYDM");
     }
 }
 

@@ -513,14 +513,6 @@ void IdeaVPC::updateTelemetry() {
         if (i == ReYogaSensor::CPU && ok) {
             cpuTempValue = value;
             hasCpuTemp = true;
-        } else if (i == ReYogaSensor::GPU && !ok && hasCpuTemp && cpuTempValue > 0) {
-            value = cpuTempValue;
-            ok = true;
-            source = "CPU thermal mirror";
-            if (legionBridge)
-                ec->evaluateObject("RYT1");
-            else
-                ec->evaluateObject("TGPU");
         }
         if (sources)
             ReYogaProperty::setString(sources, sensor.property, ok ? source : "Unavailable");
