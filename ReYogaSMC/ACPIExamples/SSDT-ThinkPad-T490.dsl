@@ -1,6 +1,6 @@
 // Lenovo ThinkPad T490 (Whiskey Lake / Comet Lake) Thermal Unlock SSDT
 // EC thermal offsets are firmware-specific; sensor fields are not added here.
-// Hooks \_SB.PCI0.PL1S to override 12W (0x60) VCSC penalty to 51W (0x0198) Desk Performance level.
+// Hooks \_SB.PCI0.PL1S to override 12W (0x60) VCSC penalty to 25W (0x00C8) cTDP-Up Performance level.
 // Requires OpenCore ACPI patch: Rename PL1S to XL1S (Base: \_SB.PCI0.PL1S).
 DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 {
@@ -138,7 +138,7 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 
                     If (Local0 == One)
                     {
-                        Arg0 = 0x0198
+                        Arg0 = 0x00C8
                     }
                 }
 
