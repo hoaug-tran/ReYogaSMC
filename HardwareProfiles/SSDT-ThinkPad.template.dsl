@@ -11,6 +11,11 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
     External ({{ EC_PATH }}.WE1B, MethodObj, UnknownObj, {IntObj, IntObj})
     External ({{ EC_PATH }}.RECB, MethodObj, BuffObj, {IntObj, IntObj})
     External ({{ EC_PATH }}.WECB, MethodObj, UnknownObj, {IntObj, IntObj, BuffObj})
+    External (\_SB.PCI0, DeviceObj)
+    External (\_SB.PCI0.PL1S, MethodObj)
+    External (\_SB.PCI0.XL1S, MethodObj)
+    External (SMMC, IntObj)
+    External (SPSC, IntObj)
 
     If (_OSI ("Darwin"))
     {
@@ -98,6 +103,45 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
                 {
                     WE1B ((Arg0 + Local1), DerefOf (Local2 [Local1]))
                     Local1++
+                }
+            }
+        }
+    }
+
+    Scope (\_SB.PCI0)
+    {
+        If (!CondRefOf (PL1S))
+        {
+            Method (PL1S, 1, NotSerialized)
+            {
+                If (Arg0 == 0x60)
+                {
+                    Local0 = Zero
+                    If (CondRefOf (\SMMC))
+                    {
+                        If (\SMMC == 0x02)
+                        {
+                            Local0 = One
+                        }
+                    }
+
+                    If (CondRefOf (\SPSC))
+                    {
+                        If ((\SPSC == 0x07) || (\SPSC == 0x08))
+                        {
+                            Local0 = One
+                        }
+                    }
+
+                    If (Local0 == One)
+                    {
+                        Arg0 = 0x0198
+                    }
+                }
+
+                If (CondRefOf (\_SB.PCI0.XL1S))
+                {
+                    \_SB.PCI0.XL1S (Arg0)
                 }
             }
         }

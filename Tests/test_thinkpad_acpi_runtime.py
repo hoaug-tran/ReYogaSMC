@@ -64,3 +64,60 @@ class ThinkPadACPIRuntimeTests(unittest.TestCase):
                     self.assertIn('[Integer] = 0000000000000028', output, 'All five helpers must remain methods')
                     if mode != 'none':
                         self.assertIn('[Integer] = 0000000000000042', output, 'Preserve original RE1B')
+
+    def test_thermal_unlock_pl1s_override(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder = pathlib.Path(directory)
+            template = (ROOT / 'HardwareProfiles/SSDT-ThinkPad.template.dsl').read_text(encoding='utf-8')
+            ssdt_source = template.replace('{{ EC_PATH }}', r'\_SB.PCI0.LPCB.EC').replace(
+                '{{ HKEY_PATH }}', r'\_SB.PCI0.LPCB.EC.HKEY')
+            (folder / 'ssdt.dsl').write_text(ssdt_source, encoding='utf-8')
+            res = subprocess.run(['iasl', '-p', str(folder / 'ssdt'), str(folder / 'ssdt.dsl')],
+                                 capture_output=True, text=True, timeout=15)
+            self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+
+            cases = [
+                (2, 0, 0x60, 0x0198, 'SMMC=2 overrides 0x60 to 0x0198'),
+                (0, 7, 0x60, 0x0198, 'SPSC=7 overrides 0x60 to 0x0198'),
+                (0, 8, 0x60, 0x0198, 'SPSC=8 overrides 0x60 to 0x0198'),
+                (1, 0, 0x60, 0x60, 'SMMC=1 preserves 0x60 intact'),
+                (0, 4, 0x60, 0x60, 'SPSC=4 preserves 0x60 intact'),
+                (2, 0, 0x28, 0x28, 'Emergency STP 0x28 preserved intact in Performance mode'),
+            ]
+
+            for smmc, spsc, in_val, exp_val, desc in cases:
+                with self.subTest(desc=desc):
+                    dsdt = f'''DefinitionBlock ("", "DSDT", 2, "TEST", "THINK", 1) {{
+                        Name (SMMC, {smmc:#x})
+                        Name (SPSC, {spsc:#x})
+                        Scope (\\_SB) {{
+                            Device (PCI0) {{
+                                Name (_HID, "PNP0A08")
+                                Name (LAST, Zero)
+                                Method (XL1S, 1, NotSerialized) {{
+                                    LAST = Arg0
+                                }}
+                                Device (LPCB) {{
+                                    Name (_HID, "PNP0A06")
+                                    Device (EC) {{
+                                        Name (_HID, "PNP0C09")
+                                        Device (HKEY) {{
+                                            Name (_HID, "LEN0068")
+                                        }}
+                                    }}
+                                }}
+                            }}
+                        }}
+                    }}'''
+                    (folder / 'dsdt.dsl').write_text(dsdt, encoding='utf-8')
+                    res = subprocess.run(['iasl', '-p', str(folder / 'dsdt'), str(folder / 'dsdt.dsl')],
+                                         capture_output=True, text=True, timeout=15)
+                    self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+                    cmd = f'load ssdt.aml; execute \\_SB.PCI0.PL1S {in_val:#x}; execute \\_SB.PCI0.LAST'
+                    result = subprocess.run(['acpiexec', '-b', cmd, 'dsdt.aml'], cwd=folder,
+                                            capture_output=True, text=True, timeout=15)
+                    output = result.stdout + result.stderr
+                    self.assertNotIn('AE_ALREADY_EXISTS', output)
+                    self.assertNotIn('AE_NOT_FOUND', output)
+                    expected_hex = f'{exp_val:016x}'
+                    self.assertIn(f'[Integer] = {expected_hex}', output, f'Expected LAST to be {exp_val:#x}')

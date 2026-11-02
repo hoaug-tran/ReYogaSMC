@@ -269,8 +269,32 @@ struct ThinkPadACPI {
         let text = NSMutableString(string: rendered)
         for object in remove.sorted(by: { $0.range.location > $1.range.location }) { text.deleteCharacters(in: object.range) }
         rendered = (text as String).replacingOccurrences(of: #"If\s*\(!CondRefOf\s*\([A-Z0-9_]+\)\)\s*\{\s*\}"#, with: "", options: .regularExpression)
+        let pl1sDefinition = objects.first { ($0.path == "_SB.PCI0.PL1S" || $0.path == "_SB.PC00.PL1S") && $0.kind == "Method" }
+        let xl1sDefinition = objects.first { ($0.path == "_SB.PCI0.XL1S" || $0.path == "_SB.PC00.XL1S") && $0.kind == "Method" }
+        var thermalUnlock: [String: Any] = [
+            "supported": pl1sDefinition != nil || xl1sDefinition != nil,
+            "method": pl1sDefinition?.path != nil ? ("\\" + pl1sDefinition!.path) : (xl1sDefinition?.path != nil ? ("\\" + xl1sDefinition!.path) : "\\_SB.PCI0.PL1S"),
+            "status": pl1sDefinition != nil ? "patchRequired" : (xl1sDefinition != nil ? "patched" : "unavailable"),
+            "deskPowerLevel": 0x0198
+        ]
+        if let pl1s = pl1sDefinition {
+            thermalUnlock["patch"] = [
+                "Comment": "Rename PL1S to XL1S",
+                "Find": "504C315301",
+                "Replace": "584C315301",
+                "Count": 1,
+                "Enabled": true,
+                "Base": "",
+                "TableSignature": "44534454"
+            ]
+        }
+        var activeWarnings = warnings
+        if let pl1s = pl1sDefinition {
+            activeWarnings.append(pl1s.table + ": PL1S thermal method detected: enable OpenCore ACPI patch 'Rename PL1S to XL1S' to prevent 12W throttling under custom fan curves.")
+        }
         let report: [String: Any] = ["schemaVersion": 1, "ecPath": "\\" + ec, "hkeyPath": "\\" + hkey,
-            "helpers": evidence, "added": missing, "preserved": preserve, "warnings": warnings, "fanLayout": layout,
+            "helpers": evidence, "added": missing, "preserved": preserve, "warnings": activeWarnings, "fanLayout": layout,
+            "thermalUnlock": thermalUnlock,
             "validation": "Static namespace and live existence checked; compilation and post-reboot readback still required.",
             "regions": objects.filter { $0.kind == "OperationRegion" && $0.path.hasPrefix(ec + ".") }.map {
                 ["path": "\\" + $0.path, "table": $0.table, "line": $0.line, "declaration": $0.value.joined(separator: " ")]
