@@ -124,4 +124,19 @@ class AppSafetyTests(unittest.TestCase):
         will_sleep = function(app_delegate, 'func systemWillSleep(')
         self.assertIn('driver.prepareForSleep()', will_sleep)
 
+    def test_thinkpad_acpi_export_disassembly_contracts(self):
+        body = read('ReYogaSMCApp/Hardware/ACPI/ACPIExport.swift')
+        export = function(body, 'static func exportThinkPadSSDT(')
+        self.assertIn('4 * 1024 * 1024', export)
+        self.assertIn('let isDSDT = (index == 0)', export)
+        self.assertIn('["-dl", "-d", input]', export)
+        self.assertIn('let dsdtPath = inputs[0]', export)
+        self.assertIn('["-dl", "-e", dsdtPath, "-d", input]', export)
+        self.assertIn('AE_ALREADY_EXISTS', export)
+        self.assertIn('hasValidArtifact', export)
+        self.assertIn('size.intValue > 0', export)
+        self.assertNotIn('disassembly["state"] as? String == "completed"', export)
+        self.assertIn('report["warnings"]', export)
+        self.assertIn('Failed to disassemble', export)
+
 if __name__ == '__main__': unittest.main()
