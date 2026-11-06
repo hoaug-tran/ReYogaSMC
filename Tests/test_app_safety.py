@@ -99,4 +99,29 @@ class AppSafetyTests(unittest.TestCase):
         self.assertNotIn('isGPU', body)
         self.assertNotIn('iGPU', body)
 
+    def test_sleep_and_wake_lifecycle_wiring(self):
+        manager = read('ReYogaSMCApp/Hardware/HardwareManager.swift')
+        prepare_sleep = function(manager, 'public func prepareForSystemSleep(')
+        self.assertIn('guard !isShuttingDown else { return }', prepare_sleep)
+        self.assertIn('ReYogaDiagnostics.shared.record("system_sleep"', prepare_sleep)
+        self.assertIn('stopMonitoring()', prepare_sleep)
+
+        restore_wake = function(manager, 'public func restoreAfterWake(')
+        self.assertIn('guard !isShuttingDown else { return }', restore_wake)
+        self.assertIn('startMonitoring()', restore_wake)
+
+        driver = read('ReYogaSMCApp/Application/DriverConnection.swift')
+        driver_sleep = function(driver, 'func prepareForSleep(')
+        self.assertIn('fanHelper?.prepareForSleep(savePreference: save)', driver_sleep)
+        self.assertIn('fanHelper2?.prepareForSleep(savePreference: save)', driver_sleep)
+        self.assertIn('manager.prepareForSystemSleep()', driver_sleep)
+
+        app_delegate = read('ReYogaSMCApp/Application/AppDelegate.swift')
+        status_item = function(app_delegate, 'func setupStatusItem(')
+        self.assertIn('NSWorkspace.willSleepNotification', status_item)
+        self.assertIn('systemWillSleep', status_item)
+
+        will_sleep = function(app_delegate, 'func systemWillSleep(')
+        self.assertIn('driver.prepareForSleep()', will_sleep)
+
 if __name__ == '__main__': unittest.main()

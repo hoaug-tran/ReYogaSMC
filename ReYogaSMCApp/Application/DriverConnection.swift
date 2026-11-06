@@ -16,7 +16,6 @@ final class DriverConnection: NSObject {
     private var driverInterest: io_object_t = 0
     private var connectionGeneration: UInt64 = 0
     private var thinkWakeObserver: NSObjectProtocol?
-    private var thinkSleepObserver: NSObjectProtocol?
     private var fanHelper: ThinkFanHelper?
     private var fanHelper2: ThinkFanHelper?
 
@@ -137,8 +136,6 @@ final class DriverConnection: NSObject {
         fanHelper = nil; fanHelper2 = nil
         if let observer = thinkWakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
         thinkWakeObserver = nil
-        if let observer = thinkSleepObserver { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
-        thinkSleepObserver = nil
         NotificationCenter.default.removeObserver(self, name: VolumeObserver.volumeChanged, object: nil)
         DistributedNotificationCenter.default.removeObserver(self, name: NSNotification.Name("com.apple.sound.settingsChangedNotification"), object: nil)
         if context.connect != 0 {
@@ -169,11 +166,6 @@ final class DriverConnection: NSObject {
             }
 
             thinkWakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.thinkWakeup() }
-            thinkSleepObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-                let save = self?.defaults.bool(forKey: "SaveFanLevel") ?? false
-                self?.fanHelper?.prepareForSleep(savePreference: save)
-                self?.fanHelper2?.prepareForSleep(savePreference: save)
-            }
 
             if defaults.bool(forKey: "ThinkMuteLEDFixup") {
                 NotificationCenter.default.addObserver(
@@ -310,6 +302,13 @@ final class DriverConnection: NSObject {
             let value = getNumber(key, context.service)
             if (0...upperBound).contains(value) { defaults.set(value, forKey: key) }
         }
+    }
+
+    func prepareForSleep() {
+        let save = defaults.bool(forKey: "SaveFanLevel")
+        fanHelper?.prepareForSleep(savePreference: save)
+        fanHelper2?.prepareForSleep(savePreference: save)
+        manager.prepareForSystemSleep()
     }
 
     @objc private func thinkWakeup() {

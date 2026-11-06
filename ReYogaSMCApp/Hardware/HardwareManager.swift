@@ -800,6 +800,13 @@ extension HardwareManager {
             return
         }
     }
+
+    public func prepareForSystemSleep() {
+        guard !isShuttingDown else { return }
+        ReYogaDiagnostics.shared.record("system_sleep", ["generation": connectionGeneration])
+        stopMonitoring()
+    }
+
     public func restoreAfterWake() {
         guard !isShuttingDown else { return }
         restoreOrigin = "wake"
@@ -808,6 +815,7 @@ extension HardwareManager {
         restoredPreferenceIdentity = nil
         if rgbStatus.available { retryRGBDiscovery() }
         refreshAll()
+        startMonitoring()
     }
 
     private func dequeueControl() {
