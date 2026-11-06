@@ -34,11 +34,13 @@ class ACPISafetyTests(unittest.TestCase):
         # 4. Artifact-based validation (dsl exists and size > 0, not exit code == 0)
         self.assertIn('hasValidArtifact', export)
         self.assertIn('size.intValue > 0', export)
+        self.assertIn('isDisassemblyCompleted', export)
         self.assertNotIn('disassembly["state"] as? String == "completed"', export)
 
         # 5. Fault tolerance for secondary tables: warnings instead of fatal errors
         self.assertIn('report["warnings"]', export)
         self.assertIn('Failed to disassemble', export)
+        self.assertIn('state == "timeout"', export)
 
     @unittest.skipUnless(shutil.which('iasl'), 'iasl compiler required')
     def test_iasl_two_tier_disassembly_and_collision_fallback(self):

@@ -144,6 +144,14 @@ enum ACPIExport {
                     }
                     return size.intValue > 0
                 }
+                func isDisassemblyCompleted(_ disassembly: [String: Any], dslURL: URL) -> Bool {
+                    guard hasValidArtifact(dslURL) else { return false }
+                    let state = disassembly["state"] as? String
+                    if state == "timeout" || state == "launch_failed" || state == "output_limit" {
+                        return false
+                    }
+                    return true
+                }
                 let dsdtPath = inputs[0]
                 for (index, input) in inputs.enumerated() {
                     let dslURL = URL(fileURLWithPath: input).deletingPathExtension().appendingPathExtension("dsl")
@@ -171,7 +179,7 @@ enum ACPIExport {
                         disassembly["stderrText"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".stderr.txt"), encoding: .utf8)) ?? ""
                         disassemblies.append(disassembly)
                         report["disassembly"] = disassemblies
-                        guard hasValidArtifact(dslURL) else {
+                        guard isDisassemblyCompleted(disassembly, dslURL: dslURL) else {
                             throw SupportError.message("ACPI disassembly failed or timed out. Review the analysis report.")
                         }
                         let source = try HardwareProfiles.readDSDTSource(dslURL)
@@ -182,11 +190,13 @@ enum ACPIExport {
                         try namespace.add(source, table: URL(fileURLWithPath: input).lastPathComponent)
                     } else {
                         var succeeded = false
-                        do {
-                            let arguments = ["-dl", "-e", dsdtPath, "-d", input]
+                        let tier1Result = Result {
+                            try DiagnosticCollector.run(compiler.path, ["-dl", "-e", dsdtPath, "-d", input],
+                                name: String(format: "disassembly-%03d", index), folder: folder,
+                                timeout: min(15, remaining), maximumBytes: maximumBytesPerStream)
+                        }
+                        if case .success(var disassembly) = tier1Result {
                             let name = String(format: "disassembly-%03d", index)
-                            var disassembly = try DiagnosticCollector.run(compiler.path, arguments,
-                                name: name, folder: folder, timeout: min(15, remaining), maximumBytes: maximumBytesPerStream)
                             let stdout = (try? String(contentsOf: folder.appendingPathComponent(name + ".txt"), encoding: .utf8)) ?? ""
                             let stderr = (try? String(contentsOf: folder.appendingPathComponent(name + ".stderr.txt"), encoding: .utf8)) ?? ""
                             disassembly["stdoutText"] = stdout
@@ -195,25 +205,31 @@ enum ACPIExport {
                             report["disassembly"] = disassemblies
 
                             let collision = (stdout + "\n" + stderr).contains("AE_ALREADY_EXISTS")
-                            if hasValidArtifact(dslURL) && !collision {
+                            if isDisassemblyCompleted(disassembly, dslURL: dslURL) && !collision {
                                 succeeded = true
-                            } else {
-                                try? FileManager.default.removeItem(at: dslURL)
-                                let fallbackRemaining = 60 - (ProcessInfo.processInfo.systemUptime - disassemblyStarted)
-                                if fallbackRemaining > 0 {
-                                    let fallbackArgs = ["-dl", "-d", input]
-                                    let fallbackName = String(format: "disassembly-%03d-fallback", index)
-                                    var fallbackDisassembly = try DiagnosticCollector.run(compiler.path, fallbackArgs,
+                            }
+                        }
+
+                        if !succeeded {
+                            try? FileManager.default.removeItem(at: dslURL)
+                            let fallbackRemaining = 60 - (ProcessInfo.processInfo.systemUptime - disassemblyStarted)
+                            if fallbackRemaining > 0 {
+                                let fallbackName = String(format: "disassembly-%03d-fallback", index)
+                                let fallbackResult = Result {
+                                    try DiagnosticCollector.run(compiler.path, ["-dl", "-d", input],
                                         name: fallbackName, folder: folder, timeout: min(15, fallbackRemaining), maximumBytes: maximumBytesPerStream)
+                                }
+                                if case .success(var fallbackDisassembly) = fallbackResult {
                                     fallbackDisassembly["stdoutText"] = (try? String(contentsOf: folder.appendingPathComponent(fallbackName + ".txt"), encoding: .utf8)) ?? ""
                                     fallbackDisassembly["stderrText"] = (try? String(contentsOf: folder.appendingPathComponent(fallbackName + ".stderr.txt"), encoding: .utf8)) ?? ""
                                     disassemblies.append(fallbackDisassembly)
                                     report["disassembly"] = disassemblies
-                                    succeeded = hasValidArtifact(dslURL)
+                                    succeeded = isDisassemblyCompleted(fallbackDisassembly, dslURL: dslURL)
                                 }
                             }
-                        } catch {
-                            // Secondary table disassembly failure handled via warning
+                            if !succeeded {
+                                try? FileManager.default.removeItem(at: dslURL)
+                            }
                         }
 
                         if succeeded {
