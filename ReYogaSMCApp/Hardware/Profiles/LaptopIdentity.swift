@@ -1,5 +1,8 @@
 import Foundation
 import IOKit
+#if canImport(Darwin)
+import Darwin
+#endif
 
 struct LaptopIdentity {
     let name: String
@@ -20,7 +23,8 @@ struct LaptopIdentity {
     }
 
     static func resolve(strings: [String], pciIDs: Set<String>, lenovo: Bool,
-                        profiles: [[String: Any]] = HardwareProfiles.all()) -> LaptopIdentity {
+                        profiles: [[String: Any]] = HardwareProfiles.all(),
+                        cpuBrand: String? = nil) -> LaptopIdentity {
         let evidence = strings.map { $0.uppercased() }
         let machineTypes = Set(evidence.flatMap { $0.components(separatedBy: CharacterSet.alphanumerics.inverted) }
             .filter { $0.count >= 4 }.map { String($0.prefix(4)) })
@@ -43,6 +47,41 @@ struct LaptopIdentity {
         for pci in pciIDs.subtracting(profiledPCI) {
             if let name = catalog.pciSubsystems[pci] { pciNames.insert(name) }
         }
+        let hasIntel = cpuBrand.map { brand in
+            let b = brand.uppercased()
+            return b.contains("INTEL") || b.contains("CORE(TM)") || b.contains("XEON")
+        } ?? false
+        let hasAMD = cpuBrand.map { brand in
+            let b = brand.uppercased()
+            return b.contains("AMD") || b.contains("RYZEN")
+        } ?? false
+        let isIntelCPU = hasIntel && !hasAMD
+        let isAMDCPU = hasAMD && !hasIntel
+
+        func reconcilePlatform(_ name: String) -> String {
+            if isIntelCPU && name.contains("(AMD)") {
+                let candidate = name.replacingOccurrences(of: "(AMD)", with: "(Intel)")
+                if catalog.machineTypes.values.contains(candidate) || catalog.pciSubsystems.values.contains(candidate) {
+                    return candidate
+                }
+            } else if isAMDCPU && name.contains("(Intel)") {
+                let candidate = name.replacingOccurrences(of: "(Intel)", with: "(AMD)")
+                if catalog.machineTypes.values.contains(candidate) || catalog.pciSubsystems.values.contains(candidate) {
+                    return candidate
+                }
+            }
+            return name
+        }
+
+        machineNames = Set(machineNames.map(reconcilePlatform))
+        pciNames = Set(pciNames.map(reconcilePlatform))
+        if isIntelCPU {
+            machineNames = machineNames.filter { !$0.contains("(AMD)") }
+            pciNames = pciNames.filter { !$0.contains("(AMD)") }
+        } else if isAMDCPU {
+            machineNames = machineNames.filter { !$0.contains("(Intel)") }
+            pciNames = pciNames.filter { !$0.contains("(Intel)") }
+        }
         let names = machineNames.union(pciNames)
         if names.count == 1, let name = names.first {
             let source = machineNames.isEmpty ? "PCI subsystem ID" : pciNames.isEmpty ? "Machine type" : "Machine type + PCI subsystem ID"
@@ -63,7 +102,11 @@ struct LaptopIdentity {
             let upper = str.uppercased()
             if upper.contains("THINKPAD") || upper.contains("LEGION") || upper.contains("IDEAPAD") ||
                upper.contains("YOGA") || upper.contains("THINKBOOK") || upper.contains("LOQ") || upper.contains("XIAOXIN") {
-                return LaptopIdentity(name: str, source: "Firmware identity")
+                let reconciled = reconcilePlatform(str)
+                if (isIntelCPU && reconciled.contains("(AMD)")) || (isAMDCPU && reconciled.contains("(Intel)")) {
+                    continue
+                }
+                return LaptopIdentity(name: reconciled, source: "Firmware identity")
             }
         }
         for str in validCandidates {
@@ -142,7 +185,7 @@ struct LaptopIdentity {
         return result
     }
 
-    static func read() -> LaptopIdentity {
+    static func read(cpuBrand: String? = nil) -> LaptopIdentity {
         var strings: [String] = []
         var pciIDs = Set<String>()
         func collect(_ entry: io_registry_entry_t) {
@@ -189,6 +232,19 @@ struct LaptopIdentity {
                 }
             }
         }
-        return resolve(strings: strings, pciIDs: pciIDs, lenovo: false)
+        return resolve(strings: strings, pciIDs: pciIDs, lenovo: false, cpuBrand: cpuBrand ?? cpuBrandString())
+    }
+
+    static func cpuBrandString() -> String? {
+        #if canImport(Darwin)
+        var size: size_t = 0
+        guard sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0) == 0, size > 0, size <= 4096 else { return nil }
+        var data = [CChar](repeating: 0, count: size + 1)
+        guard sysctlbyname("machdep.cpu.brand_string", &data, &size, nil, 0) == 0 else { return nil }
+        let str = String(cString: data).trimmingCharacters(in: .whitespacesAndNewlines)
+        return str.isEmpty ? nil : str
+        #else
+        return nil
+        #endif
     }
 }

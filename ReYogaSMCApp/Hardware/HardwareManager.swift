@@ -235,7 +235,7 @@ public final class HardwareManager: ObservableObject {
             }
         }
         if smbiosModel.isEmpty { smbiosModel = systemString("hw.model") }
-        detectedIdentity = LaptopIdentity.read()
+        detectedIdentity = LaptopIdentity.read(cpuBrand: cpuBrand)
         modelName = detectedIdentity.name
         modelSource = detectedIdentity.source
         modelWarning = ""
@@ -469,7 +469,8 @@ extension HardwareManager {
     private func acceptHardwareIdentity(_ props: NSDictionary, matchState: String) {
         let firmwareIdentity = props["FirmwareIdentityConflict"] as? Bool == true ? detectedIdentity :
             LaptopIdentity.resolve(strings: [(props["FirmwareMachineType"] as? String) ?? ""], pciIDs: [],
-                                   lenovo: ["IdeaVPC", "ThinkVPC"].contains((props["IOClass"] as? String) ?? ""))
+                                   lenovo: ["IdeaVPC", "ThinkVPC"].contains((props["IOClass"] as? String) ?? ""),
+                                   cpuBrand: cpuBrand)
         let displayIdentity = firmwareIdentity.name != "Lenovo Laptop" && firmwareIdentity.name != "Unknown Laptop" ? firmwareIdentity : detectedIdentity
         if let driverModelName = props["HardwareProfileName"] as? String, !driverModelName.isEmpty,
            ["exact", "identity_matched", "pci_matched"].contains(matchState) {
