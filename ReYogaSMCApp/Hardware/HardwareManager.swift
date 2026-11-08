@@ -235,7 +235,7 @@ public final class HardwareManager: ObservableObject {
             }
         }
         if smbiosModel.isEmpty { smbiosModel = systemString("hw.model") }
-        detectedIdentity = LaptopIdentity.read(cpuBrand: cpuBrand)
+        detectedIdentity = LaptopIdentity.read()
         modelName = detectedIdentity.name
         modelSource = detectedIdentity.source
         modelWarning = ""
