@@ -133,7 +133,7 @@ jobs:
             git tag -a "$tag" -m "$tag"
             git push --atomic origin HEAD:main "refs/tags/$tag"
           fi
-          assets=(build/packages/Debug/*.zip build/packages/Release/*.zip build/packages/SHA256SUMS.txt build/packages/BUILD_PROVENANCE.json)
+          assets=(build/packages/Debug/*.zip build/packages/Release/*.zip)
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" "${assets[@]}" --clobber
             gh release edit "$tag" --notes-file build/release-notes.md
