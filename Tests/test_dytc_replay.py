@@ -18,7 +18,7 @@ class DYTCReplayTests(unittest.TestCase):
     def test_profile_selection_readback_and_recovery(self):
         production = kernel_sources('ReYogaVPC')
         bodies = []
-        for name in ('DYTCCommand', 'parseDYTC', 'updateDYTC', 'setThermalProfile', 'setDYTC', 'evaluateNamedThermalMode'):
+        for name in ('DYTCCommand', 'parseDYTC', 'updateDYTC', 'setThermalProfile', 'setDYTC', 'evaluateNamedThermalMode', 'clearSTP', 'restoreThermalOnWake'):
             bodies.append(function(production, 'bool ReYogaVPC::' + name + '('))
         fixture = (ROOT / 'Tests/dytc_replay.cpp').read_text(encoding='utf-8')
         fixture = fixture.replace('// Production method bodies are inserted here by test_dytc_replay.py.', '\n'.join(bodies))
@@ -41,7 +41,7 @@ class DYTCReplayTests(unittest.TestCase):
                                     *sanitizers, '-I', str(folder), '-I', str(ROOT), str(source), '-o', str(executable)],
                                    capture_output=True, text=True, timeout=60)
             self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
-            for case in ('stp-precedes-lap', 'get-diagnostics', 'captured-readbacks', 'profile-transition-matrix', 'psc-mode-validation', 'mutation-diagnostics', 'x1-profiles', 'capability-recovery', 'balanced-no-reset', 'masked-readback', 't490-profiles', 'transport-recovery', 'invalid-input', 'x1-csc-with-lap', 'x1-csc-cold-boot-without-fields', 'csc-balance', 'csc-captured-quiet', 'masked-request-not-readback', 'x1-cold-boot-and-switch-without-fields', 'mmc-get-lapmode', 'amt-psc-toggle'):
+            for case in ('stp-wake-recovery', 'stp-precedes-lap', 'get-diagnostics', 'captured-readbacks', 'profile-transition-matrix', 'psc-mode-validation', 'mutation-diagnostics', 'x1-profiles', 'capability-recovery', 'balanced-no-reset', 'masked-readback', 't490-profiles', 'transport-recovery', 'invalid-input', 'x1-csc-with-lap', 'x1-csc-cold-boot-without-fields', 'csc-balance', 'csc-captured-quiet', 'masked-request-not-readback', 'x1-cold-boot-and-switch-without-fields', 'mmc-get-lapmode', 'amt-psc-toggle'):
                 with self.subTest(case=case):
                     result = subprocess.run([str(executable), case], capture_output=True, text=True, timeout=10)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

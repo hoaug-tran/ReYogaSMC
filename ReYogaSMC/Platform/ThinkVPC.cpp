@@ -498,6 +498,14 @@ IOReturn ThinkVPC::setPowerState(unsigned long powerStateOrdinal, IOService *wha
             setMuteLEDStatus(true);
         if ((automaticBacklightMode & BIT(4)) && micMuteLEDstateSaved)
             setMicMuteLEDStatus(micMuteLEDstateSaved);
+        if (commandGate) {
+            commandGate->runAction([](OSObject *owner, void *, void *, void *, void *) -> IOReturn {
+                static_cast<ThinkVPC *>(owner)->restoreThermalOnWake();
+                return kIOReturnSuccess;
+            });
+        } else {
+            restoreThermalOnWake();
+        }
     }
 
     return kIOPMAckImplied;

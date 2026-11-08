@@ -154,6 +154,26 @@ class BootSafetyTests(unittest.TestCase):
         plist = source('ReYogaSMCApp/Info.plist')
         self.assertIn('<key>NSBluetoothAlwaysUsageDescription</key>', plist)
 
+    def test_wake_stp_recovery_and_thinkpad_power_state_wiring(self):
+        think = source('ReYogaSMC/Platform/ThinkVPC.cpp')
+        power_body = function(think, 'IOReturn ThinkVPC::setPowerState(')
+        wake_branch = power_body.split('} else {', 1)[1].split('return kIOPMAckImplied;', 1)[0]
+        self.assertIn('restoreThermalOnWake()', wake_branch)
+        self.assertIn('commandGate->runAction', wake_branch)
+
+        vpc = source('ReYogaSMC/ReYogaVPC.cpp')
+        clear_body = function(vpc, 'bool ReYogaVPC::clearSTP(')
+        self.assertIn('DYTCCap & BIT(DYTC_FUNCTION_STP)', clear_body)
+        self.assertIn('DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_STP, 0xF, false)', clear_body)
+
+        restore_body = function(vpc, 'bool ReYogaVPC::restoreThermalOnWake(')
+        self.assertIn('if (!DYTCCap)', restore_body)
+        self.assertIn('if (DYTCCap & BIT(DYTC_FUNCTION_STP))', restore_body)
+        self.assertIn('clearedSTP = clearSTP()', restore_body)
+        self.assertIn('supportsThermalProfiles()', restore_body)
+        self.assertIn('setThermalProfile(', restore_body)
+        self.assertIn('setProperty("LastThermalWakeRecovery", diagnostic)', restore_body)
+
     def test_standalone_ssdtless_and_hotkey_migration(self):
         kext_plist = source('ReYogaSMC/Info.plist')
         self.assertIn('<string>VPC2004</string>', kext_plist)

@@ -91,6 +91,8 @@ protected:
     bool updateDYTC();
     bool setDYTC(int function, int mode);
     bool setThermalProfile(UInt32 profile);
+    bool clearSTP();
+    bool restoreThermalOnWake();
     IOReturn evaluateIntegerParam(const char *method, UInt32 *result, UInt32 argument);
 
 public:

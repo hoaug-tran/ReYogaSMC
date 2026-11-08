@@ -56,7 +56,8 @@ struct Firmware {
         if (command == DYTC_CMD_GET) {
             unsigned function = 0, mode = 15;
             // Captured X1C7 responses select CSC even with CQL active.
-            if (csc) function = 14;
+            if (otherActive & BIT(4)) function = 4;
+            else if (csc) function = 14;
             else if (lap) function = 1;
             else if (mmc) { function = 11; mode = mmcMode; }
             else if (psc) { function = 13; mode = pscMode; }
@@ -82,6 +83,10 @@ struct Firmware {
             }
             else if (function == 15) { amt = enabled; amtMode = mode; }
             else if (function == 1 && mode == 15) lap = enabled;
+            else if (function == 4 && mode == 15) {
+                if (enabled) otherActive |= BIT(4);
+                else otherActive &= ~BIT(4);
+            }
             else *out = 2;
         } else *out = 4;
         return kIOReturnSuccess;
@@ -95,7 +100,7 @@ struct ReYogaVPC {
     UInt8 DYTCRevision = 5;
     bool DYTCLock = false, disabled = false, mmcGetCap = false;
     UInt32 activeThermalProfile = 2;
-    OSDictionary version, published, lastMutation, lastReadback, lastGet;
+    OSDictionary version, published, lastMutation, lastReadback, lastGet, lastWakeRecovery;
     OSDictionary *DYTCVersion = &version;
     const char *setThermalControl = "DYTC";
     int evaluateIntegerParam(const char *, UInt32 *out, unsigned raw) { return firmware.command(raw, out); }
@@ -106,6 +111,7 @@ struct ReYogaVPC {
         if (!strcmp(key, "LastDYTCMutation")) lastMutation = *d;
         if (!strcmp(key, "LastDYTCReadback")) lastReadback = *d;
         if (!strcmp(key, "LastDYTCGet")) lastGet = *d;
+        if (!strcmp(key, "LastThermalWakeRecovery")) lastWakeRecovery = *d;
     }
     // Production thermal helpers are inserted here by test_dytc_replay.py.
     bool DYTCCommand(DYTC_CMD command, DYTC_RESULT *result, UInt8 function = 0, UInt8 mode = 0, bool enabled = false);
@@ -114,6 +120,8 @@ struct ReYogaVPC {
     bool updateDYTC();
     bool setDYTC(int function, int mode);
     bool setThermalProfile(UInt32 profile);
+    bool clearSTP();
+    bool restoreThermalOnWake();
 };
 
 // Production method bodies are inserted here by test_dytc_replay.py.
@@ -134,7 +142,52 @@ int main(int argc, char **argv) {
     assert(encoding.raw == 0x13d001);
     ReYogaVPC device;
     const std::string test = argv[1];
-    if (test == "stp-precedes-lap") {
+    if (test == "stp-wake-recovery") {
+        device.DYTCCap = 0x2013;
+        device.DYTCRevision = 5;
+        device.activeThermalProfile = 3;
+        device.firmware.fieldsAvailable = false;
+        device.firmware.lap = false;
+        device.firmware.otherActive |= BIT(4);
+        assert(device.updateDYTC());
+        assert(device.published.strings.at("FuncMode") == "Skin");
+        assert(device.published.strings.at("PerfMode") == "Performance (Reduced as thermal protection active)");
+        assert(device.published.numbers.at("stpmode") == 1);
+
+        device.firmware.commands.clear();
+        assert(device.restoreThermalOnWake());
+        assert((device.firmware.otherActive & BIT(4)) == 0);
+        assert(device.published.strings.at("FuncMode") == "Controlled");
+        assert(device.published.strings.at("PerfMode") == "Performance");
+        assert(device.published.numbers.at("stpmode") == 0);
+        assert(device.firmware.commands.size() >= 2);
+        assert(device.firmware.commands[0] == 0x000f4001);
+        assert(device.firmware.commands[1] == 0x0017d001);
+        assert(device.lastWakeRecovery.numbers.at("UptimeMS") == 1234);
+        assert(device.lastWakeRecovery.numbers.at("STPCapable") == 1);
+        assert(device.lastWakeRecovery.numbers.at("STPCleared") == 1);
+        assert(device.lastWakeRecovery.numbers.at("RestoredProfile") == 3);
+
+        device.DYTCCap = 0x7913;
+        device.activeThermalProfile = 2;
+        device.firmware.lap = true;
+        device.firmware.otherActive |= BIT(4);
+        assert(device.restoreThermalOnWake());
+        assert((device.firmware.otherActive & BIT(4)) == 0);
+        assert(device.published.strings.at("FuncMode") == "Lap");
+        assert(device.published.strings.at("PerfMode") == "Balance");
+        assert(device.published.numbers.at("stpmode") == 0);
+        assert(device.published.numbers.at("lapmode") == 1);
+
+        device.DYTCCap = 0x803;
+        device.firmware.commands.clear();
+        assert(device.restoreThermalOnWake());
+        for (unsigned raw : device.firmware.commands)
+            assert(((raw >> 12) & 15) != 4);
+
+        device.DYTCCap = 0;
+        assert(!device.restoreThermalOnWake());
+    } else if (test == "stp-precedes-lap") {
         device.DYTCCap = 0x2013;
         device.firmware.fieldsAvailable = false;
         device.activeThermalProfile = 3;
