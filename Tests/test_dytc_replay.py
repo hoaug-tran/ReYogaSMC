@@ -31,7 +31,7 @@ class DYTCReplayTests(unittest.TestCase):
             folder = pathlib.Path(folder)
             (folder / 'libkern').mkdir()
             (folder / 'libkern/OSTypes.h').write_text(
-                'using UInt = unsigned; using UInt8 = unsigned char; using UInt16 = unsigned short; using UInt32 = unsigned;\n', encoding='utf-8')
+                'using UInt = unsigned; using UInt8 = unsigned char; using UInt16 = unsigned short; using UInt32 = unsigned; using UInt64 = unsigned long long;\n', encoding='utf-8')
             source = folder / 'replay.cpp'
             source.write_text(fixture, encoding='utf-8')
             executable = folder / 'dytc-replay.exe'
@@ -41,7 +41,7 @@ class DYTCReplayTests(unittest.TestCase):
                                     *sanitizers, '-I', str(folder), '-I', str(ROOT), str(source), '-o', str(executable)],
                                    capture_output=True, text=True, timeout=60)
             self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
-            for case in ('captured-readbacks', 'profile-transition-matrix', 'psc-mode-validation', 'mutation-diagnostics', 'x1-profiles', 'capability-recovery', 'balanced-no-reset', 'masked-readback', 't490-profiles', 'transport-recovery', 'invalid-input', 'x1-csc-with-lap', 'x1-csc-cold-boot-without-fields', 'csc-balance', 'csc-captured-quiet', 'masked-request-not-readback', 'x1-cold-boot-and-switch-without-fields', 'mmc-get-lapmode', 'amt-psc-toggle'):
+            for case in ('stp-precedes-lap', 'get-diagnostics', 'captured-readbacks', 'profile-transition-matrix', 'psc-mode-validation', 'mutation-diagnostics', 'x1-profiles', 'capability-recovery', 'balanced-no-reset', 'masked-readback', 't490-profiles', 'transport-recovery', 'invalid-input', 'x1-csc-with-lap', 'x1-csc-cold-boot-without-fields', 'csc-balance', 'csc-captured-quiet', 'masked-request-not-readback', 'x1-cold-boot-and-switch-without-fields', 'mmc-get-lapmode', 'amt-psc-toggle'):
                 with self.subTest(case=case):
                     result = subprocess.run([str(executable), case], capture_output=True, text=True, timeout=10)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

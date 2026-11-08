@@ -14,11 +14,14 @@ constexpr int kIOReturnUnsupported = -1;
 #define BIT(n) (1U << (n))
 #define AlwaysLog(...) do {} while (0)
 #define DebugLog(...) do {} while (0)
+UInt64 replayUptime = 1234000000;
+void clock_get_uptime(UInt64 *out) { *out = replayUptime; }
+void absolutetime_to_nanoseconds(UInt64 value, UInt64 *out) { *out = value; }
 const bool kOSBooleanTrue = true, kOSBooleanFalse = false;
 const char *DYTCPerfPrompt = "DYTCPerf", *DYTCFuncPrompt = "DYTCFunc", *DYTCPrompt = "DYTC";
 
 struct OSDictionary {
-    std::map<std::string, unsigned> numbers;
+    std::map<std::string, UInt64> numbers;
     std::map<std::string, std::string> strings;
     static OSDictionary *withCapacity(unsigned) { return new OSDictionary; }
     static OSDictionary *withDictionary(OSDictionary *other) { return new OSDictionary(*other); }
@@ -27,7 +30,7 @@ struct OSDictionary {
     void release() { delete this; }
 };
 namespace ReYogaProperty {
-void setNumber(OSDictionary *d, const char *key, unsigned value, unsigned) { d->numbers[key] = value; }
+void setNumber(OSDictionary *d, const char *key, UInt64 value, unsigned) { d->numbers[key] = value; }
 void setString(OSDictionary *d, const char *key, const char *value) { d->strings[key] = value; }
 void setBoolean(OSDictionary *d, const char *key, bool value) { d->numbers[key] = value; }
 }
@@ -92,7 +95,7 @@ struct ReYogaVPC {
     UInt8 DYTCRevision = 5;
     bool DYTCLock = false, disabled = false, mmcGetCap = false;
     UInt32 activeThermalProfile = 2;
-    OSDictionary version, published, lastMutation, lastReadback;
+    OSDictionary version, published, lastMutation, lastReadback, lastGet;
     OSDictionary *DYTCVersion = &version;
     const char *setThermalControl = "DYTC";
     int evaluateIntegerParam(const char *, UInt32 *out, unsigned raw) { return firmware.command(raw, out); }
@@ -102,6 +105,7 @@ struct ReYogaVPC {
         if (!strcmp(key, "DYTC")) { published = *d; disabled = false; }
         if (!strcmp(key, "LastDYTCMutation")) lastMutation = *d;
         if (!strcmp(key, "LastDYTCReadback")) lastReadback = *d;
+        if (!strcmp(key, "LastDYTCGet")) lastGet = *d;
     }
     // Production thermal helpers are inserted here by test_dytc_replay.py.
     bool DYTCCommand(DYTC_CMD command, DYTC_RESULT *result, UInt8 function = 0, UInt8 mode = 0, bool enabled = false);
@@ -130,7 +134,40 @@ int main(int argc, char **argv) {
     assert(encoding.raw == 0x13d001);
     ReYogaVPC device;
     const std::string test = argv[1];
-    if (test == "captured-readbacks") {
+    if (test == "stp-precedes-lap") {
+        device.DYTCCap = 0x2013;
+        device.firmware.fieldsAvailable = false;
+        device.activeThermalProfile = 3;
+        DYTC_RESULT result{};
+        // T490 XYTC gives STP priority over CQL, including when PSC is active.
+        for (unsigned raw : {0x0013f401U, 0x2013f401U}) {
+            result.raw = raw;
+            assert(device.parseDYTC(result));
+            assert(device.published.strings.at("FuncMode") == "Skin");
+            assert(device.published.strings.at("PerfMode") == "Performance (Reduced as thermal protection active)");
+            assert(device.published.numbers.at("lapmode") == 1);
+            assert(device.published.numbers.at("stpmode") == 1);
+        }
+        assert(device.firmware.commands.empty());
+    } else if (test == "get-diagnostics") {
+        device.DYTCCap = 0x2013;
+        DYTC_RESULT result{};
+        assert(device.DYTCCommand(dytc_get_cmd, &result));
+        const unsigned raw = result.raw;
+        assert(device.lastGet.numbers.at("CommandRaw") == DYTC_CMD_GET);
+        assert(device.lastGet.numbers.at("ResultRaw") == raw);
+        assert(device.lastGet.numbers.at("ResultValid") == 1);
+        assert(device.lastGet.numbers.at("UptimeMS") == 1234);
+        assert(device.DYTCCommand(dytc_set_cmd, &result, 13, 7, true));
+        assert(device.lastGet.numbers.at("ResultRaw") == raw);
+        device.firmware.transportFailure = true;
+        assert(!device.DYTCCommand(dytc_get_cmd, &result));
+        assert(device.lastGet.numbers.at("ResultValid") == 0);
+        assert(device.lastGet.numbers.at("ResultRaw") == 0);
+        replayUptime = 0x100000000ULL * 1000000;
+        assert(device.DYTCCommand(dytc_get_cmd, &result));
+        assert(device.lastGet.numbers.at("UptimeMS") == 0x100000000ULL);
+    } else if (test == "captured-readbacks") {
         struct Capture { unsigned revision, capabilities, raw; const char *expected; };
         const Capture captures[] = {
             {4, 0x2d13, 0x08012b01, "Performance"},
@@ -216,7 +253,8 @@ int main(int argc, char **argv) {
         device.firmware.otherActive |= BIT(4);
         for (unsigned profile : {1U, 3U, 2U}) {
             assert(device.setThermalProfile(profile));
-            assert(device.published.strings["PerfMode"] == (profile == 1 ? "Quiet" : profile == 2 ? "Balance" : "Performance (Reduced as lapmode active)"));
+            assert(device.published.strings["PerfMode"] == (profile == 1 ? "Quiet" : profile == 2 ? "Balance" : "Performance (Reduced as thermal protection active)"));
+            assert(device.published.strings.at("FuncMode") == "Skin");
             assert(device.firmware.lap && device.firmware.resets == 0 && (device.firmware.otherActive & BIT(4)));
         }
         for (unsigned raw : device.firmware.commands)

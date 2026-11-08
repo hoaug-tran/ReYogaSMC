@@ -20,6 +20,10 @@ bool ReYogaVPC::DYTCCommand(DYTC_CMD command, DYTC_RESULT *result, UInt8 ICFunc,
     const IOReturn transport = evaluateIntegerParam(setThermalControl, &(result->raw), command.raw);
     auto diagnostic = OSDictionary::withCapacity(8);
     if (diagnostic) {
+        UInt64 uptime = 0, nanoseconds = 0;
+        clock_get_uptime(&uptime);
+        absolutetime_to_nanoseconds(uptime, &nanoseconds);
+        ReYogaProperty::setNumber(diagnostic, "UptimeMS", nanoseconds / 1000000, 64);
         ReYogaProperty::setNumber(diagnostic, "CommandRaw", command.raw, 32);
         ReYogaProperty::setNumber(diagnostic, "TransportStatus", transport, 32);
         ReYogaProperty::setNumber(diagnostic, "ResultRaw", result->raw, 32);
@@ -30,6 +34,8 @@ bool ReYogaVPC::DYTCCommand(DYTC_CMD command, DYTC_RESULT *result, UInt8 ICFunc,
         ReYogaProperty::setNumber(diagnostic, "Capabilities", DYTCCap, 16);
         setProperty("LastDYTCCommand", diagnostic);
         const UInt32 opcode = command.raw & 0xfff;
+        if (opcode == DYTC_CMD_GET)
+            setProperty("LastDYTCGet", diagnostic);
         if ((opcode == DYTC_CMD_SET && command.ICFunc != DYTC_FUNCTION_CQL) || opcode == DYTC_CMD_RESET)
             setProperty("LastDYTCMutation", diagnostic);
         diagnostic->release();
@@ -263,8 +269,8 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
         switch (result.get.perfmode) {
         case DYTC_MODE_PERFORM:
             ReYogaProperty::setString(DYTCStatus, "PerfMode",
-                                      lapmode   ? "Performance (Reduced as lapmode active)"
-                                      : stpmode ? "Performance (Reduced as thermal protection active)"
+                                      stpmode   ? "Performance (Reduced as thermal protection active)"
+                                      : lapmode ? "Performance (Reduced as lapmode active)"
                                                 : "Performance");
             if (!lapmode && !stpmode)
                 activeThermalProfile = 3;
@@ -322,8 +328,8 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
         } else if ((DYTCRevision >= 9 && result.get.perfmode == pscThermalMode(3)) ||
                    (DYTCRevision < 9 && result.get.perfmode >= 7 && result.get.perfmode <= 8)) {
             ReYogaProperty::setString(DYTCStatus, "PerfMode",
-                                      lapmode   ? "Performance (Reduced as lapmode active)"
-                                      : stpmode ? "Performance (Reduced as thermal protection active)"
+                                      stpmode   ? "Performance (Reduced as thermal protection active)"
+                                      : lapmode ? "Performance (Reduced as lapmode active)"
                                                 : "Performance");
             if (!lapmode && !stpmode)
                 activeThermalProfile = 3;
@@ -372,10 +378,11 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
         break;
     }
 
-    if (lapmode)
-        ReYogaProperty::setString(DYTCStatus, "FuncMode", "Lap");
-    else if (stpmode)
+    // STP wins over CQL in firmware; retain both flags without mislabeling the active protection.
+    if (stpmode)
         ReYogaProperty::setString(DYTCStatus, "FuncMode", "Skin");
+    else if (lapmode)
+        ReYogaProperty::setString(DYTCStatus, "FuncMode", "Lap");
     else if ((result.get.func_sta & DYTCCap & BIT(DYTC_FUNCTION_CSC)) != 0)
         ReYogaProperty::setString(DYTCStatus, "FuncMode", "Custom");
 
