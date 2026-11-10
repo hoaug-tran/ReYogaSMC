@@ -358,7 +358,22 @@ int main(int argc, char **argv) {
         assert(device.published.strings["ReadbackSource"] == "ACPI SPSC");
         device.firmware.fieldsAvailable = false;
         assert(device.updateDYTC());
-        assert(device.published.strings["PerfMode"] == "Unavailable while lap mode masks the thermal profile");
+        assert(device.published.strings["PerfMode"] == "Performance (Reduced as lapmode active)");
+        assert(device.published.strings["ReadbackSource"] == "Configured profile");
+        assert(device.setThermalProfile(1));
+        assert(device.published.strings["PerfMode"] == "Quiet");
+        assert(device.published.strings["ReadbackSource"] == "Configured profile");
+        assert(device.setThermalProfile(2));
+        assert(device.published.strings["PerfMode"] == "Balance");
+        assert(device.published.strings["ReadbackSource"] == "Configured profile");
+        assert(device.setThermalProfile(3));
+        assert(device.published.strings["PerfMode"] == "Performance (Reduced as lapmode active)");
+        assert(device.published.strings["ReadbackSource"] == "Configured profile");
+        device.activeThermalProfile = 0;
+        device.firmware.psc = true;
+        assert(device.updateDYTC());
+        assert(device.published.strings["PerfMode"] == "Balance");
+        assert(device.published.strings["ReadbackSource"] == "Platform default profile");
         device.firmware.psc = false;
         DYTC_RESULT captured{};
         captured.raw = 0x0001f101;
@@ -382,6 +397,15 @@ int main(int argc, char **argv) {
             assert(device.setThermalProfile(profile));
             assert(device.firmware.pscMode == (profile == 1 ? 1U : profile == 2 ? 3U : 4U));
         }
+        device.firmware.fieldsAvailable = false;
+        device.firmware.lap = true;
+        assert(device.setThermalProfile(1));
+        assert(device.published.strings["PerfMode"] == "Quiet");
+        assert(device.published.strings["ReadbackSource"] == "Configured profile");
+        assert(device.setThermalProfile(3));
+        assert(device.published.strings["PerfMode"] == "Performance (Reduced as lapmode active)");
+        assert(device.published.strings["ReadbackSource"] == "Configured profile");
+        device.firmware.fieldsAvailable = true;
     } else if (test == "transport-recovery") {
         device.firmware.transportFailure = true;
         assert(!device.updateDYTC());

@@ -233,7 +233,8 @@ bool ReYogaVPC::parseDYTC(DYTC_RESULT result) {
                 readbackFunction = DYTC_FUNCTION_PSC;
                 result.get.perfmode = mode;
                 ReYogaProperty::setString(DYTCStatus, "ReadbackSource", "ACPI SPSC");
-            } else if (readbackFunction == DYTC_FUNCTION_STP && pscReadable) {
+            } else if ((readbackFunction == DYTC_FUNCTION_STP && pscReadable) ||
+                       (readbackFunction == DYTC_FUNCTION_CQL && pscActive)) {
                 readbackFunction = DYTC_FUNCTION_PSC;
                 const UInt32 profile = (activeThermalProfile >= 1 && activeThermalProfile <= 3) ? activeThermalProfile : 2;
                 result.get.perfmode = pscThermalMode(profile);

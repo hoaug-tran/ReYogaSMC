@@ -10,12 +10,12 @@ ThinkPad uses HKEY and EC methods. It does not need a Lenovo JSON profile for ho
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Charge thresholds | Start: 0-99%; stop: 1-100%. Firmware must support the operation and accept the ordering.                                                                                                                                         |
 | Battery selection | Shown only when firmware supports individual battery addressing.                                                                                                                                                                 |
-| Power profiles    | A supported DYTC MMC/PSC interface and a readable current mode. Polling preserves lap mode; wake automatically clears false sticky skin temperature protection (STP) triggered by firmware OWAK and restores the active profile. |
+| Power profiles    | A supported DYTC MMC/PSC interface and a readable current mode. Polling preserves lap mode; active configured profiles are preserved when lap mode masks readback on PSC platforms, and wake automatically clears false sticky skin temperature protection (STP) triggered by firmware OWAK and restores the active profile. |
 | Fan RPM           | A supported EC/helper or native fan-reading method. Failed readings show unavailable.                                                                                                                                            |
 | Manual/Full Speed | ThinkPad fan protocol and EC read/write access. Requests must pass mode readback.                                                                                                                                                |
 | Custom Curve      | Manual control requirements, a driver watchdog and fresh CPU temperature. Other fan backends do not use this curve engine.                                                                                                       |
 
-The driver never substitutes a previously requested profile for a missing firmware reading. CQL/CSC states use available read methods; if those methods fail, the current mode stays unavailable.
+The driver never substitutes an unrequested profile. CQL/CSC states use available read methods; when lap mode (CQL) masks readback on platforms with active PSC and unreadable ACPI fields, the active configured profile is preserved to keep controls available. If other read methods fail, the current mode stays unavailable.
 
 Fan level 0 requires both the app's fan-stop preference and `-reyfanstop`. BIOS Auto and Full Speed are separate firmware modes. Full Speed does not promise a specific RPM.
 
