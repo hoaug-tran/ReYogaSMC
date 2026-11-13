@@ -50,6 +50,8 @@ public final class HardwareManager: ObservableObject {
     @Published public private(set) var hasTouchpadLock: Bool = false
     @Published public private(set) var hasYLogo: Bool = false
     @Published public private(set) var hasPortLighting: Bool = false
+    @Published public private(set) var hasSpeakerMuteLED: Bool = false
+    @Published public private(set) var syncSpeakerMuteLED: Bool = HardwareSnapshot.isThinkMuteLEDFixupEnabled()
     @Published public private(set) var hasAlwaysOnUSB: Bool = false
 
     @Published public private(set) var fan1RPM: Int = -1
@@ -101,9 +103,20 @@ public final class HardwareManager: ObservableObject {
     @Published private(set) var thinkFanAuthorizationBusy = false
     @Published private(set) var thinkFanAuthorizationError = ""
     private var requestThinkFanAuthorization: () -> Void = {}
+    private var refreshThinkMuteLEDFixup: () -> Void = {}
 
     func configureThinkFanAuthorization(_ action: @escaping () -> Void) {
         requestThinkFanAuthorization = action
+    }
+
+    func configureThinkMuteLEDFixup(_ action: @escaping () -> Void) {
+        refreshThinkMuteLEDFixup = action
+    }
+
+    public func setSyncSpeakerMuteLED(_ enabled: Bool) {
+        syncSpeakerMuteLED = enabled
+        ReYogaConstants.userDefaults.set(enabled, forKey: "ThinkMuteLEDFixup")
+        refreshThinkMuteLEDFixup()
     }
 
     func authorizeThinkFanControls() { requestThinkFanAuthorization() }
@@ -180,7 +193,7 @@ public final class HardwareManager: ObservableObject {
                 featurePollingSupported = false; lastFirmwareRefresh = .distantPast
                 fanLabels = ["Fan 1", "Fan 2"]
                 hasDualFan = false; hasPowerProfiles = false; powerProfilesReady = false; hasConservation = false; hasRapidCharge = false
-                hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasAlwaysOnUSB = false; hasFanFullSpeed = false; isFanFullSpeedOn = false
+                hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasSpeakerMuteLED = false; hasAlwaysOnUSB = false; hasFanFullSpeed = false; isFanFullSpeedOn = false
                 preferenceIdentity = ""
                 modelName = detectedIdentity.name; modelSource = detectedIdentity.source; modelWarning = ""
                 telemetryStatus = "Driver unavailable"
@@ -670,6 +683,7 @@ extension HardwareManager {
         publish(\.hasTouchpadLock, supported("TouchpadLock"))
         publish(\.hasYLogo, supported("YLogoStatus"))
         publish(\.hasPortLighting, supported("PortLighting"))
+        publish(\.hasSpeakerMuteLED, HardwareSnapshot.thinkSpeakerMuteLEDSupported(providerClass: providerClass, properties: props))
         publish(\.hasFanFullSpeed, supported("FanFullSpeed"))
         if providerClass == "ThinkVPC" {
             hasRGBHardware = false
@@ -1047,6 +1061,7 @@ extension HardwareManager {
         featureStatus = [:]
         hasDualFan = false; hasPowerProfiles = false; powerProfilesReady = false; hasConservation = false; hasRapidCharge = false
         hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasAlwaysOnUSB = false; hasFanFullSpeed = false; isFanFullSpeedOn = false
+        hasSpeakerMuteLED = false
         fan1RPM = -1; fan2RPM = -1; powerProfile = 0
         telemetryStatus = "Independent sensors"
     }

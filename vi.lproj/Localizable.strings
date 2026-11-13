@@ -136,6 +136,8 @@
 "LIGHTING_SECTION_RGB" = "Đèn RGB";
 "LIGHTING_LOGO_LED" = "Đèn logo";
 "LIGHTING_PORT_ICONS" = "Đèn cổng kết nối phía sau";
+"LIGHTING_SPEAKER_MUTE_LED" = "Đồng bộ đèn tắt tiếng loa";
+"LIGHTING_SPEAKER_MUTE_LED_DESC" = "Phản ánh trạng thái tắt tiếng đầu ra âm thanh macOS lên đèn phím tắt tiếng loa ThinkPad.";
 "LIGHTING_BRIGHTNESS" = "Độ sáng";
 "LIGHTING_MODE" = "Hiệu ứng";
 "LIGHTING_MODE_STATIC" = "Màu cố định";

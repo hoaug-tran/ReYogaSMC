@@ -124,5 +124,48 @@ class AppSafetyTests(unittest.TestCase):
         will_sleep = function(app_delegate, 'func systemWillSleep(')
         self.assertIn('driver.prepareForSleep()', will_sleep)
 
+    def test_speaker_mute_led_sync_and_preference_defaults(self):
+        snapshot = read('ReYogaSMCApp/Hardware/Controls/HardwareSnapshot.swift')
+        default_fn = function(snapshot, 'static func isThinkMuteLEDFixupEnabled(')
+        self.assertIn('object(forKey: "ThinkMuteLEDFixup") != nil', default_fn)
+        self.assertIn('return true', default_fn)
+        support_fn = function(snapshot, 'static func thinkSpeakerMuteLEDSupported(')
+        self.assertIn('providerClass == "ThinkVPC"', support_fn)
+        self.assertIn('MuteLEDSupport', support_fn)
+
+        driver = read('ReYogaSMCApp/Application/DriverConnection.swift')
+        self.assertNotIn('VolumeObserver', driver)
+        self.assertNotIn('com.apple.sound.settingsChangedNotification', driver)
+        self.assertIn('CoreAudioMuteObserver', driver)
+        sync_fn = function(driver, 'private func syncThinkMuteLEDObserver(')
+        self.assertIn('canSyncThinkMuteLED', sync_fn)
+        self.assertIn('outputMuteObserver.start', sync_fn)
+        self.assertIn('outputMuteObserver.stop', sync_fn)
+        wake_fn = function(driver, 'func thinkWakeup(')
+        self.assertIn('outputMuteObserver.refreshDevice()', wake_fn)
+        self.assertIn('muteLEDHelper(context.service)', wake_fn)
+        close_fn = function(driver, 'func close(')
+        self.assertIn('supportsMuteLED = false', close_fn)
+        self.assertIn('outputMuteObserver.stop()', close_fn)
+        self.assertIn('resetMuteLEDStatusCache()', close_fn)
+
+        plist = read('ReYogaSMCApp/Info.plist')
+        self.assertIn('<string>NSApplication</string>', plist)
+        self.assertNotIn('VolumeObserver', plist)
+        self.assertFalse((ROOT / 'ReYogaSMCApp/Application/VolumeObserver.swift').exists())
+
+        prefs = read('ReYogaSMCApp/Preferences/ReYogaPreferences.swift')
+        self.assertNotIn('ThinkMuteLEDFixup', prefs)
+
+        manager = read('ReYogaSMCApp/Hardware/HardwareManager.swift')
+        self.assertIn('@Published public private(set) var hasSpeakerMuteLED: Bool = false', manager)
+        self.assertIn('@Published public private(set) var syncSpeakerMuteLED: Bool =', manager)
+        self.assertIn('hasSpeakerMuteLED = false', function(manager, 'func loadMissingDriverPreview('))
+
+        lighting = read('ReYogaSMCApp/Views/Controls/LightingControlsPage.swift')
+        self.assertIn('lightingSpeakerMuteLed', lighting)
+        self.assertIn('manager.syncSpeakerMuteLED', lighting)
+        self.assertNotIn('ReYogaPreferences', lighting)
+
 
 if __name__ == '__main__': unittest.main()

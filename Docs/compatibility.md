@@ -14,6 +14,7 @@ ThinkPad uses HKEY and EC methods. It does not need a Lenovo JSON profile for ho
 | Fan RPM           | A supported EC/helper or native fan-reading method. Failed readings show unavailable.                                                                                                                                            |
 | Manual/Full Speed | ThinkPad fan protocol and EC read/write access. Requests must pass mode readback.                                                                                                                                                |
 | Custom Curve      | Manual control requirements, a driver watchdog and fresh CPU temperature. Other fan backends do not use this curve engine.                                                                                                       |
+| Mute LEDs         | Speaker mute LED requires firmware `GSMS`/`SSMS` support (`MuteLEDSupport`) and macOS output mute observation (configurable in Lighting controls); mic mute LED requires firmware `MMTG`/`MMTS` support.                        |
 
 The driver never substitutes an unrequested profile. CQL/CSC states use available read methods; when lap mode (CQL) masks readback on platforms with active PSC and unreadable ACPI fields, the active configured profile is preserved to keep controls available. If other read methods fail, the current mode stays unavailable.
 

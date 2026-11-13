@@ -85,6 +85,9 @@ bool ThinkVPC::initVPC() {
     LEDSupport = (ec->validateObject(setLED) == kIOReturnSuccess);
     setProperty("LEDSupport", LEDSupport);
 
+    muteLEDSupport = (vpc->validateObject(setAudioMuteLED) == kIOReturnSuccess);
+    setProperty("MuteLEDSupport", muteLEDSupport);
+
     yogaModeSupport = (vpc->validateObject(getMultiModeState) == kIOReturnSuccess);
 
     setMicMuteLEDStatus(0);

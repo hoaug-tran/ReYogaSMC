@@ -216,6 +216,19 @@ func testHardwareSnapshot() {
     let legacyFan = HardwareFeatureStatus(available: false, reason: "Install ACPI bridge v2", backend: "ACPI profile")
     let fanNotice = HardwareSnapshot.manualFanFeature(legacyFan, key: "FanControlMode", bridgeVersion: 0, writesValidated: false)
     require(!fanNotice.available && !fanNotice.reason.contains("Install") && !fanNotice.reason.contains("SSDT"), "Unsupported fan control prescribed an unverified installation")
+    require(HardwareSnapshot.thinkSpeakerMuteLEDSupported(providerClass: "ThinkVPC", properties: ["MuteLEDSupport": true]), "ThinkVPC speaker mute LED support rejected")
+    require(HardwareSnapshot.thinkSpeakerMuteLEDSupported(providerClass: "ThinkVPC", properties: [:]), "Legacy ThinkVPC speaker mute LED fallback rejected")
+    require(!HardwareSnapshot.thinkSpeakerMuteLEDSupported(providerClass: "ThinkVPC", properties: ["MuteLEDSupport": false]), "Unsupported ThinkVPC speaker mute LED accepted")
+    require(!HardwareSnapshot.thinkSpeakerMuteLEDSupported(providerClass: "IdeaVPC", properties: ["MuteLEDSupport": true]), "Non-ThinkVPC provider inherited speaker mute LED support")
+    let suite = "ReYogaSMC.Test.MuteLEDFixup.\(ProcessInfo.processInfo.processIdentifier)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defaults.removePersistentDomain(forName: suite)
+    defer { defaults.removePersistentDomain(forName: suite) }
+    require(HardwareSnapshot.isThinkMuteLEDFixupEnabled(defaults), "Speaker mute LED fixup must default to enabled")
+    defaults.set(false, forKey: "ThinkMuteLEDFixup")
+    require(!HardwareSnapshot.isThinkMuteLEDFixupEnabled(defaults), "Explicit ThinkMuteLEDFixup = false was ignored")
+    defaults.set(true, forKey: "ThinkMuteLEDFixup")
+    require(HardwareSnapshot.isThinkMuteLEDFixupEnabled(defaults), "Explicit ThinkMuteLEDFixup = true was ignored")
     print("PASS device identity, live timestamp validation, invalid readings and per-backend fan availability")
 }
 

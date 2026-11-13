@@ -134,6 +134,8 @@ public enum LocalizedKey: String {
     case lightingSectionRgb = "LIGHTING_SECTION_RGB"
     case lightingLogoLed = "LIGHTING_LOGO_LED"
     case lightingPortIcons = "LIGHTING_PORT_ICONS"
+    case lightingSpeakerMuteLed = "LIGHTING_SPEAKER_MUTE_LED"
+    case lightingSpeakerMuteLedDesc = "LIGHTING_SPEAKER_MUTE_LED_DESC"
     case lightingBrightness = "LIGHTING_BRIGHTNESS"
     case lightingMode = "LIGHTING_MODE"
     case lightingModeStatic = "LIGHTING_MODE_STATIC"

@@ -134,6 +134,8 @@
 "LIGHTING_SECTION_RGB" = "RGB lighting";
 "LIGHTING_LOGO_LED" = "Logo LED";
 "LIGHTING_PORT_ICONS" = "Rear port icons";
+"LIGHTING_SPEAKER_MUTE_LED" = "Sync speaker mute LED";
+"LIGHTING_SPEAKER_MUTE_LED_DESC" = "Mirror macOS audio output mute state to the ThinkPad speaker mute key LED.";
 "LIGHTING_BRIGHTNESS" = "Brightness";
 "LIGHTING_MODE" = "Mode";
 "LIGHTING_MODE_STATIC" = "Static";

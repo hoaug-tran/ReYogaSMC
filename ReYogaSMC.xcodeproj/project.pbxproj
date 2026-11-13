@@ -92,7 +92,6 @@
 		EAF67DBCAC76DF48ABBB775D /* ApplicationReviewHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0A0D17E5C5B7A73263B1C9 /* ApplicationReviewHarness.swift */; };
 		33E256E2F06C82D2DA4FFA38 /* HardwarePreviewSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B84E7390E12DB5B9696963AD /* HardwarePreviewSnapshot.swift */; };
 		278955B9813A2CF74828A6EB /* ReYogaReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF29495811AF7EFA0EBF8003 /* ReYogaReviewView.swift */; };
-		51E20B902BFE47495CBC65D8 /* VolumeObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38CC937643DD656D4FF0B231 /* VolumeObserver.swift */; };
 		0DA030A7F7A5C62C5B73DCFE /* DiagnosticCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABB5F08FED7C2FD0909A955 /* DiagnosticCollector.swift */; };
 		DD04BDC23E9E3A18718C0033 /* DiagnosticLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D90E2B82CE94EE5AC3D47578 /* DiagnosticLog.swift */; };
 		2D4DB0731E8C002822034F70 /* HardwareDiagnosticsExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 699153FC38AB8094CDBD0849 /* HardwareDiagnosticsExporter.swift */; };
@@ -331,7 +330,6 @@
 		8F0A0D17E5C5B7A73263B1C9 /* ApplicationReviewHarness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationReviewHarness.swift; sourceTree = "<group>"; };
 		B84E7390E12DB5B9696963AD /* HardwarePreviewSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwarePreviewSnapshot.swift; sourceTree = "<group>"; };
 		BF29495811AF7EFA0EBF8003 /* ReYogaReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReYogaReviewView.swift; sourceTree = "<group>"; };
-		38CC937643DD656D4FF0B231 /* VolumeObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeObserver.swift; sourceTree = "<group>"; };
 		9ABB5F08FED7C2FD0909A955 /* DiagnosticCollector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticCollector.swift; sourceTree = "<group>"; };
 		D90E2B82CE94EE5AC3D47578 /* DiagnosticLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLog.swift; sourceTree = "<group>"; };
 		699153FC38AB8094CDBD0849 /* HardwareDiagnosticsExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareDiagnosticsExporter.swift; sourceTree = "<group>"; };
@@ -677,7 +675,6 @@
 				6F0A987925343357002F9F65 /* AppDelegate.swift */,
 				F8B93BE324B7CA3E6F74E385 /* DriverConnection.swift */,
 				DCB5EF310B75CC6CBDAE4034 /* Preview */,
-				38CC937643DD656D4FF0B231 /* VolumeObserver.swift */,
 			);
 			path = Application;
 			sourceTree = "<group>";
@@ -1198,7 +1195,6 @@
 				EAF67DBCAC76DF48ABBB775D /* ApplicationReviewHarness.swift in Sources */,
 				33E256E2F06C82D2DA4FFA38 /* HardwarePreviewSnapshot.swift in Sources */,
 				278955B9813A2CF74828A6EB /* ReYogaReviewView.swift in Sources */,
-				51E20B902BFE47495CBC65D8 /* VolumeObserver.swift in Sources */,
 				0DA030A7F7A5C62C5B73DCFE /* DiagnosticCollector.swift in Sources */,
 				DD04BDC23E9E3A18718C0033 /* DiagnosticLog.swift in Sources */,
 				2D4DB0731E8C002822034F70 /* HardwareDiagnosticsExporter.swift in Sources */,

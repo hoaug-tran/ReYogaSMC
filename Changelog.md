@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Fix ThinkPad speaker mute key LED synchronization: mask firmware `GSMS` readback bits, reject firmware error states, expose `MuteLEDSupport` from `ThinkVPC`, and replace app-only `VolumeObserver` interception with CoreAudio default output mute observation across hotkeys, volume keys, Control Center, output device switches, and sleep/wake.
+- Remove obsolete `VolumeObserver` custom `NSApplication` subclass and add a Lighting control toggle for speaker mute LED synchronization (enabled by default when supported).
 - Fix ThinkPad CPU throttling locked at 600 MHz after S3 sleep wake across supported models (including T490, T14, X1 Carbon, P-series): automatically clear sticky Skin Temperature Protection (STP / Function 4) triggered by firmware OWAK and restore the active thermal profile upon wake.
 - Fix ThinkPad DYTC power profile readback failure when Skin Temperature Protection (STP / Function 4) is triggered. Preserve the active configured profile, annotate reduced performance while thermal protection is active, and publish skin mode status.
 - Fix ThinkPad DYTC power profile switching becoming unavailable while lap mode (CQL) is active on PSC models: fallback to the active configured profile when PSC is active and ACPI SPSC is unreadable, preventing SmartFanMode from disappearing and keeping UI profile switching enabled.

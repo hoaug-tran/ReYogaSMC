@@ -59,4 +59,13 @@ struct HardwareSnapshot {
         }
         return feature
     }
+
+    static func thinkSpeakerMuteLEDSupported(providerClass: String, properties: [String: Any]) -> Bool {
+        providerClass == "ThinkVPC" && ((properties["MuteLEDSupport"] as? Bool) ?? true)
+    }
+
+    static func isThinkMuteLEDFixupEnabled(_ defaults: UserDefaults = ReYogaConstants.userDefaults) -> Bool {
+        guard defaults.object(forKey: "ThinkMuteLEDFixup") != nil else { return true }
+        return defaults.bool(forKey: "ThinkMuteLEDFixup")
+    }
 }

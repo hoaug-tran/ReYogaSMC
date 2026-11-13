@@ -1,5 +1,9 @@
 """Source-level safety regressions; these do not simulate firmware or prove bootability."""
 import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
 try:
     from .source_tools import app_sources, kernel_sources, function, read_sources
@@ -187,6 +191,136 @@ class BootSafetyTests(unittest.TestCase):
         self.assertIn('resetDefaultEvents', config)
         notify = source('ReYogaSMCApp/Hardware/Driver/DriverNotifications.swift') + source('ReYogaSMCApp/Events/DriverEventActions.swift')
         self.assertIn('com.apple.systempreferences', notify)
+
+    def test_thinkpad_speaker_mute_led_gating_and_readback_masks(self):
+        header = source('ReYogaSMC/Platform/ThinkVPC.hpp')
+        self.assertRegex(header, r'bool\s+muteLEDSupport\s*\{\s*false\s*\}')
+
+        controls = kernel_sources('ThinkVPC')
+        init_vpc = function(controls, 'bool ThinkVPC::initVPC(')
+        self.assertIn('muteLEDSupport = (vpc->validateObject(setAudioMuteLED) == kIOReturnSuccess)', init_vpc)
+        self.assertIn('setProperty("MuteLEDSupport", muteLEDSupport)', init_vpc)
+
+        update_fn = function(controls, 'bool ThinkVPC::updateMuteLEDStatus(')
+        self.assertIn('vpc->validateObject(getAudioMuteLED)', update_fn)
+        self.assertIn('TPACPI_AML_MUTE_ERROR_STATE_MASK', update_fn)
+        self.assertIn('muteLEDstate = (raw & TPACPI_AML_MUTE_READ_MASK) ? 1 : 0', update_fn)
+        self.assertIn('setProperty(muteLEDPrompt, muteLEDstate != 0)', update_fn)
+
+        set_fn = function(controls, 'bool ThinkVPC::setMuteLEDStatus(')
+        self.assertIn('if (!muteLEDSupport || !vpc)', set_fn)
+        self.assertIn('TPACPI_AML_MUTE_ERROR_STATE_MASK', set_fn)
+        self.assertIn('muteLEDstate = status ? 1 : 0', set_fn)
+        self.assertIn('setProperty(muteLEDPrompt, status)', set_fn)
+
+    @unittest.skipUnless(shutil.which('g++') or shutil.which('clang++'), 'C++ compiler required')
+    def test_thinkpad_speaker_mute_led_host_behavior(self):
+        controls = kernel_sources('ThinkVPC')
+        update_fn = function(controls, 'bool ThinkVPC::updateMuteLEDStatus(')
+        set_fn = function(controls, 'bool ThinkVPC::setMuteLEDStatus(')
+        harness = f'''
+#include <cassert>
+#include <cstdint>
+
+using UInt32 = uint32_t;
+using IOReturn = int;
+constexpr IOReturn kIOReturnSuccess = 0;
+constexpr IOReturn kIOReturnUnsupported = -1;
+constexpr UInt32 TPACPI_AML_MUTE_READ_MASK = 0x01;
+constexpr UInt32 TPACPI_AML_MUTE_ERROR_STATE_MASK = 0x80000000u;
+
+#define AlwaysLog(...) ((void)0)
+#define DebugLog(...) ((void)0)
+
+struct VPCStub {{
+    IOReturn validateGet = kIOReturnSuccess;
+    IOReturn validateObject(const char *) const {{ return validateGet; }}
+}};
+
+struct ThinkVPC {{
+    VPCStub stub;
+    VPCStub *vpc = &stub;
+    bool muteLEDSupport = false;
+    int muteLEDstate = 0;
+    IOReturn evalRet = kIOReturnSuccess;
+    UInt32 evalResult = 0;
+    UInt32 lastParam = 99;
+    bool propSet = false;
+    bool propBool = false;
+
+    static constexpr const char *getAudioMuteLED = "GSMS";
+    static constexpr const char *setAudioMuteLED = "SSMS";
+    static constexpr const char *muteLEDPrompt = "MuteLED";
+    static constexpr const char *updateFailure = "";
+    static constexpr const char *updateSuccess = "";
+    static constexpr const char *toggleError = "";
+    static constexpr const char *toggleSuccess = "";
+
+    IOReturn evaluateIntegerParam(const char *, UInt32 *out, UInt32 param) {{
+        lastParam = param;
+        if (out) *out = evalResult;
+        return evalRet;
+    }}
+    void setProperty(const char *, bool value) {{
+        propSet = true;
+        propBool = value;
+    }}
+
+    bool updateMuteLEDStatus(bool logChanges);
+    bool setMuteLEDStatus(bool status);
+}};
+
+{update_fn}
+{set_fn}
+
+int main() {{
+    ThinkVPC dev;
+    dev.muteLEDSupport = false;
+    assert(!dev.setMuteLEDStatus(true));
+    assert(dev.lastParam == 99);
+
+    // Firmware returns hardware state bit 8 (0x100) for OFF, 0x101 for ON.
+    dev.evalResult = 0x100;
+    assert(dev.updateMuteLEDStatus(false));
+    assert(dev.muteLEDstate == 0);
+    assert(dev.propSet && !dev.propBool);
+
+    dev.evalResult = 0x101;
+    assert(dev.updateMuteLEDStatus(true));
+    assert(dev.muteLEDstate == 1);
+    assert(dev.propSet && dev.propBool);
+
+    // Firmware error bit must be rejected without corrupting muteLEDstate.
+    dev.evalResult = 0x80000001u;
+    assert(!dev.updateMuteLEDStatus(false));
+    assert(dev.muteLEDstate == 1);
+
+    dev.muteLEDSupport = true;
+    dev.evalResult = 0x100;
+    assert(dev.setMuteLEDStatus(false));
+    assert(dev.lastParam == 0 && dev.muteLEDstate == 0 && !dev.propBool);
+
+    assert(dev.setMuteLEDStatus(true));
+    assert(dev.lastParam == 1 && dev.muteLEDstate == 1 && dev.propBool);
+
+    dev.evalResult = 0x80000000u;
+    assert(!dev.setMuteLEDStatus(false));
+    assert(dev.muteLEDstate == 1);
+    return 0;
+}}
+'''
+        compiler = shutil.which('g++') or shutil.which('clang++')
+        with tempfile.TemporaryDirectory() as folder:
+            folder = pathlib.Path(folder)
+            src = folder / 'mute_led_test.cpp'
+            exe = folder / 'mute_led_test.exe'
+            src.write_text(harness, encoding='utf-8')
+            abi = ['-mno-ms-bitfields'] if sys.platform == 'win32' else []
+            build = subprocess.run([compiler, *abi, '-std=c++14', '-Wall', '-Wextra', '-Werror', str(src), '-o', str(exe)],
+                                   capture_output=True, text=True, timeout=60)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+            run = subprocess.run([str(exe)], capture_output=True, text=True, timeout=10)
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
 
 if __name__ == '__main__':
