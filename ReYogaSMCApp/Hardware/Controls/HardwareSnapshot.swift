@@ -60,7 +60,7 @@ struct HardwareSnapshot {
         return feature
     }
 
-    static func thinkSpeakerMuteLEDSupported(providerClass: String, properties: [String: Any]) -> Bool {
+    static func thinkSpeakerMuteLEDSupported(providerClass: String, properties: NSDictionary) -> Bool {
         providerClass == "ThinkVPC" && ((properties["MuteLEDSupport"] as? Bool) ?? true)
     }
 

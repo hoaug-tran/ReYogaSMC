@@ -28,7 +28,10 @@ let kIOReturnSuccess: Int32 = 0
 let kIOReturnIOError = Int32(bitPattern: 0xe00002ca)
 let kRYSMCUCThinkFan = 5, kRYSMCUCThinkFanCurve = 6
 func localizedMessage(_ key: String, _ arguments: CVarArg...) -> String { String(format: key, arguments: arguments) }
-enum ReYogaConstants { static let hardwareDefaults = Fixture.defaults }
+enum ReYogaConstants {
+    static let hardwareDefaults = Fixture.defaults
+    static let userDefaults = Fixture.defaults
+}
 final class ReYogaDiagnostics {
     static let shared = ReYogaDiagnostics()
     var events: [(String, [String: Any])] = []

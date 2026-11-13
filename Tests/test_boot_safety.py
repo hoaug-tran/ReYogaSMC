@@ -225,7 +225,6 @@ class BootSafetyTests(unittest.TestCase):
 using UInt32 = uint32_t;
 using IOReturn = int;
 constexpr IOReturn kIOReturnSuccess = 0;
-constexpr IOReturn kIOReturnUnsupported = -1;
 constexpr UInt32 TPACPI_AML_MUTE_READ_MASK = 0x01;
 constexpr UInt32 TPACPI_AML_MUTE_ERROR_STATE_MASK = 0x80000000u;
 
