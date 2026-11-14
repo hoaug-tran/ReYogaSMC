@@ -8,7 +8,7 @@
 - Add extended ThinkPad Fn shortcuts: Snipping Tool (`0x1312`), Calculator (`0x1313`), Notification Center (`0x1317`), Answer Call (`0x1318`), Hang Up Call (`0x1319`), and Thermal Profile (`0x6005`).
 - Add `DHKF` hotkey mask unmasking at boot and wake in `ThinkVPC`.
 - Add concurrent detection for `SMCAMDProcessor` alongside `SMCProcessorAMD` in app CPU temperature sensor reader.
-- Add pre-compiled `SSDT-ThinkPad.aml` and update the built-in generator to parse `SystemMemory` MMIO EC operation regions on AMD ThinkPads.
+- Add SSDT-ThinkPad ACPI sample and update the built-in generator to parse `SystemMemory` MMIO EC operation regions on AMD ThinkPads.
 - Add `-reynolap` and `-reynostp` boot arguments to suppress and auto-clear ThinkPad lap mode (CQL) and skin temperature protection (STP) throttling during runtime.
 - Add Lighting control toggle for ThinkPad speaker mute LED synchronization.
 
@@ -23,6 +23,10 @@
 - Fix telemetry monitoring running during sleep to prevent darkwake polling.
 - Fix ThinkPad T14 Intel subsystem ID matching in the hardware profile catalog.
 - Fix Overview card layout by hiding unavailable GPU sensor telemetry so CPU and fan readouts expand evenly.
+
+### Changed
+
+- Move `ReYoga.cmd` and `ReYoga.command` hardware report launchers from the repository root to `Scripts/`.
 
 ## 2.2.0
 
