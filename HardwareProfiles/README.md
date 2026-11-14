@@ -30,6 +30,7 @@ The table lists profile identity data, not a guarantee for every BIOS revision. 
 | [loq-gen8-aph](loq-gen8-aph.json) | Lenovo LOQ 15APH8 | 82XT | LYCN |
 | [loq-gen8-irh](loq-gen8-irh.json) | Lenovo LOQ 15IRH8 | 82XV, 82XW, 82XU | LZCN |
 | [loq-gen9-ahp](loq-gen9-ahp.json) | Lenovo LOQ 15AHP9 | 83DX | NZCN |
+| [thinkpad-e14-gen5-amd](thinkpad-e14-gen5-amd.json) | Lenovo ThinkPad E14 Gen 5 (AMD) | 21JR, 21JS | R2CE |
 | [yoga-slim7-gen5](yoga-slim7-gen5.json) | Lenovo Yoga Slim 7 14ARE05 | 82A2, 82A8 | DMCN, EMCN |
 
 ## Fields

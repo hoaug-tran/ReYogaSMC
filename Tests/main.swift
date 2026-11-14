@@ -171,6 +171,52 @@ func testACPINamespaceAndMatching() throws {
             _ = try namespace.plan(ecPath: "\\EC0", hkeyPath: "\\EC0.HKEY",
                 live: Dictionary(uniqueKeysWithValues: ThinkPadACPI.helpers.keys.map { ($0, false) }), protocolLayout: [:], template: "")
         }
+        var amdNamespace = ThinkPadACPI()
+        let amdDSDT = """
+        Device (EC0) {
+            Name (_HID, EisaId ("PNP0C09"))
+            OperationRegion (ECOR, SystemMemory, 0xFE00DA00, 0xFF)
+            Field (ECOR, ByteAcc, NoLock, Preserve) {
+                Offset (0x2F), HFSP, 8,
+                Offset (0x84), HSPD, 16
+            }
+            Device (HKEY) { Name (_HID, "LEN0068") }
+        }
+        """
+        try amdNamespace.add(amdDSDT, table: "test_amd")
+        let plan = try amdNamespace.plan(
+            ecPath: "\\EC0",
+            hkeyPath: "\\EC0.HKEY",
+            live: Dictionary(uniqueKeysWithValues: ThinkPadACPI.helpers.keys.map { ($0, false) }),
+            protocolLayout: ["FanControlOffset": 47, "FanRPMOffset": 132],
+            template: "Scope ({{ EC_PATH }}) {} Scope ({{ HKEY_PATH }}) {}"
+        )
+        guard let fanLayout = plan.report["fanLayout"] as? [String: Any],
+              fanLayout["verified"] as? Bool == true else {
+            fatalError("SystemMemory EC layout validation failed for ThinkPad AMD")
+        }
+        var invalidNamespace = ThinkPadACPI()
+        let invalidBaseDSDT = """
+        Device (EC0) {
+            Name (_HID, EisaId ("PNP0C09"))
+            OperationRegion (ECOR, SystemMemory, 0x8000, 0xFF)
+            Field (ECOR, ByteAcc, NoLock, Preserve) {
+                Offset (0x2F), HFSP, 8,
+                Offset (0x84), HSPD, 16
+            }
+            Device (HKEY) { Name (_HID, "LEN0068") }
+        }
+        """
+        try invalidNamespace.add(invalidBaseDSDT, table: "test_invalid")
+        rejects("SystemMemory low base address") {
+            _ = try invalidNamespace.plan(
+                ecPath: "\\EC0",
+                hkeyPath: "\\EC0.HKEY",
+                live: Dictionary(uniqueKeysWithValues: ThinkPadACPI.helpers.keys.map { ($0, false) }),
+                protocolLayout: ["FanControlOffset": 47, "FanRPMOffset": 132],
+                template: ""
+            )
+        }
     } catch { fatalError("ThinkPad namespace parsing failed: \(error)") }
     rejects("unknown DSDT") { _ = try HardwareProfiles.matchingDSDT("DefinitionBlock (\"\", \"DSDT\", 2, \"UNKNOWN\", \"UNKNOWN\", 1) {}") }
     let inputPaths = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("--") }
@@ -325,6 +371,16 @@ func testSMCTemperatureDecoding() {
     require(SMCTemperatureReader.decodeTemperature(type: "ui16", bytes: [80, 0]) == nil, "Unknown SMC encoding accepted")
     require(SMCTemperatureReader.cpuTemperatureKeys(available: ["TC0G", "TC0E", "TC0P", "TCGC"], amd: true) == ["TC0E", "TC0P"],
             "CPU reader selected a placeholder or firmware GPU key")
+    require(SMCTemperatureReader.cpuTemperatureKeys(available: ["TC0P", "TC0E"], amd: false) == ["TC0P", "TC0E"],
+            "Intel CPU key ordering failed")
+    require(SMCTemperatureReader.cpuTemperatureProvider(hasSMCAMDProcessor: true, hasSMCProcessorAMD: false) == "SMCAMDProcessor",
+            "SMCAMDProcessor provider detection failed")
+    require(SMCTemperatureReader.cpuTemperatureProvider(hasSMCAMDProcessor: false, hasSMCProcessorAMD: true) == "SMCProcessorAMD",
+            "SMCProcessorAMD provider detection failed")
+    require(SMCTemperatureReader.cpuTemperatureProvider(hasSMCAMDProcessor: true, hasSMCProcessorAMD: true) == "SMCAMDProcessor",
+            "SMCAMDProcessor priority over SMCProcessorAMD failed")
+    require(SMCTemperatureReader.cpuTemperatureProvider(hasSMCAMDProcessor: false, hasSMCProcessorAMD: false) == "SMC",
+            "Fallback to SMC provider failed")
 }
 
 func testSavedSettingsAndRGBBounds() throws {
@@ -602,6 +658,31 @@ func testPowerDraftMigration() throws {
             "Empty legacy power draft was lost")
 }
 
+func testThinkPadEvents() {
+    let clipping = thinkEvents[TP_HKEY_EV_CLIPPING_TOOL.rawValue]?[0]
+    require(clipping != nil, "Missing ThinkVPC event 0x1312 (clipping tool / screenshot)")
+    require(clipping?.action == .screenshot, "ThinkVPC event 0x1312 must map to .screenshot")
+
+    let calc = thinkEvents[TP_HKEY_EV_CALCULATOR.rawValue]?[0]
+    require(calc != nil, "Missing ThinkVPC event 0x1313 (calculator)")
+    require(calc?.action == .calculator, "ThinkVPC event 0x1313 must map to .calculator")
+
+    let fnKey = thinkEvents[TP_HKEY_EV_KEY_FN.rawValue]?[0]
+    require(fnKey != nil, "Missing ThinkVPC event 0x6005 (Fn key / thermal)")
+    require(fnKey?.action == .thermal, "ThinkVPC event 0x6005 must map to .thermal")
+
+    let notif = thinkEvents[TP_HKEY_EV_NOTIFICATION_CENTER.rawValue]?[0]
+    require(notif != nil, "Missing ThinkVPC event 0x1317 (notification center)")
+
+    let ans = thinkEvents[TP_HKEY_EV_ANSWER_CALL.rawValue]?[0]
+    require(ans != nil, "Missing ThinkVPC event 0x1318 (answer call)")
+
+    let hang = thinkEvents[TP_HKEY_EV_HANGUP_CALL.rawValue]?[0]
+    require(hang != nil, "Missing ThinkVPC event 0x1319 (hang up call)")
+
+    print("PASS ThinkPad extended event mappings")
+}
+
 func testEventPersistence() {
     let suiteName = "ReYogaEventTests-" + UUID().uuidString
     let defaults = UserDefaults(suiteName: suiteName)!
@@ -753,6 +834,7 @@ try testDiagnostics()
 testControlsPages()
 testControlValueLabels()
 try testPowerDraftMigration()
+testThinkPadEvents()
 testEventPersistence()
 print("All support tests passed")
 

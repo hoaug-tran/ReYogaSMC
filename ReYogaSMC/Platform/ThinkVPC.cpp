@@ -68,6 +68,14 @@ bool ThinkVPC::initVPC() {
     } else {
         AlwaysLog("Failed to acquire hotkey_all_mask");
     }
+
+    if (hotkey_alter_all_mask) {
+        for (UInt32 i = 0; i < 0x20; i++) {
+            if ((hotkey_alter_all_mask & BIT(i)) &&
+                !setNotificationMask(i, hotkey_alter_all_mask, DHKF_MASK_offset))
+                break;
+        }
+    }
     setProperty("HKEY Property", KBDProperty);
     KBDProperty->release();
 
@@ -494,6 +502,13 @@ IOReturn ThinkVPC::setPowerState(unsigned long powerStateOrdinal, IOService *wha
             if ((hotkey_all_mask & BIT(i)) &&
                 !setNotificationMask(i, hotkey_all_mask, DHKN_MASK_offset))
                 break;
+        }
+        if (hotkey_alter_all_mask) {
+            for (UInt32 i = 0; i < 32; ++i) {
+                if ((hotkey_alter_all_mask & BIT(i)) &&
+                    !setNotificationMask(i, hotkey_alter_all_mask, DHKF_MASK_offset))
+                    break;
+            }
         }
         if (automaticBacklightMode & BIT(2))
             setSSTStatus(1);

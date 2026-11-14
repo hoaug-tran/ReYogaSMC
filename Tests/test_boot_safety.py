@@ -164,19 +164,35 @@ class BootSafetyTests(unittest.TestCase):
         wake_branch = power_body.split('} else {', 1)[1].split('return kIOPMAckImplied;', 1)[0]
         self.assertIn('restoreThermalOnWake()', wake_branch)
         self.assertIn('commandGate->runAction', wake_branch)
+        self.assertIn('DHKF_MASK_offset', wake_branch)
+        self.assertIn('hotkey_alter_all_mask', wake_branch)
 
         vpc = source('ReYogaSMC/ReYogaVPC.cpp')
         clear_body = function(vpc, 'bool ReYogaVPC::clearSTP(')
         self.assertIn('DYTCCap & BIT(DYTC_FUNCTION_STP)', clear_body)
         self.assertIn('DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_STP, 0xF, false)', clear_body)
 
+        clear_cql_body = function(vpc, 'bool ReYogaVPC::clearCQL(')
+        self.assertIn('DYTCCap & BIT(DYTC_FUNCTION_CQL)', clear_cql_body)
+        self.assertIn('DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_CQL, 0xF, false)', clear_cql_body)
+
         restore_body = function(vpc, 'bool ReYogaVPC::restoreThermalOnWake(')
         self.assertIn('if (!DYTCCap)', restore_body)
         self.assertIn('if (DYTCCap & BIT(DYTC_FUNCTION_STP))', restore_body)
         self.assertIn('clearedSTP = clearSTP()', restore_body)
+        self.assertIn('if (DYTCCap & BIT(DYTC_FUNCTION_CQL))', restore_body)
+        self.assertIn('clearedCQL = clearCQL()', restore_body)
         self.assertIn('supportsThermalProfiles()', restore_body)
         self.assertIn('setThermalProfile(', restore_body)
         self.assertIn('setProperty("LastThermalWakeRecovery", diagnostic)', restore_body)
+
+        init_body = function(vpc, 'void ReYogaVPC::initDYTC(')
+        self.assertIn('disableLapMode = PE_parse_boot_argn("-reynolap"', init_body)
+        self.assertIn('disableSTPMode = PE_parse_boot_argn("-reynostp"', init_body)
+        self.assertIn('if (DYTCCap & BIT(DYTC_FUNCTION_STP))', init_body)
+        self.assertIn('clearSTP()', init_body)
+        self.assertIn('if (DYTCCap & BIT(DYTC_FUNCTION_CQL))', init_body)
+        self.assertIn('clearCQL()', init_body)
 
     def test_standalone_ssdtless_and_hotkey_migration(self):
         kext_plist = source('ReYogaSMC/Info.plist')
@@ -191,6 +207,17 @@ class BootSafetyTests(unittest.TestCase):
         self.assertIn('resetDefaultEvents', config)
         notify = source('ReYogaSMCApp/Hardware/Driver/DriverNotifications.swift') + source('ReYogaSMCApp/Events/DriverEventActions.swift')
         self.assertIn('com.apple.systempreferences', notify)
+        defaults = source('ReYogaSMCApp/Events/DefaultEvents.swift')
+        self.assertIn('TP_HKEY_EV_NOTIFICATION_CENTER.rawValue', defaults)
+        self.assertIn('TP_HKEY_EV_ANSWER_CALL.rawValue', defaults)
+        self.assertIn('TP_HKEY_EV_HANGUP_CALL.rawValue', defaults)
+        self.assertIn('TP_HKEY_EV_CLIPPING_TOOL.rawValue', defaults)
+        self.assertIn('TP_HKEY_EV_CALCULATOR.rawValue', defaults)
+        self.assertIn('TP_HKEY_EV_KEY_FN.rawValue', defaults)
+
+        events_h = source('ReYogaSMC/Platform/ThinkEvents.h')
+        self.assertIn('TP_HKEY_EV_CLIPPING_TOOL = 0x1312', events_h)
+        self.assertIn('TP_HKEY_EV_CALCULATOR = 0x1313', events_h)
 
     def test_thinkpad_speaker_mute_led_gating_and_readback_masks(self):
         header = source('ReYogaSMC/Platform/ThinkVPC.hpp')

@@ -77,15 +77,21 @@ let thinkEvents: [UInt32: [UInt32: EventDescriptor]] = [
         0: EventDescriptor("ReYogaSMC Controls", .kStar, act: .controls),
         optionFlag: EventDescriptor("System Preferences", .kStar, act: .launchbundle, opt: "com.apple.systempreferences")
     ],
+    TP_HKEY_EV_CLIPPING_TOOL.rawValue: [0: EventDescriptor("Screenshot", act: .screenshot, display: true)], // 0x1312
+    TP_HKEY_EV_CALCULATOR.rawValue: [0: EventDescriptor("Calculator", act: .calculator, display: true)], // 0x1313
     TP_HKEY_EV_BLUETOOTH.rawValue: [
         0: EventDescriptor("Bluetooth", act: .bluetooth),
         optionFlag: EventDescriptor("BT Discoverable", act: .bluetoothdiscoverable)
     ], // 0x1314
     TP_HKEY_EV_KEYBOARD.rawValue: [0: EventDescriptor("Keyboard Toggle", act: .keyboard)], // 0x1315
+    TP_HKEY_EV_NOTIFICATION_CENTER.rawValue: [0: EventDescriptor("Notification Center", act: .nothing, display: true)],
+    TP_HKEY_EV_ANSWER_CALL.rawValue: [0: EventDescriptor("Answer Call", act: .nothing, display: true)],
+    TP_HKEY_EV_HANGUP_CALL.rawValue: [0: EventDescriptor("Hang Up Call", act: .nothing, display: true)],
     TP_HKEY_EV_HOTPLUG_DOCK.rawValue: [0: EventDescriptor("Dock Attached", .kDock, display: true)], // 0x4010
     TP_HKEY_EV_HOTPLUG_UNDOCK.rawValue: [0: EventDescriptor("Dock Detached", .kUndock, display: true)], // 0x4011
     TP_HKEY_EV_LID_CLOSE.rawValue: [0: EventDescriptor("LID Close", display: false)], // 0x5001
     TP_HKEY_EV_LID_OPEN.rawValue: [0: EventDescriptor("LID Open", display: false)], // 0x5002
+    TP_HKEY_EV_KEY_FN.rawValue: [0: EventDescriptor("Thermal Profile", act: .thermal, display: true)], // 0x6005
     TP_HKEY_EV_THM_TABLE_CHANGED.rawValue: [0: EventDescriptor("Thermal Table Change", display: false)], // 0x6030
     TP_HKEY_EV_THM_CSM_COMPLETED.rawValue: [0: EventDescriptor("Thermal Control Change", display: false)], // 0x6032
     TP_HKEY_EV_AC_CHANGED.rawValue: [0: EventDescriptor("AC Status Change", display: false)], // 0x6040

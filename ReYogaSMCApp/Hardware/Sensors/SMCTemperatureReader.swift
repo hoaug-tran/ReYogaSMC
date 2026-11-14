@@ -33,6 +33,15 @@ final class SMCTemperatureReader {
         let order = amd ? ["TC0E", "TC0F", "TC0P", "TC0T"] : ["TC0P", "TC0D", "TC0E", "TC0F", "TC0T"]
         return order.filter { available.contains($0) }
     }
+    static func cpuTemperatureProvider(hasSMCAMDProcessor: Bool, hasSMCProcessorAMD: Bool) -> String {
+        if hasSMCAMDProcessor {
+            return "SMCAMDProcessor"
+        }
+        if hasSMCProcessorAMD {
+            return "SMCProcessorAMD"
+        }
+        return "SMC"
+    }
     private func uint32(_ data: [UInt8], _ offset: Int) -> UInt32 {
         (0..<4).reduce(0) { $0 | UInt32(data[offset + $1]) << UInt32($1 * 8) }
     }
@@ -98,8 +107,11 @@ final class SMCTemperatureReader {
         }
         keys.sort()
 
-        let amd = providerExists("SMCProcessorAMD")
-        cpuProvider = amd ? "SMCProcessorAMD" : "SMC"
+        cpuProvider = Self.cpuTemperatureProvider(
+            hasSMCAMDProcessor: providerExists("SMCAMDProcessor"),
+            hasSMCProcessorAMD: providerExists("SMCProcessorAMD")
+        )
+        let amd = cpuProvider != "SMC"
         gpuProvider = providerExists("SMCRadeonSensors") ? "SMCRadeonSensors" : "SMC"
         cpuKeys = Self.cpuTemperatureKeys(available: available, amd: amd)
         if Set(keys.filter { $0 != "TGDD" }.map { Array($0)[2] }).count > 1 {
