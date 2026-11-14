@@ -233,6 +233,13 @@ void ReYogaVPC::setPropertyGated(const char *key, OSObject *rawValue) {
         } else {
             AlwaysLog(toggleFailure, DYTCPrompt);
         }
+    } else if (!strcmp(key, "ClearCQL")) {
+        if (clearCQL()) {
+            updateDYTC();
+            DebugLog(toggleSuccess, DYTCPrompt, 1, "CQL cleared");
+        } else {
+            AlwaysLog(toggleFailure, DYTCPrompt);
+        }
     } else if (!strcmp(key, "RestoreThermalOnWake")) {
         if (restoreThermalOnWake())
             DebugLog(toggleSuccess, DYTCPrompt, activeThermalProfile, "Thermal restored");

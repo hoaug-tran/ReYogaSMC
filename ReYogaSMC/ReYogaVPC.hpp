@@ -44,6 +44,8 @@ protected:
     UInt16 DYTCCap{0};
     UInt8 DYTCRevision{0};
     bool mmcGetCap{false};
+    bool disableLapMode{false};
+    bool disableSTPMode{false};
     UInt32 activeThermalProfile{2};
     IOACPIPlatformDevice *vpc{nullptr};       // Borrowed provider.
     OSOrderedSet *WMICollection{nullptr};     // Own retained service elements.
@@ -92,6 +94,7 @@ protected:
     bool setDYTC(int function, int mode);
     bool setThermalProfile(UInt32 profile);
     bool clearSTP();
+    bool clearCQL();
     bool restoreThermalOnWake();
     IOReturn evaluateIntegerParam(const char *method, UInt32 *result, UInt32 argument);
 

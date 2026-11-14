@@ -2,6 +2,7 @@
 // Original work: Copyright (c) 2020 Zhen.
 
 #include "ReYogaVPC.hpp"
+#include <pexpert/pexpert.h>
 
 bool ReYogaVPC::DYTCCommand(DYTC_CMD command, DYTC_RESULT *result, UInt8 ICFunc, UInt8 ICMode, bool ValidF) {
     if (DYTCLock) {
@@ -111,6 +112,19 @@ void ReYogaVPC::initDYTC() {
         if (DYTCCommand(dytc_mmc_get_cmd, &result))
             mmcGetCap = true;
     }
+
+    UInt32 bootArgument = 0;
+    disableLapMode = PE_parse_boot_argn("-reynolap", &bootArgument, sizeof(bootArgument));
+    disableSTPMode = PE_parse_boot_argn("-reynostp", &bootArgument, sizeof(bootArgument));
+    if (disableLapMode)
+        setProperty("NoLapMode", true);
+    if (disableSTPMode)
+        setProperty("NoSTPMode", true);
+
+    if (DYTCCap & BIT(DYTC_FUNCTION_STP))
+        clearSTP();
+    if (DYTCCap & BIT(DYTC_FUNCTION_CQL))
+        clearCQL();
 
     setProperty("DYTC", DYTCVersion);
 }
@@ -401,6 +415,18 @@ bool ReYogaVPC::updateDYTC() {
     if (!DYTCCommand(dytc_get_cmd, &result))
         return false;
 
+    if (disableSTPMode && (DYTCCap & BIT(DYTC_FUNCTION_STP)) &&
+        (result.get.funcmode == DYTC_FUNCTION_STP || (result.get.func_sta & BIT(DYTC_FUNCTION_STP)) != 0)) {
+        if (clearSTP())
+            DYTCCommand(dytc_get_cmd, &result);
+    }
+
+    if (disableLapMode && (DYTCCap & BIT(DYTC_FUNCTION_CQL)) &&
+        (result.get.funcmode == DYTC_FUNCTION_CQL || (result.get.func_sta & BIT(DYTC_FUNCTION_CQL)) != 0)) {
+        if (clearCQL())
+            DYTCCommand(dytc_get_cmd, &result);
+    }
+
     // X1C7 X1C7 X1C7 X1C7 X1C7 X1C7 X1C7 X1C7
     if (result.get.funcmode == DYTC_FUNCTION_CQL && supportsMMCThermal() && !mmcGetCap) {
         UInt32 dummyMode = 0;
@@ -504,15 +530,25 @@ bool ReYogaVPC::clearSTP() {
     return DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_STP, 0xF, false);
 }
 
+bool ReYogaVPC::clearCQL() {
+    if (!DYTCCap || !(DYTCCap & BIT(DYTC_FUNCTION_CQL)))
+        return false;
+    DYTC_RESULT result;
+    return DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_CQL, 0xF, false);
+}
+
 bool ReYogaVPC::restoreThermalOnWake() {
     if (!DYTCCap)
         return false;
     bool clearedSTP = false;
     if (DYTCCap & BIT(DYTC_FUNCTION_STP))
         clearedSTP = clearSTP();
+    bool clearedCQL = false;
+    if (DYTCCap & BIT(DYTC_FUNCTION_CQL))
+        clearedCQL = clearCQL();
     const bool success = supportsThermalProfiles() ? setThermalProfile((activeThermalProfile >= 1 && activeThermalProfile <= 3) ? activeThermalProfile : 2)
                                                    : updateDYTC();
-    auto diagnostic = OSDictionary::withCapacity(5);
+    auto diagnostic = OSDictionary::withCapacity(7);
     if (diagnostic) {
         UInt64 uptime = 0, nanoseconds = 0;
         clock_get_uptime(&uptime);
@@ -520,6 +556,8 @@ bool ReYogaVPC::restoreThermalOnWake() {
         ReYogaProperty::setNumber(diagnostic, "UptimeMS", nanoseconds / 1000000, 64);
         ReYogaProperty::setBoolean(diagnostic, "STPCapable", (DYTCCap & BIT(DYTC_FUNCTION_STP)) != 0);
         ReYogaProperty::setBoolean(diagnostic, "STPCleared", clearedSTP);
+        ReYogaProperty::setBoolean(diagnostic, "CQLCapable", (DYTCCap & BIT(DYTC_FUNCTION_CQL)) != 0);
+        ReYogaProperty::setBoolean(diagnostic, "CQLCleared", clearedCQL);
         ReYogaProperty::setNumber(diagnostic, "RestoredProfile", activeThermalProfile, 32);
         ReYogaProperty::setBoolean(diagnostic, "Success", success);
         setProperty("LastThermalWakeRecovery", diagnostic);

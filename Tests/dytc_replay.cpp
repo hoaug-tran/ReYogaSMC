@@ -99,6 +99,7 @@ struct ReYogaVPC {
     UInt16 DYTCCap = 0x7913;
     UInt8 DYTCRevision = 5;
     bool DYTCLock = false, disabled = false, mmcGetCap = false;
+    bool disableLapMode = false, disableSTPMode = false;
     UInt32 activeThermalProfile = 2;
     OSDictionary version, published, lastMutation, lastReadback, lastGet, lastWakeRecovery;
     OSDictionary *DYTCVersion = &version;
@@ -121,6 +122,7 @@ struct ReYogaVPC {
     bool setDYTC(int function, int mode);
     bool setThermalProfile(UInt32 profile);
     bool clearSTP();
+    bool clearCQL();
     bool restoreThermalOnWake();
 };
 
@@ -160,24 +162,42 @@ int main(int argc, char **argv) {
         assert(device.published.strings.at("FuncMode") == "Controlled");
         assert(device.published.strings.at("PerfMode") == "Performance");
         assert(device.published.numbers.at("stpmode") == 0);
-        assert(device.firmware.commands.size() >= 2);
+        assert(device.firmware.commands.size() >= 3);
         assert(device.firmware.commands[0] == 0x000f4001);
-        assert(device.firmware.commands[1] == 0x0017d001);
+        assert(device.firmware.commands[1] == 0x000f1001);
+        assert(device.firmware.commands[2] == 0x0017d001);
         assert(device.lastWakeRecovery.numbers.at("UptimeMS") == 1234);
         assert(device.lastWakeRecovery.numbers.at("STPCapable") == 1);
         assert(device.lastWakeRecovery.numbers.at("STPCleared") == 1);
+        assert(device.lastWakeRecovery.numbers.at("CQLCapable") == 1);
+        assert(device.lastWakeRecovery.numbers.at("CQLCleared") == 1);
         assert(device.lastWakeRecovery.numbers.at("RestoredProfile") == 3);
 
         device.DYTCCap = 0x7913;
         device.activeThermalProfile = 2;
+        device.firmware.psc = false;
+        device.firmware.pscMode = 0;
         device.firmware.lap = true;
         device.firmware.otherActive |= BIT(4);
         assert(device.restoreThermalOnWake());
         assert((device.firmware.otherActive & BIT(4)) == 0);
-        assert(device.published.strings.at("FuncMode") == "Lap");
+        assert(!device.firmware.lap);
+        assert(device.published.strings.at("FuncMode") == "Standard");
         assert(device.published.strings.at("PerfMode") == "Balance");
         assert(device.published.numbers.at("stpmode") == 0);
-        assert(device.published.numbers.at("lapmode") == 1);
+        assert(device.published.numbers.at("lapmode") == 0);
+
+        device.firmware.lap = true;
+        device.disableLapMode = true;
+        assert(device.updateDYTC());
+        assert(!device.firmware.lap);
+        assert(device.published.numbers.at("lapmode") == 0);
+
+        device.firmware.otherActive |= BIT(4);
+        device.disableSTPMode = true;
+        assert(device.updateDYTC());
+        assert((device.firmware.otherActive & BIT(4)) == 0);
+        assert(device.published.numbers.at("stpmode") == 0);
 
         device.DYTCCap = 0x803;
         device.firmware.commands.clear();

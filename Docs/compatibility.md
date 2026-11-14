@@ -10,13 +10,13 @@ ThinkPad uses HKEY and EC methods. It does not need a Lenovo JSON profile for ho
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Charge thresholds | Start: 0-99%; stop: 1-100%. Firmware must support the operation and accept the ordering.                                                                                                                                         |
 | Battery selection | Shown only when firmware supports individual battery addressing.                                                                                                                                                                 |
-| Power profiles    | A supported DYTC MMC/PSC interface and a readable current mode. Polling preserves lap mode; active configured profiles are preserved when lap mode masks readback on PSC platforms, and wake automatically clears false sticky skin temperature protection (STP) triggered by firmware OWAK and restores the active profile. |
+| Power profiles    | A supported DYTC MMC/PSC interface and a readable current mode. Polling preserves lap mode; active configured profiles are preserved when lap mode masks readback on PSC platforms, and boot/wake automatically clears false sticky skin temperature protection (STP) and lap mode (CQL) triggered by firmware and restores the active profile. |
 | Fan RPM           | A supported EC/helper or native fan-reading method. Failed readings show unavailable.                                                                                                                                            |
 | Manual/Full Speed | ThinkPad fan protocol and EC read/write access. Requests must pass mode readback.                                                                                                                                                |
 | Custom Curve      | Manual control requirements, a driver watchdog and fresh CPU temperature. Other fan backends do not use this curve engine.                                                                                                       |
 | Mute LEDs         | Speaker mute LED requires firmware `GSMS`/`SSMS` support (`MuteLEDSupport`) and macOS output mute observation (configurable in Lighting controls); mic mute LED requires firmware `MMTG`/`MMTS` support.                        |
 
-The driver never substitutes an unrequested profile. CQL/CSC states use available read methods; when lap mode (CQL) masks readback on platforms with active PSC and unreadable ACPI fields, the active configured profile is preserved to keep controls available. If other read methods fail, the current mode stays unavailable.
+The driver never substitutes an unrequested profile. CQL/CSC states use available read methods; when lap mode (CQL) masks readback on platforms with active PSC and unreadable ACPI fields, the active configured profile is preserved to keep controls available. If other read methods fail, the current mode stays unavailable. For desk or workstation setups where lap/skin thermal throttling is not desired, `-reynolap` and `-reynostp` suppress and auto-clear those firmware states during runtime.
 
 Fan level 0 requires both the app's fan-stop preference and `-reyfanstop`. BIOS Auto and Full Speed are separate firmware modes. Full Speed does not promise a specific RPM.
 
@@ -81,6 +81,8 @@ Add only the arguments needed for your setup or diagnosis.
 | Argument       | Effect                                                                                          |
 | -------------- | ----------------------------------------------------------------------------------------------- |
 | `-reysafe`     | Skip ACPI/WMI hardware probes and block firmware writes                                         |
+| `-reynolap`    | Suppress and auto-clear ThinkPad lap mode (CQL) throttling during runtime                       |
+| `-reynostp`    | Suppress and auto-clear ThinkPad skin temperature protection (STP) throttling during runtime    |
 | `-reynobridge` | Disable native profile matching and RYID bridge discovery; keep generic interfaces              |
 | `-reynowmi`    | Disable vendor WMI probing                                                                      |
 | `-reycpupower` | Allow supported Legion CPU power-limit access                                                   |

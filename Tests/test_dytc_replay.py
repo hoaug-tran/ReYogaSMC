@@ -18,7 +18,7 @@ class DYTCReplayTests(unittest.TestCase):
     def test_profile_selection_readback_and_recovery(self):
         production = kernel_sources('ReYogaVPC')
         bodies = []
-        for name in ('DYTCCommand', 'parseDYTC', 'updateDYTC', 'setThermalProfile', 'setDYTC', 'evaluateNamedThermalMode', 'clearSTP', 'restoreThermalOnWake'):
+        for name in ('DYTCCommand', 'parseDYTC', 'updateDYTC', 'setThermalProfile', 'setDYTC', 'evaluateNamedThermalMode', 'clearSTP', 'clearCQL', 'restoreThermalOnWake'):
             bodies.append(function(production, 'bool ReYogaVPC::' + name + '('))
         fixture = (ROOT / 'Tests/dytc_replay.cpp').read_text(encoding='utf-8')
         fixture = fixture.replace('// Production method bodies are inserted here by test_dytc_replay.py.', '\n'.join(bodies))
