@@ -53,6 +53,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         HardwareManager.shared.restoreAfterWake()
     }
 
+    @objc func systemWillSleep() {
+        driver.prepareForSleep()
+    }
+
     // MARK: - Application
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
@@ -130,6 +134,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func setupStatusItem() {
         NSWorkspace.shared.notificationCenter.removeObserver(self, name: NSWorkspace.didWakeNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(iconWakeup), name: NSWorkspace.didWakeNotification, object: nil)
+        NSWorkspace.shared.notificationCenter.removeObserver(self, name: NSWorkspace.willSleepNotification, object: nil)
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(systemWillSleep), name: NSWorkspace.willSleepNotification, object: nil)
         if driver.hide {
             os_log("Icon hidden", type: .info)
             return

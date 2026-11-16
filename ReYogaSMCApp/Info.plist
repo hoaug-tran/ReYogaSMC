@@ -43,6 +43,6 @@
 	<key>NSMainStoryboardFile</key>
 	<string>Main</string>
 	<key>NSPrincipalClass</key>
-	<string>ReYogaSMC.VolumeObserver</string>
+	<string>NSApplication</string>
 </dict>
 </plist>

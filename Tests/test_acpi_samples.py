@@ -11,11 +11,18 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 class ACPISampleTests(unittest.TestCase):
     def test_thinkpad_sample_matches_export_template(self):
         template = (ROOT / 'HardwareProfiles/SSDT-ThinkPad.template.dsl').read_text(encoding='utf-8')
-        source = template.replace('{{ EC_PATH }}', r'\_SB.PCI0.LPCB.EC').replace(
-            '{{ HKEY_PATH }}', r'\_SB.PCI0.LPCB.EC.HKEY')
+        valid_sources = [
+            template.replace('{{ EC_PATH }}', r'\_SB.PCI0.LPCB.EC').replace(
+                '{{ HKEY_PATH }}', r'\_SB.PCI0.LPCB.EC.HKEY'),
+            template.replace('{{ EC_PATH }}', r'\_SB.PCI0.LPC0.EC0').replace(
+                '{{ HKEY_PATH }}', r'\_SB.PCI0.LPC0.EC0.HKEY'),
+        ]
         sample = (ROOT / 'ReYogaSMC/ACPIExamples/SSDT-ThinkPad.dsl').read_text(encoding='utf-8')
-        self.assertEqual(sample.split('\n', 1)[1], source)
-        self.assertNotIn('EST0', source, 'Unreviewed sensor offsets must not be added by the generator')
+        sample_body = sample.split('\n', 1)[1] if sample.startswith('// Update') else sample
+        self.assertIn(sample_body, valid_sources)
+        for valid in valid_sources:
+            self.assertNotIn('EST0', valid, 'Unreviewed sensor offsets must not be added by the generator')
+        self.assertNotIn('EST0', sample, 'Unreviewed sensor offsets must not be added by the generator')
 
     @unittest.skipUnless(shutil.which('iasl'), 'ACPI compiler is not installed')
     def test_samples_compile(self):

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "kind": "acpi",
+  "id": "thinkpad-e14-gen5-amd",
+  "name": "Lenovo ThinkPad E14 Gen 5 (AMD)",
+  "machine_types": [
+    "21JR",
+    "21JS"
+  ],
+  "bios_families": [
+    "R2CE"
+  ],
+  "oem_table_ids": [
+    "TP-R2C"
+  ],
+  "ec_path": "\\_SB.PCI0.LPC0.EC0",
+  "rpm_scale": 1,
+  "battery_conservation_mask": 32,
+  "battery_rapidcharge_mask": 4,
+  "native_telemetry": [
+    {
+      "field": "FANS",
+      "scale": 1
+    },
+    {
+      "field": "FA2S",
+      "scale": 1
+    },
+    {
+      "field": "CPUT",
+      "scale": 1
+    },
+    {
+      "field": "GPUT",
+      "scale": 1
+    }
+  ],
+  "sources": [
+    "https://github.com/hoaug-tran/ReYogaSMC/issues/15",
+    "https://github.com/5T33Z0/Lenovo-ThinkPad-E14-Gen-5-AMD-OpenCore",
+    "https://pcsupport.lenovo.com/us/en/products/laptops-and-netbooks/thinkpad-edge-laptops/thinkpad-e14-gen-5-type-21jr-21js"
+  ],
+  "verified_writes": 0
+}

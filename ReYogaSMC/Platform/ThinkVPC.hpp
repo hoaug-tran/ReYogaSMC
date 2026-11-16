@@ -176,6 +176,7 @@ OSDeclareDefaultStructors(ThinkVPC)
     UInt32 thermalstate{0};
 
     bool LEDSupport{false};
+    bool muteLEDSupport{false};
 
     UInt32 batnum{BAT_PRIMARY};
 

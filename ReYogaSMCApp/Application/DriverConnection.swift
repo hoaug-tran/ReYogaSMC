@@ -16,7 +16,8 @@ final class DriverConnection: NSObject {
     private var driverInterest: io_object_t = 0
     private var connectionGeneration: UInt64 = 0
     private var thinkWakeObserver: NSObjectProtocol?
-    private var thinkSleepObserver: NSObjectProtocol?
+    private let outputMuteObserver = CoreAudioMuteObserver()
+    private var supportsMuteLED = false
     private var fanHelper: ThinkFanHelper?
     private var fanHelper2: ThinkFanHelper?
 
@@ -25,6 +26,7 @@ final class DriverConnection: NSObject {
         self.prepareControls = prepareControls
         super.init()
         manager.configureThinkFanAuthorization { [weak self] in self?.initializeThinkFans() }
+        manager.configureThinkMuteLEDFixup { [weak self] in self?.refreshThinkMuteLEDFixup() }
     }
 
     var hasConnection: Bool { context.service != 0 || context.connect != 0 }
@@ -92,6 +94,7 @@ final class DriverConnection: NSObject {
                 }
                 IOObjectRetain(service)
                 context.service = service; context.connect = connection; self.provider = provider
+                supportsMuteLED = HardwareSnapshot.thinkSpeakerMuteLEDSupported(providerClass: provider, properties: props)
                 manager.setDriverState(.ready, message: "Hardware driver ready")
                 watchDriverTermination(service)
                 loadConfig()
@@ -137,10 +140,9 @@ final class DriverConnection: NSObject {
         fanHelper = nil; fanHelper2 = nil
         if let observer = thinkWakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
         thinkWakeObserver = nil
-        if let observer = thinkSleepObserver { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
-        thinkSleepObserver = nil
-        NotificationCenter.default.removeObserver(self, name: VolumeObserver.volumeChanged, object: nil)
-        DistributedNotificationCenter.default.removeObserver(self, name: NSNotification.Name("com.apple.sound.settingsChangedNotification"), object: nil)
+        supportsMuteLED = false
+        outputMuteObserver.stop()
+        resetMuteLEDStatusCache()
         if context.connect != 0 {
             _ = IOConnectCallScalarMethod(context.connect, UInt32(kRYSMCUCClose), nil, 0, nil, nil)
             IOServiceClose(context.connect); context.connect = 0
@@ -169,27 +171,7 @@ final class DriverConnection: NSObject {
             }
 
             thinkWakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.thinkWakeup() }
-            thinkSleepObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
-                let save = self?.defaults.bool(forKey: "SaveFanLevel") ?? false
-                self?.fanHelper?.prepareForSleep(savePreference: save)
-                self?.fanHelper2?.prepareForSleep(savePreference: save)
-            }
-
-            if defaults.bool(forKey: "ThinkMuteLEDFixup") {
-                NotificationCenter.default.addObserver(
-                    self,
-                    selector: #selector(thinkMuteLEDFixup),
-                    name: VolumeObserver.volumeChanged,
-                    object: nil
-                )
-
-                DistributedNotificationCenter.default.addObserver(
-                    self,
-                    selector: #selector(thinkMuteLEDFixup),
-                    name: NSNotification.Name(rawValue: "com.apple.sound.settingsChangedNotification"),
-                    object: nil
-                )
-            }
+            syncThinkMuteLEDObserver()
         case "ReYogaHIDD":
             context.events = HIDDEvents
             isOpen = registerNotification(context)
@@ -312,9 +294,24 @@ final class DriverConnection: NSObject {
         }
     }
 
+    func prepareForSleep() {
+        let save = defaults.bool(forKey: "SaveFanLevel")
+        fanHelper?.prepareForSleep(savePreference: save)
+        fanHelper2?.prepareForSleep(savePreference: save)
+        manager.prepareForSystemSleep()
+    }
+
+    private var canSyncThinkMuteLED: Bool {
+        provider == "ThinkVPC" && supportsMuteLED && context.service != 0 &&
+            HardwareSnapshot.isThinkMuteLEDFixupEnabled(defaults)
+    }
+
     @objc private func thinkWakeup() {
         micMuteLEDHelper(context.service)
-        if defaults.bool(forKey: "ThinkMuteLEDFixup") { muteLEDHelper(context.service) }
+        if canSyncThinkMuteLED {
+            outputMuteObserver.refreshDevice()
+            muteLEDHelper(context.service)
+        }
 
         for fan in [fanHelper, fanHelper2].compactMap({ $0 }) {
             if fan.resumeCurveAfterWake {
@@ -328,8 +325,25 @@ final class DriverConnection: NSObject {
         }
     }
 
-    @objc private func thinkMuteLEDFixup() {
-        muteLEDHelper(context.service, false)
+    func refreshThinkMuteLEDFixup() {
+        guard provider == "ThinkVPC", supportsMuteLED, context.service != 0 else { return }
+        syncThinkMuteLEDObserver()
+        if canSyncThinkMuteLED {
+            muteLEDHelper(context.service)
+        } else {
+            resetMuteLEDStatusCache()
+        }
+    }
+
+    private func syncThinkMuteLEDObserver() {
+        guard canSyncThinkMuteLED else {
+            outputMuteObserver.stop()
+            return
+        }
+        outputMuteObserver.start { [weak self] in
+            guard let self = self, self.canSyncThinkMuteLED else { return }
+            muteLEDHelper(self.context.service, false)
+        }
     }
 
     func resetShortcutsToDefaults() {

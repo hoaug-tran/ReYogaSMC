@@ -136,6 +136,8 @@
 "LIGHTING_SECTION_RGB" = "Đèn RGB";
 "LIGHTING_LOGO_LED" = "Đèn logo";
 "LIGHTING_PORT_ICONS" = "Đèn cổng kết nối phía sau";
+"LIGHTING_SPEAKER_MUTE_LED" = "Đồng bộ đèn tắt tiếng loa";
+"LIGHTING_SPEAKER_MUTE_LED_DESC" = "Phản ánh trạng thái tắt tiếng đầu ra âm thanh macOS lên đèn phím tắt tiếng loa ThinkPad.";
 "LIGHTING_BRIGHTNESS" = "Độ sáng";
 "LIGHTING_MODE" = "Hiệu ứng";
 "LIGHTING_MODE_STATIC" = "Màu cố định";
@@ -236,6 +238,7 @@
 "ACPI/WMI read failed or value invalid" = "Đọc ACPI/WMI thất bại hoặc giá trị không hợp lệ";
 "Accessibility: %@ - Input Monitoring: %@" = "Trợ năng: %@ - Giám sát đầu vào: %@";
 "Airplane Mode" = "Chế độ máy bay";
+"Answer Call" = "Trả lời cuộc gọi";
 "Always-On USB" = "Sạc USB khi tắt máy";
 "Another application owns the RGB HID device. Close it and retry." = "Ứng dụng khác đang giữ thiết bị RGB HID. Đóng ứng dụng đó rồi thử lại.";
 "AppleSMC access denied: 0x%08x" = "Bị từ chối truy cập AppleSMC: 0x%08x";
@@ -387,6 +390,7 @@
 "HID discovery failed: 0x%08x" = "Tìm HID thất bại: 0x%08x";
 "Hardware driver ready" = "Driver phần cứng đã sẵn sàng";
 "Hardware identity" = "Nhận diện phần cứng";
+"Hang Up Call" = "Kết thúc cuộc gọi";
 "Hardware profile is incomplete" = "Hồ sơ phần cứng chưa đầy đủ";
 "Higher limits can increase heat, fan noise and battery drain. Lower limits can reduce performance. Only firmware-supported values are accepted. Reset restores the values saved before your edits in this power profile." = "Giới hạn cao hơn có thể tăng nhiệt độ, tiếng quạt và hao pin. Giới hạn thấp hơn có thể giảm hiệu năng. Chỉ chấp nhận giá trị firmware hỗ trợ. Đặt lại sẽ khôi phục giá trị đã lưu trước khi sửa trong hồ sơ công suất này.";
 "Hotkey mapping needs support: %@" = "Ánh xạ phím tắt cần được hỗ trợ thêm: %@";
@@ -476,6 +480,7 @@
 "Not reported" = "Không có dữ liệu";
 "Not selected" = "Chưa chọn";
 "Not supported" = "Không hỗ trợ";
+"Notification Center" = "Trung tâm thông báo";
 "Notification registration failed" = "Đăng ký thông báo thất bại";
 "OK" = "OK";
 "Off" = "Tắt";
@@ -489,6 +494,7 @@
 "Per-key RGB" = "RGB từng phím";
 "Performance" = "Hiệu năng";
 "Performance (Reduced as lapmode active)" = "Hiệu năng (giảm khi đang đặt trên đùi)";
+"Performance (Reduced as thermal protection active)" = "Hiệu năng (giảm khi bảo vệ nhiệt hoạt động)";
 "Photo Booth" = "Photo Booth";
 "Port Lighting" = "Đèn cổng kết nối";
 "Power Profile" = "Chế độ hiệu năng";
@@ -585,6 +591,7 @@
 "The vendor command completed, but the firmware full-speed flag did not change. EC return 0 only means no command-port timeout; it does not confirm fan activation." = "Lệnh của hãng đã hoàn tất nhưng cờ quạt tối đa không đổi. EC trả về 0 chỉ có nghĩa cổng lệnh chưa hết thời gian chờ; không xác nhận quạt đã bật.";
 "Thermal Changed" = "Đã đổi chế độ nhiệt";
 "Thermal Control Change" = "Đã đổi điều khiển nhiệt";
+"Thermal Profile" = "Hồ sơ nhiệt";
 "Thermal Table Change" = "Đã đổi bảng nhiệt";
 "ThinkPad ACPI" = "ACPI ThinkPad";
 "ThinkPad fan access failed (0x%08x). Retry the driver connection." = "Truy cập quạt ThinkPad thất bại (0x%08x). Thử kết nối lại driver.";

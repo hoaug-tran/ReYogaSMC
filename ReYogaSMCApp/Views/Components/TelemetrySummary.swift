@@ -4,24 +4,22 @@ import AppKit
 struct TelemetrySummary: View {
     @ObservedObject var manager: HardwareManager
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 65), spacing: 8), count: manager.hasDualFan ? 4 : 3), spacing: 8) {
+        HStack(spacing: 8) {
             thermalTile("CPU", value: manager.cpuTemp, source: manager.cpuTemperatureSource)
-            thermalTile("GPU", value: manager.gpuTemp, source: manager.gpuTemperatureSource)
+            if manager.gpuTemp > 0 {
+                thermalTile("GPU", value: manager.gpuTemp, source: manager.gpuTemperatureSource)
+            }
             FanReadout(title: manager.fanLabels[0], rpm: manager.fan1RPM, accentColor: AppTheme.cpu)
             if manager.hasDualFan { FanReadout(title: manager.fanLabels[1], rpm: manager.fan2RPM, accentColor: AppTheme.gpu) }
         }
     }
     private func thermalTile(_ title: String, value: Double, source: String) -> some View {
-        let isGPU = title == "GPU"
-        let unavailableText = isGPU ? "N/A" : "-"
-        return VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
             SymbolLabel(title, systemImage: "thermometer").font(.system(size: 11)).foregroundColor(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(value > 0 ? String(format: "%.1f", value) : unavailableText).font(.system(size: value > 0 ? 23 : 18, weight: .semibold, design: .rounded))
+                Text(value > 0 ? String(format: "%.1f", value) : "-").font(.system(size: value > 0 ? 23 : 18, weight: .semibold, design: .rounded))
                 if value > 0 {
                     Text(localizedMessage("°C")).font(.system(size: 10)).foregroundColor(.secondary)
-                } else if isGPU {
-                    Text("iGPU").font(.system(size: 10)).foregroundColor(.secondary)
                 }
             }.foregroundColor(value >= 80 ? .orange : .primary)
         }.frame(maxWidth: .infinity, alignment: .leading).padding(10)

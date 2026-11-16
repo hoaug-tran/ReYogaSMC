@@ -1,5 +1,33 @@
 # Releases
 
+## 2.2.1
+
+### Added
+
+- Add hardware profile and platform support for Lenovo ThinkPad E14 Gen 5 (AMD) #15.
+- Add extended ThinkPad Fn shortcuts: Snipping Tool (`0x1312`), Calculator (`0x1313`), Notification Center (`0x1317`), Answer Call (`0x1318`), Hang Up Call (`0x1319`), and Thermal Profile (`0x6005`).
+- Add `DHKF` hotkey mask unmasking at boot and wake in `ThinkVPC`.
+- Add concurrent detection for `SMCAMDProcessor` alongside `SMCProcessorAMD` in app CPU temperature sensor reader.
+- Add SSDT-ThinkPad ACPI sample and update the built-in generator to parse `SystemMemory` MMIO EC operation regions on AMD ThinkPads.
+- Add `-reynolap` and `-reynostp` boot arguments to suppress and auto-clear ThinkPad lap mode (CQL) and skin temperature protection (STP) throttling during runtime.
+- Add Lighting control toggle for ThinkPad speaker mute LED synchronization.
+
+### Fixed
+
+- Fix ThinkPad CPU throttling locked at 600 MHz (STP) or 14W (CQL) after boot and S3 sleep wake across supported models (including T490, T14, X1 Carbon, P-series): clear sticky Skin Temperature Protection (STP) and Lap Mode (CQL) residue at boot and wake, and restore the active thermal profile.
+- Fix ThinkPad DYTC power profile switching becoming unavailable while lap mode (CQL) is active on PSC models: fallback to the active configured profile when PSC is active and ACPI SPSC is unreadable, preventing SmartFanMode from disappearing.
+- Fix ThinkPad DYTC power profile readback failure when STP is triggered: preserve active configured profile, annotate reduced performance, and publish skin mode status.
+- Fix ThinkPad speaker mute key LED synchronization: mask firmware `GSMS` readback bits, reject firmware error states, expose `MuteLEDSupport` from `ThinkVPC`, and replace app-only interception with CoreAudio default output mute observation across hotkeys, volume keys, Control Center, output device switches, and sleep/wake.
+- Fix ThinkPad custom fan curve step-down to graduate levels incrementally across step delays, preventing thermal thrashing.
+- Fix SSDT generator disassembly timeout detection and namespace collision handling during ACPI analysis.
+- Fix telemetry monitoring running during sleep to prevent darkwake polling.
+- Fix ThinkPad T14 Intel subsystem ID matching in the hardware profile catalog.
+- Fix Overview card layout by hiding unavailable GPU sensor telemetry so CPU and fan readouts expand evenly.
+
+### Changed
+
+- Move `ReYoga.cmd` and `ReYoga.command` hardware report launchers from the repository root to `Scripts/`.
+
 ## 2.2.0
 
 ### Added

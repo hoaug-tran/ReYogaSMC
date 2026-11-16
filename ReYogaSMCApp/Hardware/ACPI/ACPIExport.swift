@@ -136,22 +136,124 @@ enum ACPIExport {
                 var namespace = ThinkPadACPI(), totalSource = 0
                 var disassemblies: [[String: Any]] = []
                 let disassemblyStarted = ProcessInfo.processInfo.systemUptime
+                let maximumBytesPerStream = 4 * 1024 * 1024
+                func hasValidArtifact(_ url: URL) -> Bool {
+                    guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+                          let size = attributes[.size] as? NSNumber else {
+                        return false
+                    }
+                    return size.intValue > 0
+                }
+                func isDisassemblyCompleted(_ disassembly: [String: Any], dslURL: URL) -> Bool {
+                    guard hasValidArtifact(dslURL) else { return false }
+                    let state = disassembly["state"] as? String
+                    if state == "timeout" || state == "launch_failed" || state == "output_limit" {
+                        return false
+                    }
+                    return true
+                }
+                let dsdtPath = inputs[0]
                 for (index, input) in inputs.enumerated() {
+                    let dslURL = URL(fileURLWithPath: input).deletingPathExtension().appendingPathExtension("dsl")
+                    let isDSDT = (index == 0)
                     let remaining = 60 - (ProcessInfo.processInfo.systemUptime - disassemblyStarted)
-                    guard remaining > 0 else { throw SupportError.message("ACPI disassembly failed or timed out. Review the analysis report.") }
-                    let context = inputs.filter { $0 != input }
-                    let arguments = ["-dl"] + (context.isEmpty ? [] : ["-e"] + context) + ["-d", input]
-                    let name = String(format: "disassembly-%03d", index)
-                    var disassembly = try DiagnosticCollector.run(compiler.path, arguments,
-                        name: name, folder: folder, timeout: min(15, remaining), maximumBytes: 256 * 1024)
-                    disassembly["stdoutText"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".txt"), encoding: .utf8)) ?? ""
-                    disassembly["stderrText"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".stderr.txt"), encoding: .utf8)) ?? ""
-                    disassemblies.append(disassembly); report["disassembly"] = disassemblies
-                    guard disassembly["state"] as? String == "completed" else { throw SupportError.message("ACPI disassembly failed or timed out. Review the analysis report.") }
-                    let source = try HardwareProfiles.readDSDTSource(URL(fileURLWithPath: input).deletingPathExtension().appendingPathExtension("dsl"))
-                    totalSource += source.utf8.count
-                    guard totalSource <= 64 * 1024 * 1024 else { throw SupportError.message("Combined ACPI source exceeds the analysis limit") }
-                    try namespace.add(source, table: URL(fileURLWithPath: input).lastPathComponent)
+                    if remaining <= 0 {
+                        if isDSDT {
+                            throw SupportError.message("ACPI disassembly failed or timed out. Review the analysis report.")
+                        } else {
+                            var warnings = report["warnings"] as? [String] ?? []
+                            warnings.append("Disassembly timed out before processing \(URL(fileURLWithPath: input).lastPathComponent)")
+                            report["warnings"] = warnings
+                            break
+                        }
+                    }
+
+                    try? FileManager.default.removeItem(at: dslURL)
+
+                    if isDSDT {
+                        let arguments = ["-dl", "-d", input]
+                        let name = String(format: "disassembly-%03d", index)
+                        var disassembly = try DiagnosticCollector.run(compiler.path, arguments,
+                            name: name, folder: folder, timeout: min(15, remaining), maximumBytes: maximumBytesPerStream)
+                        disassembly["stdoutText"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".txt"), encoding: .utf8)) ?? ""
+                        disassembly["stderrText"] = (try? String(contentsOf: folder.appendingPathComponent(name + ".stderr.txt"), encoding: .utf8)) ?? ""
+                        disassemblies.append(disassembly)
+                        report["disassembly"] = disassemblies
+                        guard isDisassemblyCompleted(disassembly, dslURL: dslURL) else {
+                            throw SupportError.message("ACPI disassembly failed or timed out. Review the analysis report.")
+                        }
+                        let source = try HardwareProfiles.readDSDTSource(dslURL)
+                        totalSource += source.utf8.count
+                        guard totalSource <= 64 * 1024 * 1024 else {
+                            throw SupportError.message("Combined ACPI source exceeds the analysis limit")
+                        }
+                        try namespace.add(source, table: URL(fileURLWithPath: input).lastPathComponent)
+                    } else {
+                        var succeeded = false
+                        let tier1Result = Result {
+                            try DiagnosticCollector.run(compiler.path, ["-dl", "-e", dsdtPath, "-d", input],
+                                name: String(format: "disassembly-%03d", index), folder: folder,
+                                timeout: min(15, remaining), maximumBytes: maximumBytesPerStream)
+                        }
+                        if case .success(var disassembly) = tier1Result {
+                            let name = String(format: "disassembly-%03d", index)
+                            let stdout = (try? String(contentsOf: folder.appendingPathComponent(name + ".txt"), encoding: .utf8)) ?? ""
+                            let stderr = (try? String(contentsOf: folder.appendingPathComponent(name + ".stderr.txt"), encoding: .utf8)) ?? ""
+                            disassembly["stdoutText"] = stdout
+                            disassembly["stderrText"] = stderr
+                            disassemblies.append(disassembly)
+                            report["disassembly"] = disassemblies
+
+                            let collision = (stdout + "\n" + stderr).contains("AE_ALREADY_EXISTS")
+                            if isDisassemblyCompleted(disassembly, dslURL: dslURL) && !collision {
+                                succeeded = true
+                            }
+                        }
+
+                        if !succeeded {
+                            try? FileManager.default.removeItem(at: dslURL)
+                            let fallbackRemaining = 60 - (ProcessInfo.processInfo.systemUptime - disassemblyStarted)
+                            if fallbackRemaining > 0 {
+                                let fallbackName = String(format: "disassembly-%03d-fallback", index)
+                                let fallbackResult = Result {
+                                    try DiagnosticCollector.run(compiler.path, ["-dl", "-d", input],
+                                        name: fallbackName, folder: folder, timeout: min(15, fallbackRemaining), maximumBytes: maximumBytesPerStream)
+                                }
+                                if case .success(var fallbackDisassembly) = fallbackResult {
+                                    fallbackDisassembly["stdoutText"] = (try? String(contentsOf: folder.appendingPathComponent(fallbackName + ".txt"), encoding: .utf8)) ?? ""
+                                    fallbackDisassembly["stderrText"] = (try? String(contentsOf: folder.appendingPathComponent(fallbackName + ".stderr.txt"), encoding: .utf8)) ?? ""
+                                    disassemblies.append(fallbackDisassembly)
+                                    report["disassembly"] = disassemblies
+                                    succeeded = isDisassemblyCompleted(fallbackDisassembly, dslURL: dslURL)
+                                }
+                            }
+                            if !succeeded {
+                                try? FileManager.default.removeItem(at: dslURL)
+                            }
+                        }
+
+                        if succeeded {
+                            do {
+                                let source = try HardwareProfiles.readDSDTSource(dslURL)
+                                if totalSource + source.utf8.count <= 64 * 1024 * 1024 {
+                                    totalSource += source.utf8.count
+                                    try namespace.add(source, table: URL(fileURLWithPath: input).lastPathComponent)
+                                } else {
+                                    var warnings = report["warnings"] as? [String] ?? []
+                                    warnings.append("Skipped \(URL(fileURLWithPath: input).lastPathComponent): combined ACPI source exceeds limit")
+                                    report["warnings"] = warnings
+                                }
+                            } catch {
+                                var warnings = report["warnings"] as? [String] ?? []
+                                warnings.append("Failed to process \(URL(fileURLWithPath: input).lastPathComponent): \(error.localizedDescription)")
+                                report["warnings"] = warnings
+                            }
+                        } else {
+                            var warnings = report["warnings"] as? [String] ?? []
+                            warnings.append("Failed to disassemble \(URL(fileURLWithPath: input).lastPathComponent)")
+                            report["warnings"] = warnings
+                        }
+                    }
                 }
                 report["stage"] = "namespace"
                 report["namespace"] = namespace.objects.map { ["path": "\\" + $0.path, "kind": $0.kind,
@@ -161,7 +263,12 @@ enum ACPIExport {
                 let live = captured.evidence.compactMapValues { $0 as? Bool }
                 let protocolLayout = captured.evidence.compactMapValues { $0 as? Int }
                 let plan = try namespace.plan(ecPath: ecPath, hkeyPath: hkeyPath, live: live, protocolLayout: protocolLayout, template: template)
+                var combinedWarnings = report["warnings"] as? [String] ?? []
+                if let planWarnings = plan.report["warnings"] as? [String] {
+                    combinedWarnings.append(contentsOf: planWarnings)
+                }
                 report.merge(plan.report) { _, new in new }
+                report["warnings"] = combinedWarnings
                 let sourceURL = folder.appendingPathComponent("SSDT-ThinkPad.dsl")
                 try plan.source.write(to: sourceURL, atomically: true, encoding: .utf8)
                 report["stage"] = "compile"

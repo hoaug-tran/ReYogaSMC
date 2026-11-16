@@ -35,9 +35,15 @@ enum tpacpi_hkey_event_t : UInt32 {
 
     /* Hotkey-related (preset masks) */
     TP_HKEY_EV_PRIVACYGUARD_TOGGLE = 0x130F, /* PrivacyGuard key */
-    TP_HKEY_EV_STAR = 0x1311,      /* Star (F12, _Q62) */
-    TP_HKEY_EV_BLUETOOTH = 0x1314, /* Bluetooth (F10, _Q60) */
+    TP_HKEY_EV_STAR = 0x1311,          /* Star (F12, _Q62) */
+    TP_HKEY_EV_CLIPPING_TOOL = 0x1312, /* Clipping Tool / Screenshot (Fn+F11) */
+    TP_HKEY_EV_CALCULATOR = 0x1313,    /* Calculator (Fn+F12) */
+    TP_HKEY_EV_BLUETOOTH = 0x1314,     /* Bluetooth (F10, _Q60) */
     TP_HKEY_EV_KEYBOARD = 0x1315,  /* Keyboard (F11, _Q61) */
+    TP_HKEY_EV_NOTIFICATION_CENTER = 0x1317, /* Notification Center (Fn+F9, _Q78) */
+    TP_HKEY_EV_ANSWER_CALL = 0x1318,         /* Answer Call (Fn+F10, _Q79) */
+    TP_HKEY_EV_HANGUP_CALL = 0x1319,         /* Hang Up Call (Fn+F11, _Q7A) */
+    TP_HKEY_EV_DECLINE_CALL = TP_HKEY_EV_HANGUP_CALL,
 
     /* Reasons for waking up from S3/S4 */
     TP_HKEY_EV_WKUP_S3_UNDOCK = 0x2304, /* undock requested, S3 */

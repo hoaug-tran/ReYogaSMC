@@ -137,6 +137,18 @@ func testLaptopIdentity() {
     require(LaptopIdentity.resolve(strings: ["20L5CTO1WW", "20R2CTO1WW"], pciIDs: [], lenovo: true).name == "Lenovo Laptop", "Conflicting machine identities selected the first model")
     require(LaptopIdentity.resolve(strings: ["20R2CTO1WW"], pciIDs: ["17AA:2292"], lenovo: true).name == "ThinkPad X1 Carbon Gen 7", "Matching catalog evidence did not converge")
     require(LaptopIdentity.resolve(strings: ["82N6CTO1WW"], pciIDs: ["17aa:2250"], lenovo: true).name == "Lenovo Laptop", "Catalog conflict was hidden by a reviewed profile")
+    require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:22b1"], lenovo: false).name == "ThinkPad T14 Gen 1 (Intel)", "ThinkPad T14 Gen 1 Intel PCI lookup failed")
+    require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:22b2"], lenovo: false).name == "ThinkPad T14 Gen 1 (Intel)", "ThinkPad T14 Gen 1 Intel dGPU PCI lookup failed")
+    require(LaptopIdentity.resolve(strings: ["20S0CTO1WW"], pciIDs: ["17aa:22b1"], lenovo: true).name == "ThinkPad T14 Gen 1 (Intel)", "ThinkPad T14 Gen 1 Intel machine type + PCI lookup failed")
+    require(LaptopIdentity.resolve(strings: ["MacBookPro16,3"], pciIDs: ["17aa:22b1"], lenovo: false).name == "ThinkPad T14 Gen 1 (Intel)", "Spoofed SMBIOS with Intel PCI lookup failed")
+    require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:22b5"], lenovo: false).name == "ThinkPad T15 Gen 1", "ThinkPad T15 Gen 1 PCI lookup failed")
+    require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:22d7"], lenovo: false).name == "ThinkPad T15 Gen 2", "ThinkPad T15 Gen 2 PCI lookup failed")
+    require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:22d9"], lenovo: false).name == "ThinkPad P15 Gen 2", "ThinkPad P15 Gen 2 PCI lookup failed")
+    require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:5081"], lenovo: false).name == "ThinkPad T14 Gen 1 (AMD)", "ThinkPad T14 Gen 1 AMD PCI lookup failed")
+    require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:5082"], lenovo: false).name == "ThinkPad T14 Gen 1 (AMD)", "ThinkPad T14 Gen 1 AMD audio PCI lookup failed")
+    require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:5081"], lenovo: false, cpuBrand: "Intel(R) Core(TM) i5-10310U CPU @ 1.70GHz").name == "ThinkPad T14 Gen 1 (Intel)", "Intel CPU did not reconcile AMD model variant")
+    require(LaptopIdentity.resolve(strings: [], pciIDs: ["17aa:22b1"], lenovo: false, cpuBrand: "AMD Ryzen 7 PRO 4750U with Radeon Graphics").name == "ThinkPad T14 Gen 1 (AMD)", "AMD CPU did not reconcile Intel model variant")
+    require(LaptopIdentity.resolve(strings: ["ThinkPad Z13 Gen 1 (AMD)"], pciIDs: [], lenovo: true, cpuBrand: "Intel(R) Core(TM) i7-1165G7 @ 2.80GHz").name == "Lenovo Laptop", "Intel CPU accepted impossible AMD-only identity")
     var mockSMBIOS = Data([1, 8, 0, 0, 1, 2, 0, 3])
     mockSMBIOS.append(contentsOf: "ThinkPad T480\020L5CTO1WW\0SERIAL_SECRET_123\0\0".utf8)
     require(LaptopIdentity.parseSMBIOS(data: mockSMBIOS) == ["ThinkPad T480", "20L5CTO1WW"], "SMBIOS string parsing failed")
@@ -158,6 +170,52 @@ func testACPINamespaceAndMatching() throws {
         rejects("unproven EC layout") {
             _ = try namespace.plan(ecPath: "\\EC0", hkeyPath: "\\EC0.HKEY",
                 live: Dictionary(uniqueKeysWithValues: ThinkPadACPI.helpers.keys.map { ($0, false) }), protocolLayout: [:], template: "")
+        }
+        var amdNamespace = ThinkPadACPI()
+        let amdDSDT = """
+        Device (EC0) {
+            Name (_HID, EisaId ("PNP0C09"))
+            OperationRegion (ECOR, SystemMemory, 0xFE00DA00, 0xFF)
+            Field (ECOR, ByteAcc, NoLock, Preserve) {
+                Offset (0x2F), HFSP, 8,
+                Offset (0x84), HSPD, 16
+            }
+            Device (HKEY) { Name (_HID, "LEN0068") }
+        }
+        """
+        try amdNamespace.add(amdDSDT, table: "test_amd")
+        let plan = try amdNamespace.plan(
+            ecPath: "\\EC0",
+            hkeyPath: "\\EC0.HKEY",
+            live: Dictionary(uniqueKeysWithValues: ThinkPadACPI.helpers.keys.map { ($0, false) }),
+            protocolLayout: ["FanControlOffset": 47, "FanRPMOffset": 132],
+            template: "Scope ({{ EC_PATH }}) {} Scope ({{ HKEY_PATH }}) {}"
+        )
+        guard let fanLayout = plan.report["fanLayout"] as? [String: Any],
+              fanLayout["verified"] as? Bool == true else {
+            fatalError("SystemMemory EC layout validation failed for ThinkPad AMD")
+        }
+        var invalidNamespace = ThinkPadACPI()
+        let invalidBaseDSDT = """
+        Device (EC0) {
+            Name (_HID, EisaId ("PNP0C09"))
+            OperationRegion (ECOR, SystemMemory, 0x8000, 0xFF)
+            Field (ECOR, ByteAcc, NoLock, Preserve) {
+                Offset (0x2F), HFSP, 8,
+                Offset (0x84), HSPD, 16
+            }
+            Device (HKEY) { Name (_HID, "LEN0068") }
+        }
+        """
+        try invalidNamespace.add(invalidBaseDSDT, table: "test_invalid")
+        rejects("SystemMemory low base address") {
+            _ = try invalidNamespace.plan(
+                ecPath: "\\EC0",
+                hkeyPath: "\\EC0.HKEY",
+                live: Dictionary(uniqueKeysWithValues: ThinkPadACPI.helpers.keys.map { ($0, false) }),
+                protocolLayout: ["FanControlOffset": 47, "FanRPMOffset": 132],
+                template: ""
+            )
         }
     } catch { fatalError("ThinkPad namespace parsing failed: \(error)") }
     rejects("unknown DSDT") { _ = try HardwareProfiles.matchingDSDT("DefinitionBlock (\"\", \"DSDT\", 2, \"UNKNOWN\", \"UNKNOWN\", 1) {}") }
@@ -204,6 +262,19 @@ func testHardwareSnapshot() {
     let legacyFan = HardwareFeatureStatus(available: false, reason: "Install ACPI bridge v2", backend: "ACPI profile")
     let fanNotice = HardwareSnapshot.manualFanFeature(legacyFan, key: "FanControlMode", bridgeVersion: 0, writesValidated: false)
     require(!fanNotice.available && !fanNotice.reason.contains("Install") && !fanNotice.reason.contains("SSDT"), "Unsupported fan control prescribed an unverified installation")
+    require(HardwareSnapshot.thinkSpeakerMuteLEDSupported(providerClass: "ThinkVPC", properties: ["MuteLEDSupport": true]), "ThinkVPC speaker mute LED support rejected")
+    require(HardwareSnapshot.thinkSpeakerMuteLEDSupported(providerClass: "ThinkVPC", properties: [:]), "Legacy ThinkVPC speaker mute LED fallback rejected")
+    require(!HardwareSnapshot.thinkSpeakerMuteLEDSupported(providerClass: "ThinkVPC", properties: ["MuteLEDSupport": false]), "Unsupported ThinkVPC speaker mute LED accepted")
+    require(!HardwareSnapshot.thinkSpeakerMuteLEDSupported(providerClass: "IdeaVPC", properties: ["MuteLEDSupport": true]), "Non-ThinkVPC provider inherited speaker mute LED support")
+    let suite = "ReYogaSMC.Test.MuteLEDFixup.\(ProcessInfo.processInfo.processIdentifier)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defaults.removePersistentDomain(forName: suite)
+    defer { defaults.removePersistentDomain(forName: suite) }
+    require(HardwareSnapshot.isThinkMuteLEDFixupEnabled(defaults), "Speaker mute LED fixup must default to enabled")
+    defaults.set(false, forKey: "ThinkMuteLEDFixup")
+    require(!HardwareSnapshot.isThinkMuteLEDFixupEnabled(defaults), "Explicit ThinkMuteLEDFixup = false was ignored")
+    defaults.set(true, forKey: "ThinkMuteLEDFixup")
+    require(HardwareSnapshot.isThinkMuteLEDFixupEnabled(defaults), "Explicit ThinkMuteLEDFixup = true was ignored")
     print("PASS device identity, live timestamp validation, invalid readings and per-backend fan availability")
 }
 
@@ -300,6 +371,16 @@ func testSMCTemperatureDecoding() {
     require(SMCTemperatureReader.decodeTemperature(type: "ui16", bytes: [80, 0]) == nil, "Unknown SMC encoding accepted")
     require(SMCTemperatureReader.cpuTemperatureKeys(available: ["TC0G", "TC0E", "TC0P", "TCGC"], amd: true) == ["TC0E", "TC0P"],
             "CPU reader selected a placeholder or firmware GPU key")
+    require(SMCTemperatureReader.cpuTemperatureKeys(available: ["TC0P", "TC0E"], amd: false) == ["TC0P", "TC0E"],
+            "Intel CPU key ordering failed")
+    require(SMCTemperatureReader.cpuTemperatureProvider(hasSMCAMDProcessor: true, hasSMCProcessorAMD: false) == "SMCAMDProcessor",
+            "SMCAMDProcessor provider detection failed")
+    require(SMCTemperatureReader.cpuTemperatureProvider(hasSMCAMDProcessor: false, hasSMCProcessorAMD: true) == "SMCProcessorAMD",
+            "SMCProcessorAMD provider detection failed")
+    require(SMCTemperatureReader.cpuTemperatureProvider(hasSMCAMDProcessor: true, hasSMCProcessorAMD: true) == "SMCAMDProcessor",
+            "SMCAMDProcessor priority over SMCProcessorAMD failed")
+    require(SMCTemperatureReader.cpuTemperatureProvider(hasSMCAMDProcessor: false, hasSMCProcessorAMD: false) == "SMC",
+            "Fallback to SMC provider failed")
 }
 
 func testSavedSettingsAndRGBBounds() throws {
@@ -577,6 +658,31 @@ func testPowerDraftMigration() throws {
             "Empty legacy power draft was lost")
 }
 
+func testThinkPadEvents() {
+    let clipping = thinkEvents[TP_HKEY_EV_CLIPPING_TOOL.rawValue]?[0]
+    require(clipping != nil, "Missing ThinkVPC event 0x1312 (clipping tool / screenshot)")
+    require(clipping?.action == .screenshot, "ThinkVPC event 0x1312 must map to .screenshot")
+
+    let calc = thinkEvents[TP_HKEY_EV_CALCULATOR.rawValue]?[0]
+    require(calc != nil, "Missing ThinkVPC event 0x1313 (calculator)")
+    require(calc?.action == .calculator, "ThinkVPC event 0x1313 must map to .calculator")
+
+    let fnKey = thinkEvents[TP_HKEY_EV_KEY_FN.rawValue]?[0]
+    require(fnKey != nil, "Missing ThinkVPC event 0x6005 (Fn key / thermal)")
+    require(fnKey?.action == .thermal, "ThinkVPC event 0x6005 must map to .thermal")
+
+    let notif = thinkEvents[TP_HKEY_EV_NOTIFICATION_CENTER.rawValue]?[0]
+    require(notif != nil, "Missing ThinkVPC event 0x1317 (notification center)")
+
+    let ans = thinkEvents[TP_HKEY_EV_ANSWER_CALL.rawValue]?[0]
+    require(ans != nil, "Missing ThinkVPC event 0x1318 (answer call)")
+
+    let hang = thinkEvents[TP_HKEY_EV_HANGUP_CALL.rawValue]?[0]
+    require(hang != nil, "Missing ThinkVPC event 0x1319 (hang up call)")
+
+    print("PASS ThinkPad extended event mappings")
+}
+
 func testEventPersistence() {
     let suiteName = "ReYogaEventTests-" + UUID().uuidString
     let defaults = UserDefaults(suiteName: suiteName)!
@@ -728,6 +834,7 @@ try testDiagnostics()
 testControlsPages()
 testControlValueLabels()
 try testPowerDraftMigration()
+testThinkPadEvents()
 testEventPersistence()
 print("All support tests passed")
 

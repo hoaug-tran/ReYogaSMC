@@ -34,11 +34,6 @@ private let muteInputVolumeProp = AudioObjectPropertyAddress(
     mScope: kAudioDevicePropertyScopeInput,
     mElement: kAudioObjectPropertyElementMain)
 
-private let muteOutputVolumeProp = AudioObjectPropertyAddress(
-    mSelector: kAudioDevicePropertyMute,
-    mScope: kAudioDevicePropertyScopeOutput,
-    mElement: kAudioObjectPropertyElementMain)
-
 enum AudioPropertyError: Error {
     case noProperty
     case propertyNotSettable
@@ -107,38 +102,140 @@ struct AudioProperty<T: AudioScalar> {
     }
 }
 
+private func defaultAudioDevice(for prop: AudioObjectPropertyAddress) -> AudioDeviceID? {
+    guard let device = try? AudioProperty<AudioDeviceID>(device: nil, prop: prop).get().get(),
+          device != AudioDeviceID(kAudioObjectUnknown) else {
+        return nil
+    }
+    return device
+}
+
+private func outputMuteAddress(for device: AudioDeviceID) -> AudioObjectPropertyAddress? {
+    for element in [kAudioObjectPropertyElementMain, AudioObjectPropertyElement(1)] {
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyMute,
+            mScope: kAudioDevicePropertyScopeOutput,
+            mElement: element
+        )
+        if AudioObjectHasProperty(device, &addr) {
+            return addr
+        }
+    }
+    return nil
+}
+
+private func currentOutputMute() -> Bool? {
+    if let outputDevice = defaultAudioDevice(for: defaultOutputDeviceProp),
+       let addr = outputMuteAddress(for: outputDevice),
+       let value = try? AudioProperty<UInt32>(device: outputDevice, prop: addr).get().get() {
+        return value != 0
+    }
+    return scriptHelper(getAudioMutedAS, "Mute")?.booleanValue
+}
+
+private func currentInputMute() -> Bool? {
+    if let inputDevice = defaultAudioDevice(for: defaultInputDeviceProp),
+       let value = try? AudioProperty<UInt32>(device: inputDevice, prop: muteInputVolumeProp).get().get() {
+        return value != 0
+    }
+    return scriptHelper(getMicVolumeAS, "MicMute").map { $0.int32Value == 0 }
+}
+
+final class CoreAudioMuteObserver {
+    private let queue = DispatchQueue.main
+    private var isStarted = false
+    private var systemListenerBlock: AudioObjectPropertyListenerBlock?
+    private var deviceListenerBlock: AudioObjectPropertyListenerBlock?
+    private var observedDevice: AudioDeviceID = AudioDeviceID(kAudioObjectUnknown)
+    private var observedAddress: AudioObjectPropertyAddress?
+    private var onChange: (() -> Void)?
+
+    func start(onChange: @escaping () -> Void) {
+        stop()
+        isStarted = true
+        self.onChange = onChange
+
+        var addr = defaultOutputDeviceProp
+        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            guard let self = self, self.isStarted else { return }
+            self.refreshDevice()
+            self.onChange?()
+        }
+        let status = AudioObjectAddPropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &addr, queue, block)
+        if status == noErr {
+            systemListenerBlock = block
+        } else {
+            os_log("Failed to observe default output audio device (0x%08x)", type: .error, status)
+        }
+        refreshDevice()
+    }
+
+    func refreshDevice() {
+        guard isStarted else { return }
+        detachDeviceListener()
+        guard let device = defaultAudioDevice(for: defaultOutputDeviceProp),
+              var addr = outputMuteAddress(for: device) else { return }
+
+        let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            guard let self = self, self.isStarted else { return }
+            self.onChange?()
+        }
+        let status = AudioObjectAddPropertyListenerBlock(device, &addr, queue, block)
+        if status == noErr {
+            observedDevice = device
+            observedAddress = addr
+            deviceListenerBlock = block
+        } else {
+            os_log("Failed to observe output mute property (0x%08x)", type: .error, status)
+        }
+    }
+
+    func stop() {
+        isStarted = false
+        onChange = nil
+        detachDeviceListener()
+        if let block = systemListenerBlock {
+            var addr = defaultOutputDeviceProp
+            _ = AudioObjectRemovePropertyListenerBlock(AudioObjectID(kAudioObjectSystemObject), &addr, queue, block)
+            systemListenerBlock = nil
+        }
+    }
+
+    private func detachDeviceListener() {
+        guard observedDevice != AudioDeviceID(kAudioObjectUnknown),
+              var addr = observedAddress,
+              let block = deviceListenerBlock else {
+            observedDevice = AudioDeviceID(kAudioObjectUnknown)
+            observedAddress = nil
+            deviceListenerBlock = nil
+            return
+        }
+        _ = AudioObjectRemovePropertyListenerBlock(observedDevice, &addr, queue, block)
+        observedDevice = AudioDeviceID(kAudioObjectUnknown)
+        observedAddress = nil
+        deviceListenerBlock = nil
+    }
+
+    deinit {
+        stop()
+    }
+}
+
 class AudioHelper {
     let inputDevice: AudioDeviceID
-    let outputDevice: AudioDeviceID
-
     let inputVolume: AudioProperty<Float>
-
     let inputMute: AudioProperty<UInt32>
-    let outputMute: AudioProperty<UInt32>
-
-    private static var muteLEDStatus = false
 
     static func forCurrentDevices() -> AudioHelper? { AudioHelper() }
 
     init?() {
-        do {
-            try inputDevice = AudioProperty<AudioDeviceID>(
-                device: nil,
-                prop: defaultInputDeviceProp
-            ).get().get()
-            try outputDevice = AudioProperty<AudioDeviceID>(
-                device: nil,
-                prop: defaultOutputDeviceProp
-            ).get().get()
-        } catch {
+        guard let inputDevice = defaultAudioDevice(for: defaultInputDeviceProp) else {
             os_log("Failed to initialize AudioHelper!", type: .error)
             return nil
         }
-
+        self.inputDevice = inputDevice
         self.inputVolume = AudioProperty<Float>(device: inputDevice, prop: primaryInputVolumeProp)
-
         self.inputMute = AudioProperty<UInt32>(device: inputDevice, prop: muteInputVolumeProp)
-        self.outputMute = AudioProperty<UInt32>(device: outputDevice, prop: muteOutputVolumeProp)
     }
 
     func micMuteHelper(_ service: io_service_t, _ name: String) {
@@ -168,59 +265,38 @@ class AudioHelper {
             os_log("Mic toggle failed!", type: .error)
         }
     }
-
-    func micMuteLEDHelper(_ service: io_service_t) {
-        do {
-            let mute = try inputMute.get().get() != 0
-            guard sendNumber("MicMuteLED", mute ? 2 : 0, service) else {
-                throw AudioPropertyError.noProperty
-            }
-            os_log("Mic Mute LED updated", type: .info)
-        } catch {
-            os_log("Failed to update Mic Mute LED", type: .error)
-        }
-    }
-
-    func muteLEDHelper(_ service: io_service_t, _ wake: Bool) {
-        do {
-            let mute = try outputMute.get().get() != 0
-            if !wake, mute == Self.muteLEDStatus { return }
-            guard sendBoolean("MuteLED", mute, service) else {
-                throw AudioPropertyError.noProperty
-            }
-            Self.muteLEDStatus = mute
-            os_log("Mute LED updated", type: .info)
-        } catch {
-            os_log("Failed to update Mute LED", type: .error)
-        }
-    }
 }
 
 func micMuteLEDHelper(_ service: io_service_t) {
-    if let audio = AudioHelper.forCurrentDevices() {
-        audio.micMuteLEDHelper(service)
+    guard service != 0, let mute = currentInputMute() else {
+        os_log("Failed to update Mic Mute LED", type: .error)
         return
     }
-
-    guard let current = scriptHelper(getMicVolumeAS, "MicMute") else { return }
-    _ = sendNumber("MicMuteLED", current.int32Value != 0 ? 0 : 2, service)
+    guard sendNumber("MicMuteLED", mute ? 2 : 0, service) else {
+        os_log("Failed to update Mic Mute LED", type: .error)
+        return
+    }
+    os_log("Mic Mute LED updated", type: .info)
 }
 
-private var muteLEDStatus = false
+private var lastMuteLEDStatus: Bool?
+
+func resetMuteLEDStatusCache() {
+    lastMuteLEDStatus = nil
+}
 
 func muteLEDHelper(_ service: io_service_t, _ wake: Bool = true) {
-    if let audio = AudioHelper.forCurrentDevices() {
-        audio.muteLEDHelper(service, wake)
-        return
-    }
-
-    guard let current = scriptHelper(getAudioMutedAS, "Mute") else { return }
-    if !wake, current.booleanValue == muteLEDStatus { return }
-    guard sendBoolean("MuteLED", current.booleanValue, service) else {
+    guard service != 0 else { return }
+    guard let mute = currentOutputMute() else {
         os_log("Failed to update Mute LED", type: .error)
         return
     }
-    muteLEDStatus = current.booleanValue
+    if !wake, let last = lastMuteLEDStatus, mute == last { return }
+    guard sendBoolean("MuteLED", mute, service) else {
+        os_log("Failed to update Mute LED", type: .error)
+        return
+    }
+    lastMuteLEDStatus = mute
     os_log("Mute LED updated", type: .info)
 }
 

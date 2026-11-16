@@ -8,8 +8,8 @@ Install Python 3.9 or newer and open a source checkout.
 
 | Platform | Launcher | Input |
 | --- | --- | --- |
-| Windows | `ReYoga.cmd` | Live device inventory, reviewed getter probes and an EC snapshot when available |
-| macOS | `ReYoga.command` | ACPI dump path, or leave it blank for a runtime report |
+| Windows | `Scripts/ReYoga.cmd` | Live device inventory, reviewed getter probes and an EC snapshot when available |
+| macOS | `Scripts/ReYoga.command` | ACPI dump path, or leave it blank for a runtime report |
 | Any supported platform | Command below | Directory of tables or one AML/DAT/DSL file |
 
 ```sh

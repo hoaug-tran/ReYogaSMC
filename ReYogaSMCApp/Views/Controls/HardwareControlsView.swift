@@ -135,7 +135,7 @@ public struct HardwareControlsView: View {
     }
     private var pageSubtitle: String {
         if page == .lighting {
-            if manager.hasRGBHardware || manager.hasYLogo || manager.hasPortLighting {
+            if manager.hasRGBHardware || manager.hasYLogo || manager.hasPortLighting || manager.hasSpeakerMuteLED {
                 return loc(.subtitleLighting)
             } else if manager.featureStatus["BacklightLevel"]?.available == true && manager.keyboardBacklight >= 0 {
                 return loc(.lightingSectionKeyboard)

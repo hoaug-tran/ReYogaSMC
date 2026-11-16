@@ -134,6 +134,8 @@
 "LIGHTING_SECTION_RGB" = "RGB lighting";
 "LIGHTING_LOGO_LED" = "Logo LED";
 "LIGHTING_PORT_ICONS" = "Rear port icons";
+"LIGHTING_SPEAKER_MUTE_LED" = "Sync speaker mute LED";
+"LIGHTING_SPEAKER_MUTE_LED_DESC" = "Mirror macOS audio output mute state to the ThinkPad speaker mute key LED.";
 "LIGHTING_BRIGHTNESS" = "Brightness";
 "LIGHTING_MODE" = "Mode";
 "LIGHTING_MODE_STATIC" = "Static";
@@ -234,6 +236,7 @@
 "ACPI/WMI read failed or value invalid" = "ACPI/WMI read failed or value invalid";
 "Accessibility: %@ - Input Monitoring: %@" = "Accessibility: %@ - input monitoring: %@";
 "Airplane Mode" = "Airplane mode";
+"Answer Call" = "Answer Call";
 "Always-On USB" = "Always-On USB";
 "Another application owns the RGB HID device. Close it and retry." = "Another application owns the RGB HID device. Close it and retry.";
 "AppleSMC access denied: 0x%08x" = "AppleSMC access denied: 0x%08x";
@@ -385,6 +388,7 @@
 "HID discovery failed: 0x%08x" = "HID discovery failed: 0x%08x";
 "Hardware driver ready" = "Hardware driver ready";
 "Hardware identity" = "Hardware identity";
+"Hang Up Call" = "Hang Up Call";
 "Hardware profile is incomplete" = "Hardware profile is incomplete";
 "Higher limits can increase heat, fan noise and battery drain. Lower limits can reduce performance. Only firmware-supported values are accepted. Reset restores the values saved before your edits in this power profile." = "Higher limits can increase heat, fan noise and battery drain. Lower limits can reduce performance. Only firmware-supported values are accepted. Reset restores the values saved before your edits in this power profile.";
 "Hotkey mapping needs support: %@" = "Hotkey mapping needs support: %@";
@@ -474,6 +478,7 @@
 "Not reported" = "Not reported";
 "Not selected" = "Not selected";
 "Not supported" = "Not supported";
+"Notification Center" = "Notification Center";
 "Notification registration failed" = "Notification registration failed";
 "OK" = "OK";
 "Off" = "Off";
@@ -487,6 +492,7 @@
 "Per-key RGB" = "Per-key RGB";
 "Performance" = "Performance";
 "Performance (Reduced as lapmode active)" = "Performance (reduced as lapmode active)";
+"Performance (Reduced as thermal protection active)" = "Performance (reduced as thermal protection active)";
 "Photo Booth" = "Photo booth";
 "Port Lighting" = "Port lighting";
 "Power Profile" = "Power profile";
@@ -583,6 +589,7 @@
 "The vendor command completed, but the firmware full-speed flag did not change. EC return 0 only means no command-port timeout; it does not confirm fan activation." = "The vendor command completed, but the firmware full-speed flag did not change. EC return 0 only means no command-port timeout; it does not confirm fan activation.";
 "Thermal Changed" = "Thermal changed";
 "Thermal Control Change" = "Thermal control change";
+"Thermal Profile" = "Thermal profile";
 "Thermal Table Change" = "Thermal table change";
 "ThinkPad ACPI" = "ThinkPad ACPI";
 "ThinkPad fan access failed (0x%08x). Retry the driver connection." = "ThinkPad fan access failed (0x%08x). Retry the driver connection.";

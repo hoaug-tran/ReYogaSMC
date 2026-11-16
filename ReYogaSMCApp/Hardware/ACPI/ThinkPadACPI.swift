@@ -241,16 +241,26 @@ struct ThinkPadACPI {
                   let regionPath = try? Self.path(region, scope: ec) else { return ["verified": false] }
             let regions = objects.filter { $0.kind == "OperationRegion" && $0.path == regionPath }
             guard regions.count == 1, let declaration = regions.first, declaration.value.count == 3,
-                  declaration.value[0] == "EmbeddedControl" else { return ["verified": false] }
+                  let regionType = declaration.value.first, let expectedOffset = expectedOffset else { return ["verified": false] }
             func literal(_ value: String) -> Int? {
                 if value == "Zero" { return 0 }; if value == "One" { return 1 }
                 return value.lowercased().hasPrefix("0x") ? Int(value.dropFirst(2), radix: 16) : Int(value)
             }
-            guard let base = literal(declaration.value[1]), let length = literal(declaration.value[2]),
-                  base >= 0, base <= 0xff, length >= bitOffset / 8 + width / 8, length <= 256 - base,
-                  let expectedOffset = expectedOffset, base + bitOffset / 8 == expectedOffset else { return ["verified": false] }
+            guard let base = literal(declaration.value[1]), let length = literal(declaration.value[2]) else { return ["verified": false] }
+            let byteOffset: Int
+            if regionType == "EmbeddedControl" {
+                guard base >= 0, base <= 0xff, length >= bitOffset / 8 + width / 8, length <= 256 - base,
+                      base + bitOffset / 8 == expectedOffset else { return ["verified": false] }
+                byteOffset = base + bitOffset / 8
+            } else if regionType == "SystemMemory" {
+                guard base >= 0x10000, base <= 0xffffffff, length >= bitOffset / 8 + width / 8,
+                      (base & 0xff) + bitOffset / 8 == expectedOffset else { return ["verified": false] }
+                byteOffset = (base & 0xff) + bitOffset / 8
+            } else {
+                return ["verified": false]
+            }
             return ["verified": true, "field": "\\" + field.path, "region": "\\" + regionPath,
-                "byteOffset": expectedOffset, "width": width, "table": field.table, "line": field.line]
+                "byteOffset": byteOffset, "width": width, "table": field.table, "line": field.line]
         }
         let control = fieldEvidence("HFSP", width: 8, expectedOffset: protocolLayout["FanControlOffset"])
         let rpm = fieldEvidence("HSPD", width: 16, expectedOffset: protocolLayout["FanRPMOffset"])

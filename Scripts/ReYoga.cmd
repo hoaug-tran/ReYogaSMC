@@ -1,6 +1,6 @@
 @echo off
 setlocal
-cd /d "%~dp0"
+cd /d "%~dp0\.."
 where py >nul 2>nul
 if errorlevel 1 (
     python Scripts\hardware_support.py --windows-live --ec-read %*

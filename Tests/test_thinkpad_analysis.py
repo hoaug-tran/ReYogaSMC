@@ -119,6 +119,30 @@ class ThinkPadAnalysisTests(unittest.TestCase):
         source = dsdt().replace('Offset (0x2F)', 'DYN0, SIZE, Offset (0x2F)')
         self.assertTrue(self.analyze(source)['report']['fanLayout']['verified'])
 
+    def test_amd_thinkpad_system_memory_ec_layout(self):
+        source = dsdt().replace('OperationRegion (ECOR, EmbeddedControl, Zero, 0x100)',
+                                'OperationRegion (ECOR, SystemMemory, 0xFE00DA00, 0xFF)')
+        result = self.analyze(source)
+        self.assertEqual(set(result['report']['added']), set(HELPERS))
+        self.assertTrue(result['report']['fanLayout']['verified'])
+        self.assertEqual(result['report']['fanLayout']['control']['byteOffset'], 47)
+        self.assertEqual(result['report']['fanLayout']['rpm']['byteOffset'], 132)
+        self.assertEqual(result['report']['fanLayout']['control']['region'], r'\_SB.PCI0.LPCB.EC.ECOR')
+        self.assertEqual(result['report']['fanLayout']['rpm']['region'], r'\_SB.PCI0.LPCB.EC.ECOR')
+        for helper in HELPERS:
+            self.assertIn(f'Method ({helper},', result['source'])
+
+    def test_system_memory_rejects_unaligned_or_low_base(self):
+        for bad_region in [
+            'OperationRegion (ECOR, SystemMemory, 0x8000, 0xFF)',
+            'OperationRegion (ECOR, SystemMemory, Zero, 0x100)',
+            'OperationRegion (ECOR, SystemMemory, 0xFE00DA01, 0xFF)',
+            'OperationRegion (ECOR, SystemMemory, 0xFE00DA00, 0x20)'
+        ]:
+            with self.subTest(region=bad_region):
+                source = dsdt().replace('OperationRegion (ECOR, EmbeddedControl, Zero, 0x100)', bad_region)
+                self.assertIn('do not match', self.analyze(source)['error'])
+
     def test_parent_scope_and_aliases_never_bypass_helper_collision(self):
         patch = r'''DefinitionBlock ("", "SSDT", 2, "TEST", "ALIAS", 1) {
         Scope (\_SB.PCI0.LPCB.EC.HKEY) { Method (^RE1B, 2) {} }
@@ -191,3 +215,90 @@ class ThinkPadAnalysisTests(unittest.TestCase):
                                      cwd=directory, capture_output=True, text=True, timeout=15)
             self.assertIn('[Integer] = FFFFFFFFFFFFFFFE', runtime.stdout + runtime.stderr)
             self.assertNotIn('AE_ALREADY_EXISTS', runtime.stdout + runtime.stderr)
+
+
+def validate_ec_field_evidence(region_type, base, length, bit_offset, width, expected_offset):
+    """Mirror the exact validation contract in ThinkPadACPI.swift fieldEvidence."""
+    if bit_offset % 8 != 0 or expected_offset is None:
+        return dict(verified=False)
+    if region_type == "EmbeddedControl":
+        if not (0 <= base <= 0xff and length >= bit_offset // 8 + width // 8 and length <= 256 - base and base + bit_offset // 8 == expected_offset):
+            return dict(verified=False)
+        byte_offset = base + bit_offset // 8
+    elif region_type == "SystemMemory":
+        if not (0x10000 <= base <= 0xffffffff and length >= bit_offset // 8 + width // 8 and (base & 0xff) + bit_offset // 8 == expected_offset):
+            return dict(verified=False)
+        byte_offset = (base & 0xff) + bit_offset // 8
+    else:
+        return dict(verified=False)
+    return dict(verified=True, byteOffset=byte_offset, width=width)
+
+
+class ThinkPadECLayoutStaticTests(unittest.TestCase):
+    def test_embedded_control_field_evidence(self):
+        # HFSP at offset 47 (0x2F), 8 bits
+        hfsp = validate_ec_field_evidence("EmbeddedControl", base=0, length=0x100,
+                                          bit_offset=47 * 8, width=8, expected_offset=47)
+        self.assertTrue(hfsp['verified'])
+        self.assertEqual(hfsp['byteOffset'], 47)
+        self.assertEqual(hfsp['width'], 8)
+
+        # HSPD at offset 132 (0x84), 16 bits
+        hspd = validate_ec_field_evidence("EmbeddedControl", base=0, length=0x100,
+                                          bit_offset=132 * 8, width=16, expected_offset=132)
+        self.assertTrue(hspd['verified'])
+        self.assertEqual(hspd['byteOffset'], 132)
+        self.assertEqual(hspd['width'], 16)
+
+    def test_amd_system_memory_field_evidence(self):
+        # ThinkPad E14 Gen 5 AMD: OperationRegion (ECOR, SystemMemory, 0xFE00DA00, 0xFF)
+        # HFSP at offset 47
+        hfsp = validate_ec_field_evidence("SystemMemory", base=0xFE00DA00, length=0xFF,
+                                          bit_offset=47 * 8, width=8, expected_offset=47)
+        self.assertTrue(hfsp['verified'])
+        self.assertEqual(hfsp['byteOffset'], 47)
+        self.assertEqual(hfsp['width'], 8)
+
+        # HSPD at offset 132
+        hspd = validate_ec_field_evidence("SystemMemory", base=0xFE00DA00, length=0xFF,
+                                          bit_offset=132 * 8, width=16, expected_offset=132)
+        self.assertTrue(hspd['verified'])
+        self.assertEqual(hspd['byteOffset'], 132)
+        self.assertEqual(hspd['width'], 16)
+
+    def test_system_memory_negative_boundaries(self):
+        # Base below 0x10000 fails closed
+        self.assertFalse(validate_ec_field_evidence("SystemMemory", base=0x8000, length=0xFF,
+                                                    bit_offset=47 * 8, width=8, expected_offset=47)['verified'])
+        self.assertFalse(validate_ec_field_evidence("SystemMemory", base=0, length=0x100,
+                                                    bit_offset=47 * 8, width=8, expected_offset=47)['verified'])
+
+        # Base exceeding 32-bit fails closed
+        self.assertFalse(validate_ec_field_evidence("SystemMemory", base=0x100000000, length=0xFF,
+                                                    bit_offset=47 * 8, width=8, expected_offset=47)['verified'])
+
+        # Unaligned base where (base & 0xff) + bit_offset / 8 != expected_offset
+        self.assertFalse(validate_ec_field_evidence("SystemMemory", base=0xFE00DA01, length=0xFF,
+                                                    bit_offset=47 * 8, width=8, expected_offset=47)['verified'])
+
+        # Insufficient length
+        self.assertFalse(validate_ec_field_evidence("SystemMemory", base=0xFE00DA00, length=0x20,
+                                                    bit_offset=47 * 8, width=8, expected_offset=47)['verified'])
+
+        # Other region types fail closed
+        for bad_type in ["SystemIO", "PciConfig", "GeneralPurposeIO", "GenericSerialBus"]:
+            self.assertFalse(validate_ec_field_evidence(bad_type, base=0xFE00DA00, length=0xFF,
+                                                        bit_offset=47 * 8, width=8, expected_offset=47)['verified'])
+
+    def test_swift_source_wiring_system_memory_ec(self):
+        source = (ROOT / 'ReYogaSMCApp/Hardware/ACPI/ThinkPadACPI.swift').read_text(encoding='utf-8')
+        self.assertIn('regionType == "SystemMemory"', source)
+        self.assertIn('base >= 0x10000', source)
+        self.assertIn('base <= 0xffffffff', source)
+        self.assertIn('(base & 0xff) + bitOffset / 8 == expectedOffset', source)
+        self.assertIn('byteOffset = (base & 0xff) + bitOffset / 8', source)
+        self.assertIn('return ["verified": false]', source)
+
+
+if __name__ == '__main__':
+    unittest.main()

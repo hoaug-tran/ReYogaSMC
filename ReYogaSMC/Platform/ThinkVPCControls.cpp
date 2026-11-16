@@ -359,6 +359,10 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
                 }
                 setMutestatus(value->unsigned32BitValue());
             } else if (key->isEqualTo(muteLEDPrompt)) {
+                if (!muteLEDSupport) {
+                    AlwaysLog(notSupported, muteLEDPrompt);
+                    continue;
+                }
                 auto value = ReYogaProperty::get<OSBoolean>(dict, muteLEDPrompt);
                 if (!value) {
                     AlwaysLog(valueInvalid, muteLEDPrompt);
@@ -455,15 +459,21 @@ void ThinkVPC::setPropertiesGated(OSObject *props) {
 }
 
 bool ThinkVPC::updateMuteLEDStatus(bool logChanges) {
-    if (evaluateIntegerParam(getAudioMuteLED, &muteLEDstate, 0) != kIOReturnSuccess) {
+    if (!vpc || vpc->validateObject(getAudioMuteLED) != kIOReturnSuccess)
+        return false;
+
+    UInt32 raw = 0;
+    if (evaluateIntegerParam(getAudioMuteLED, &raw, 0) != kIOReturnSuccess ||
+        (raw & TPACPI_AML_MUTE_ERROR_STATE_MASK)) {
         AlwaysLog(updateFailure, __func__);
         return false;
     }
 
+    muteLEDstate = (raw & TPACPI_AML_MUTE_READ_MASK) ? 1 : 0;
     if (logChanges)
-        DebugLog(updateSuccess, __func__, muteLEDstate);
+        DebugLog(updateSuccess, __func__, raw);
 
-    setProperty(muteLEDPrompt, muteLEDstate, 32);
+    setProperty(muteLEDPrompt, muteLEDstate != 0);
     return true;
 }
 
@@ -529,12 +539,17 @@ bool ThinkVPC::setLEDStatus(UInt8 status) {
 }
 
 bool ThinkVPC::setMuteLEDStatus(bool status) {
-    UInt32 result;
-    if (evaluateIntegerParam(setAudioMuteLED, &result, status) != kIOReturnSuccess) {
-        AlwaysLog(toggleFailure, muteLEDPrompt);
+    if (!muteLEDSupport || !vpc)
+        return false;
+
+    UInt32 result = 0;
+    IOReturn ret = evaluateIntegerParam(setAudioMuteLED, &result, status ? 1 : 0);
+    if (ret != kIOReturnSuccess || (result & TPACPI_AML_MUTE_ERROR_STATE_MASK)) {
+        AlwaysLog(toggleError, muteLEDPrompt, ret ? ret : result);
         return false;
     }
 
+    muteLEDstate = status ? 1 : 0;
     DebugLog(toggleSuccess, muteLEDPrompt, status, (status ? "on" : "off"));
     setProperty(muteLEDPrompt, status);
     return true;

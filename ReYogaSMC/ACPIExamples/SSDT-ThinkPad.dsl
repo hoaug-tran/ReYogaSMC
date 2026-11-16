@@ -2,16 +2,16 @@
 // EC thermal offsets are firmware-specific; sensor fields are not added here.
 DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
 {
-    External (\_SB.PCI0.LPCB.EC, DeviceObj)
-    External (\_SB.PCI0.LPCB.EC.HKEY, DeviceObj)
+    External (\_SB.PCI0.LPC0.EC0, DeviceObj)
+    External (\_SB.PCI0.LPC0.EC0.HKEY, DeviceObj)
     External (_SI_._SST, MethodObj)
     External (LNUX, IntObj)
     External (WNTF, IntObj)
-    External (\_SB.PCI0.LPCB.EC.HKEY.CSSI, MethodObj, UnknownObj, {IntObj})
-    External (\_SB.PCI0.LPCB.EC.RE1B, MethodObj, IntObj, {IntObj})
-    External (\_SB.PCI0.LPCB.EC.WE1B, MethodObj, UnknownObj, {IntObj, IntObj})
-    External (\_SB.PCI0.LPCB.EC.RECB, MethodObj, BuffObj, {IntObj, IntObj})
-    External (\_SB.PCI0.LPCB.EC.WECB, MethodObj, UnknownObj, {IntObj, IntObj, BuffObj})
+    External (\_SB.PCI0.LPC0.EC0.HKEY.CSSI, MethodObj, UnknownObj, {IntObj})
+    External (\_SB.PCI0.LPC0.EC0.RE1B, MethodObj, IntObj, {IntObj})
+    External (\_SB.PCI0.LPC0.EC0.WE1B, MethodObj, UnknownObj, {IntObj, IntObj})
+    External (\_SB.PCI0.LPC0.EC0.RECB, MethodObj, BuffObj, {IntObj, IntObj})
+    External (\_SB.PCI0.LPC0.EC0.WECB, MethodObj, UnknownObj, {IntObj, IntObj, BuffObj})
 
     If (_OSI ("Darwin"))
     {
@@ -26,7 +26,7 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
         }
     }
 
-    Scope (\_SB.PCI0.LPCB.EC.HKEY)
+    Scope (\_SB.PCI0.LPC0.EC0.HKEY)
     {
         If (!CondRefOf (CSSI))
         {
@@ -40,7 +40,7 @@ DefinitionBlock ("", "SSDT", 2, "hack", "ThinkPad", 0x00000000)
         }
     }
 
-    Scope (\_SB.PCI0.LPCB.EC)
+    Scope (\_SB.PCI0.LPC0.EC0)
     {
         If (!CondRefOf (RE1B))
         {

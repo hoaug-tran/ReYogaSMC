@@ -1,5 +1,9 @@
 """Source-level safety regressions; these do not simulate firmware or prove bootability."""
 import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
 try:
     from .source_tools import app_sources, kernel_sources, function, read_sources
@@ -154,6 +158,42 @@ class BootSafetyTests(unittest.TestCase):
         plist = source('ReYogaSMCApp/Info.plist')
         self.assertIn('<key>NSBluetoothAlwaysUsageDescription</key>', plist)
 
+    def test_wake_stp_recovery_and_thinkpad_power_state_wiring(self):
+        think = source('ReYogaSMC/Platform/ThinkVPC.cpp')
+        power_body = function(think, 'IOReturn ThinkVPC::setPowerState(')
+        wake_branch = power_body.split('} else {', 1)[1].split('return kIOPMAckImplied;', 1)[0]
+        self.assertIn('restoreThermalOnWake()', wake_branch)
+        self.assertIn('commandGate->runAction', wake_branch)
+        self.assertIn('DHKF_MASK_offset', wake_branch)
+        self.assertIn('hotkey_alter_all_mask', wake_branch)
+
+        vpc = source('ReYogaSMC/ReYogaVPC.cpp')
+        clear_body = function(vpc, 'bool ReYogaVPC::clearSTP(')
+        self.assertIn('DYTCCap & BIT(DYTC_FUNCTION_STP)', clear_body)
+        self.assertIn('DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_STP, 0xF, false)', clear_body)
+
+        clear_cql_body = function(vpc, 'bool ReYogaVPC::clearCQL(')
+        self.assertIn('DYTCCap & BIT(DYTC_FUNCTION_CQL)', clear_cql_body)
+        self.assertIn('DYTCCommand(dytc_set_cmd, &result, DYTC_FUNCTION_CQL, 0xF, false)', clear_cql_body)
+
+        restore_body = function(vpc, 'bool ReYogaVPC::restoreThermalOnWake(')
+        self.assertIn('if (!DYTCCap)', restore_body)
+        self.assertIn('if (DYTCCap & BIT(DYTC_FUNCTION_STP))', restore_body)
+        self.assertIn('clearedSTP = clearSTP()', restore_body)
+        self.assertIn('if (DYTCCap & BIT(DYTC_FUNCTION_CQL))', restore_body)
+        self.assertIn('clearedCQL = clearCQL()', restore_body)
+        self.assertIn('supportsThermalProfiles()', restore_body)
+        self.assertIn('setThermalProfile(', restore_body)
+        self.assertIn('setProperty("LastThermalWakeRecovery", diagnostic)', restore_body)
+
+        init_body = function(vpc, 'void ReYogaVPC::initDYTC(')
+        self.assertIn('disableLapMode = PE_parse_boot_argn("-reynolap"', init_body)
+        self.assertIn('disableSTPMode = PE_parse_boot_argn("-reynostp"', init_body)
+        self.assertIn('if (DYTCCap & BIT(DYTC_FUNCTION_STP))', init_body)
+        self.assertIn('clearSTP()', init_body)
+        self.assertIn('if (DYTCCap & BIT(DYTC_FUNCTION_CQL))', init_body)
+        self.assertIn('clearCQL()', init_body)
+
     def test_standalone_ssdtless_and_hotkey_migration(self):
         kext_plist = source('ReYogaSMC/Info.plist')
         self.assertIn('<string>VPC2004</string>', kext_plist)
@@ -167,6 +207,146 @@ class BootSafetyTests(unittest.TestCase):
         self.assertIn('resetDefaultEvents', config)
         notify = source('ReYogaSMCApp/Hardware/Driver/DriverNotifications.swift') + source('ReYogaSMCApp/Events/DriverEventActions.swift')
         self.assertIn('com.apple.systempreferences', notify)
+        defaults = source('ReYogaSMCApp/Events/DefaultEvents.swift')
+        self.assertIn('TP_HKEY_EV_NOTIFICATION_CENTER.rawValue', defaults)
+        self.assertIn('TP_HKEY_EV_ANSWER_CALL.rawValue', defaults)
+        self.assertIn('TP_HKEY_EV_HANGUP_CALL.rawValue', defaults)
+        self.assertIn('TP_HKEY_EV_CLIPPING_TOOL.rawValue', defaults)
+        self.assertIn('TP_HKEY_EV_CALCULATOR.rawValue', defaults)
+        self.assertIn('TP_HKEY_EV_KEY_FN.rawValue', defaults)
+
+        events_h = source('ReYogaSMC/Platform/ThinkEvents.h')
+        self.assertIn('TP_HKEY_EV_CLIPPING_TOOL = 0x1312', events_h)
+        self.assertIn('TP_HKEY_EV_CALCULATOR = 0x1313', events_h)
+
+    def test_thinkpad_speaker_mute_led_gating_and_readback_masks(self):
+        header = source('ReYogaSMC/Platform/ThinkVPC.hpp')
+        self.assertRegex(header, r'bool\s+muteLEDSupport\s*\{\s*false\s*\}')
+
+        controls = kernel_sources('ThinkVPC')
+        init_vpc = function(controls, 'bool ThinkVPC::initVPC(')
+        self.assertIn('muteLEDSupport = (vpc->validateObject(setAudioMuteLED) == kIOReturnSuccess)', init_vpc)
+        self.assertIn('setProperty("MuteLEDSupport", muteLEDSupport)', init_vpc)
+
+        update_fn = function(controls, 'bool ThinkVPC::updateMuteLEDStatus(')
+        self.assertIn('vpc->validateObject(getAudioMuteLED)', update_fn)
+        self.assertIn('TPACPI_AML_MUTE_ERROR_STATE_MASK', update_fn)
+        self.assertIn('muteLEDstate = (raw & TPACPI_AML_MUTE_READ_MASK) ? 1 : 0', update_fn)
+        self.assertIn('setProperty(muteLEDPrompt, muteLEDstate != 0)', update_fn)
+
+        set_fn = function(controls, 'bool ThinkVPC::setMuteLEDStatus(')
+        self.assertIn('if (!muteLEDSupport || !vpc)', set_fn)
+        self.assertIn('TPACPI_AML_MUTE_ERROR_STATE_MASK', set_fn)
+        self.assertIn('muteLEDstate = status ? 1 : 0', set_fn)
+        self.assertIn('setProperty(muteLEDPrompt, status)', set_fn)
+
+    @unittest.skipUnless(shutil.which('g++') or shutil.which('clang++'), 'C++ compiler required')
+    def test_thinkpad_speaker_mute_led_host_behavior(self):
+        controls = kernel_sources('ThinkVPC')
+        update_fn = function(controls, 'bool ThinkVPC::updateMuteLEDStatus(')
+        set_fn = function(controls, 'bool ThinkVPC::setMuteLEDStatus(')
+        harness = f'''
+#include <cassert>
+#include <cstdint>
+
+using UInt32 = uint32_t;
+using IOReturn = int;
+constexpr IOReturn kIOReturnSuccess = 0;
+constexpr UInt32 TPACPI_AML_MUTE_READ_MASK = 0x01;
+constexpr UInt32 TPACPI_AML_MUTE_ERROR_STATE_MASK = 0x80000000u;
+
+#define AlwaysLog(...) ((void)0)
+#define DebugLog(...) ((void)0)
+
+struct VPCStub {{
+    IOReturn validateGet = kIOReturnSuccess;
+    IOReturn validateObject(const char *) const {{ return validateGet; }}
+}};
+
+struct ThinkVPC {{
+    VPCStub stub;
+    VPCStub *vpc = &stub;
+    bool muteLEDSupport = false;
+    int muteLEDstate = 0;
+    IOReturn evalRet = kIOReturnSuccess;
+    UInt32 evalResult = 0;
+    UInt32 lastParam = 99;
+    bool propSet = false;
+    bool propBool = false;
+
+    static constexpr const char *getAudioMuteLED = "GSMS";
+    static constexpr const char *setAudioMuteLED = "SSMS";
+    static constexpr const char *muteLEDPrompt = "MuteLED";
+    static constexpr const char *updateFailure = "";
+    static constexpr const char *updateSuccess = "";
+    static constexpr const char *toggleError = "";
+    static constexpr const char *toggleSuccess = "";
+
+    IOReturn evaluateIntegerParam(const char *, UInt32 *out, UInt32 param) {{
+        lastParam = param;
+        if (out) *out = evalResult;
+        return evalRet;
+    }}
+    void setProperty(const char *, bool value) {{
+        propSet = true;
+        propBool = value;
+    }}
+
+    bool updateMuteLEDStatus(bool logChanges);
+    bool setMuteLEDStatus(bool status);
+}};
+
+{update_fn}
+{set_fn}
+
+int main() {{
+    ThinkVPC dev;
+    dev.muteLEDSupport = false;
+    assert(!dev.setMuteLEDStatus(true));
+    assert(dev.lastParam == 99);
+
+    // Firmware returns hardware state bit 8 (0x100) for OFF, 0x101 for ON.
+    dev.evalResult = 0x100;
+    assert(dev.updateMuteLEDStatus(false));
+    assert(dev.muteLEDstate == 0);
+    assert(dev.propSet && !dev.propBool);
+
+    dev.evalResult = 0x101;
+    assert(dev.updateMuteLEDStatus(true));
+    assert(dev.muteLEDstate == 1);
+    assert(dev.propSet && dev.propBool);
+
+    // Firmware error bit must be rejected without corrupting muteLEDstate.
+    dev.evalResult = 0x80000001u;
+    assert(!dev.updateMuteLEDStatus(false));
+    assert(dev.muteLEDstate == 1);
+
+    dev.muteLEDSupport = true;
+    dev.evalResult = 0x100;
+    assert(dev.setMuteLEDStatus(false));
+    assert(dev.lastParam == 0 && dev.muteLEDstate == 0 && !dev.propBool);
+
+    assert(dev.setMuteLEDStatus(true));
+    assert(dev.lastParam == 1 && dev.muteLEDstate == 1 && dev.propBool);
+
+    dev.evalResult = 0x80000000u;
+    assert(!dev.setMuteLEDStatus(false));
+    assert(dev.muteLEDstate == 1);
+    return 0;
+}}
+'''
+        compiler = shutil.which('g++') or shutil.which('clang++')
+        with tempfile.TemporaryDirectory() as folder:
+            folder = pathlib.Path(folder)
+            src = folder / 'mute_led_test.cpp'
+            exe = folder / 'mute_led_test.exe'
+            src.write_text(harness, encoding='utf-8')
+            abi = ['-mno-ms-bitfields'] if sys.platform == 'win32' else []
+            build = subprocess.run([compiler, *abi, '-std=c++14', '-Wall', '-Wextra', '-Werror', str(src), '-o', str(exe)],
+                                   capture_output=True, text=True, timeout=60)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+            run = subprocess.run([str(exe)], capture_output=True, text=True, timeout=10)
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
 
 if __name__ == '__main__':

@@ -7,7 +7,7 @@ struct LightingControlsPage: View {
         manager.featureStatus["BacklightLevel"]?.available == true && manager.keyboardBacklight >= 0
     }
     private var hasDeviceLighting: Bool {
-        manager.hasYLogo || manager.hasPortLighting
+        manager.hasYLogo || manager.hasPortLighting || manager.hasSpeakerMuteLED
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -26,7 +26,21 @@ struct LightingControlsPage: View {
                         ControlFeatureRow(manager, .lightingLogoLed, "YLogoStatus", "lightbulb", manager.isYLogoOn, true) { manager.toggleYLogo() }
                     }
                     if manager.hasPortLighting {
+                        if manager.hasYLogo { Divider().padding(.vertical, 4) }
                         ControlFeatureRow(manager, .lightingPortIcons, "PortLighting", "powerplug", manager.isPortLightingOn, true) { manager.togglePortLighting() }
+                    }
+                    if manager.hasSpeakerMuteLED {
+                        if manager.hasYLogo || manager.hasPortLighting { Divider().padding(.vertical, 4) }
+                        VStack(alignment: .leading, spacing: 6) {
+                            Toggle(loc(.lightingSpeakerMuteLed), isOn: Binding(
+                                get: { manager.syncSpeakerMuteLED },
+                                set: { manager.setSyncSpeakerMuteLED($0) }
+                            )).font(.system(size: 12, weight: .medium))
+                            Text(loc(.lightingSpeakerMuteLedDesc))
+                                .font(.caption).foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.leading, 20)
+                        }.padding(.vertical, 4)
                     }
                 }
             }

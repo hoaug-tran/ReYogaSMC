@@ -226,6 +226,25 @@ void ReYogaVPC::setPropertyGated(const char *key, OSObject *rawValue) {
         } else {
             DebugLog(toggleSuccess, DYTCPrompt, mode, "see ioreg");
         }
+    } else if (!strcmp(key, "ClearSTP")) {
+        if (clearSTP()) {
+            updateDYTC();
+            DebugLog(toggleSuccess, DYTCPrompt, 4, "STP cleared");
+        } else {
+            AlwaysLog(toggleFailure, DYTCPrompt);
+        }
+    } else if (!strcmp(key, "ClearCQL")) {
+        if (clearCQL()) {
+            updateDYTC();
+            DebugLog(toggleSuccess, DYTCPrompt, 1, "CQL cleared");
+        } else {
+            AlwaysLog(toggleFailure, DYTCPrompt);
+        }
+    } else if (!strcmp(key, "RestoreThermalOnWake")) {
+        if (restoreThermalOnWake())
+            DebugLog(toggleSuccess, DYTCPrompt, activeThermalProfile, "Thermal restored");
+        else
+            AlwaysLog(toggleFailure, DYTCPrompt);
     } else if (!strcmp(key, updatePrompt)) {
         updateAll();
     } else {
