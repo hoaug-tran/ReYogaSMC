@@ -1,5 +1,25 @@
 # Releases
 
+## 2.2.2
+
+### Added
+
+- Add native hardware profile and platform support for Lenovo Legion Y7000 2025 (83LY, 83DG / PTCN / CB-01 / 17aa:38cb, 17aa:38cd) #17.
+- Support VirtualSMC sensor key publication (fan RPM and CPU/GPU temperatures) when a valid hardware profile is present, even without GameZone WMI fan methods or when WMI reports different sensor interfaces.
+- Add fallback to legacy GameZone getters (`GAME_ZONE_WMI_GET_TMP_CPU`, `GAME_ZONE_WMI_GET_TMP_GPU`) in `IdeaWMIGameZone` when ACPI WMAB lacks modern fan sensor methods (7/8/1/2).
+
+### Fixed
+
+- Fix Legion GameZone fan discovery: replace usage of `LENOVO_FAN_TABLE_DATA` curve trip points count (which reported 10–15 instances instead of physical fans) with verified fan speed queries, bounding physical fan count to valid laptop limits (1–2).
+- Fix VirtualSMC `KeyFNum` publication in `IdeaSMC`: export the actual exported fan count rather than the total sensor count (`sensorCount`), preventing non-fan sensors from inflating the SMC fan count.
+- Guard against invalid or out-of-range (> 2) fan numbers reported by WMI in `IdeaVPC` and `IdeaSMC`.
+- Protect native ACPI profile and bridge fan readings from being suppressed by incomplete WMI fan counts.
+
+### Changed
+
+- Decouple hardware profile matching from AML and DSDT table checksums/hashes (`amlHashes`, `reviewed_aml_hashes`, `reviewed_dsdt_hashes`): match profiles reliably across BIOS updates and downgrades using hardware identity (machine type, BIOS family, DSDT OEM table ID, and PCI subsystem IDs).
+- Update profile generation scripts, schema validation, driver structures, and Swift matching to rely on hardware identity and required ACPI declarations instead of binary table hashes.
+
 ## 2.2.1
 
 ### Added
