@@ -21,16 +21,27 @@ void IdeaSMC::addVSMCKey() {
     }
 
     char bootArgument[16];
-    if (!wmig || PE_parse_boot_argn("-reynosmc", bootArgument, sizeof(bootArgument)) ||
+    if ((!wmig && (!sensorProvider || !sensorProvider->getProperty("HardwareProfile"))) ||
+        PE_parse_boot_argn("-reynosmc", bootArgument, sizeof(bootArgument)) ||
         PE_parse_boot_argn("-reynosensors", bootArgument, sizeof(bootArgument))) {
         super::addVSMCKey();
         return;
     }
 
+    UInt32 fanCount = 0;
+    if (sensorProvider) {
+        if (auto num = OSDynamicCast(OSNumber, sensorProvider->getProperty("Fan number")))
+            fanCount = num->unsigned32BitValue();
+    }
+    if (fanCount == 0 && wmig)
+        fanCount = wmig->fanCount;
+    if (fanCount > 2)
+        fanCount = 2;
+
     UInt32 value;
-    if (wmig->hasFanMethod) {
+    if (wmig && wmig->hasFanMethod) {
         UInt8 exportedFans = 0;
-        for (UInt32 fan = 0; fan < wmig->fanCount && sensorCount < MAX_SENSOR - 2; ++fan) {
+        for (UInt32 fan = 0; fan < fanCount && sensorCount < MAX_SENSOR - 2; ++fan) {
             VirtualSMCAPI::addKey(KeyF0Ac(fan), vsmcPlugin.data, VirtualSMCAPI::valueWithFp(0, SmcKeyTypeFpe2, new atomicFpKey(&currentSensor[sensorCount])));
             sensorIndex[sensorCount++] = FanMethodBase + fan;
             ++exportedFans;
@@ -44,35 +55,40 @@ void IdeaSMC::addVSMCKey() {
         VirtualSMCAPI::addKey(KeyTCGC, vsmcPlugin.data, VirtualSMCAPI::valueWithSp(0, SmcKeyTypeSp78, new atomicSpKey(&currentSensor[sensorCount])));
         sensorIndex[sensorCount++] = GPUTemperatureMethod;
     } else {
-        if (wmig->getGameZoneData(GAME_ZONE_WMI_GET_FAN_NUM, &value) && value) {
-            VirtualSMCAPI::addKey(KeyF0Ac(0), vsmcPlugin.data, VirtualSMCAPI::valueWithFp(0, SmcKeyTypeFpe2, new atomicFpKey(&currentSensor[sensorCount])));
-            sensorIndex[sensorCount++] = GAME_ZONE_WMI_GET_FAN_ONE;
+        UInt8 exportedFans = 0;
+        if (fanCount == 0 && wmig && wmig->getGameZoneData(GAME_ZONE_WMI_GET_FAN_NUM, &value) && value) {
+            fanCount = value > 2 ? 2 : value;
+        }
+        for (UInt32 fan = 0; fan < fanCount && sensorCount < MAX_SENSOR - 2; ++fan) {
+            VirtualSMCAPI::addKey(KeyF0Ac(fan), vsmcPlugin.data, VirtualSMCAPI::valueWithFp(0, SmcKeyTypeFpe2, new atomicFpKey(&currentSensor[sensorCount])));
+            sensorIndex[sensorCount++] = fan == 0 ? GAME_ZONE_WMI_GET_FAN_ONE : GAME_ZONE_WMI_GET_FAN_TWO;
+            ++exportedFans;
+        }
+        if (exportedFans) {
+            VirtualSMCAPI::addKey(KeyFNum, vsmcPlugin.data, VirtualSMCAPI::valueWithUint8(exportedFans, nullptr, SMC_KEY_ATTRIBUTE_CONST | SMC_KEY_ATTRIBUTE_READ));
 
-            if (value > 1) {
-                VirtualSMCAPI::addKey(KeyF0Ac(1), vsmcPlugin.data, VirtualSMCAPI::valueWithFp(0, SmcKeyTypeFpe2, new atomicFpKey(&currentSensor[sensorCount])));
-                sensorIndex[sensorCount++] = GAME_ZONE_WMI_GET_FAN_TWO;
-            }
-
-            VirtualSMCAPI::addKey(KeyFNum, vsmcPlugin.data, VirtualSMCAPI::valueWithUint8(sensorCount, nullptr, SMC_KEY_ATTRIBUTE_CONST | SMC_KEY_ATTRIBUTE_READ));
-
-            if (wmig->getGameZoneData(GAME_ZONE_WMI_GET_FAN_MAX, &value)) {
+            if (wmig && wmig->getGameZoneData(GAME_ZONE_WMI_GET_FAN_MAX, &value)) {
                 VirtualSMCAPI::addKey(KeyF0Mx(0), vsmcPlugin.data, VirtualSMCAPI::valueWithFp(value, SmcKeyTypeFpe2, nullptr, SMC_KEY_ATTRIBUTE_WRITE | SMC_KEY_ATTRIBUTE_READ));
-                if (sensorCount == 2)
+                if (exportedFans >= 2)
                     VirtualSMCAPI::addKey(KeyF0Mx(1), vsmcPlugin.data, VirtualSMCAPI::valueWithFp(value, SmcKeyTypeFpe2, nullptr, SMC_KEY_ATTRIBUTE_WRITE | SMC_KEY_ATTRIBUTE_READ));
             }
         }
 
-        if (wmig->getGameZoneData(GAME_ZONE_WMI_GET_TMP_IR, &value) && value) {
+        if (sensorCount < MAX_SENSOR && wmig && wmig->getGameZoneData(GAME_ZONE_WMI_GET_TMP_IR, &value) && value) {
             VirtualSMCAPI::addKey(KeyTPCD, vsmcPlugin.data, VirtualSMCAPI::valueWithSp(0, SmcKeyTypeSp78, new atomicSpKey(&currentSensor[sensorCount])));
             sensorIndex[sensorCount++] = GAME_ZONE_WMI_GET_TMP_IR;
         }
 
-        if (wmig->getGameZoneData(GAME_ZONE_WMI_GET_TMP_CPU, &value) && value) {
+        const bool hasCpuSensor = (wmig && wmig->getGameZoneData(GAME_ZONE_WMI_GET_TMP_CPU, &value) && value) ||
+                                  (sensorProvider && (sensorProvider->getProperty("CPUTemp") != nullptr || sensorProvider->getProperty("HardwareProfile") != nullptr));
+        if (hasCpuSensor && sensorCount < MAX_SENSOR) {
             VirtualSMCAPI::addKey(KeyTCXC, vsmcPlugin.data, VirtualSMCAPI::valueWithSp(0, SmcKeyTypeSp78, new atomicSpKey(&currentSensor[sensorCount])));
             sensorIndex[sensorCount++] = GAME_ZONE_WMI_GET_TMP_CPU;
         }
 
-        if (wmig->getGameZoneData(GAME_ZONE_WMI_GET_TMP_GPU, &value) && value) {
+        const bool hasGpuSensor = (wmig && wmig->getGameZoneData(GAME_ZONE_WMI_GET_TMP_GPU, &value) && value) ||
+                                  (sensorProvider && (sensorProvider->getProperty("GPUTemp") != nullptr || sensorProvider->getProperty("HardwareProfile") != nullptr));
+        if (hasGpuSensor && sensorCount < MAX_SENSOR) {
             VirtualSMCAPI::addKey(KeyTCGC, vsmcPlugin.data, VirtualSMCAPI::valueWithSp(0, SmcKeyTypeSp78, new atomicSpKey(&currentSensor[sensorCount])));
             sensorIndex[sensorCount++] = GAME_ZONE_WMI_GET_TMP_GPU;
         }
@@ -99,16 +115,16 @@ void IdeaSMC::updateECVendor() {
             }
         }
         if (code >= FanMethodBase) {
-            if (wmig->getFanSpeed(code - FanMethodBase, &value))
+            if (wmig && wmig->getFanSpeed(code - FanMethodBase, &value))
                 atomic_store_explicit(&currentSensor[index], value, memory_order_release);
         } else if (code == CPUTemperatureMethod) {
-            if (wmig->getCPUTemperature(&value))
+            if (wmig && wmig->getCPUTemperature(&value))
                 atomic_store_explicit(&currentSensor[index], value, memory_order_release);
         } else if (code == GPUTemperatureMethod) {
-            if (wmig->getGPUTemperature(&value))
+            if (wmig && wmig->getGPUTemperature(&value))
                 atomic_store_explicit(&currentSensor[index], value, memory_order_release);
         } else {
-            if (wmig->getGameZoneData(code, &value))
+            if (wmig && wmig->getGameZoneData(code, &value))
                 atomic_store_explicit(&currentSensor[index], value, memory_order_release);
         }
     }

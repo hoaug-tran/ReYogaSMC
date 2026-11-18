@@ -86,12 +86,16 @@ bool IdeaWMIGameZone::getSensorTemperature(UInt32 sensorId, UInt32 *result) {
 }
 
 bool IdeaWMIGameZone::getCPUTemperature(UInt32 *result) {
-    bool ok = hasFanMethod ? getSensorTemperature(3, result) : getGameZoneData(GAME_ZONE_WMI_GET_TMP_CPU, result);
+    bool ok = hasFanMethod && getSensorTemperature(3, result);
+    if (!ok)
+        ok = getGameZoneData(GAME_ZONE_WMI_GET_TMP_CPU, result);
     return ok && *result < 125;
 }
 
 bool IdeaWMIGameZone::getGPUTemperature(UInt32 *result) {
-    bool ok = hasFanMethod ? getSensorTemperature(4, result) : getGameZoneData(GAME_ZONE_WMI_GET_TMP_GPU, result);
+    bool ok = hasFanMethod && getSensorTemperature(4, result);
+    if (!ok)
+        ok = getGameZoneData(GAME_ZONE_WMI_GET_TMP_GPU, result);
     // A powered-off dGPU may return zero; the telemetry layer labels it.
     return ok && *result < 125;
 }
@@ -148,11 +152,17 @@ bool IdeaWMIGameZone::supportsStateLighting(UInt8 component) {
         setProperty(reasonKey, !count ? "LENOVO_LIGHTING_DATA provider unavailable" : "Invalid lighting capability count");
         return false;
     }
+    bool anyQueryFailed = false;
     for (UInt32 instance = 0; instance < count; ++instance) {
         OSObject *result = nullptr;
         IOReturn status = YWMI->queryBlock(LENOVO_LIGHTING_DATA, instance, &result, true);
+        if (status != kIOReturnSuccess) {
+            anyQueryFailed = true;
+            OSSafeReleaseNULL(result);
+            continue;
+        }
         auto data = OSDynamicCast(OSData, result);
-        if (status == kIOReturnSuccess && data && data->getLength() == 7) {
+        if (data && data->getLength() == 7) {
             const auto bytes = static_cast<const UInt8 *>(data->getBytesNoCopy());
             if (bytes[0] == component) {
                 setProperty(component == 3 ? "LogoLightingCapability" : "PortLightingCapability", data);
@@ -166,7 +176,7 @@ bool IdeaWMIGameZone::supportsStateLighting(UInt8 component) {
         }
         OSSafeReleaseNULL(result);
     }
-    setProperty(reasonKey, "Lighting capability record missing or query failed");
+    setProperty(reasonKey, anyQueryFailed ? "Lighting capability query failed" : "Firmware does not advertise this lighting component");
     return false;
 }
 
@@ -311,25 +321,40 @@ void IdeaWMIGameZone::processWMI() {
     else
         AlwaysLog("Failed to get version");
 
-    // Newer firmware can advertise the legacy Game Zone fan getter but fail
-    // when it is called. The table block supplies its actual instance count.
-    fanCount = hasFanMethod ? YWMI->getInstanceCount(LENOVO_FAN_TABLE_DATA) : 0;
-    if (!fanCount && getGameZoneData(GAME_ZONE_WMI_GET_FAN_NUM, &result))
+    // Discover readable fan count and telemetry.
+    // LENOVO_FAN_TABLE_DATA is a curve/trip-points table data block (which may have
+    // 10 to 15 instances for operating points), not physical fan count. We verify actual
+    // fan readability before claiming fan telemetry.
+    fanCount = 0;
+    if (hasFanMethod && getFanSpeed(0, &result)) {
+        setProperty("Fan1Speed", result, 32);
+        if (getFanSpeed(1, &result)) {
+            setProperty("Fan2Speed", result, 32);
+            fanCount = 2;
+        } else {
+            fanCount = 1;
+        }
+    } else if (getGameZoneData(GAME_ZONE_WMI_GET_FAN_NUM, &result) && result > 0 && result <= 2) {
         fanCount = result;
-    if (fanCount > 16)
-        fanCount = 0;
+        if (getGameZoneData(GAME_ZONE_WMI_GET_FAN_ONE, &result))
+            setProperty("Fan1Speed", result, 32);
+        if (fanCount > 1 && getGameZoneData(GAME_ZONE_WMI_GET_FAN_TWO, &result))
+            setProperty("Fan2Speed", result, 32);
+    } else if (getGameZoneData(GAME_ZONE_WMI_GET_FAN_ONE, &result)) {
+        setProperty("Fan1Speed", result, 32);
+        if (getGameZoneData(GAME_ZONE_WMI_GET_FAN_TWO, &result)) {
+            setProperty("Fan2Speed", result, 32);
+            fanCount = 2;
+        } else {
+            fanCount = 1;
+        }
+    }
+
     if (fanCount)
         setProperty("Fan number", fanCount, 32);
-    else
+    else {
         removeProperty("Fan number");
-
-    if (hasFanMethod && fanCount) {
-        if (getFanSpeed(0, &result))
-            setProperty("Fan1Speed", result, 32);
-        if (fanCount > 1 && getFanSpeed(1, &result))
-            setProperty("Fan2Speed", result, 32);
-    } else if (!fanCount) {
-        AlwaysLog("Failed to get fan number");
+        AlwaysLog("WMI does not provide readable fan telemetry on this firmware");
     }
 
     if (getGameZoneData(GAME_ZONE_WMI_CAP_KEYBOARD, &result))

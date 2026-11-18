@@ -483,7 +483,7 @@ void IdeaVPC::updateTelemetry() {
         const auto &sensor = ReYogaSensor::descriptors[i];
         UInt32 value = 0;
         bool ok = false;
-        if (sensor.isFan && wmig && wmig->fanCount > 0 && i >= wmig->fanCount) {
+        if (sensor.isFan && !legionBridge && !nativeProfile && wmig && wmig->fanCount > 0 && i >= wmig->fanCount) {
             removeProperty(sensor.property);
             if (status)
                 ReYogaProperty::setString(status, sensor.property, "not reported by the firmware fan count");
@@ -540,7 +540,7 @@ void IdeaVPC::updateTelemetry() {
         sources->release();
     }
     setProperty("TelemetrySource", legionBridge ? (legionBridgeVersion >= 2 ? "ACPI bridge / precise EC RPM" : "ACPI bridge / firmware RPM resolution") : nativeProfile ? "Native ACPI / reviewed field units"
-                                                                                                 : "WMI / firmware RPM resolution");
+                                                                                                                                                             : "WMI / firmware RPM resolution");
     if (legionBridge) {
         UInt32 value = 0;
         if (ec->evaluateInteger("RYFM", &value) == kIOReturnSuccess)
