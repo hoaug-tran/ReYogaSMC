@@ -30,8 +30,6 @@ def profiles():
             continue
         if not item.get('required_patterns') or not item.get('offsets'):
             continue
-        if item.get('verified_writes', 0) != 0 and not (item.get('reviewed_dsdt_hashes') or item.get('reviewed_aml_hashes')):
-            continue
         result.append(item)
     return result
 
@@ -82,19 +80,12 @@ def normalized_hash(source):
     return hashlib.sha256(''.join(tokens).encode()).hexdigest()
 
 
-def match_profile(source, candidates, aml_hashes=()):
-    digest = normalized_hash(source)
+def match_profile(source, candidates):
     matches = []
     for p in candidates:
         if not all(re.search(pattern, source) for pattern in p['required_patterns']):
             continue
-        dsdt_hashes = p.get('reviewed_dsdt_hashes')
-        aml_h = p.get('reviewed_aml_hashes')
-        if dsdt_hashes is not None or aml_h is not None:
-            if digest in (dsdt_hashes or []) or any(h in (aml_h or []) for h in aml_hashes):
-                matches.append(p)
-        elif p.get('verified_writes', 0) == 0 and p.get('native_telemetry'):
-            matches.append(p)
+        matches.append(p)
     if len(matches) != 1:
         raise ValueError('No unique reviewed firmware profile matched. The report is ready for a device-support issue.')
     return matches[0]
@@ -459,16 +450,15 @@ def analyze_tables(binaries, tables, report):
     return sources, combined, aml_hashes
 
 
-def select_bridge_profile(combined, sources, aml_hashes):
+def select_bridge_profile(combined, sources):
     candidates = profiles()
     try:
-        profile = match_profile(combined, candidates, aml_hashes)
-        # Hashes of individual DSL inputs must also work with a full table bundle.
+        profile = match_profile(combined, candidates)
     except ValueError:
         profile = None
         for path in sources:
             try:
-                profile = match_profile(read_dsl(path), candidates, aml_hashes)
+                profile = match_profile(read_dsl(path), candidates)
                 break
             except ValueError:
                 pass
@@ -545,8 +535,8 @@ def main(argv=None):
     inputs = collect_tables(args, tables, report)
     binaries = [path for path in inputs if path.suffix.lower() != '.dsl']
     iasl = disassemble_tables(args, binaries, tables, report)
-    sources, combined, aml_hashes = analyze_tables(binaries, tables, report)
-    profile = select_bridge_profile(combined, sources, aml_hashes)
+    sources, combined, _ = analyze_tables(binaries, tables, report)
+    profile = select_bridge_profile(combined, sources)
     iasl = export_bridge(args, profile, output, iasl, report)
     report['ec'] = ec_reader.collect(output, combined, args.ec_read, args.offline)
     if args.ec_read and report['ec']['status'] in ('unavailable', 'partial'):

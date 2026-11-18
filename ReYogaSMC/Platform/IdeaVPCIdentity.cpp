@@ -129,8 +129,8 @@ void IdeaVPC::initNativeProfile() {
     setProperty("NativeTelemetryProfile", false);
     setProperty("ProfileMatchState", "unmatched");
     setProperty("ProfileMatchStage", "start");
-    setProperty("ProfileMatchReason", bridgeDisabled ? "ACPI profile discovery disabled by -reynobridge" : "No reviewed DSDT fingerprint matched; WMI remains available");
-    setProperty("NativeTelemetryReason", bridgeDisabled ? "ACPI profile discovery disabled by -reynobridge" : "No reviewed DSDT fingerprint matched; WMI remains available");
+    setProperty("ProfileMatchReason", bridgeDisabled ? "ACPI profile discovery disabled by -reynobridge" : "No compatible hardware profile matched; WMI remains available");
+    setProperty("NativeTelemetryReason", bridgeDisabled ? "ACPI profile discovery disabled by -reynobridge" : "No compatible hardware profile matched; WMI remains available");
     if (bridgeDisabled || !ec) {
         setProperty("ProfileMatchStage", bridgeDisabled ? "disabled_by_boot_argument" : "ec_unavailable");
         AlwaysLog("Profile match skipped: %s", bridgeDisabled ? "disabled by -reynobridge" : "EC unavailable");
@@ -269,7 +269,7 @@ void IdeaVPC::initNativeProfile() {
         setProperty("ProfileMatchReason", "DSDT OEM vendor is not LENOVO; generic interfaces remain available");
         return;
     }
-    const auto match = ReYogaFirmware::select(ReYogaNativeProfiles, checked, identity, oemTableID, hex);
+    const auto match = ReYogaFirmware::select(ReYogaNativeProfiles, checked, identity, oemTableID);
     setProperty("ProfileMatchOEMMatches", match.oemMatches, 32);
     const auto candidate = match.profile;
     if (!candidate) {
@@ -308,13 +308,19 @@ void IdeaVPC::initNativeProfile() {
     setProperty("HardwareProfile", candidate->id);
     setProperty("HardwareProfileName", candidate->name);
     setProperty("NativeTelemetryProfile", true);
-    setProperty("ProfileMatchState", match.exact ? "exact" : match.pciMatched ? "pci_matched"
-                                                                              : "identity_matched");
+    setProperty("ProfileMatchState", match.pciMatched ? "pci_matched" : "identity_matched");
     setProperty("ProfileMatchStage", "identified");
-    setProperty("ProfileMatchReason", match.exact ? "Reviewed AML fingerprint matched" : match.pciMatched ? "PCI subsystem ID and DSDT OEM table matched"
-                                                                                                          : "Machine type and DSDT OEM table matched");
+    setProperty("ProfileMatchReason", match.pciMatched ? "PCI subsystem ID and DSDT OEM table matched"
+                                                       : "Machine type and DSDT OEM table matched");
     setProperty("NativeTelemetryReason", "Sensor reads are validated individually; identity does not validate writes");
-    AlwaysLog("Profile identified: id=%s machine=%s bios=%s exact=%d", candidate->id, identity.machine, identity.bios, match.exact);
+    UInt32 profileFanCount = 0;
+    if (candidate->fields[ReYogaSensor::Fan2][0] != '\0')
+        profileFanCount = 2;
+    else if (candidate->fields[ReYogaSensor::Fan1][0] != '\0')
+        profileFanCount = 1;
+    if (profileFanCount > 0)
+        setProperty("Fan number", profileFanCount, 32);
+    AlwaysLog("Profile identified: id=%s machine=%s bios=%s fans=%u", candidate->id, identity.machine, identity.bios, profileFanCount);
 }
 
 void IdeaVPC::initBridge() {
@@ -339,12 +345,12 @@ void IdeaVPC::initBridge() {
     auto matchState = OSDynamicCast(OSString, getProperty("ProfileMatchState"));
     if (!nativeProfile || legionBridgeVersion > nativeProfile->bridgeVersion ||
         !bridgeProfile || !matchState ||
-        (!matchState->isEqualTo("exact") && !matchState->isEqualTo("pci_matched") && !matchState->isEqualTo("identity_matched")) ||
+        (!matchState->isEqualTo("pci_matched") && !matchState->isEqualTo("identity_matched")) ||
         (conflict && conflict->getValue()) || !bridgeProfile->isEqualTo(nativeProfile->id)) {
         legionBridge = false;
         legionBridgeVersion = 0;
         setProperty("ACPIBridgeVersion", static_cast<UInt64>(0), 32);
-        setProperty("ACPIBridgeReason", "Bridge requires a reviewed AML fingerprint and matching firmware identity");
+        setProperty("ACPIBridgeReason", "Bridge requires a matching hardware profile and firmware identity");
     } else {
         removeProperty("ACPIBridgeReason");
     }
@@ -358,8 +364,14 @@ bool IdeaVPC::examineWMI(IOService *provider) {
             setProperty("Game Zone", provider);
             setProperty("LenovoFanMethod", wmig->hasFanMethod);
             setProperty("LenovoLightingMethod", wmig->hasLightingMethod);
-            if (auto fans = provider->getProperty("Fan number"))
-                setProperty("Fan number", fans);
+            if (auto fans = provider->getProperty("Fan number")) {
+                auto num = OSDynamicCast(OSNumber, fans);
+                if (num && num->unsigned32BitValue() > 0 && num->unsigned32BitValue() <= 2) {
+                    auto existing = OSDynamicCast(OSNumber, getProperty("Fan number"));
+                    if (!existing || num->unsigned32BitValue() > existing->unsigned32BitValue())
+                        setProperty("Fan number", fans);
+                }
+            }
             updateAll();
         }
     }

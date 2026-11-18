@@ -51,7 +51,7 @@ The dated directory and ZIP contain:
 | `report.json` | Device information, table hashes, collector results and errors |
 | `device-support.md` | Summary for a device-support request |
 | DSDT/SSDT files | Copies of accepted input tables and available disassembly |
-| `SSDT-ReYoga-<model>.dsl` / `.aml` | Bridge source and compiled output, only when reviewed fingerprints and required fields match |
+| `SSDT-ReYoga-<model>.dsl` / `.aml` | Bridge source and compiled output, only when a matching profile and required fields match |
 | `ec-*.bin` | Complete EC snapshots when requested and available |
 
 The report lists declared methods, literal operation regions, field offsets and WMI GUID records. An offset in a declaration does not establish its units or whether it is safe to write. Dynamic fields, aliases and incomplete dumps need review.

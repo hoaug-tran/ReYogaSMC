@@ -92,17 +92,18 @@ struct HardwareProfiles {
     }
     static func matchingDSDT(_ source: String) throws -> [String: Any] {
         guard source.utf8.count <= maxDSDTFileSize else { throw SupportError.message("DSDT source exceeds the supported size") }
-        let normalized = normalizedDSDT(source)
-        let digest = SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
-        let exactMatches = all().filter { item in
-            item["kind"] as? String == "acpi" && item["offsets"] != nil &&
-                (item["reviewed_dsdt_hashes"] as? [String])?.contains(digest) == true
+        let matches = all().filter { item in
+            guard item["kind"] as? String == "acpi", item["offsets"] != nil,
+                  let patterns = item["required_patterns"] as? [String], !patterns.isEmpty else { return false }
+            return patterns.allSatisfy { pattern in
+                source.range(of: pattern, options: .regularExpression) != nil
+            }
         }
-        if exactMatches.count == 1 { return exactMatches[0] }
+        if matches.count == 1 { return matches[0] }
 
-        throw SupportError.message("No reviewed DSDT fingerprint matches. Export diagnostics for firmware review.")
+        throw SupportError.message("No compatible hardware profile matches. Export diagnostics for firmware review.")
     }
-    static func matchingAML(_ data: Data) throws -> [String: Any] {
+    static func matchingAML(_ data: Data, preferredProfileID: String? = nil) throws -> [String: Any] {
         guard data.count >= 36, data.count <= 1024 * 1024, data.prefix(4) == Data("DSDT".utf8) else {
             throw SupportError.message("Exported ACPI table is not a valid DSDT")
         }
@@ -111,23 +112,36 @@ struct HardwareProfiles {
         guard Int(length) == data.count, bytes.reduce(UInt8(0), { $0 &+ $1 }) == 0 else {
             throw SupportError.message("DSDT length or checksum is invalid")
         }
-        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         let oemTableID = String(bytes: bytes[16..<24], encoding: .ascii)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let matches = all().filter {
             guard $0["kind"] as? String == "acpi", $0["offsets"] != nil else { return false }
-            if ($0["reviewed_aml_hashes"] as? [String])?.contains(digest) == true {
-                return true
-            }
-            let isReadOnly = ($0["bridge_kind"] as? String == "named-fields-readonly") ||
-                (($0["verified_writes"] as? Int ?? 0) == 0 && $0["native_telemetry"] != nil)
-            if isReadOnly, let oemIDs = $0["oem_table_ids"] as? [String], oemIDs.contains(oemTableID) {
+            if let oemIDs = $0["oem_table_ids"] as? [String], oemIDs.contains(oemTableID) {
                 return true
             }
             return false
         }
+        if let preferred = preferredProfileID, let match = matches.first(where: { ($0["id"] as? String) == preferred }) {
+            return match
+        }
+        if matches.count == 1 { return matches[0] }
+        if let compiler = IASLCompiler.installed() {
+            let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("ReYogaMatch-" + UUID().uuidString)
+            if (try? FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)) != nil {
+                defer { try? FileManager.default.removeItem(at: temporary) }
+                let staged = temporary.appendingPathComponent("DSDT.aml")
+                if (try? data.write(to: staged)) != nil {
+                    let dsl = temporary.appendingPathComponent("DSDT.dsl")
+                    _ = try? DiagnosticCollector.run(compiler.path, ["-d", staged.path], name: "disasm", folder: temporary, timeout: 15, maximumBytes: 4 * 1024 * 1024)
+                    if let source = try? String(contentsOf: dsl, encoding: .utf8),
+                       let match = try? matchingDSDT(source) {
+                        return match
+                    }
+                }
+            }
+        }
         guard matches.count == 1 else {
-            throw SupportError.message("No unique reviewed AML fingerprint matches. Export diagnostics for firmware review.")
+            throw SupportError.message("No unique compatible hardware profile matches. Export diagnostics for firmware review.")
         }
         return matches[0]
     }

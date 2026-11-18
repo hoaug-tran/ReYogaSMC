@@ -230,7 +230,7 @@ func testACPINamespaceAndMatching() throws {
         require(rendered.contains("Method (RYFA"), "Missing restoration interface")
         require(rendered.contains("Local4 < Local2"), "Fan floor lost its factory minimum protection")
         rejects("same vendor but changed firmware") { _ = try HardwareProfiles.matchingDSDT(source.replacingOccurrences(of: "0xFE00D400", with: "0xFE00E400")) }
-        print("PASS reviewed DSDT hash, profile selection, and complete source generation")
+        print("PASS reviewed DSDT pattern matching, profile selection, and complete source generation")
     }
     rejects("oversized DSDT in matchingDSDT") { _ = try HardwareProfiles.matchingDSDT(String(repeating: " ", count: HardwareProfiles.maxDSDTFileSize + 1)) }
     rejects("truncated AML") { _ = try HardwareProfiles.matchingAML(Data("DSDT".utf8)) }
@@ -239,7 +239,7 @@ func testACPINamespaceAndMatching() throws {
         let table = try Data(contentsOf: URL(fileURLWithPath: inputPaths[1]))
         let profile = try HardwareProfiles.matchingAML(table)
         require(profile["id"] as? String == "legion7-16achg6-gkcn", "Wrong binary DSDT profile")
-        print("PASS raw DSDT hash and live-export profile contract")
+        print("PASS raw DSDT live-export profile contract")
     }
 }
 

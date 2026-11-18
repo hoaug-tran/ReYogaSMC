@@ -264,7 +264,7 @@
 "Boot configuration" = "Cấu hình khởi động";
 "Boot the matching ReYogaSMC driver to verify support" = "Khởi động với driver ReYogaSMC tương ứng để xác minh hỗ trợ";
 "Breathing" = "Nhịp thở";
-"Bridge requires a reviewed AML fingerprint and matching firmware identity" = "Cầu nối cần dấu vân tay AML đã được kiểm tra và thông tin nhận diện firmware phù hợp";
+"Bridge requires a matching hardware profile and firmware identity" = "Cầu nối cần cấu hình phần cứng và thông tin nhận diện firmware phù hợp";
 "Brightness" = "Độ sáng";
 "Brightness Down" = "Giảm độ sáng";
 "Brightness Up" = "Tăng độ sáng";
@@ -466,10 +466,10 @@
 "No matching machine type, BIOS family and OEM table; unsupported firmware is likely" = "Không khớp mã máy, họ BIOS và bảng OEM; firmware có thể chưa được hỗ trợ";
 "No newer published version. Installed: %@." = "Không có bản mới hơn. Đang cài: %@.";
 "No public release is available for this fork yet." = "Bản fork này chưa có bản phát hành công khai.";
-"No reviewed DSDT fingerprint matched; WMI remains available" = "Không khớp dấu vân tay DSDT đã kiểm tra; WMI vẫn khả dụng";
-"No reviewed DSDT fingerprint matches. Export diagnostics for firmware review." = "Không khớp dấu vân tay DSDT đã kiểm tra. Xuất chẩn đoán để xem xét firmware.";
+"No compatible hardware profile matched; WMI remains available" = "Không khớp cấu hình phần cứng tương thích; WMI vẫn khả dụng";
+"No compatible hardware profile matches. Export diagnostics for firmware review." = "Không khớp cấu hình phần cứng tương thích. Xuất chẩn đoán để xem xét firmware.";
 "No reviewed RGB USB profile matched" = "Không khớp hồ sơ USB RGB đã kiểm tra";
-"No unique reviewed AML fingerprint matches. Export diagnostics for firmware review." = "Không khớp duy nhất một dấu vân tay AML đã kiểm tra. Xuất chẩn đoán để xem xét firmware.";
+"No unique compatible hardware profile matches. Export diagnostics for firmware review." = "Không khớp duy nhất một cấu hình phần cứng tương thích. Xuất chẩn đoán để xem xét firmware.";
 "No verified CPU power interface" = "Không có giao diện công suất CPU đã xác minh";
 "No verified interface on this device" = "Không có giao diện đã xác minh trên thiết bị này";
 "No verified macOS graphics overclock backend is available for this firmware" = "Firmware này chưa có giao diện ép xung đồ họa macOS đã xác minh";
@@ -537,7 +537,6 @@
 "Return to the modified power profile and reset its limits before making further edits" = "Quay lại hồ sơ công suất đã sửa và đặt lại giới hạn trước khi chỉnh tiếp";
 "Return to the modified power profile before resetting its limits" = "Quay lại hồ sơ công suất đã sửa trước khi đặt lại giới hạn";
 "Return to the modified power profile before restoring its saved limits" = "Quay lại hồ sơ công suất đã sửa trước khi khôi phục giới hạn đã lưu";
-"Reviewed AML fingerprint matched" = "Dấu vân tay AML đã kiểm tra khớp";
 "Reviewed Lenovo profile" = "Hồ sơ Lenovo đã kiểm tra";
 "Rotate Lock" = "Khóa xoay";
 "SMC discovery pending" = "Đang tìm SMC";

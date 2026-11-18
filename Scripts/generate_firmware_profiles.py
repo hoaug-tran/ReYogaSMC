@@ -14,7 +14,6 @@ _BIOS_RE = re.compile(r"^[0-9A-Z]{4}$")
 _OEM_RE = re.compile(r"^[ -~]{1,8}$")
 _EC_PATH_RE = re.compile(r"^\\_SB(?:\.[A-Z_][A-Z0-9_]{0,3})+$")
 _PCI_RE = re.compile(r"^17aa:[0-9a-f]{4}$")
-_HASH_RE = re.compile(r"^[a-f0-9]{64}$")
 
 
 def _require_string(profile, key):
@@ -55,7 +54,6 @@ def _validate_profiles(profiles):
     identities = set()
     pci_owners = {}
     machine_owners = {}
-    hash_owners = {}
     for profile in profiles:
         if not isinstance(profile, dict) or type(profile.get("schema_version")) is not int or profile.get("schema_version") != 1:
             raise ValueError("profile schema_version must be 1")
@@ -81,15 +79,6 @@ def _validate_profiles(profiles):
             if value in pci_owners and pci_owners[value] != profile["name"]:
                 raise ValueError(f"ambiguous PCI subsystem ID: {value}")
             pci_owners[value] = profile["name"]
-        for key in ("reviewed_aml_hashes", "reviewed_dsdt_hashes"):
-            hashes = profile.get(key, [])
-            if not isinstance(hashes, list) or len(hashes) > 128 or not all(isinstance(value, str) and _HASH_RE.fullmatch(value) for value in hashes):
-                raise ValueError(f"{profile_id}: invalid {key}")
-            for digest in hashes:
-                identity = (key, digest)
-                if identity in hash_owners and hash_owners[identity] != profile_id:
-                    raise ValueError(f"ambiguous reviewed firmware fingerprint: {digest}")
-                hash_owners[identity] = profile_id
         verified_writes = profile.get("verified_writes", 0)
         if type(verified_writes) is not int or verified_writes not in (0, 1):
             raise ValueError(f"{profile_id}: verified_writes must be integer 0 or 1")
@@ -100,8 +89,6 @@ def _validate_profiles(profiles):
             raise ValueError(f"{profile_id}: unsupported bridge kind")
         if bridge_kind == "named-fields-readonly" and verified_writes:
             raise ValueError(f"{profile_id}: read-only bridge cannot validate writes")
-        if verified_writes and not profile.get("reviewed_aml_hashes"):
-            raise ValueError(f"{profile_id}: validated writes require reviewed AML fingerprints")
         sensors = profile.get("native_telemetry")
         if sensors is None:
             continue
@@ -129,7 +116,7 @@ def render(profiles):
                 rows.append(
                     f'    {{"{profile_id}", {json.dumps(profile["name"])}, '
                     f'{json.dumps(oem_id)}, {json.dumps(machine)}, {json.dumps(bios)}, '
-                    f'{{{fields}}}, {{{scales}}}, {json.dumps("|".join(profile.get("reviewed_aml_hashes", [])))}, {json.dumps("|".join(profile.get("pci_subsystem_ids", [])))}, {1 if is_readonly else 2}}},'
+                    f'{{{fields}}}, {{{scales}}}, {json.dumps("|".join(profile.get("pci_subsystem_ids", [])))}, {1 if is_readonly else 2}}},'
                 )
     if not rows:
         raise ValueError("No native telemetry profiles found")
@@ -145,7 +132,6 @@ struct ReYogaNativeProfile {
     const char *biosFamily;
     const char *fields[4]; // Absolute ACPI paths: fan 1/2 RPM, CPU/GPU Celsius.
     unsigned scales[4];
-    const char *amlHashes; // Reviewed AML SHA-256 digests separated by |.
     const char *pciSubsystemIDs; // Model-specific Lenovo subsystem IDs separated by |.
     unsigned bridgeVersion; // Maximum reviewed bridge interface (1: named reads, 2: raw offsets).
 };

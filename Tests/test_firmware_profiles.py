@@ -29,8 +29,6 @@ class FirmwareProfilesTests(unittest.TestCase):
         unreviewed["machine_types"] = ["ZZZZ"]
         unreviewed["bios_families"] = ["ZZZZ"]
         unreviewed.pop("native_telemetry")
-        unreviewed.pop("reviewed_aml_hashes", None)
-        unreviewed.pop("reviewed_dsdt_hashes", None)
         rendered = generator.render([self.profile, unreviewed])
         self.assertEqual(rendered, generator.render([self.profile]))
     def test_bad_units_and_fields_are_rejected(self):
@@ -52,19 +50,6 @@ class FirmwareProfilesTests(unittest.TestCase):
         self.profile["ec_path"] = "EC0"
         with self.assertRaises(ValueError): generator.render([self.profile])
 
-    def test_invalid_or_conflicting_fingerprints_are_rejected(self):
-        for value in ("", "a" * 64, [False], ["bad"]):
-            bad = copy.deepcopy(self.profile)
-            bad["reviewed_aml_hashes"] = value
-            with self.subTest(value=value), self.assertRaises(ValueError):
-                generator.render([bad])
-        other = copy.deepcopy(self.profile)
-        other.update(id="other-model", machine_types=["9999"])
-        for profile in (self.profile, other):
-            profile["reviewed_aml_hashes"] = ["a" * 64]
-        with self.assertRaises(ValueError):
-            generator.render([self.profile, other])
-
     def test_shared_pci_ids_cannot_name_two_models(self):
         other = copy.deepcopy(self.profile)
         other.update(id="other-model", name="Other Lenovo", machine_types=["9999"])
@@ -76,7 +61,7 @@ class FirmwareProfilesTests(unittest.TestCase):
     def test_shared_machine_type_cannot_name_two_models(self):
         other = copy.deepcopy(self.profile)
         other.update(id="other-model", name="Other Lenovo", bios_families=["ZZCN"],
-                     reviewed_aml_hashes=[], reviewed_dsdt_hashes=[], pci_subsystem_ids=[])
+                     pci_subsystem_ids=[])
         with self.assertRaisesRegex(ValueError, 'machine type'):
             generator.render([self.profile, other])
         other['name'] = self.profile['name']
@@ -88,6 +73,8 @@ class FirmwareProfilesTests(unittest.TestCase):
             bad["verified_writes"] = value
             with self.subTest(value=value), self.assertRaises(ValueError):
                 generator.render([bad])
-        self.profile["verified_writes"] = 1
+        bad_readonly = copy.deepcopy(self.profile)
+        bad_readonly["bridge_kind"] = "named-fields-readonly"
+        bad_readonly["verified_writes"] = 1
         with self.assertRaises(ValueError):
-            generator.render([self.profile])
+            generator.render([bad_readonly])

@@ -66,11 +66,6 @@ class TestProfileSchemas(unittest.TestCase):
                         self.assertIsInstance(item["scale"], int)
                         self.assertRegex(item["field"], r"^[A-Z0-9_]{4}$")
 
-                    if "reviewed_aml_hashes" in data:
-                        self.assertTrue(data["reviewed_aml_hashes"])
-                        for digest in data["reviewed_aml_hashes"]:
-                            self.assertRegex(digest, r"^[a-f0-9]{64}$")
-
     def test_unique_ids_and_embedded_hotkey_references(self):
         profiles = [json.loads(path.read_text(encoding='utf-8')) for path in (ROOT / 'HardwareProfiles').glob('*.json')]
         ids = [profile['id'] for profile in profiles]

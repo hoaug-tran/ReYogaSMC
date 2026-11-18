@@ -8,33 +8,44 @@
 using namespace ReYogaFirmware;
 
 struct FanEC {
-    unsigned calls {0}, failure {0}, selectorReads {0}, selectorWrites {0}, controlWrites {0};
-    bool hasSelector {true}, mutateBeforeFailure {true}, ignoreSelectorWrite {false}, ignoreControlWrite {false};
-    bool failRestore {false}, changeOtherBits {false};
-    bool tachometerUnavailable {false};
-    unsigned char selector {0xa0}, levels[2] {0x84, 0x84};
+    unsigned calls{0}, failure{0}, selectorReads{0}, selectorWrites{0}, controlWrites{0};
+    bool hasSelector{true}, mutateBeforeFailure{true}, ignoreSelectorWrite{false}, ignoreControlWrite{false};
+    bool failRestore{false}, changeOtherBits{false};
+    bool tachometerUnavailable{false};
+    unsigned char selector{0xa0}, levels[2]{0x84, 0x84};
     bool read(unsigned offset, unsigned char &value) {
-        if (offset == 0x31) ++selectorReads;
-        if (++calls == failure) return false;
-        value = offset == 0x31 ? selector : offset == 0x2f ? levels[hasSelector ? selector & 1 : 0] : offset == 0x84 ? 0x88 : 0x13;
-        if (tachometerUnavailable && (offset == 0x84 || offset == 0x85)) value = 0xff;
-        if (offset == 0x2f && changeOtherBits) { selector ^= 0x80; changeOtherBits = false; }
+        if (offset == 0x31)
+            ++selectorReads;
+        if (++calls == failure)
+            return false;
+        value = offset == 0x31 ? selector : offset == 0x2f ? levels[hasSelector ? selector & 1 : 0]
+                                        : offset == 0x84   ? 0x88
+                                                           : 0x13;
+        if (tachometerUnavailable && (offset == 0x84 || offset == 0x85))
+            value = 0xff;
+        if (offset == 0x2f && changeOtherBits) {
+            selector ^= 0x80;
+            changeOtherBits = false;
+        }
         return true;
     }
     bool write(unsigned offset, unsigned char value) {
         const bool failed = ++calls == failure || (failRestore && offset == 0x31 && !(value & 1));
-        if (offset == 0x31) ++selectorWrites;
-        else ++controlWrites;
+        if (offset == 0x31)
+            ++selectorWrites;
+        else
+            ++controlWrites;
         if (!failed || mutateBeforeFailure) {
-            if (offset == 0x31) { if (!ignoreSelectorWrite) selector = value; }
-            else if (!ignoreControlWrite) levels[hasSelector ? selector & 1 : 0] = value;
+            if (offset == 0x31) {
+                if (!ignoreSelectorWrite)
+                    selector = value;
+            } else if (!ignoreControlWrite)
+                levels[hasSelector ? selector & 1 : 0] = value;
         }
         return !failed;
     }
     ReYogaControl::ThinkFanResult access(unsigned fan, unsigned target, unsigned char output[3], ReYogaControl::ThinkFanState &state) {
-        return ReYogaControl::transactThinkFan(fan, target, output, hasSelector, state,
-            [&](unsigned offset, unsigned char &value) { return read(offset, value); },
-            [&](unsigned offset, unsigned char value) { return write(offset, value); });
+        return ReYogaControl::transactThinkFan(fan, target, output, hasSelector, state, [&](unsigned offset, unsigned char &value) { return read(offset, value); }, [&](unsigned offset, unsigned char value) { return write(offset, value); });
     }
 };
 
@@ -42,7 +53,7 @@ static void checkThinkFans() {
     using namespace ReYogaControl;
     FanEC modes;
     ThinkFanState modeState;
-    unsigned char modeSample[3] {};
+    unsigned char modeSample[3]{};
     assert(modes.access(0, 7, modeSample, modeState) == ThinkFanResult::ok && modeSample[2] == 0x07);
     assert(modes.access(0, 0x47, modeSample, modeState) == ThinkFanResult::ok && (modeSample[2] & 0x40));
     assert(modes.access(0, 0x84, modeSample, modeState) == ThinkFanResult::ok && (modeSample[2] & 0x80));
@@ -54,7 +65,7 @@ static void checkThinkFans() {
     assert(logging.pollStatusChanged(0, 0));
     assert(!logging.pollStatusChanged(0, 0));
     assert(!logging.pollStatusChanged(2, 1));
-    unsigned char output[3] {};
+    unsigned char output[3]{};
     ThinkFanState singleState;
     FanEC single;
     single.hasSelector = false;
@@ -95,7 +106,8 @@ static void checkThinkFans() {
         for (unsigned failure = 1; failure <= steps; ++failure) {
             ThinkFanState state;
             FanEC ec;
-            ec.failure = failure; ec.mutateBeforeFailure = mutate;
+            ec.failure = failure;
+            ec.mutateBeforeFailure = mutate;
             unsigned char sample[3] = {0xee, 0xee, 0xee};
             assert(ec.access(1, 4, sample, state) != ThinkFanResult::ok);
             assert(sample[0] == 0xee && sample[1] == 0xee && sample[2] == 0xee);
@@ -108,7 +120,8 @@ static void checkThinkFans() {
     }
     ThinkFanState blocked;
     FanEC ec;
-    ec.failRestore = true; ec.mutateBeforeFailure = false;
+    ec.failRestore = true;
+    ec.mutateBeforeFailure = false;
     assert(ec.access(1, 1, output, blocked) == ThinkFanResult::restoreFailed);
     assert(blocked.selectorRestorePending && blocked.modifiedMask == 2 && ec.levels[1] == 1);
     const unsigned writes = ec.controlWrites;
@@ -147,14 +160,16 @@ static Identity identity(const char *machine, const char *bios) {
 int main() {
     ReYogaControl::ThinkFanLease lease;
     assert(!lease.active() && !lease.expired(0, 10000));
-    lease.renew(0, 1000); lease.renew(1, 2000);
+    lease.renew(0, 1000);
+    lease.renew(1, 2000);
     assert(!lease.expired(0, 6999) && lease.expired(0, 7000));
     lease.renew(1, 6900);
     assert(lease.expired(0, 7100) && !lease.expired(1, 7100));
     lease.cancel(0);
     assert(lease.active() && !lease.expired(0, 99999));
     assert(lease.expired(1, 12900));
-    lease.cancel(1); assert(!lease.active());
+    lease.cancel(1);
+    assert(!lease.active());
     assert(ReYogaControl::thinkFanRPM(0x28, 0x1a) == 6696);
     assert(ReYogaControl::thinkFanRPM(0x19, 0x1a) == 6681);
     assert(ReYogaControl::thinkFanRPM(0x00, 0x1b) == 6912);
@@ -162,60 +177,69 @@ int main() {
     for (unsigned rpm = 0; rpm <= 0xffff; ++rpm)
         assert(ReYogaControl::thinkFanRPM(rpm & 0xff, rpm >> 8) == rpm);
     constexpr size_t count = sizeof(ReYogaNativeProfiles) / sizeof(ReYogaNativeProfiles[0]);
-    auto loq = select(ReYogaNativeProfiles, count, identity("83DX", "NZCN99WW"), "CB-01", "");
+    auto loq = select(ReYogaNativeProfiles, count, identity("83DX", "NZCN99WW"), "CB-01");
     assert(loq.profile && !strcmp(loq.profile->id, "loq-gen9-ahp"));
     for (const auto &pair : {std::pair<const char *, const char *>("83DX", "NECN99WW"),
-                            {"83DV", "NECN99WW"}, {"83JC", "PQCN99WW"}}) {
-        auto match = select(ReYogaNativeProfiles, count, identity(pair.first, pair.second), "CB-01", "");
+                             {"83DV", "NECN99WW"},
+                             {"83JC", "PQCN99WW"}}) {
+        auto match = select(ReYogaNativeProfiles, count, identity(pair.first, pair.second), "CB-01");
         assert(!match.profile || strcmp(match.profile->id, "loq-gen9-ahp"));
     }
     for (const auto &profile : ReYogaNativeProfiles) {
-        char version[16] {};
+        char version[16]{};
         snprintf(version, sizeof(version), "%s99WW", profile.biosFamily);
         auto evidence = identity(profile.machineType, version);
-        auto match = select(ReYogaNativeProfiles, count, evidence, profile.oemTableID, "");
+        auto match = select(ReYogaNativeProfiles, count, evidence, profile.oemTableID);
         assert(match.profile && !strcmp(match.profile->id, profile.id));
         assert(match.state == MatchState::matched);
     }
     Identity pciOnly;
     pciOnly.addPCI(0x17aa, 0x3a58);
-    auto pciMatch = select(ReYogaNativeProfiles, count, pciOnly, "CB-01", "");
+    auto pciMatch = select(ReYogaNativeProfiles, count, pciOnly, "CB-01");
     assert(pciMatch.profile && !strcmp(pciMatch.profile->id, "legion7-16achg6-gkcn"));
-    assert(pciMatch.pciMatched && !pciMatch.exact);
-    assert(select(ReYogaNativeProfiles, count, pciOnly, "OTHER", "").profile == nullptr);
+    assert(pciMatch.pciMatched);
+    assert(select(ReYogaNativeProfiles, count, pciOnly, "OTHER").profile == nullptr);
     auto changedBIOS = identity("82N6", "GKCN99WW");
-    assert(select(ReYogaNativeProfiles, count, changedBIOS, "CB-01", "").profile);
+    assert(select(ReYogaNativeProfiles, count, changedBIOS, "CB-01").profile);
     auto machineOnly = identity("82N6", "");
-    assert(select(ReYogaNativeProfiles, count, machineOnly, "CB-01", "").profile);
+    assert(select(ReYogaNativeProfiles, count, machineOnly, "CB-01").profile);
     auto contradictoryPCI = identity("82JQ", "");
     contradictoryPCI.addPCI(0x17aa, 0x3a58);
-    assert(select(ReYogaNativeProfiles, count, contradictoryPCI, "CB-01", "").state == MatchState::conflict);
-    auto unknownPCI = Identity {};
+    assert(select(ReYogaNativeProfiles, count, contradictoryPCI, "CB-01").state == MatchState::conflict);
+    auto unknownPCI = Identity{};
     unknownPCI.addPCI(0x17aa, 0x0001);
-    assert(!select(ReYogaNativeProfiles, count, unknownPCI, "CB-01", "").profile);
+    assert(!select(ReYogaNativeProfiles, count, unknownPCI, "CB-01").profile);
     auto legion = identity("82N6CTO1WW", "GKCN65WW");
-    auto empty = Identity {};
-    assert(!select(ReYogaNativeProfiles, count, empty, "CB-01", "").profile);
-    assert(select(ReYogaNativeProfiles, count, empty, "CB-01", "").state == MatchState::missingIdentity);
-    assert(!select(ReYogaNativeProfiles, count, identity("82N6", "ZZZZ99WW"), "CB-01", "").profile);
-    assert(!select(ReYogaNativeProfiles, count, legion, "OTHER", "").profile);
+    auto empty = Identity{};
+    assert(!select(nullptr, 0, empty, nullptr).profile);
+    assert(!select(ReYogaNativeProfiles, count, empty, nullptr).profile);
+    assert(!select(ReYogaNativeProfiles, count, empty, "").profile);
+    assert(!select(ReYogaNativeProfiles, count, empty, "CB-01").profile);
+    assert(select(ReYogaNativeProfiles, count, empty, "CB-01").state == MatchState::missingIdentity);
+    assert(!select(ReYogaNativeProfiles, count, identity("82N6", "ZZZZ99WW"), "CB-01").profile);
+    assert(!select(ReYogaNativeProfiles, count, legion, "OTHER").profile);
     auto apple = identity("MacBookPro16,3", "MBP161.999");
-    assert(!apple.machine[0] && !select(ReYogaNativeProfiles, count, apple, "CB-01", "").profile);
+    assert(!apple.machine[0] && !select(ReYogaNativeProfiles, count, apple, "CB-01").profile);
     legion.add("82JQ", 4, false);
-    assert(legion.conflict && select(ReYogaNativeProfiles, count, legion, "CB-01", "").state == MatchState::conflict);
+    assert(legion.conflict && select(ReYogaNativeProfiles, count, legion, "CB-01").state == MatchState::conflict);
 
-    const char *hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    Identity y7000Pci;
+    y7000Pci.addPCI(0x17aa, 0x38cd);
+    auto y7000Match = select(ReYogaNativeProfiles, count, y7000Pci, "CB-01");
+    assert(y7000Match.profile && !strcmp(y7000Match.profile->id, "legion-y7000-2025-rpl"));
+    assert(y7000Match.pciMatched);
+    Identity y7000AltPci;
+    y7000AltPci.addPCI(0x17aa, 0x38cb);
+    auto y7000AltMatch = select(ReYogaNativeProfiles, count, y7000AltPci, "CB-01");
+    assert(y7000AltMatch.profile && !strcmp(y7000AltMatch.profile->id, "legion-y7000-2025-rpl"));
+    assert(y7000AltMatch.pciMatched);
+
     auto row = ReYogaNativeProfiles[0];
-    row.amlHashes = hash;
-    auto exact = select(&row, 1, empty, row.oemTableID, hash);
-    assert(exact.profile && exact.exact);
-    assert(select(&row, 1, identity("9999", "ZZZZ99WW"), row.oemTableID, hash).state == MatchState::conflict);
-    assert(!hashMatches("short", hash));
-    assert(!hashMatches(hash, "short"));
+    auto ident = identity(row.machineType, row.biosFamily);
     ReYogaNativeProfile duplicates[] = {row, row};
-    assert(select(duplicates, 2, empty, row.oemTableID, hash).profile);
+    assert(select(duplicates, 2, ident, row.oemTableID).profile);
     duplicates[1].id = "conflicting-profile";
-    assert(select(duplicates, 2, empty, row.oemTableID, hash).state == MatchState::ambiguous);
+    assert(select(duplicates, 2, ident, row.oemTableID).state == MatchState::ambiguous);
 
     for (unsigned status : {3U, 4U, 5U, 6U, 7U, 12U, 13U, 14U, 16U, 20U, 23U})
         assert(!ReYogaControl::validHPSensorStatus(status));
@@ -242,7 +266,7 @@ int main() {
     assert(!validSample(2, 45, 0, value));
     for (unsigned level = 0; level <= 0x100; ++level)
         assert(ReYogaControl::validThinkFanLevel(level) ==
-            (level <= 7 || level == 0x47 || level == 0x80 || level == 0x84));
+               (level <= 7 || level == 0x47 || level == 0x80 || level == 0x84));
 
     checkThinkFans();
     std::vector<uint8_t> table = {0, 6, 0, 0, 1, 2};
@@ -262,7 +286,10 @@ int main() {
     uint32_t random = 0x12345678;
     for (unsigned iteration = 0; iteration < 10000; ++iteration) {
         uint8_t bytes[128];
-        for (auto &byte : bytes) { random = random * 1664525U + 1013904223U; byte = random >> 24; }
+        for (auto &byte : bytes) {
+            random = random * 1664525U + 1013904223U;
+            byte = random >> 24;
+        }
         Identity fuzzed;
         readSMBIOS(bytes, iteration % sizeof(bytes), fuzzed);
     }

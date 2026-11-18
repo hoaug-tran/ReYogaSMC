@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "kind": "acpi",
+  "id": "legion-y7000-2025-rpl",
+  "name": "Lenovo Legion Y7000 2025",
+  "machine_types": [
+    "83LY",
+    "83DG"
+  ],
+  "bios_families": [
+    "PTCN"
+  ],
+  "oem_table_ids": [
+    "CB-01"
+  ],
+  "pci_subsystem_ids": [
+    "17aa:38cd",
+    "17aa:38cb"
+  ],
+  "ec_path": "\\_SB.PC00.LPCB.EC0",
+  "rpm_scale": 100,
+  "battery_conservation_mask": 32,
+  "battery_rapidcharge_mask": 4,
+  "native_telemetry": [
+    {
+      "field": "FANS",
+      "scale": 100
+    },
+    {
+      "field": "FA2S",
+      "scale": 100
+    },
+    {
+      "field": "CPUT",
+      "scale": 1
+    },
+    {
+      "field": "GPUT",
+      "scale": 1
+    }
+  ],
+  "sources": [
+    "https://github.com/hoaug-tran/ReYogaSMC/issues/17"
+  ]
+}
+

@@ -59,7 +59,9 @@ enum ACPIExport {
                 let data = IORegistryEntryCreateCFProperty(service, "ExportedDSDT" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Data
                 _ = IORegistryEntrySetCFProperty(service, "ExportDSDT" as CFString, kCFBooleanFalse)
                 guard transport == kIOReturnSuccess, let table = data else { throw SupportError.message("The driver could not export DSDT. Check ACPIExportStatus and the kernel log.") }
-                let profile = try HardwareProfiles.matchingAML(table)
+                let preferredID = (IORegistryEntryCreateCFProperty(service, "HardwareProfile" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? String) ??
+                    (IORegistryEntryCreateCFProperty(service, "ACPIBridgeProfile" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? String)
+                let profile = try HardwareProfiles.matchingAML(table, preferredProfileID: preferredID)
                 let source = try HardwareProfiles.render(profile)
                 try source.write(to: output, atomically: true, encoding: .utf8)
                 _ = try compileSSDT(output)

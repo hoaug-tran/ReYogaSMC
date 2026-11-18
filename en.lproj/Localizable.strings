@@ -262,7 +262,7 @@
 "Boot configuration" = "Boot configuration";
 "Boot the matching ReYogaSMC driver to verify support" = "Boot the matching ReYogaSMC driver to verify support";
 "Breathing" = "Breathing";
-"Bridge requires a reviewed AML fingerprint and matching firmware identity" = "Bridge requires a reviewed AML fingerprint and matching firmware identity";
+"Bridge requires a matching hardware profile and firmware identity" = "Bridge requires a matching hardware profile and firmware identity";
 "Brightness" = "Brightness";
 "Brightness Down" = "Brightness down";
 "Brightness Up" = "Brightness up";
@@ -464,10 +464,10 @@
 "No matching machine type, BIOS family and OEM table; unsupported firmware is likely" = "No matching machine type, BIOS family and OEM table; unsupported firmware is likely";
 "No newer published version. Installed: %@." = "No newer published version. Installed: %@.";
 "No public release is available for this fork yet." = "No public release is available for this fork yet.";
-"No reviewed DSDT fingerprint matched; WMI remains available" = "No reviewed DSDT fingerprint matched; WMI remains available";
-"No reviewed DSDT fingerprint matches. Export diagnostics for firmware review." = "No reviewed DSDT fingerprint matches. Export diagnostics for firmware review.";
+"No compatible hardware profile matched; WMI remains available" = "No compatible hardware profile matched; WMI remains available";
+"No compatible hardware profile matches. Export diagnostics for firmware review." = "No compatible hardware profile matches. Export diagnostics for firmware review.";
 "No reviewed RGB USB profile matched" = "No reviewed RGB USB profile matched";
-"No unique reviewed AML fingerprint matches. Export diagnostics for firmware review." = "No unique reviewed AML fingerprint matches. Export diagnostics for firmware review.";
+"No unique compatible hardware profile matches. Export diagnostics for firmware review." = "No unique compatible hardware profile matches. Export diagnostics for firmware review.";
 "No verified CPU power interface" = "No verified CPU power interface";
 "No verified interface on this device" = "No verified interface on this device";
 "No verified macOS graphics overclock backend is available for this firmware" = "No verified macOS graphics overclock backend is available for this firmware";
@@ -535,7 +535,6 @@
 "Return to the modified power profile and reset its limits before making further edits" = "Return to the modified power profile and reset its limits before making further edits";
 "Return to the modified power profile before resetting its limits" = "Return to the modified power profile before resetting its limits";
 "Return to the modified power profile before restoring its saved limits" = "Return to the modified power profile before restoring its saved limits";
-"Reviewed AML fingerprint matched" = "Reviewed AML fingerprint matched";
 "Reviewed Lenovo profile" = "Reviewed Lenovo profile";
 "Rotate Lock" = "Rotate lock";
 "SMC discovery pending" = "SMC discovery pending";

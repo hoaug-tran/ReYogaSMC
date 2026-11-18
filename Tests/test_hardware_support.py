@@ -160,21 +160,23 @@ class HardwareSupportTests(unittest.TestCase):
         self.assertTrue(result['method'])
         self.assertFalse(result['event'])
 
-    def test_patterns_without_fingerprint_are_not_trusted(self):
+    def test_matching_profile_requires_all_patterns(self):
         source = 'Method (GBMD, 0, NotSerialized) { Return (Zero) }'
-        profile = {'required_patterns': ['GBMD'], 'reviewed_dsdt_hashes': []}
+        profile = {'required_patterns': ['GBMD', 'MISSING_PATTERN']}
         with self.assertRaises(ValueError):
             support.match_profile(source, [profile])
+        valid = {'required_patterns': ['GBMD']}
+        self.assertEqual(support.match_profile(source, [valid]), valid)
 
     def test_identity_and_required_interface_both_must_match(self):
         source = 'Method (GBMD, 0, NotSerialized) { Return (Zero) }'
-        profile = {'required_patterns': ['SBMC'], 'reviewed_dsdt_hashes': [support.normalized_hash(source)]}
+        profile = {'required_patterns': ['SBMC']}
         with self.assertRaises(ValueError):
             support.match_profile(source, [profile])
 
     def test_ambiguous_firmware_is_rejected(self):
         source = 'Method (GBMD, 0) {}'
-        profile = {'required_patterns': ['GBMD'], 'reviewed_dsdt_hashes': [support.normalized_hash(source)]}
+        profile = {'required_patterns': ['GBMD']}
         with self.assertRaises(ValueError):
             support.match_profile(source, [profile, profile])
 
@@ -183,7 +185,6 @@ class HardwareSupportTests(unittest.TestCase):
         fixture = copy.deepcopy(complete)
         synthetic_source = 'Method (GBMD, 0, NotSerialized) { Return (Zero) }'
         fixture['required_patterns'] = [r'Method \(GBMD, 0']
-        fixture['reviewed_dsdt_hashes'] = [support.normalized_hash(synthetic_source)]
         fixture['verified_writes'] = 0
         fixture['bridge_kind'] = 'raw-offsets'
 

@@ -53,7 +53,7 @@ enum ApplicationReviewHarness {
                 ("rgb-success", "Static: sent to controller", "lightbulb"),
                 ("rgb-error", "RGB: macOS denied HID access. Enable Input Monitoring for ReYogaSMC, then retry discovery.", "exclamationmark.triangle"),
                 ("export-success", "SSDT compiled - review it and add it to OpenCore before rebooting", "checkmark.circle"),
-                ("export-error", "No unique reviewed AML fingerprint matches. Export diagnostics for firmware review.", "exclamationmark.triangle")
+                ("export-error", "No unique compatible hardware profile matches. Export diagnostics for firmware review.", "exclamationmark.triangle")
             ] {
                 jobs.append {
                     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 64), styleMask: [.borderless], backing: .buffered, defer: false)

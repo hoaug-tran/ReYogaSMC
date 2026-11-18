@@ -28,7 +28,7 @@ Generic battery, keyboard and USB controls use available ACPI methods. Game Zone
 
 Native ACPI sensors use the [profile catalog](../HardwareProfiles/README.md). Matching requires a valid Lenovo DSDT, OEM table ID and a unique machine-type or declared PCI subsystem match. A reported BIOS family must agree. Conflicting identities disable model-specific access.
 
-Each sensor is checked separately. Failed native reads may use a supported WMI source. A model match does not enable raw-offset writes. Bridge generation needs a reviewed firmware fingerprint and complete bridge data; manual fan writes need separate write/recovery validation. Current ACPI profiles keep those writes disabled.
+Each sensor is checked separately. Failed native reads may use a supported WMI source. A model match does not enable raw-offset writes. Bridge generation needs a matching hardware profile and complete bridge data; manual fan writes need separate write/recovery validation. Current ACPI profiles keep those writes disabled.
 
 Legion Game Zone controls vary by firmware:
 

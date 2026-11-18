@@ -10,7 +10,7 @@ Report private security details through [SECURITY.md](SECURITY.md).
 
 Read the relevant firmware methods and upstream protocol code before changing controls. Record units, allowed values, response format and failure behavior. Similar model names do not prove shared EC layouts.
 
-Keep device-specific values in [hardware profiles](HardwareProfiles/README.md) or their backend. Sensor support and write permission are separate. Raw-offset bridges need reviewed fingerprints and addresses. `verified_writes` stays zero until writes, readback and recovery have been checked on the target firmware.
+Keep device-specific values in [hardware profiles](HardwareProfiles/README.md) or their backend. Sensor support and write permission are separate. Raw-offset bridges need complete hardware profiles and addresses. `verified_writes` stays zero until writes, readback and recovery have been checked on the target firmware.
 
 For a writable control, check range/step, rejection, reset, power-profile changes, AC/battery and sleep/wake. Stop testing a command that caused shutdown or loss of cooling.
 

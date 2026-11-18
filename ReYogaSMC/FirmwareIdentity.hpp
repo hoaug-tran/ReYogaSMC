@@ -172,21 +172,6 @@ inline bool readSMBIOS(const uint8_t *bytes, size_t size, Identity &identity) {
     return true;
 }
 
-inline bool hashMatches(const char *hashes, const char *digest) {
-    if (!hashes || !digest || strlen(digest) != 64)
-        return false;
-    while (*hashes) {
-        const char *separator = strchr(hashes, '|');
-        const size_t length = separator ? static_cast<size_t>(separator - hashes) : strlen(hashes);
-        if (length == 64 && !memcmp(hashes, digest, 64))
-            return true;
-        if (!separator)
-            break;
-        hashes = separator + 1;
-    }
-    return false;
-}
-
 enum class MatchState { matched,
                         missingIdentity,
                         conflict,
@@ -195,14 +180,15 @@ enum class MatchState { matched,
 struct Match {
     const ReYogaNativeProfile *profile{nullptr};
     MatchState state{MatchState::unsupported};
-    bool exact{false};
     bool pciMatched{false};
     unsigned oemMatches{0};
 };
 
 inline Match select(const ReYogaNativeProfile *profiles, size_t count, const Identity &identity,
-                    const char *oem, const char *digest) {
+                    const char *oem) {
     Match result;
+    if (!profiles || !count || !oem || !oem[0])
+        return result;
     if (identity.conflict) {
         result.state = MatchState::conflict;
         return result;
@@ -214,11 +200,10 @@ inline Match select(const ReYogaNativeProfile *profiles, size_t count, const Ide
         if (strcmp(oem, profile.oemTableID))
             continue;
         ++result.oemMatches;
-        const bool exact = hashMatches(profile.amlHashes, digest);
         const bool pciMatch = identity.matchesPCI(profile.pciSubsystemIDs);
         const bool machineMismatch = identity.machine[0] && strcmp(identity.machine, profile.machineType);
         const bool biosMismatch = identity.bios[0] && strcmp(identity.bios, profile.biosFamily);
-        if ((exact || pciMatch) && (machineMismatch || biosMismatch)) {
+        if (pciMatch && (machineMismatch || biosMismatch)) {
             bool compatibleRow = false;
             for (size_t j = 0; j < count; ++j) {
                 const auto &other = profiles[j];
@@ -230,7 +215,7 @@ inline Match select(const ReYogaNativeProfile *profiles, size_t count, const Ide
             if (!compatibleRow)
                 conflictingEvidence = true;
         }
-        if (machineMismatch || biosMismatch || (!identity.machine[0] && !pciMatch && !exact))
+        if (machineMismatch || biosMismatch || (!identity.machine[0] && !pciMatch))
             continue;
         if (result.profile && strcmp(result.profile->id, profile.id)) {
             result.state = MatchState::ambiguous;
@@ -238,7 +223,6 @@ inline Match select(const ReYogaNativeProfile *profiles, size_t count, const Ide
             return result;
         }
         result.profile = &profile;
-        result.exact = result.exact || exact;
         result.pciMatched = result.pciMatched || pciMatch;
     }
     if (conflictingEvidence) {
