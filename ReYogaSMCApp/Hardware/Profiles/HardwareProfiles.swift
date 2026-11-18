@@ -124,22 +124,6 @@ struct HardwareProfiles {
         if let preferred = preferredProfileID, let match = matches.first(where: { ($0["id"] as? String) == preferred }) {
             return match
         }
-        if matches.count == 1 { return matches[0] }
-        if let compiler = IASLCompiler.installed() {
-            let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("ReYogaMatch-" + UUID().uuidString)
-            if (try? FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)) != nil {
-                defer { try? FileManager.default.removeItem(at: temporary) }
-                let staged = temporary.appendingPathComponent("DSDT.aml")
-                if (try? data.write(to: staged)) != nil {
-                    let dsl = temporary.appendingPathComponent("DSDT.dsl")
-                    _ = try? DiagnosticCollector.run(compiler.path, ["-d", staged.path], name: "disasm", folder: temporary, timeout: 15, maximumBytes: 4 * 1024 * 1024)
-                    if let source = try? String(contentsOf: dsl, encoding: .utf8),
-                       let match = try? matchingDSDT(source) {
-                        return match
-                    }
-                }
-            }
-        }
         guard matches.count == 1 else {
             throw SupportError.message("No unique compatible hardware profile matches. Export diagnostics for firmware review.")
         }
