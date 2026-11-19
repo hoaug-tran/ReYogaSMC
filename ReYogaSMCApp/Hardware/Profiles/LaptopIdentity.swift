@@ -220,14 +220,51 @@ struct LaptopIdentity {
                         strings.append(contentsOf: parseSMBIOS(data: value))
                     }
                 }
-                guard IOObjectConformsTo(entry, "IOPCIDevice") != 0 else { continue }
+                guard IOObjectConformsTo(entry, "IOPCIDevice") != 0 else {
+                    if IOObjectConformsTo(entry, "IOACPIPlatformDevice") != 0 {
+                        let sub = IORegistryEntryCreateCFProperty(entry, "_SUB" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() ??
+                            IORegistryEntryCreateCFProperty(entry, "subsystem-id" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+                        if let str = text(sub)?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                            if str.count == 8 || str.count == 9 {
+                                let v = String(str.prefix(4)).lowercased()
+                                let d = String(str.suffix(4)).lowercased()
+                                if v == "17aa" {
+                                    pciIDs.insert("\(v):\(d)")
+                                }
+                            }
+                        } else if let data = sub as? Data, data.count == 4 {
+                            let val = UInt32(data[0]) | UInt32(data[1]) << 8 | UInt32(data[2]) << 16 | UInt32(data[3]) << 24
+                            let v = val & 0xffff
+                            let d = (val >> 16) & 0xffff
+                            if v == 0x17aa {
+                                pciIDs.insert(String(format: "%04x:%04x", v, d))
+                            }
+                        } else if let num = sub as? NSNumber {
+                            let val = num.uint32Value
+                            let v = val & 0xffff
+                            let d = (val >> 16) & 0xffff
+                            if v == 0x17aa {
+                                pciIDs.insert(String(format: "%04x:%04x", v, d))
+                            }
+                        }
+                    }
+                    continue
+                }
                 func number(_ key: String) -> UInt32? {
                     let value = IORegistryEntryCreateCFProperty(entry, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
                     if let value = value as? NSNumber { return value.uint32Value }
-                    guard let data = value as? Data, data.count == 4 else { return nil }
-                    return data.enumerated().reduce(UInt32(0)) { $0 | UInt32($1.element) << (8 * $1.offset) }
+                    guard let data = value as? Data else { return nil }
+                    if data.count == 2 {
+                        return UInt32(data[0]) | UInt32(data[1]) << 8
+                    }
+                    if data.count == 4 {
+                        return data.enumerated().reduce(UInt32(0)) { $0 | UInt32($1.element) << (8 * $1.offset) }
+                    }
+                    return nil
                 }
-                if let vendor = number("subsystem-vendor-id"), let device = number("subsystem-id"), vendor <= 0xffff, device <= 0xffff {
+                let vendor = number("subsystem-vendor-id")
+                let device = number("subsystem-id") ?? number("subsystem-device-id")
+                if let vendor = vendor, let device = device, vendor <= 0xffff, device <= 0xffff {
                     pciIDs.insert(String(format: "%04x:%04x", vendor, device))
                 }
             }

@@ -155,7 +155,7 @@ void IdeaVPC::initNativeProfile() {
     for (UInt32 i = 0; i < length; ++i)
         checksum += bytes[i];
     setProperty("FirmwareDSDTLength", length, 32);
-    setProperty("FirmwareDSDTChecksum", checksum, 32);
+    setProperty("FirmwareDSDTChecksum", bytes[9], 32);
     if (checksum) {
         setProperty("ProfileMatchStage", "dsdt_checksum_invalid");
         setProperty("ProfileMatchReason", "DSDT checksum is invalid");
@@ -179,9 +179,10 @@ void IdeaVPC::initNativeProfile() {
         oemTableID[i] = 0;
     setProperty("FirmwareDSDTOEMTableID", oemTableID);
     setProperty("ProfileMatchStage", "identity_collected");
-    AlwaysLog("Profile match evidence: DSDT length=%u checksum=0x%02x sha256=%s oem_table_id=%s", length, checksum, hex, oemTableID);
+    AlwaysLog("Profile match evidence: DSDT length=%u checksum=0x%02x sha256=%s oem_table_id=%s", length, bytes[9], hex, oemTableID);
 
     ReYogaFirmware::Identity identity;
+    ReYogaFirmware::readDSDT(bytes, length, identity);
     auto readIdentity = [&](IORegistryEntry *entry) {
         if (!entry)
             return;
@@ -216,14 +217,42 @@ void IdeaVPC::initNativeProfile() {
                     if (auto value = OSDynamicCast(OSNumber, object))
                         return value->unsigned32BitValue();
                     if (auto data = OSDynamicCast(OSData, object)) {
-                        if (data->getLength() == 4) {
-                            const auto raw = static_cast<const UInt8 *>(data->getBytesNoCopy());
+                        const auto raw = static_cast<const UInt8 *>(data->getBytesNoCopy());
+                        if (data->getLength() == 2)
+                            return UInt32(raw[0]) | UInt32(raw[1]) << 8;
+                        if (data->getLength() == 4)
                             return UInt32(raw[0]) | UInt32(raw[1]) << 8 | UInt32(raw[2]) << 16 | UInt32(raw[3]) << 24;
-                        }
                     }
                     return 0;
                 };
-                identity.addPCI(number("subsystem-vendor-id"), number("subsystem-id"));
+                UInt32 vendor = number("subsystem-vendor-id");
+                UInt32 device = number("subsystem-id");
+                if (!device)
+                    device = number("subsystem-device-id");
+                identity.addPCI(vendor, device);
+            }
+            if (entry->metaCast("IOACPIPlatformDevice")) {
+                auto acpi = static_cast<IOACPIPlatformDevice *>(entry);
+                OSObject *sub = nullptr;
+                if (acpi->evaluateObject("_SUB", &sub) == kIOReturnSuccess && sub) {
+                    if (auto text = OSDynamicCast(OSString, sub))
+                        identity.addSubsystem(text->getCStringNoCopy(), text->getLength());
+                    else if (auto data = OSDynamicCast(OSData, sub)) {
+                        if (data->getLength() == 4) {
+                            const auto raw = static_cast<const UInt8 *>(data->getBytesNoCopy());
+                            uint32_t val = UInt32(raw[0]) | UInt32(raw[1]) << 8 | UInt32(raw[2]) << 16 | UInt32(raw[3]) << 24;
+                            if ((val & 0xffff) == 0x17aa)
+                                identity.addPCI(0x17aa, (val >> 16) & 0xffff);
+                        } else {
+                            identity.addSubsystem(static_cast<const char *>(data->getBytesNoCopy()), data->getLength());
+                        }
+                    } else if (auto num = OSDynamicCast(OSNumber, sub)) {
+                        uint32_t val = num->unsigned32BitValue();
+                        if ((val & 0xffff) == 0x17aa)
+                            identity.addPCI(0x17aa, (val >> 16) & 0xffff);
+                    }
+                    sub->release();
+                }
             }
             if (entry->metaCast("AppleSMBIOS")) {
                 if (auto data = OSDynamicCast(OSData, entry->getProperty("SMBIOS")))
@@ -271,7 +300,8 @@ void IdeaVPC::initNativeProfile() {
     }
     const auto match = ReYogaFirmware::select(ReYogaNativeProfiles, checked, identity, oemTableID);
     setProperty("ProfileMatchOEMMatches", match.oemMatches, 32);
-    const auto candidate = match.profile;
+    const ReYogaNativeProfile *candidate = match.profile;
+    const bool pciMatched = match.pciMatched;
     if (!candidate) {
         const char *state = "unmatched";
         const char *stage = "unsupported_firmware";
@@ -308,10 +338,10 @@ void IdeaVPC::initNativeProfile() {
     setProperty("HardwareProfile", candidate->id);
     setProperty("HardwareProfileName", candidate->name);
     setProperty("NativeTelemetryProfile", true);
-    setProperty("ProfileMatchState", match.pciMatched ? "pci_matched" : "identity_matched");
+    setProperty("ProfileMatchState", pciMatched ? "pci_matched" : "identity_matched");
     setProperty("ProfileMatchStage", "identified");
-    setProperty("ProfileMatchReason", match.pciMatched ? "PCI subsystem ID and DSDT OEM table matched"
-                                                       : "Machine type and DSDT OEM table matched");
+    setProperty("ProfileMatchReason", pciMatched ? "PCI subsystem ID and DSDT OEM table matched" :
+                                      "Machine type and DSDT OEM table matched");
     setProperty("NativeTelemetryReason", "Sensor reads are validated individually; identity does not validate writes");
     UInt32 profileFanCount = 0;
     if (candidate->fields[ReYogaSensor::Fan2][0] != '\0')

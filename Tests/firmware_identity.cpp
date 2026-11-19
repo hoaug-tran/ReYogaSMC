@@ -234,6 +234,71 @@ int main() {
     assert(y7000AltMatch.profile && !strcmp(y7000AltMatch.profile->id, "legion-y7000-2025-rpl"));
     assert(y7000AltMatch.pciMatched);
 
+    Identity subEdge;
+    subEdge.addSubsystem(nullptr, 0);
+    subEdge.addSubsystem("17AA38CD", 7);
+    subEdge.addSubsystem("17AA38CDX", 9);
+    subEdge.addSubsystem("SYNA0001", 8);
+    subEdge.addSubsystem("XXXX0000", 8);
+    subEdge.addSubsystem("8086:1234", 9);
+    assert(subEdge.pciCount == 0);
+    subEdge.addSubsystem("17AA38CD", 8);
+    assert(subEdge.pciCount == 1 && subEdge.matchesPCI("17aa:38cd"));
+    subEdge.addSubsystem("17aa:38cb", 9);
+    assert(subEdge.pciCount == 2 && subEdge.matchesPCI("17aa:38cb"));
+    subEdge.addSubsystem("17AA38CD", 8);
+    assert(subEdge.pciCount == 2);
+
+    std::vector<uint8_t> syntheticDsdt(128, 0);
+    memcpy(syntheticDsdt.data(), "DSDT", 4);
+    syntheticDsdt[4] = 128;
+    const uint8_t subPayload[] = {'_', 'S', 'U', 'B', 0x00, 0xa0, 0x12, 0x93, 'S', 'P', 'I', 'D', 0x00, 0xa4, 0x0D, '1', '7', 'A', 'A', '3', '8', 'C', 'D', 0x00};
+    memcpy(syntheticDsdt.data() + 40, subPayload, sizeof(subPayload));
+    Identity dsdtIdentity;
+    readDSDT(syntheticDsdt.data(), syntheticDsdt.size(), dsdtIdentity);
+    assert(dsdtIdentity.matchesPCI("17aa:38cd"));
+    auto dsdtMatch = select(ReYogaNativeProfiles, count, dsdtIdentity, "CB-01");
+    assert(dsdtMatch.profile && !strcmp(dsdtMatch.profile->id, "legion-y7000-2025-rpl"));
+    assert(dsdtMatch.pciMatched);
+    assert(dsdtMatch.state == MatchState::matched);
+
+    std::vector<uint8_t> dwordDsdt(128, 0);
+    memcpy(dwordDsdt.data(), "DSDT", 4);
+    dwordDsdt[4] = 128;
+    const uint8_t dwordPayload[] = {'_', 'S', 'U', 'B', 0x00, 0x0C, 0xaa, 0x17, 0xcd, 0x38};
+    memcpy(dwordDsdt.data() + 40, dwordPayload, sizeof(dwordPayload));
+    Identity dwordIdentity;
+    readDSDT(dwordDsdt.data(), dwordDsdt.size(), dwordIdentity);
+    assert(dwordIdentity.matchesPCI("17aa:38cd"));
+
+    Identity badDsdt;
+    readDSDT(nullptr, 0, badDsdt);
+    readDSDT(syntheticDsdt.data(), 35, badDsdt);
+    readDSDT(syntheticDsdt.data(), 5 * 1024 * 1024, badDsdt);
+    assert(badDsdt.pciCount == 0);
+
+    // Exact SPKR._SUB method payload from Lenovo Legion Y7000 2025 DSDT:
+    // Method (_SUB, 0, NotSerialized) { If (SPID == 0) { Return ("17AA38CD") } If (SPID == 1) { Return ("17AA38CB") } }
+    const uint8_t y7000Payload[] = {
+        '_', 'S', 'U', 'B', 0x00,
+        0xa0, 0x12, 0x93, 'S', 'P', 'I', 'D', 0x00, 0xa4, 0x0D, '1', '7', 'A', 'A', '3', '8', 'C', 'D', 0x00,
+        0xa0, 0x12, 0x93, 'S', 'P', 'I', 'D', 0x01, 0xa4, 0x0D, '1', '7', 'A', 'A', '3', '8', 'C', 'B', 0x00
+    };
+    std::vector<uint8_t> realPatternDsdt(256, 0);
+    memcpy(realPatternDsdt.data(), "DSDT", 4);
+    realPatternDsdt[4] = 0;
+    realPatternDsdt[5] = 1;
+    memcpy(realPatternDsdt.data() + 40, y7000Payload, sizeof(y7000Payload));
+    Identity realIdentity;
+    readDSDT(realPatternDsdt.data(), realPatternDsdt.size(), realIdentity);
+    assert(realIdentity.pciCount == 2);
+    assert(realIdentity.matchesPCI("17aa:38cd"));
+    assert(realIdentity.matchesPCI("17aa:38cb"));
+    auto realMatch = select(ReYogaNativeProfiles, count, realIdentity, "CB-01");
+    assert(realMatch.profile && !strcmp(realMatch.profile->id, "legion-y7000-2025-rpl"));
+    assert(realMatch.pciMatched);
+    assert(realMatch.state == MatchState::matched);
+
     auto row = ReYogaNativeProfiles[0];
     auto ident = identity(row.machineType, row.biosFamily);
     ReYogaNativeProfile duplicates[] = {row, row};

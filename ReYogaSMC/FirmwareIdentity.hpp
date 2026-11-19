@@ -30,6 +30,35 @@ struct Identity {
             pciSubsystems[pciCount++] = value;
     }
 
+    void addSubsystem(const char *text, size_t length) {
+        if (!text || (length != 8 && length != 9))
+            return;
+        uint32_t vendor = 0;
+        uint32_t device = 0;
+        const size_t devOffset = (length == 9 && text[4] == ':') ? 5 : 4;
+        if (length == 9 && text[4] != ':')
+            return;
+        for (unsigned i = 0; i < 4; ++i) {
+            const char c = upper(text[i]);
+            if (c >= '0' && c <= '9')
+                vendor = (vendor << 4) | (c - '0');
+            else if (c >= 'A' && c <= 'F')
+                vendor = (vendor << 4) | (c - 'A' + 10);
+            else
+                return;
+        }
+        for (unsigned i = 0; i < 4; ++i) {
+            const char c = upper(text[devOffset + i]);
+            if (c >= '0' && c <= '9')
+                device = (device << 4) | (c - '0');
+            else if (c >= 'A' && c <= 'F')
+                device = (device << 4) | (c - 'A' + 10);
+            else
+                return;
+        }
+        addPCI(vendor, device);
+    }
+
     bool matchesPCI(const char *ids) const {
         if (!ids)
             return false;
@@ -170,6 +199,38 @@ inline bool readSMBIOS(const uint8_t *bytes, size_t size, Identity &identity) {
     }
     identity.conflict = identity.conflict || parsed.conflict;
     return true;
+}
+
+inline void readDSDT(const uint8_t *bytes, size_t size, Identity &identity) {
+    if (!bytes || size < 36 || size > 4 * 1024 * 1024)
+        return;
+    for (size_t i = 36; i + 4 <= size; ++i) {
+        if (bytes[i] == '_' && bytes[i + 1] == 'S' && bytes[i + 2] == 'U' && bytes[i + 3] == 'B') {
+            const size_t limit = (i + 256 < size) ? (i + 256) : size;
+            for (size_t j = i + 4; j < limit; ++j) {
+                if (bytes[j] == 0x0D && j + 1 < limit) {
+                    const char *str = reinterpret_cast<const char *>(bytes + j + 1);
+                    size_t len = 0;
+                    while (j + 1 + len < limit && str[len] && len <= 16)
+                        ++len;
+                    if (j + 1 + len < limit && bytes[j + 1 + len] == '\0') {
+                        if (len == 8 || len == 9)
+                            identity.addSubsystem(str, len);
+                        j += len + 1;
+                    }
+                }
+                if (bytes[j] == 0x0C && j + 5 <= limit) {
+                    const uint32_t val = static_cast<uint32_t>(bytes[j + 1]) |
+                                         static_cast<uint32_t>(bytes[j + 2]) << 8 |
+                                         static_cast<uint32_t>(bytes[j + 3]) << 16 |
+                                         static_cast<uint32_t>(bytes[j + 4]) << 24;
+                    if ((val & 0xffff) == 0x17aa)
+                        identity.addPCI(0x17aa, (val >> 16) & 0xffff);
+                    j += 4;
+                }
+            }
+        }
+    }
 }
 
 enum class MatchState { matched,
