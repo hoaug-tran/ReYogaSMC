@@ -61,6 +61,15 @@ class AppSafetyTests(unittest.TestCase):
         self.assertTrue('SHA256_Final' in body)
         self.assertTrue('if (checksum)' in body)
         self.assertTrue('if (!candidate)' in body)
+    def test_native_telemetry_evaluates_leaf_before_full_path(self):
+        body = function(kernel_sources('IdeaVPC'), 'void IdeaVPC::updateTelemetry(')
+        self.assertIn('nativeProfile->fields[i]', body)
+        self.assertIn("strrchr(path, '.')", body)
+        self.assertLess(body.index('ec->evaluateInteger(leaf'), body.index('ec->evaluateInteger(path'))
+        self.assertIn('vpc->evaluateInteger(path', body)
+        self.assertIn('PC00', body)
+        self.assertIn('PCI0', body)
+        self.assertIn('ReYogaFirmware::validSample', body)
     def test_idea_protocol_does_not_require_gamezone(self):
         body = function(kernel_sources('IdeaVPC'), 'bool IdeaVPC::initVPC(')
         self.assertTrue('setProperty("ControlProtocolVersion", 1, 32)' in body)

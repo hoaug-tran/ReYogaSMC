@@ -248,6 +248,12 @@ int main() {
     assert(subEdge.pciCount == 2 && subEdge.matchesPCI("17aa:38cb"));
     subEdge.addSubsystem("17AA38CD", 8);
     assert(subEdge.pciCount == 2);
+    Identity trailingNull;
+    trailingNull.addSubsystem("17AA38CD\0", 9);
+    assert(trailingNull.pciCount == 1 && trailingNull.matchesPCI("17aa:38cd"));
+    Identity paddedSub;
+    paddedSub.addSubsystem("  17AA38CD \r\n", 13);
+    assert(paddedSub.pciCount == 1 && paddedSub.matchesPCI("17aa:38cd"));
 
     std::vector<uint8_t> syntheticDsdt(128, 0);
     memcpy(syntheticDsdt.data(), "DSDT", 4);
@@ -270,6 +276,15 @@ int main() {
     Identity dwordIdentity;
     readDSDT(dwordDsdt.data(), dwordDsdt.size(), dwordIdentity);
     assert(dwordIdentity.matchesPCI("17aa:38cd"));
+
+    std::vector<uint8_t> dwordHighDsdt(128, 0);
+    memcpy(dwordHighDsdt.data(), "DSDT", 4);
+    dwordHighDsdt[4] = 128;
+    const uint8_t dwordHighPayload[] = {'_', 'S', 'U', 'B', 0x00, 0x0C, 0xcd, 0x38, 0xaa, 0x17};
+    memcpy(dwordHighDsdt.data() + 40, dwordHighPayload, sizeof(dwordHighPayload));
+    Identity dwordHighIdentity;
+    readDSDT(dwordHighDsdt.data(), dwordHighDsdt.size(), dwordHighIdentity);
+    assert(dwordHighIdentity.matchesPCI("17aa:38cd"));
 
     Identity badDsdt;
     readDSDT(nullptr, 0, badDsdt);
@@ -305,6 +320,56 @@ int main() {
     assert(select(duplicates, 2, ident, row.oemTableID).profile);
     duplicates[1].id = "conflicting-profile";
     assert(select(duplicates, 2, ident, row.oemTableID).state == MatchState::ambiguous);
+
+    for (const auto &profile : ReYogaNativeProfiles) {
+        for (const char *field : profile.fields) {
+            assert(field && field[0] != '\0');
+            assert(strlen(field) < 64);
+            const char *dot = strrchr(field, '.');
+            const char *leaf = dot ? dot + 1 : field;
+            assert(leaf[0] != '\0');
+            assert(strlen(leaf) == 4);
+            char alt[64]{};
+            const char *intelBridge = strstr(field, "PC00.LPCB");
+            const char *amdBridge = strstr(field, "PCI0.LPC0");
+            if (intelBridge) {
+                const size_t pre = static_cast<size_t>(intelBridge - field);
+                memcpy(alt, field, pre);
+                snprintf(alt + pre, sizeof(alt) - pre, "PCI0.LPC0%s", intelBridge + 9);
+                assert(strstr(alt, "PCI0.LPC0") && !strstr(alt, "PC00.LPCB"));
+            } else if (amdBridge) {
+                const size_t pre = static_cast<size_t>(amdBridge - field);
+                memcpy(alt, field, pre);
+                snprintf(alt + pre, sizeof(alt) - pre, "PC00.LPCB%s", amdBridge + 9);
+                assert(strstr(alt, "PC00.LPCB") && !strstr(alt, "PCI0.LPC0"));
+            }
+            const char *pci0 = strstr(field, "PCI0");
+            const char *pc00 = strstr(field, "PC00");
+            if (pci0 && !pc00) {
+                const size_t pre = static_cast<size_t>(pci0 - field);
+                memcpy(alt, field, pre);
+                snprintf(alt + pre, sizeof(alt) - pre, "PC00%s", pci0 + 4);
+                assert(strstr(alt, "PC00") && !strstr(alt, "PCI0"));
+            } else if (pc00 && !pci0) {
+                const size_t pre = static_cast<size_t>(pc00 - field);
+                memcpy(alt, field, pre);
+                snprintf(alt + pre, sizeof(alt) - pre, "PCI0%s", pc00 + 4);
+                assert(strstr(alt, "PCI0") && !strstr(alt, "PC00"));
+            }
+            const char *ec0 = strstr(field, ".EC0.");
+            if (ec0) {
+                char ecAlt[64]{};
+                const size_t pre = static_cast<size_t>(ec0 - field);
+                memcpy(ecAlt, field, pre);
+                snprintf(ecAlt + pre, sizeof(ecAlt) - pre, ".EC.%s", ec0 + 5);
+                assert(strstr(ecAlt, ".EC.") && !strstr(ecAlt, ".EC0."));
+            }
+        }
+    }
+    const char *bareField = "FANS";
+    const char *bareDot = strrchr(bareField, '.');
+    const char *bareLeaf = bareDot ? bareDot + 1 : bareField;
+    assert(!strcmp(bareLeaf, "FANS"));
 
     for (unsigned status : {3U, 4U, 5U, 6U, 7U, 12U, 13U, 14U, 16U, 20U, 23U})
         assert(!ReYogaControl::validHPSensorStatus(status));

@@ -31,7 +31,16 @@ struct Identity {
     }
 
     void addSubsystem(const char *text, size_t length) {
-        if (!text || (length != 8 && length != 9))
+        if (!text)
+            return;
+        while (length && (text[length - 1] == '\0' || text[length - 1] == ' ' || text[length - 1] == '\t' ||
+                          text[length - 1] == '\r' || text[length - 1] == '\n'))
+            --length;
+        while (length && (*text == ' ' || *text == '\t')) {
+            ++text;
+            --length;
+        }
+        if (length != 8 && length != 9)
             return;
         uint32_t vendor = 0;
         uint32_t device = 0;
@@ -226,6 +235,8 @@ inline void readDSDT(const uint8_t *bytes, size_t size, Identity &identity) {
                                          static_cast<uint32_t>(bytes[j + 4]) << 24;
                     if ((val & 0xffff) == 0x17aa)
                         identity.addPCI(0x17aa, (val >> 16) & 0xffff);
+                    else if (((val >> 16) & 0xffff) == 0x17aa)
+                        identity.addPCI(0x17aa, val & 0xffff);
                     j += 4;
                 }
             }

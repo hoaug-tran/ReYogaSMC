@@ -234,7 +234,8 @@ void IdeaVPC::initNativeProfile() {
             if (entry->metaCast("IOACPIPlatformDevice")) {
                 auto acpi = static_cast<IOACPIPlatformDevice *>(entry);
                 OSObject *sub = nullptr;
-                if (acpi->evaluateObject("_SUB", &sub) == kIOReturnSuccess && sub) {
+                if (acpi->validateObject("_SUB") == kIOReturnSuccess &&
+                    acpi->evaluateObject("_SUB", &sub) == kIOReturnSuccess && sub) {
                     if (auto text = OSDynamicCast(OSString, sub))
                         identity.addSubsystem(text->getCStringNoCopy(), text->getLength());
                     else if (auto data = OSDynamicCast(OSData, sub)) {
@@ -243,6 +244,8 @@ void IdeaVPC::initNativeProfile() {
                             uint32_t val = UInt32(raw[0]) | UInt32(raw[1]) << 8 | UInt32(raw[2]) << 16 | UInt32(raw[3]) << 24;
                             if ((val & 0xffff) == 0x17aa)
                                 identity.addPCI(0x17aa, (val >> 16) & 0xffff);
+                            else if (((val >> 16) & 0xffff) == 0x17aa)
+                                identity.addPCI(0x17aa, val & 0xffff);
                         } else {
                             identity.addSubsystem(static_cast<const char *>(data->getBytesNoCopy()), data->getLength());
                         }
@@ -250,6 +253,8 @@ void IdeaVPC::initNativeProfile() {
                         uint32_t val = num->unsigned32BitValue();
                         if ((val & 0xffff) == 0x17aa)
                             identity.addPCI(0x17aa, (val >> 16) & 0xffff);
+                        else if (((val >> 16) & 0xffff) == 0x17aa)
+                            identity.addPCI(0x17aa, val & 0xffff);
                     }
                     sub->release();
                 }

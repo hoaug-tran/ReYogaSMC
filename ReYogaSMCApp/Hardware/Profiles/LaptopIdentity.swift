@@ -234,17 +234,21 @@ struct LaptopIdentity {
                             }
                         } else if let data = sub as? Data, data.count == 4 {
                             let val = UInt32(data[0]) | UInt32(data[1]) << 8 | UInt32(data[2]) << 16 | UInt32(data[3]) << 24
-                            let v = val & 0xffff
-                            let d = (val >> 16) & 0xffff
-                            if v == 0x17aa {
-                                pciIDs.insert(String(format: "%04x:%04x", v, d))
+                            let vLow = val & 0xffff
+                            let vHigh = (val >> 16) & 0xffff
+                            if vLow == 0x17aa {
+                                pciIDs.insert(String(format: "%04x:%04x", vLow, vHigh))
+                            } else if vHigh == 0x17aa {
+                                pciIDs.insert(String(format: "%04x:%04x", vHigh, vLow))
                             }
                         } else if let num = sub as? NSNumber {
                             let val = num.uint32Value
-                            let v = val & 0xffff
-                            let d = (val >> 16) & 0xffff
-                            if v == 0x17aa {
-                                pciIDs.insert(String(format: "%04x:%04x", v, d))
+                            let vLow = val & 0xffff
+                            let vHigh = (val >> 16) & 0xffff
+                            if vLow == 0x17aa {
+                                pciIDs.insert(String(format: "%04x:%04x", vLow, vHigh))
+                            } else if vHigh == 0x17aa {
+                                pciIDs.insert(String(format: "%04x:%04x", vHigh, vLow))
                             }
                         }
                     }

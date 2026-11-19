@@ -494,7 +494,67 @@ void IdeaVPC::updateTelemetry() {
         if (legionBridge)
             ok = ec->evaluateInteger(sensor.bridgeMethod, &value) == kIOReturnSuccess;
         else if (nativeProfile) {
-            ok = ec->evaluateInteger(nativeProfile->fields[i], &value) == kIOReturnSuccess;
+            const char *path = nativeProfile->fields[i];
+            if (path && path[0] != '\0') {
+                const char *dot = strrchr(path, '.');
+                const char *leaf = dot ? dot + 1 : path;
+                if (ec && leaf[0] != '\0')
+                    ok = ec->evaluateInteger(leaf, &value) == kIOReturnSuccess;
+                if (!ok && vpc && leaf[0] != '\0')
+                    ok = vpc->evaluateInteger(leaf, &value) == kIOReturnSuccess;
+                if (!ok && dot) {
+                    if (ec)
+                        ok = ec->evaluateInteger(path, &value) == kIOReturnSuccess;
+                    if (!ok && vpc)
+                        ok = vpc->evaluateInteger(path, &value) == kIOReturnSuccess;
+                    if (!ok) {
+                        char alt[64]{};
+                        auto tryEval = [&](const char *candidate) -> bool {
+                            return (ec && ec->evaluateInteger(candidate, &value) == kIOReturnSuccess) ||
+                                   (vpc && vpc->evaluateInteger(candidate, &value) == kIOReturnSuccess);
+                        };
+                        const char *intelBridge = strstr(path, "PC00.LPCB");
+                        const char *amdBridge = strstr(path, "PCI0.LPC0");
+                        if (intelBridge && strlen(path) < sizeof(alt)) {
+                            const size_t pre = static_cast<size_t>(intelBridge - path);
+                            memcpy(alt, path, pre);
+                            snprintf(alt + pre, sizeof(alt) - pre, "PCI0.LPC0%s", intelBridge + 9);
+                            ok = tryEval(alt);
+                        } else if (amdBridge && strlen(path) < sizeof(alt)) {
+                            const size_t pre = static_cast<size_t>(amdBridge - path);
+                            memcpy(alt, path, pre);
+                            snprintf(alt + pre, sizeof(alt) - pre, "PC00.LPCB%s", amdBridge + 9);
+                            ok = tryEval(alt);
+                        }
+                        if (!ok) {
+                            const char *pci0 = strstr(path, "PCI0");
+                            const char *pc00 = strstr(path, "PC00");
+                            if (pci0 && !pc00 && strlen(path) < sizeof(alt)) {
+                                const size_t pre = static_cast<size_t>(pci0 - path);
+                                memcpy(alt, path, pre);
+                                snprintf(alt + pre, sizeof(alt) - pre, "PC00%s", pci0 + 4);
+                                ok = tryEval(alt);
+                            } else if (pc00 && !pci0 && strlen(path) < sizeof(alt)) {
+                                const size_t pre = static_cast<size_t>(pc00 - path);
+                                memcpy(alt, path, pre);
+                                snprintf(alt + pre, sizeof(alt) - pre, "PCI0%s", pc00 + 4);
+                                ok = tryEval(alt);
+                            }
+                        }
+                        if (!ok) {
+                            const char *target = alt[0] ? alt : path;
+                            const char *ec0 = strstr(target, ".EC0.");
+                            if (ec0 && strlen(target) < sizeof(alt)) {
+                                char ecAlt[64]{};
+                                const size_t pre = static_cast<size_t>(ec0 - target);
+                                memcpy(ecAlt, target, pre);
+                                snprintf(ecAlt + pre, sizeof(ecAlt) - pre, ".EC.%s", ec0 + 5);
+                                ok = tryEval(ecAlt);
+                            }
+                        }
+                    }
+                }
+            }
             if (ok)
                 ok = ReYogaFirmware::validSample(i, value, nativeProfile->scales[i], value);
         }
