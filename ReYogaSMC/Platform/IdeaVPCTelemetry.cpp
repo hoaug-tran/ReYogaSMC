@@ -577,10 +577,12 @@ void IdeaVPC::updateTelemetry() {
             value = cpuTempValue;
             ok = true;
             source = "CPU thermal mirror";
-            if (legionBridge)
-                ec->evaluateObject("RYT1");
-            else
+            if (legionBridge) {
+                if (ec)
+                    ec->evaluateObject("RYT1");
+            } else if (ec) {
                 ec->evaluateObject("TGPU");
+            }
         }
         if (sources)
             ReYogaProperty::setString(sources, sensor.property, ok ? source : "Unavailable");
@@ -649,7 +651,9 @@ void IdeaVPC::updateTelemetry() {
     setProperty("SensorSampleSequence", ++sampleSequence, 64);
     if (sampleSequence == 1 || sampleSequence % (detailedTelemetry ? 4 : 20) == 0)
         DebugLog("sample=%llu source=%s timeMS=%llu", sampleSequence,
-                 legionBridge ? "ACPI-profile" : "WMI", ns / 1000000);
+                 legionBridge ? "ACPI-bridge" : nativeProfile ? "Native ACPI"
+                                                              : "WMI",
+                 ns / 1000000);
     if (trace)
         AlwaysLog("Firmware end: telemetry");
 }
