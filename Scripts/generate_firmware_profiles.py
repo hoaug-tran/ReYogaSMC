@@ -14,6 +14,78 @@ _BIOS_RE = re.compile(r"^[0-9A-Z]{4}$")
 _OEM_RE = re.compile(r"^[ -~]{1,8}$")
 _EC_PATH_RE = re.compile(r"^\\_SB(?:\.[A-Z_][A-Z0-9_]{0,3})+$")
 _PCI_RE = re.compile(r"^17aa:[0-9a-f]{4}$")
+_HEX_BASE_RE = re.compile(r"^0x[0-9A-Fa-f]{8,16}$")
+_HEX_SIZE_RE = re.compile(r"^0x[0-9A-Fa-f]{2,5}$")
+_HEX_OFFSET_RE = re.compile(r"^0x[0-9A-Fa-f]{1,4}$")
+_IT8227_V0_OFFSETS = {
+    "curve_point": 0x134,
+    "curve_size": 0x135,
+    "cpu_temp": 0x138,
+    "gpu_temp": 0x139,
+    "fan1_curve": 0x140,
+    "fan2_curve": 0x150,
+    "fan1_rpm": 0x1E0,
+    "fan2_rpm": 0x1E2,
+    "update_counter1": 0x1FE,
+    "update_counter2": 0x1FF,
+    "internal_cpu_level": 0x234,
+    "internal_gpu_level": 0x235,
+    "internal_sensor_level": 0x236,
+}
+
+
+def _parse_mmio(profile, profile_id):
+    ec_base_raw = profile.get("ec_base")
+    ec_size_raw = profile.get("ec_size")
+    if (ec_base_raw is None) != (ec_size_raw is None):
+        raise ValueError(f"{profile_id}: ec_base and ec_size must be provided together")
+    if ec_base_raw is None:
+        return 0, 0
+    if not isinstance(ec_base_raw, str) or not _HEX_BASE_RE.fullmatch(ec_base_raw):
+        raise ValueError(f"{profile_id}: invalid ec_base")
+    if not isinstance(ec_size_raw, str) or not _HEX_SIZE_RE.fullmatch(ec_size_raw):
+        raise ValueError(f"{profile_id}: invalid ec_size")
+    ec_base = int(ec_base_raw, 16)
+    ec_size = int(ec_size_raw, 16)
+    if ec_base == 0 or (ec_base & 0xFF) != 0:
+        raise ValueError(f"{profile_id}: ec_base must be non-zero and 256-byte aligned")
+    if ec_size < 0x100 or ec_size > 0x10000:
+        raise ValueError(f"{profile_id}: ec_size out of range [0x100, 0x10000]")
+    return ec_base, ec_size
+
+
+def _fan_curve_metadata(profile, profile_id):
+    ec_base, ec_size = _parse_mmio(profile, profile_id)
+    curve_points_max = profile.get("curve_points_max", 0)
+    if "curve_points_max" in profile and (type(curve_points_max) is not int or not 1 <= curve_points_max <= 10):
+        raise ValueError(f"{profile_id}: curve_points_max must be integer 1..10")
+    offsets = profile.get("offsets")
+    it8227_v0 = False
+    if offsets is not None:
+        if not isinstance(offsets, dict) or ec_size < 0x300:
+            raise ValueError(f"{profile_id}: offsets require valid ec_base and ec_size >= 0x300")
+        parsed = {}
+        for key, raw in offsets.items():
+            if not isinstance(raw, str) or not _HEX_OFFSET_RE.fullmatch(raw):
+                raise ValueError(f"{profile_id}: invalid offset {key}")
+            val = int(raw, 16)
+            if val >= ec_size:
+                raise ValueError(f"{profile_id}: offset {key} exceeds ec_size")
+            parsed[key] = val
+        it8227_v0 = all(parsed.get(k) == v for k, v in _IT8227_V0_OFFSETS.items())
+    sensors = profile.get("native_telemetry") or []
+    has_dual_fans = {item.get("field") for item in sensors if isinstance(item, dict)} >= {"FANS", "FA2S"}
+    verified_writes = profile.get("verified_writes", 0)
+    if type(verified_writes) is not int or verified_writes not in (0, 1):
+        raise ValueError(f"{profile_id}: verified_writes must be integer 0 or 1")
+    bridge_kind = profile.get("bridge_kind")
+    if not bridge_kind:
+        bridge_kind = "named-fields-readonly" if profile.get("native_telemetry") and verified_writes == 0 else "raw-offsets"
+    is_readonly = bridge_kind == "named-fields-readonly"
+    if verified_writes == 1:
+        if is_readonly or ec_base == 0 or ec_size < 0x300 or curve_points_max < 1 or not it8227_v0 or not has_dual_fans:
+            raise ValueError(f"{profile_id}: verified_writes requires raw-offsets bridge and complete curve/MMIO metadata")
+    return ec_base, ec_size, curve_points_max, 0 if is_readonly else verified_writes
 
 
 def _require_string(profile, key):
@@ -90,6 +162,7 @@ def _validate_profiles(profiles):
         if bridge_kind == "named-fields-readonly" and verified_writes:
             raise ValueError(f"{profile_id}: read-only bridge cannot validate writes")
         sensors = profile.get("native_telemetry")
+        _fan_curve_metadata(profile, profile_id)
         if sensors is None:
             continue
         if not isinstance(sensors, list) or not all(isinstance(item, dict) for item in sensors) or [item.get("field") for item in sensors] != list(_FIELD_ORDER):
@@ -111,18 +184,24 @@ def render(profiles):
         scales = ", ".join(str(sensor["scale"]) for sensor in profile["native_telemetry"])
         is_readonly = (profile.get("bridge_kind") == "named-fields-readonly" or
                        (profile.get("native_telemetry") and profile.get("verified_writes", 0) == 0))
+        ec_base, ec_size, curve_points_max, verified_writes = _fan_curve_metadata(profile, profile_id)
+        ec_base_lit = f"0x{ec_base:08X}ULL" if ec_base else "0ULL"
+        ec_size_lit = f"0x{ec_size:X}U" if ec_size else "0U"
         for machine in machine_types:
             for bios in bios_families:
                 rows.append(
                     f'    {{"{profile_id}", {json.dumps(profile["name"])}, '
                     f'{json.dumps(oem_id)}, {json.dumps(machine)}, {json.dumps(bios)}, '
-                    f'{{{fields}}}, {{{scales}}}, {json.dumps("|".join(profile.get("pci_subsystem_ids", [])))}, {1 if is_readonly else 2}}},'
+                    f'{{{fields}}}, {{{scales}}}, {json.dumps("|".join(profile.get("pci_subsystem_ids", [])))}, '
+                    f'{1 if is_readonly else 2}, {ec_base_lit}, {ec_size_lit}, {curve_points_max}U, {verified_writes}U}},'
                 )
     if not rows:
         raise ValueError("No native telemetry profiles found")
     return """// Generated by Scripts/generate_firmware_profiles.py; edit HardwareProfiles instead.
 #ifndef ReYogaFirmwareProfiles_hpp
 #define ReYogaFirmwareProfiles_hpp
+
+#include <stdint.h>
 
 struct ReYogaNativeProfile {
     const char *id;
@@ -134,6 +213,10 @@ struct ReYogaNativeProfile {
     unsigned scales[4];
     const char *pciSubsystemIDs; // Model-specific Lenovo subsystem IDs separated by |.
     unsigned bridgeVersion; // Maximum reviewed bridge interface (1: named reads, 2: raw offsets).
+    uint64_t ecBase; // Verified SystemMemory EC MMIO base address, or 0 if unavailable.
+    uint32_t ecSize; // Verified EC MMIO window size in bytes, or 0 if unavailable.
+    uint8_t curvePointsMax; // Maximum fan curve trip points (1..10), or 0 if unavailable.
+    uint8_t verifiedWrites; // 1 only when writes and recovery are verified on hardware; 0 otherwise.
 };
 
 static constexpr ReYogaNativeProfile ReYogaNativeProfiles[] = {

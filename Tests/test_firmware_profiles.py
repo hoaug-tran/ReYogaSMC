@@ -78,3 +78,40 @@ class FirmwareProfilesTests(unittest.TestCase):
         bad_readonly["verified_writes"] = 1
         with self.assertRaises(ValueError):
             generator.render([bad_readonly])
+
+    def test_ec_mmio_and_curve_schema_validation(self):
+        # ec_base and ec_size must be provided together
+        missing_size = copy.deepcopy(self.profile)
+        missing_size.pop("ec_size")
+        with self.assertRaisesRegex(ValueError, "together"):
+            generator.render([missing_size])
+
+        # Unaligned or zero ec_base rejected
+        bad_base = copy.deepcopy(self.profile)
+        bad_base["ec_base"] = "0xFE00D401"
+        with self.assertRaisesRegex(ValueError, "aligned"):
+            generator.render([bad_base])
+
+        # curve_points_max out of [1..10] rejected
+        for bad_max in (0, 11, True):
+            bad_curve = copy.deepcopy(self.profile)
+            bad_curve["curve_points_max"] = bad_max
+            with self.subTest(curve_points_max=bad_max), self.assertRaisesRegex(ValueError, "curve_points_max"):
+                generator.render([bad_curve])
+
+        # verified_writes == 1 requires raw-offsets and complete curve/MMIO metadata
+        bad_verified = copy.deepcopy(self.profile)
+        bad_verified["bridge_kind"] = "raw-offsets"
+        bad_verified["verified_writes"] = 1
+        bad_verified.pop("offsets")
+        with self.assertRaisesRegex(ValueError, "verified_writes"):
+            generator.render([bad_verified])
+
+        # Valid raw-offsets with complete metadata emits ecBase, ecSize, curvePointsMax, verifiedWrites=1
+        valid_verified = copy.deepcopy(self.profile)
+        valid_verified["bridge_kind"] = "raw-offsets"
+        valid_verified["verified_writes"] = 1
+        rendered = generator.render([valid_verified])
+        self.assertIn("0xFE00D400ULL, 0x600U, 10U, 1U", rendered)
+        # Default shipped legion7-16achg6 emits verifiedWrites=0
+        self.assertIn("0xFE00D400ULL, 0x600U, 10U, 0U", generator.render([self.profile]))

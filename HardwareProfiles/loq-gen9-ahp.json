@@ -15,6 +15,7 @@
   "ec_path": "\\_SB.PC00.LPCB.EC0",
   "ec_base": "0xFE0B0F00",
   "ec_size": "0x600",
+  "curve_points_max": 10,
   "rpm_scale": 100,
   "battery_conservation_mask": 32,
   "battery_rapidcharge_mask": 4,

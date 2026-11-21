@@ -16,6 +16,9 @@
     "CB-01"
   ],
   "ec_path": "\\_SB.PCI0.LPC0.EC0",
+  "ec_base": "0xFE00D400",
+  "ec_size": "0x600",
+  "curve_points_max": 10,
   "rpm_scale": 100,
   "battery_conservation_mask": 32,
   "battery_rapidcharge_mask": 4,
