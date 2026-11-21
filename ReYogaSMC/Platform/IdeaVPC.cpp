@@ -79,6 +79,7 @@ bool IdeaVPC::start(IOService *provider) {
                         if ((self->profileRetriesLeft-- % 4) == 0) {
                             self->initNativeProfile();
                             self->initBridge();
+                            self->syncLegionFanCapability();
                             if (self->nativeProfile) {
                                 self->setProperty("ProfileMatchDeferred", true);
                                 self->updateAll();
@@ -192,6 +193,7 @@ bool IdeaVPC::initVPC() {
     }
     initNativeProfile();
     initBridge();
+    syncLegionFanCapability();
     setProperty("ControlProtocolVersion", 1, 32);
     setProperty("TelemetryIntervalMS", telemetryIntervalMS, 32);
     setProperty("FeaturePollingVersion", 1, 32);
@@ -571,6 +573,9 @@ IOReturn IdeaVPC::setPowerStateGated(unsigned long state, IOService *device) {
     if (state == 0) {
         telemetryAwake = false;
         restorePowerLimits();
+        restorePlatformFansGated();
+        if (legionFanWatchdog)
+            legionFanWatchdog->cancelTimeout();
         if (telemetryPoller)
             telemetryPoller->cancelTimeout();
         if (legionBridge) {

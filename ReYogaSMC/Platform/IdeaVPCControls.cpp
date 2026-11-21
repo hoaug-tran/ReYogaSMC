@@ -331,11 +331,24 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
         // Manual is entered by a target-RPM request
         if (target != 0)
             return kIOReturnBadArgument;
+        IOReturn status = restorePlatformFansGated();
         if (ec && ec->validateObject("RYFA") == kIOReturnSuccess) {
             IOReturn ret = ec->evaluateInteger("RYFA", &result);
-            return ret == kIOReturnSuccess && result != 0 ? kIOReturnIOError : ret;
+            if (ret != kIOReturnSuccess)
+                return ret;
+            if (result != 0)
+                return kIOReturnIOError;
         }
-        return kIOReturnSuccess;
+        return status;
+    }
+    if (!strcmp(key, "CustomFanCurve")) {
+        if (boolean != nullptr) {
+            if (!boolean->getValue()) {
+                return restorePlatformFansGated();
+            }
+            return isLegionFanCurveSupported() ? kIOReturnSuccess : kIOReturnUnsupported;
+        }
+        return kIOReturnBadArgument;
     }
     if (!strcmp(key, smartFanPrompt)) {
         if (number == nullptr || target < 1 || target > 3)
@@ -353,12 +366,12 @@ IOReturn IdeaVPC::setControl(const char *key, OSObject *value) {
             return kIOReturnIOError;
         auto currentFullFan = getProperty(fullFanPrompt);
         const bool keepFullFan = currentFullFan && currentFullFan == kOSBooleanTrue;
-        if (!keepFullFan && legionBridge && ec && ec->validateObject("RYFA") == kIOReturnSuccess) {
-            UInt32 result = 0;
-            ec->evaluateInteger("RYFA", &result);
+        if (!keepFullFan) {
+            restorePlatformFansGated(true);
         }
         if (!wmig || !wmig->setGameZoneData(GAME_ZONE_WMI_SET_SMARTFAN_MODE, target))
             return kIOReturnIOError;
+        factoryCurveCaptured = false;
         if (keepFullFan && legionBridge && ec && ec->validateObject("RYFF") == kIOReturnSuccess) {
             auto argument = OSNumber::withNumber(1ULL, 32);
             if (argument != nullptr) {
@@ -586,6 +599,7 @@ void IdeaVPC::restoreUserControls() {
     commandGate->runAction([](OSObject *owner, void *, void *, void *, void *) -> IOReturn {
         auto self = static_cast<IdeaVPC *>(owner);
         self->restorePowerLimits();
+        self->restorePlatformFansGated();
         if (self->legionBridge && self->ec && self->ec->validateObject("RYFA") == kIOReturnSuccess) {
             UInt32 result = 0;
             if (self->ec->evaluateInteger("RYFA", &result) != kIOReturnSuccess || result != 0)

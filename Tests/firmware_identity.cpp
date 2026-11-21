@@ -292,6 +292,34 @@ int main() {
     readDSDT(syntheticDsdt.data(), 5 * 1024 * 1024, badDsdt);
     assert(badDsdt.pciCount == 0);
 
+    // DSDT SystemMemory OperationRegion AML verification (DWordPrefix 0x0C, QWordPrefix 0x0E, space mismatch)
+    std::vector<uint8_t> mmioDsdt(128, 0);
+    memcpy(mmioDsdt.data(), "DSDT", 4);
+    mmioDsdt[4] = 128;
+    const uint8_t eraxPayload[] = {0x5B, 0x80, 'E', 'R', 'A', 'X', 0x00, 0x0C, 0x00, 0xD4, 0x00, 0xFE, 0x0B, 0xFF, 0x00};
+    memcpy(mmioDsdt.data() + 40, eraxPayload, sizeof(eraxPayload));
+    assert(hasSystemMemoryRegion(mmioDsdt.data(), mmioDsdt.size(), 0xFE00D400ULL));
+    assert(!hasSystemMemoryRegion(mmioDsdt.data(), mmioDsdt.size(), 0xFE0B0400ULL));
+    assert(!hasSystemMemoryRegion(mmioDsdt.data(), mmioDsdt.size(), 0xFE0B0F00ULL));
+    assert(!hasSystemMemoryRegion(mmioDsdt.data(), mmioDsdt.size(), 0ULL));
+    assert(!hasSystemMemoryRegion(mmioDsdt.data(), 35, 0xFE00D400ULL));
+    // SystemIO (0x01) must NOT satisfy SystemMemory check
+    std::vector<uint8_t> ioSpaceDsdt = mmioDsdt;
+    ioSpaceDsdt[40 + 6] = 0x01;
+    assert(!hasSystemMemoryRegion(ioSpaceDsdt.data(), ioSpaceDsdt.size(), 0xFE00D400ULL));
+    // QWordPrefix (0x0E) support
+    std::vector<uint8_t> qwordDsdt(128, 0);
+    memcpy(qwordDsdt.data(), "DSDT", 4);
+    qwordDsdt[4] = 128;
+    const uint8_t qwordPayload[] = {0x5B, 0x80, 'E', 'R', 'A', 'X', 0x00, 0x0E, 0x00, 0xD4, 0x00, 0xFE, 0, 0, 0, 0};
+    memcpy(qwordDsdt.data() + 40, qwordPayload, sizeof(qwordPayload));
+    assert(hasSystemMemoryRegion(qwordDsdt.data(), qwordDsdt.size(), 0xFE00D400ULL));
+
+    // All shipped profiles must fail closed on verifiedWrites unless explicitly verified
+    for (const auto &profile : ReYogaNativeProfiles) {
+        assert(profile.verifiedWrites == 0);
+    }
+
     // Exact SPKR._SUB method payload from Lenovo Legion Y7000 2025 DSDT:
     // Method (_SUB, 0, NotSerialized) { If (SPID == 0) { Return ("17AA38CD") } If (SPID == 1) { Return ("17AA38CB") } }
     const uint8_t y7000Payload[] = {

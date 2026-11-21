@@ -458,6 +458,8 @@ void IdeaVPC::updateFeatureStatus() {
     add("GPUOverclock", false, "No verified macOS graphics overclock backend is available for this firmware", "Graphics driver required");
     add("HybridGraphics", false, "Graphics topology changes require compatible graphics drivers and a reboot; not exposed as a live toggle", "Boot configuration");
     add("CPUOverclock", false, "No verified overclock interface for this CPU/firmware", "Unavailable");
+    const bool customCurve = isLegionFanCurveSupported();
+    add("CustomFanCurve", customCurve, customCurve ? "" : "Legion custom fan curve unavailable", "EC MMIO");
     if (ranges) {
         setProperty("PowerLimitRanges", ranges);
         ranges->release();
@@ -631,8 +633,15 @@ void IdeaVPC::updateTelemetry() {
         auto previous = OSDynamicCast(OSNumber, getProperty(smartFanPrompt));
         const bool changed = previous == nullptr || previous->unsigned32BitValue() != profile;
         setProperty(smartFanPrompt, profile, 32);
-        if (changed && sampleSequence % 4 != 0)
-            updateFeatureStatus();
+        if (changed) {
+            if (customFanCurveActive || legionFanLease.active()) {
+                restorePlatformFansGated(true);
+            } else {
+                factoryCurveCaptured = false;
+            }
+            if (sampleSequence % 4 != 0)
+                updateFeatureStatus();
+        }
     }
     setProperty("CPUPowerModified", powerLimitsSaved);
     if (powerLimitsSaved)

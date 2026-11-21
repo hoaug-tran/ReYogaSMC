@@ -244,6 +244,73 @@ inline void readDSDT(const uint8_t *bytes, size_t size, Identity &identity) {
     }
 }
 
+inline bool hasSystemMemoryRegion(const uint8_t *bytes, size_t size, uint64_t baseAddress) {
+    if (!bytes || size < 36 || size > 4 * 1024 * 1024 || baseAddress == 0)
+        return false;
+    auto isLeadNameChar = [](uint8_t c) -> bool {
+        return (c >= 'A' && c <= 'Z') || c == '_';
+    };
+    auto isNameChar = [](uint8_t c) -> bool {
+        return (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+    };
+    for (size_t i = 36; i + 12 <= size; ++i) {
+        if (bytes[i] != 0x5B || bytes[i + 1] != 0x80) // ExtOpPrefix + OpRegionOp
+            continue;
+        size_t pos = i + 2;
+        while (pos < size && (bytes[pos] == '\\' || bytes[pos] == '^'))
+            ++pos;
+        if (pos >= size)
+            continue;
+        size_t segCount = 1;
+        if (bytes[pos] == 0x2E) { // DualNamePrefix
+            segCount = 2;
+            ++pos;
+        } else if (bytes[pos] == 0x2F && pos + 1 < size) { // MultiNamePrefix
+            segCount = bytes[pos + 1];
+            pos += 2;
+        } else if (bytes[pos] == 0x00) { // NullName
+            segCount = 0;
+            ++pos;
+        }
+        if (segCount > 8 || pos + segCount * 4 + 2 > size)
+            continue;
+        bool validName = true;
+        for (size_t s = 0; s < segCount && validName; ++s) {
+            if (!isLeadNameChar(bytes[pos + s * 4])) {
+                validName = false;
+                break;
+            }
+            for (size_t k = 1; k < 4; ++k) {
+                if (!isNameChar(bytes[pos + s * 4 + k])) {
+                    validName = false;
+                    break;
+                }
+            }
+        }
+        if (!validName)
+            continue;
+        pos += segCount * 4;
+        if (bytes[pos] != 0x00) // RegionSpace == SystemMemory
+            continue;
+        ++pos;
+        if (pos + 5 <= size && bytes[pos] == 0x0C) { // DWordPrefix
+            const uint64_t addr = static_cast<uint64_t>(bytes[pos + 1]) |
+                                  (static_cast<uint64_t>(bytes[pos + 2]) << 8) |
+                                  (static_cast<uint64_t>(bytes[pos + 3]) << 16) |
+                                  (static_cast<uint64_t>(bytes[pos + 4]) << 24);
+            if (addr == baseAddress)
+                return true;
+        } else if (pos + 9 <= size && bytes[pos] == 0x0E) { // QWordPrefix
+            uint64_t addr = 0;
+            for (unsigned b = 0; b < 8; ++b)
+                addr |= static_cast<uint64_t>(bytes[pos + 1 + b]) << (8 * b);
+            if (addr == baseAddress)
+                return true;
+        }
+    }
+    return false;
+}
+
 enum class MatchState { matched,
                         missingIdentity,
                         conflict,

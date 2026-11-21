@@ -13,6 +13,7 @@
 #include "ReYogaVPC.hpp"
 #include "../FirmwareIdentity.hpp"
 #include <pexpert/pexpert.h>
+#include <IOKit/IOMemoryDescriptor.h>
 
 #define BR_POLLING_INTERVAL 2000
 
@@ -209,12 +210,71 @@ OSDeclareDefaultStructors(IdeaVPC)
     void updateTelemetry();
     void initNativeProfile();
     void initBridge();
+    void syncLegionFanCapability();
     const ReYogaNativeProfile *nativeProfile{nullptr};
     void updateFeatureStatus();
     void controlRequest(OSDictionary *request);
     IOReturn setControl(const char *key, OSObject *value);
     IOReturn setBridgeFan(UInt32 fan, UInt32 rpm);
     IOReturn setPowerState(unsigned long state, IOService *device) APPLE_KEXT_OVERRIDE;
+
+    IOReturn accessPlatformFan(UInt32 fan, UInt32 request, UInt8 output[3]) APPLE_KEXT_OVERRIDE;
+    IOReturn accessPlatformFanCurve(UInt32 fan, UInt32 request, UInt8 output[3]) APPLE_KEXT_OVERRIDE;
+    IOReturn readPlatformFanRPM(UInt32 fan, UInt32 &rpm, UInt8 *control) APPLE_KEXT_OVERRIDE;
+    void restorePlatformFans() APPLE_KEXT_OVERRIDE;
+    void initPlatformControls() APPLE_KEXT_OVERRIDE;
+    void exitPlatformControls() APPLE_KEXT_OVERRIDE;
+
+    bool hasVerifiedLegionCurveProfile() const;
+    bool isLegionFanCurveSupported() const;
+    void expireLegionFanCurve(OSObject *owner, IOTimerEventSource *timer);
+    IOReturn accessLegionFanGated(UInt32 fan, UInt32 request, UInt8 output[3]);
+    IOReturn restorePlatformFansGated(bool ecReloadedCurve = false);
+
+    IOMemoryDescriptor *mmioDescriptor{nullptr};
+    IOMemoryMap *mmioMap{nullptr};
+    volatile UInt8 *mmioBase{nullptr};
+    IOPhysicalAddress mmioPhysBase{0};
+    IOByteCount mmioSize{0};
+    bool dsdtMMIOVerified{false};
+    bool initMMIOWindow();
+    void freeMMIOWindow();
+    UInt8 readMMIO8(UInt32 offset);
+    UInt16 readMMIO16(UInt32 offset);
+    void writeMMIO8(UInt32 offset, UInt8 value);
+
+    IOTimerEventSource *legionFanWatchdog{nullptr};
+    ReYogaControl::ThinkFanLease legionFanLease;
+    UInt8 activeFanControl[2]{0x84, 0x84};
+    UInt32 activeTargetRPM[2]{0, 0};
+    bool fullSpeedEngaged{false};
+    UInt8 capturedPowerMode{0};
+    bool customFanCurveActive{false};
+
+    struct LegionCurvePoint {
+        UInt8 upperTemp{0x7F};
+        UInt8 lowerTemp{0x7F};
+        UInt16 fan1RPM{0};
+        UInt16 fan2RPM{0};
+        UInt8 accel{2};
+        UInt8 decel{2};
+    };
+    struct LegionFanCurveTable {
+        UInt8 pointCount{10};
+        LegionCurvePoint points[10];
+    };
+    LegionFanCurveTable factoryCurveTable{};
+    LegionFanCurveTable activeCurveTable{};
+    bool factoryCurveCaptured{false};
+
+    bool initLegionFanControls();
+    bool captureFactoryCurveTable();
+    bool validateFanCurveTable(const LegionFanCurveTable &table, bool isRestoration = false, bool allowFactoryTemps = false) const;
+    IOReturn applyLegionFanCurveTable(const LegionFanCurveTable &table, bool isRestoration = false, bool allowFactoryTemps = false);
+    IOReturn readbackLegionFanCurveTable(LegionFanCurveTable &table);
+    IOReturn readHardwareFanControl(UInt32 fan, UInt8 &controlOut);
+    IOReturn engageFullSpeed();
+    IOReturn disengageFullSpeed();
 
     /**
      *  Always on USB mode capability, will be update on init

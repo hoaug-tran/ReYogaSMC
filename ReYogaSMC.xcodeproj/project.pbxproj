@@ -153,6 +153,7 @@
 		1547CFE653D196B31E2C43F5 /* SettingsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC4DC1ECAC104FB208EF7810 /* SettingsPage.swift */; };
 		E8EDDD7DD003E269DD5E4599 /* EventImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C53D3406E4B764585EFB012D /* EventImage.swift */; };
 		7549E193CD2ABD8502794F12 /* StatusHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76F777C03730EAF8222783E8 /* StatusHUD.swift */; };
+		6FA102B12D00000100215EBB /* IdeaVPCFan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6FA102B02D00000100215EBB /* IdeaVPCFan.cpp */; };
 		4124095A8DA11D612DF754A9 /* IdeaVPCControls.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1F61ED34DD282433CD563D9 /* IdeaVPCControls.cpp */; };
 		B787A9605C4D80E4B7D788B6 /* IdeaVPCIdentity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5CA801E93F3713A8F9ED7944 /* IdeaVPCIdentity.cpp */; };
 		5EE6FD0D39E0410D2659EA70 /* IdeaVPCTelemetry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 72899053AEB96C376C59D022 /* IdeaVPCTelemetry.cpp */; };
@@ -392,6 +393,7 @@
 		C53D3406E4B764585EFB012D /* EventImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventImage.swift; sourceTree = "<group>"; };
 		76F777C03730EAF8222783E8 /* StatusHUD.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusHUD.swift; sourceTree = "<group>"; };
 		6FD083002537E87400491976 /* ReYogaSMC-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ReYogaSMC-Bridging-Header.h; sourceTree = "<group>"; };
+		6FA102B02D00000100215EBB /* IdeaVPCFan.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaVPCFan.cpp; sourceTree = "<group>"; };
 		F1F61ED34DD282433CD563D9 /* IdeaVPCControls.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaVPCControls.cpp; sourceTree = "<group>"; };
 		5CA801E93F3713A8F9ED7944 /* IdeaVPCIdentity.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaVPCIdentity.cpp; sourceTree = "<group>"; };
 		72899053AEB96C376C59D022 /* IdeaVPCTelemetry.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IdeaVPCTelemetry.cpp; sourceTree = "<group>"; };
@@ -655,6 +657,7 @@
 				72899053AEB96C376C59D022 /* IdeaVPCTelemetry.cpp */,
 				5CA801E93F3713A8F9ED7944 /* IdeaVPCIdentity.cpp */,
 				F1F61ED34DD282433CD563D9 /* IdeaVPCControls.cpp */,
+				6FA102B02D00000100215EBB /* IdeaVPCFan.cpp */,
 				6FE3698824F76A5D008B29E4 /* DYTC.h */,
 				6F64A28225A7FA7D00070265 /* DYVPC.hpp */,
 				6F64A28125A7FA7D00070265 /* DYVPC.cpp */,
@@ -1144,6 +1147,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6FA102B12D00000100215EBB /* IdeaVPCFan.cpp in Sources */,
 				4124095A8DA11D612DF754A9 /* IdeaVPCControls.cpp in Sources */,
 				B787A9605C4D80E4B7D788B6 /* IdeaVPCIdentity.cpp in Sources */,
 				5EE6FD0D39E0410D2659EA70 /* IdeaVPCTelemetry.cpp in Sources */,

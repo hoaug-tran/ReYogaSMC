@@ -124,8 +124,16 @@ void IdeaVPC::updateBatteryCapability() {
 
 void IdeaVPC::initNativeProfile() {
     nativeProfile = nullptr;
+    dsdtMMIOVerified = false;
     removeProperty("HardwareProfile");
     removeProperty("HardwareProfileName");
+    removeProperty("ThinkFanProtocolVersion");
+    removeProperty("ThinkFanAuthorizationVersion");
+    removeProperty("ThinkFanCurveVersion");
+    removeProperty("ThinkFanTelemetryVersion");
+    removeProperty("CustomFanCurve");
+    removeProperty("Dual fan");
+    removeProperty("ECMMIORegionVerified");
     setProperty("NativeTelemetryProfile", false);
     setProperty("ProfileMatchState", "unmatched");
     setProperty("ProfileMatchStage", "start");
@@ -340,6 +348,10 @@ void IdeaVPC::initNativeProfile() {
     // Identity and telemetry availability are independent: a powered-off GPU
     // or a missing second fan must not erase an otherwise identified model.
     nativeProfile = candidate;
+    dsdtMMIOVerified = candidate->ecBase != 0 &&
+                       candidate->ecSize >= 0x300 &&
+                       ReYogaFirmware::hasSystemMemoryRegion(bytes, length, candidate->ecBase);
+    setProperty("ECMMIORegionVerified", dsdtMMIOVerified);
     setProperty("HardwareProfile", candidate->id);
     setProperty("HardwareProfileName", candidate->name);
     setProperty("NativeTelemetryProfile", true);
@@ -355,7 +367,45 @@ void IdeaVPC::initNativeProfile() {
         profileFanCount = 1;
     if (profileFanCount > 0)
         setProperty("Fan number", profileFanCount, 32);
-    AlwaysLog("Profile identified: id=%s machine=%s bios=%s fans=%u", candidate->id, identity.machine, identity.bios, profileFanCount);
+    AlwaysLog("Profile identified: id=%s machine=%s bios=%s fans=%u dsdt_mmio=%d",
+              candidate->id, identity.machine, identity.bios, profileFanCount, dsdtMMIOVerified ? 1 : 0);
+}
+
+void IdeaVPC::syncLegionFanCapability() {
+    if (hasVerifiedLegionCurveProfile() && initLegionFanControls()) {
+        setProperty("ThinkFanProtocolVersion", static_cast<UInt64>(1), 32);
+        setProperty("ThinkFanAuthorizationVersion", static_cast<UInt64>(kRYSMCFanAuthorizationVersion), 32);
+        setProperty("ThinkFanCurveVersion", static_cast<UInt64>(1), 32);
+        setProperty("Dual fan", kOSBooleanTrue);
+        setProperty("Fan number", static_cast<UInt64>(2), 32);
+        setProperty("CustomFanCurve", kOSBooleanTrue);
+        AlwaysLog("Legion custom fan curve enabled for %s (MMIO 0x%llx, size 0x%llx)",
+                  nativeProfile->id,
+                  static_cast<unsigned long long>(mmioPhysBase),
+                  static_cast<unsigned long long>(mmioSize));
+        return;
+    }
+
+    removeProperty("ThinkFanProtocolVersion");
+    removeProperty("ThinkFanAuthorizationVersion");
+    removeProperty("ThinkFanCurveVersion");
+    removeProperty("CustomFanCurve");
+    removeProperty("Dual fan");
+
+    if (legionFanWatchdog) {
+        legionFanWatchdog->cancelTimeout();
+        legionFanWatchdog->disable();
+        if (workLoop)
+            workLoop->removeEventSource(legionFanWatchdog);
+        OSSafeReleaseNULL(legionFanWatchdog);
+    }
+    if (mmioBase) {
+        freeMMIOWindow();
+    }
+    factoryCurveCaptured = false;
+    if (hasVerifiedLegionCurveProfile()) {
+        AlwaysLog("Legion custom fan curve initialization failed for %s; failing closed", nativeProfile->id);
+    }
 }
 
 void IdeaVPC::initBridge() {
