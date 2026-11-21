@@ -574,14 +574,9 @@ extension HardwareManager {
                     saveHardwareSetting("SmartFanMode", target: mode, boolean: false)
                 }
             }
-            handlePowerProfileChangeForFanCurve(to: mode)
-        }
-    }
-
-    private func handlePowerProfileChangeForFanCurve(to mode: Int) {
-        guard !isShuttingDown, service != 0, driverState == .ready else { return }
-        for fan in [fanHelper, fanHelper2] {
-            fan?.switchPowerProfile(mode, temperature: self.cpuTemp, supported: self.thinkFanCurveSupported)
+            for fan in [fanHelper, fanHelper2] {
+                fan?.switchPowerProfile(mode, temperature: cpuTemp, supported: thinkFanCurveSupported)
+            }
         }
     }
 

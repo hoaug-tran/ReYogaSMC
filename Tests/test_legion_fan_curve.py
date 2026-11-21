@@ -1091,34 +1091,34 @@ constexpr int kIOReturnBusy = 12;
 #define DebugLog(...) do {} while (0)
 #define PE_parse_boot_argn(name, ptr, sz) ((void)(ptr), (void)(sz), 0)
 
-static constexpr IOByteCount kLegionMinECMMIOSize = 0x300;
-static constexpr IOByteCount kLegionMaxECMMIOSize = 0x10000;
+__attribute__((unused)) static constexpr IOByteCount kLegionMinECMMIOSize = 0x300;
+__attribute__((unused)) static constexpr IOByteCount kLegionMaxECMMIOSize = 0x10000;
 
-static constexpr UInt32 kLegionRegPowerMode = 0x020;
-static constexpr UInt32 kLegionRegLockFan = 0x0AB;
-static constexpr UInt32 kLegionRegCurvePoint = 0x134;
-static constexpr UInt32 kLegionRegCurveSize = 0x135;
-static constexpr UInt32 kLegionRegMiniCurveCool = 0x136;
-static constexpr UInt32 kLegionRegCPUTempInput = 0x138;
-static constexpr UInt32 kLegionRegGPUTempInput = 0x139;
-static constexpr UInt32 kLegionRegVRMTempInput = 0x13A;
-static constexpr UInt32 kLegionRegFan1Base = 0x140;
-static constexpr UInt32 kLegionRegFan2Base = 0x150;
-static constexpr UInt32 kLegionRegFanAccBase = 0x160;
-static constexpr UInt32 kLegionRegFanDecBase = 0x170;
-static constexpr UInt32 kLegionRegCPUTemp = 0x180;
-static constexpr UInt32 kLegionRegCPUTempHyst = 0x190;
-static constexpr UInt32 kLegionRegGPUTemp = 0x1A0;
-static constexpr UInt32 kLegionRegGPUTempHyst = 0x1B0;
-static constexpr UInt32 kLegionRegVRMTemp = 0x1C0;
-static constexpr UInt32 kLegionRegVRMTempHyst = 0x1D0;
-static constexpr UInt32 kLegionRegFan1RPM = 0x1E0;
-static constexpr UInt32 kLegionRegFan2RPM = 0x1E2;
-static constexpr UInt32 kLegionRegCounter1 = 0x1FE;
-static constexpr UInt32 kLegionRegCounter2 = 0x1FF;
-static constexpr UInt32 kLegionRegCPULevel = 0x234;
-static constexpr UInt32 kLegionRegGPULevel = 0x235;
-static constexpr UInt32 kLegionRegHSTLevel = 0x236;
+__attribute__((unused)) static constexpr UInt32 kLegionRegPowerMode = 0x020;
+__attribute__((unused)) static constexpr UInt32 kLegionRegLockFan = 0x0AB;
+__attribute__((unused)) static constexpr UInt32 kLegionRegCurvePoint = 0x134;
+__attribute__((unused)) static constexpr UInt32 kLegionRegCurveSize = 0x135;
+__attribute__((unused)) static constexpr UInt32 kLegionRegMiniCurveCool = 0x136;
+__attribute__((unused)) static constexpr UInt32 kLegionRegCPUTempInput = 0x138;
+__attribute__((unused)) static constexpr UInt32 kLegionRegGPUTempInput = 0x139;
+__attribute__((unused)) static constexpr UInt32 kLegionRegVRMTempInput = 0x13A;
+__attribute__((unused)) static constexpr UInt32 kLegionRegFan1Base = 0x140;
+__attribute__((unused)) static constexpr UInt32 kLegionRegFan2Base = 0x150;
+__attribute__((unused)) static constexpr UInt32 kLegionRegFanAccBase = 0x160;
+__attribute__((unused)) static constexpr UInt32 kLegionRegFanDecBase = 0x170;
+__attribute__((unused)) static constexpr UInt32 kLegionRegCPUTemp = 0x180;
+__attribute__((unused)) static constexpr UInt32 kLegionRegCPUTempHyst = 0x190;
+__attribute__((unused)) static constexpr UInt32 kLegionRegGPUTemp = 0x1A0;
+__attribute__((unused)) static constexpr UInt32 kLegionRegGPUTempHyst = 0x1B0;
+__attribute__((unused)) static constexpr UInt32 kLegionRegVRMTemp = 0x1C0;
+__attribute__((unused)) static constexpr UInt32 kLegionRegVRMTempHyst = 0x1D0;
+__attribute__((unused)) static constexpr UInt32 kLegionRegFan1RPM = 0x1E0;
+__attribute__((unused)) static constexpr UInt32 kLegionRegFan2RPM = 0x1E2;
+__attribute__((unused)) static constexpr UInt32 kLegionRegCounter1 = 0x1FE;
+__attribute__((unused)) static constexpr UInt32 kLegionRegCounter2 = 0x1FF;
+__attribute__((unused)) static constexpr UInt32 kLegionRegCPULevel = 0x234;
+__attribute__((unused)) static constexpr UInt32 kLegionRegGPULevel = 0x235;
+__attribute__((unused)) static constexpr UInt32 kLegionRegHSTLevel = 0x236;
 
 enum {
     GAME_ZONE_WMI_GET_SMARTFAN_MODE = 0x2D,

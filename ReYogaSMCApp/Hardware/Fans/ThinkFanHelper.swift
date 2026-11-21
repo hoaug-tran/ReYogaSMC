@@ -75,6 +75,20 @@ struct ThinkFanCurvePolicy {
         return false
     }
     static func unavailableReason(_ properties: NSDictionary) -> String? {
+        func hasCustomFanCurveCapability(_ props: NSDictionary) -> Bool {
+            if props["CustomFanCurve"] as? Bool == true { return true }
+            if let features = props["FeatureStatus"] as? [String: Any],
+               let curve = features["CustomFanCurve"] as? [String: Any],
+               curve["Available"] as? Bool == true {
+                return true
+            }
+            if let features = props["FeatureStatus"] as? NSDictionary,
+               let curve = features["CustomFanCurve"] as? NSDictionary,
+               curve["Available"] as? Bool == true {
+                return true
+            }
+            return false
+        }
         guard let ioClass = properties["IOClass"] as? String else {
             return "Custom Curve is not supported by this driver interface."
         }
