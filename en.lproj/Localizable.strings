@@ -812,3 +812,17 @@
 "Waiting for fresh thermal readings before resuming curve…" = "Waiting for fresh thermal readings before resuming curve…";
 "Curve paused: waiting for valid CPU temperature readings." = "Curve paused: waiting for valid CPU temperature readings.";
 "Curve paused: thermal readings not available after wake." = "Curve paused: thermal readings not available after wake.";
+"Custom Fan Curve" = "Custom Fan Curve";
+"Fan Curve Fallback Active" = "Fan Curve Fallback Active";
+"Resume Curve" = "Resume Curve";
+"Add Point" = "Add Point";
+"Remove Point" = "Remove Point";
+"Reset" = "Reset";
+"Reset (4 Points)" = "Reset (4 Points)";
+"Reset (10 Points)" = "Reset (10 Points)";
+"Point %d of %d" = "Point %d of %d";
+"CPU: %.0f °C" = "CPU: %.0f °C";
+"%d points" = "%d points";
+"P%d:" = "P%d:";
+"Curve stopped: driver fell back to BIOS Auto." = "Curve stopped: driver fell back to BIOS Auto.";
+"BIOS Auto (Fallback)" = "BIOS Auto (Fallback)";

@@ -34,6 +34,7 @@ public final class HardwareManager: ObservableObject {
     private var lastThinkFanSampleTime: TimeInterval = 0
     private var lastThinkFanCommandTime: TimeInterval = 0
     private var lastFirmwareRefresh = Date.distantPast
+    private var lastLegacyFanRefresh = Date.distantPast
 
     @Published public private(set) var hasDualFan: Bool = false
     @Published public private(set) var hasFanFullSpeed: Bool = false
@@ -43,6 +44,7 @@ public final class HardwareManager: ObservableObject {
     @Published public private(set) var thinkFanCurveSupported = false
     @Published public private(set) var thinkFanCurveReason = ""
     @Published public private(set) var thinkFanECNeedsHelpers = false
+    @Published public private(set) var thinkFanProtocolVersion: Int = 0
     private var cpuSampleTime: TimeInterval = 0
     @Published public private(set) var hasConservation: Bool = false
     @Published public private(set) var hasRapidCharge: Bool = false
@@ -162,7 +164,7 @@ public final class HardwareManager: ObservableObject {
             connectionGeneration &+= 1
             queuedControls.removeAll()
             thinkFanTelemetrySupported = false
-            lastThinkFanSampleTime = 0; lastThinkFanCommandTime = 0
+            lastThinkFanSampleTime = 0; lastThinkFanCommandTime = 0; lastLegacyFanRefresh = .distantPast
             refreshInFlight = false
             isApplying = false; applyingControl = nil
             isConnected = service != 0
@@ -190,7 +192,8 @@ public final class HardwareManager: ObservableObject {
                 acpiECPath = ""
                 acpiHKEYPath = ""
                 driverVersion = "Unavailable"; profileMatchState = "Unavailable"; firmwareProfileID = ""
-                featurePollingSupported = false; lastFirmwareRefresh = .distantPast
+                featurePollingSupported = false; lastFirmwareRefresh = .distantPast; lastLegacyFanRefresh = .distantPast
+                thinkFanProtocolVersion = 0
                 fanLabels = ["Fan 1", "Fan 2"]
                 hasDualFan = false; hasPowerProfiles = false; powerProfilesReady = false; hasConservation = false; hasRapidCharge = false
                 hasOverDrive = false; hasTouchpadLock = false; hasYLogo = false; hasPortLighting = false; hasSpeakerMuteLED = false; hasAlwaysOnUSB = false; hasFanFullSpeed = false; isFanFullSpeedOn = false
@@ -356,8 +359,12 @@ extension HardwareManager {
             ((providerClass == "ThinkVPC" || !featurePollingSupported) &&
              Date().timeIntervalSince(lastFirmwareRefresh) >= 2)
         if refreshFirmware { lastFirmwareRefresh = Date() }
-        let refreshThinkFans = providerClass == "ThinkVPC" && thinkFanTelemetrySupported
-        let refreshLegacyThinkFans = providerClass == "ThinkVPC" && !thinkFanTelemetrySupported && refreshFirmware
+        let refreshThinkFans = ["ThinkVPC", "IdeaVPC"].contains(providerClass) && thinkFanTelemetrySupported
+        let curveActive = fanHelper?.curveEnabled == true || fanHelper2?.curveEnabled == true
+        let refreshLegacyThinkFans = ["ThinkVPC", "IdeaVPC"].contains(providerClass) &&
+            !thinkFanTelemetrySupported &&
+            (full || curveActive || Date().timeIntervalSince(lastLegacyFanRefresh) >= 2)
+        if refreshLegacyThinkFans { lastLegacyFanRefresh = Date() }
         hardwareQueue.async {
             if refreshFirmware { _ = sendBoolean("Update", true, handle) }
             else if refreshThinkFans { _ = sendBoolean("UpdateFans", true, handle) }
@@ -377,8 +384,8 @@ extension HardwareManager {
                 guard !self.isShuttingDown, generation == self.connectionGeneration, handle == self.service else { return }
                 self.refreshInFlight = false
                 if let snapshot = snapshot {
-                    // Older kexts have no combined snapshot; keep their recovery polling on the shared clock.
-                    if refreshLegacyThinkFans, snapshot["ThinkFanTelemetryVersion"] as? Int != 1 {
+                    // Legacy kexts and IdeaVPC have no combined ThinkFanTelemetry snapshot; poll controls before updateCurve.
+                    if refreshLegacyThinkFans, snapshot["ThinkFanTelemetry"] == nil || snapshot["ThinkFanTelemetryVersion"] as? Int != 1 {
                         self.fanHelper?.update(); self.fanHelper2?.update()
                     }
                     self.acceptBatterySnapshot(snapshot, live: battery)
@@ -407,6 +414,9 @@ extension HardwareManager {
                         guard let fan = fan else { continue }
                         if !self.preferenceIdentity.isEmpty {
                             fan.loadCurve(key: SavedHardwareSettings.storageKey(self.preferenceIdentity) + ".ThinkFanCurve.\(index)")
+                            if (1...3).contains(self.powerProfile) {
+                                fan.switchPowerProfile(self.powerProfile, temperature: self.cpuTemp, supported: self.thinkFanCurveSupported)
+                            }
                         }
                         if self.thinkFanCurveSupported && cpuSampleTime > 0 && ProcessInfo.processInfo.systemUptime - cpuSampleTime <= 3 {
                             if fan.pendingCurveResume {
@@ -504,7 +514,7 @@ extension HardwareManager {
 
     private func acceptFanAndThermalSnapshot(_ props: NSDictionary) {
         func number(_ key: String) -> Int { (props[key] as? Int) ?? -1 }
-        let declaredDualFan = providerClass == "ThinkVPC" ? props["Dual fan"] as? Bool : nil
+        let declaredDualFan = ["ThinkVPC", "IdeaVPC"].contains(providerClass) ? props["Dual fan"] as? Bool : nil
         publish(\.hasDualFan, declaredDualFan ?? (number("Fan number") >= 0 ?
             number("Fan number") >= 2 : HardwareSnapshot.fanRPM(props["Fan2RPM"]) >= 0))
         if thinkFanTelemetrySupported {
@@ -564,6 +574,14 @@ extension HardwareManager {
                     saveHardwareSetting("SmartFanMode", target: mode, boolean: false)
                 }
             }
+            handlePowerProfileChangeForFanCurve(to: mode)
+        }
+    }
+
+    private func handlePowerProfileChangeForFanCurve(to mode: Int) {
+        guard !isShuttingDown, service != 0, driverState == .ready else { return }
+        for fan in [fanHelper, fanHelper2] {
+            fan?.switchPowerProfile(mode, temperature: self.cpuTemp, supported: self.thinkFanCurveSupported)
         }
     }
 
@@ -598,7 +616,7 @@ extension HardwareManager {
         guard !isShuttingDown else { return }
         let firmwareDigest = (props["FirmwareDSDTSHA256"] as? String) ?? ""
         let profileIdentity = (props["HardwareProfile"] as? String) ?? ""
-        let isDeferred = (props["ProfileMatchDeferred"] as? Bool) ?? false
+        let isDeferred = (props["ProfileMatchStage"] as? String) == "identity_unavailable"
         // Defer restore until driver finishes deferred identity matching (e.g. PCI dGPU lookup)
         guard !isDeferred else { return }
 
@@ -634,7 +652,8 @@ extension HardwareManager {
         publish(\.profileMatchState, (props["ProfileMatchState"] as? String) ?? "Not reported")
         publish(\.firmwareProfileID, (props["HardwareProfile"] as? String) ?? "")
         featurePollingSupported = props["FeaturePollingVersion"] as? Int == 1
-        thinkFanTelemetrySupported = providerClass == "ThinkVPC" && props["ThinkFanTelemetryVersion"] as? Int == 1
+        publish(\.thinkFanProtocolVersion, (props["ThinkFanProtocolVersion"] as? Int) ?? 0)
+        publish(\.thinkFanTelemetrySupported, ["ThinkVPC", "IdeaVPC"].contains(providerClass) && props["ThinkFanTelemetryVersion"] as? Int == 1 && props["ThinkFanTelemetry"] != nil)
         publish(\.thinkFanCurveSupported, ThinkFanCurvePolicy.supported(props))
         publish(\.thinkFanCurveReason, ThinkFanCurvePolicy.unavailableReason(props) ?? "")
         publish(\.thinkFanECNeedsHelpers, providerClass == "ThinkVPC" && props["ThinkFanProtocolVersion"] as? Int == 1 &&

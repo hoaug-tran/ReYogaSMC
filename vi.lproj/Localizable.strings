@@ -814,3 +814,17 @@
 "Waiting for fresh thermal readings before resuming curve…" = "Đang chờ dữ liệu nhiệt độ mới để tiếp tục chạy curve…";
 "Curve paused: waiting for valid CPU temperature readings." = "Đã tạm dừng curve: đang chờ dữ liệu nhiệt độ CPU hợp lệ.";
 "Curve paused: thermal readings not available after wake." = "Đã tạm dừng curve: không có dữ liệu nhiệt độ sau khi đánh thức máy.";
+"Custom Fan Curve" = "Đường cong quạt tuỳ chỉnh";
+"Fan Curve Fallback Active" = "Dự phòng quạt tự động đang kích hoạt";
+"Resume Curve" = "Tiếp tục đường cong";
+"Add Point" = "Thêm điểm";
+"Remove Point" = "Xoá điểm";
+"Reset" = "Đặt lại";
+"Reset (4 Points)" = "Đặt lại (4 điểm)";
+"Reset (10 Points)" = "Đặt lại (10 điểm)";
+"Point %d of %d" = "Điểm %d / %d";
+"CPU: %.0f °C" = "CPU: %.0f °C";
+"%d points" = "%d điểm";
+"P%d:" = "P%d:";
+"Curve stopped: driver fell back to BIOS Auto." = "Đường cong dừng: trình điều khiển đã trở về BIOS Auto.";
+"BIOS Auto (Fallback)" = "BIOS Auto (Dự phòng)";

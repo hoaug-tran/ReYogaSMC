@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import IOKit
 import os.log
@@ -20,6 +21,8 @@ final class DriverConnection: NSObject {
     private var supportsMuteLED = false
     private var fanHelper: ThinkFanHelper?
     private var fanHelper2: ThinkFanHelper?
+    private var subscriptions = Set<AnyCancellable>()
+    private var thinkFanAutoInitAttempted = false
 
     init(manager: HardwareManager, prepareControls: @escaping () -> Void) {
         self.manager = manager
@@ -27,6 +30,17 @@ final class DriverConnection: NSObject {
         super.init()
         manager.configureThinkFanAuthorization { [weak self] in self?.initializeThinkFans() }
         manager.configureThinkMuteLEDFixup { [weak self] in self?.refreshThinkMuteLEDFixup() }
+        manager.$thinkFanProtocolVersion
+            .removeDuplicates()
+            .sink { [weak self] version in
+                guard version == 1 else { return }
+                let generation = self?.connectionGeneration
+                DispatchQueue.main.async {
+                    guard let self = self, generation == self.connectionGeneration else { return }
+                    self.handleDeferredThinkFanProtocol()
+                }
+            }
+            .store(in: &subscriptions)
     }
 
     var hasConnection: Bool { context.service != 0 || context.connect != 0 }
@@ -128,6 +142,7 @@ final class DriverConnection: NSObject {
 
     func close() {
         connectionGeneration &+= 1
+        thinkFanAutoInitAttempted = false
         manager.setThinkFanAuthorization(busy: false)
         if manager.service != 0 { manager.service = 0 }
         fanHelper?.stopCurve(reason: .connectionClosed); fanHelper2?.stopCurve(reason: .connectionClosed)
@@ -158,13 +173,25 @@ final class DriverConnection: NSObject {
             context.events = ideaEvents
             isOpen = registerNotification(context)
             prepareControls()
+            if !defaults.bool(forKey: "DisableFan") {
+                if (ECCap == "RW" || ECCap == nil || provider == "IdeaVPC"), getNumber("ThinkFanProtocolVersion", context.service) == 1 {
+                    if isOpen {
+                        thinkFanAutoInitAttempted = true
+                        initializeThinkFans()
+                    }
+                }
+            }
+            ensureThinkWakeObserver()
         case "ThinkVPC":
             context.events = thinkEvents
             isOpen = registerNotification(context)
             thinkWakeup()
             if !defaults.bool(forKey: "DisableFan") {
                 if ECCap == "RW", getNumber("ThinkFanProtocolVersion", context.service) == 1 {
-                    if isOpen { initializeThinkFans() }
+                    if isOpen {
+                        thinkFanAutoInitAttempted = true
+                        initializeThinkFans()
+                    }
                 } else {
                     showOSD("ECAccessUnavailable")
                 }
@@ -192,10 +219,30 @@ final class DriverConnection: NSObject {
         }
     }
 
+    private func ensureThinkWakeObserver() {
+        guard thinkWakeObserver == nil else { return }
+        if provider == "ThinkVPC" || (provider == "IdeaVPC" && getNumber("ThinkFanProtocolVersion", context.service) == 1) {
+            thinkWakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.thinkWakeup() }
+        }
+    }
+
+    private func handleDeferredThinkFanProtocol() {
+        guard !manager.isShuttingDown, context.connect != 0, context.service != 0 else { return }
+        guard getNumber("ThinkFanProtocolVersion", context.service) == 1 else { return }
+        ensureThinkWakeObserver()
+        guard !thinkFanAutoInitAttempted, fanHelper == nil, !manager.thinkFanAuthorizationBusy,
+              context.notificationPort != nil else { return }
+        thinkFanAutoInitAttempted = true
+        initializeThinkFans()
+    }
+
     private func initializeThinkFans() {
         guard !manager.isShuttingDown, !manager.thinkFanAuthorizationBusy, fanHelper == nil,
-              context.connect != 0, context.service != 0, provider == "ThinkVPC",
-              !defaults.bool(forKey: "DisableFan"), getString("EC Capability", context.service) == "RW",
+              context.connect != 0, context.service != 0,
+              ["ThinkVPC", "IdeaVPC"].contains(provider),
+              !defaults.bool(forKey: "DisableFan"),
+              (getString("EC Capability", context.service) == "RW" || provider == "IdeaVPC"),
               getNumber("ThinkFanProtocolVersion", context.service) == 1 else { return }
         let generation = connectionGeneration
         let finish: (Result<Void, Error>) -> Void = { [weak self] result in
@@ -209,7 +256,7 @@ final class DriverConnection: NSObject {
                 self.manager.setThinkFanAuthorization(busy: false)
                 ReYogaDiagnostics.shared.record("think_fan_authorization", ["authorized": true])
                 self.fanHelper = self.makeThinkFan(main: true)
-                if getBoolean("Dual fan", self.context.service), self.defaults.bool(forKey: "SecondThinkFan") {
+                if getBoolean("Dual fan", self.context.service), self.defaults.bool(forKey: "SecondThinkFan") || self.provider == "IdeaVPC" {
                     self.fanHelper2 = self.makeThinkFan(main: false)
                 }
                 self.manager.installFanHelpers(self.fanHelper, secondary: self.fanHelper2)

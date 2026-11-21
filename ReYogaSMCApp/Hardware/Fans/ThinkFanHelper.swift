@@ -60,11 +60,32 @@ struct ThinkFanCurvePolicy {
     static func supported(_ properties: NSDictionary) -> Bool {
         unavailableReason(properties) == nil
     }
+    static func hasCustomFanCurveCapability(_ properties: NSDictionary) -> Bool {
+        if properties["CustomFanCurve"] as? Bool == true { return true }
+        if let features = properties["FeatureStatus"] as? [String: Any],
+           let curve = features["CustomFanCurve"] as? [String: Any],
+           curve["Available"] as? Bool == true {
+            return true
+        }
+        if let features = properties["FeatureStatus"] as? NSDictionary,
+           let curve = features["CustomFanCurve"] as? NSDictionary,
+           curve["Available"] as? Bool == true {
+            return true
+        }
+        return false
+    }
     static func unavailableReason(_ properties: NSDictionary) -> String? {
-        guard properties["IOClass"] as? String == "ThinkVPC" else { return "Custom Curve is not supported by this driver interface." }
+        guard let ioClass = properties["IOClass"] as? String else {
+            return "Custom Curve is not supported by this driver interface."
+        }
+        guard ioClass == "ThinkVPC" || (ioClass == "IdeaVPC" && hasCustomFanCurveCapability(properties)) else {
+            return "Custom Curve is not supported by this driver interface."
+        }
         guard properties["SafeMode"] as? Bool != true else { return "Safe Mode blocks fan control. Disable -reysafe and restart macOS." }
         guard properties["ThinkFanProtocolVersion"] as? Int == 1 else { return "Update the app and kext, then reconnect to enable ThinkPad fan control." }
-        guard properties["EC Capability"] as? String == "RW" else { return "Manual fan control needs EC read/write helpers. Open Diagnostics → Generate ThinkPad SSDT… to check and add missing helpers." }
+        guard ioClass == "IdeaVPC" || properties["EC Capability"] as? String == "RW" else {
+            return "Manual fan control needs EC read/write helpers. Open Diagnostics → Generate ThinkPad SSDT… to check and add missing helpers."
+        }
         guard properties["ThinkFanAccessFailed"] as? Bool != true else { return "Fan access is paused pending selector recovery. Try Auto, then export diagnostics if recovery fails." }
         guard properties["ThinkFanCurveVersion"] as? Int == 1 else { return "Custom Curve needs a driver watchdog. Update both the app and kext, then restart macOS." }
         return nil
@@ -72,8 +93,20 @@ struct ThinkFanCurvePolicy {
     static let defaults = [ThinkFanCurvePoint(temperature: 50, level: 4),
         ThinkFanCurvePoint(temperature: 70, level: 5), ThinkFanCurvePoint(temperature: 80, level: 7),
         ThinkFanCurvePoint(temperature: 88, level: 0x47)]
+    static let legionDefaults = [
+        ThinkFanCurvePoint(temperature: 45, level: 1),
+        ThinkFanCurvePoint(temperature: 52, level: 1),
+        ThinkFanCurvePoint(temperature: 58, level: 2),
+        ThinkFanCurvePoint(temperature: 64, level: 3),
+        ThinkFanCurvePoint(temperature: 70, level: 4),
+        ThinkFanCurvePoint(temperature: 76, level: 5),
+        ThinkFanCurvePoint(temperature: 82, level: 6),
+        ThinkFanCurvePoint(temperature: 88, level: 7),
+        ThinkFanCurvePoint(temperature: 92, level: 7),
+        ThinkFanCurvePoint(temperature: 95, level: 0x47)
+    ]
     static func valid(_ points: [ThinkFanCurvePoint]) -> Bool {
-        guard (2...8).contains(points.count), points.last?.level == 0x47 else { return false }
+        guard (2...10).contains(points.count), points.last?.level == 0x47 else { return false }
         for (index, point) in points.enumerated() {
             guard (30...95).contains(point.temperature), (1...7).contains(point.level) || point.level == 0x47 else { return false }
             if index > 0, points[index - 1].temperature >= point.temperature || points[index - 1].level > point.level { return false }
@@ -140,6 +173,8 @@ class ThinkFanHelper: ObservableObject {
     private let accessQueue = DispatchQueue(label: "org.reyogasmc.think-fan")
     private var curveGeneration: UInt64 = 0
     private(set) var curveRequestPending = false
+    private(set) var currentPowerProfile: Int = 0
+    private var isProfileTransitioning = false
     var curveStorageKey: String?
     var canRecoverAutomatic: Bool { connect != 0 }
 
@@ -284,7 +319,7 @@ class ThinkFanHelper: ObservableObject {
     }
 
     func startCurve(temperature: Double, supported: Bool) {
-        guard !curveEnabled, !curveRecoveryPending, !curveRequestPending else { return }
+        guard (!curveEnabled || isProfileTransitioning), !curveRecoveryPending, !curveRequestPending else { return }
         guard supported, enable, ThinkFanCurvePolicy.valid(curvePoints), temperature.isFinite,
               temperature > 0, temperature < 125 else {
             ReYogaDiagnostics.shared.record("think_fan_curve_rejected", ["fan": main ? 0 : 1,
@@ -301,7 +336,10 @@ class ThinkFanHelper: ObservableObject {
             }
             return
         }
-        if let key = curveStorageKey, let data = try? JSONEncoder().encode(curvePoints) { defaults.set(data, forKey: key) }
+        if let key = currentPowerProfile > 0 ? profileKey(currentPowerProfile) : curveStorageKey,
+           let data = try? JSONEncoder().encode(curvePoints) {
+            defaults.set(data, forKey: key)
+        }
         curvePolicy.reset(); curveWriteTime = 0; lastCurveTarget = nil
         curveSampleTime = ProcessInfo.processInfo.systemUptime
         curveEnabled = true
@@ -318,17 +356,55 @@ class ThinkFanHelper: ObservableObject {
         updateCurve(temperature: temperature)
     }
 
-    func saveCurveDraft(_ points: [ThinkFanCurvePoint]) {
-        guard ThinkFanCurvePolicy.valid(points), let key = curveStorageKey,
-              let data = try? JSONEncoder().encode(points) else { return }
-        defaults.set(data, forKey: key)
+    private func profileKey(_ profile: Int) -> String? {
+        guard let key = curveStorageKey else { return nil }
+        return "\(key).Profile\(profile)"
     }
 
-    var savedCurveDraft: [ThinkFanCurvePoint] {
+    func switchPowerProfile(_ newProfile: Int, temperature: Double, supported: Bool) {
+        guard (1...3).contains(newProfile) else { return }
+        let previous = currentPowerProfile
+        guard newProfile != previous else { return }
+        if previous > 0 && ThinkFanCurvePolicy.valid(curvePoints) {
+            saveCurveDraft(curvePoints, forProfile: previous)
+        }
+        currentPowerProfile = newProfile
+        let profilePoints = savedCurveDraft(forProfile: newProfile)
+        curvePoints = profilePoints
+        if curveEnabled {
+            isProfileTransitioning = true
+            curvePolicy.reset()
+            lastCurveTarget = nil
+            curveWriteTime = 0
+            startCurve(temperature: temperature, supported: supported)
+            isProfileTransitioning = false
+        }
+    }
+
+    func saveCurveDraft(_ points: [ThinkFanCurvePoint], forProfile profile: Int? = nil) {
+        guard ThinkFanCurvePolicy.valid(points) else { return }
+        let targetProfile = profile ?? currentPowerProfile
+        let key = (targetProfile > 0 ? profileKey(targetProfile) : nil) ?? curveStorageKey
+        guard let storageKey = key, let data = try? JSONEncoder().encode(points) else { return }
+        defaults.set(data, forKey: storageKey)
+    }
+
+    func savedCurveDraft(forProfile profile: Int? = nil) -> [ThinkFanCurvePoint] {
+        let targetProfile = profile ?? currentPowerProfile
+        if targetProfile > 0, let key = profileKey(targetProfile),
+           let data = defaults.data(forKey: key), data.count <= 4096,
+           let points = try? JSONDecoder().decode([ThinkFanCurvePoint].self, from: data),
+           ThinkFanCurvePolicy.valid(points) {
+            return points
+        }
         guard let key = curveStorageKey, let data = defaults.data(forKey: key), data.count <= 4096,
               let points = try? JSONDecoder().decode([ThinkFanCurvePoint].self, from: data),
               ThinkFanCurvePolicy.valid(points) else { return curvePoints }
         return points
+    }
+
+    var savedCurveDraft: [ThinkFanCurvePoint] {
+        savedCurveDraft(forProfile: nil)
     }
 
     func explainCurveUnavailable(_ reason: String) {
@@ -425,9 +501,23 @@ class ThinkFanHelper: ObservableObject {
             ReYogaDiagnostics.shared.record("think_fan_curve_recovered", ["fan": main ? 0 : 1, "raw": raw])
         }
         if raw & 0x40 != 0 { savedLevel = Self.fullSpeedLevel }
-        else if raw & 0x80 != 0 { savedLevel = Self.automaticLevel }
+        else if raw & 0x80 != 0 {
+            savedLevel = Self.automaticLevel
+            guard !isProfileTransitioning else { return }
+            if curveEnabled && !curveRequestPending {
+                curveEnabled = false
+                curveStatus = "BIOS Auto"
+                curveStopReason = "Curve stopped: driver fell back to BIOS Auto."
+            }
+        }
         else if raw <= 7 { savedLevel = raw; level = Int(raw) }
         else { enable = false; rpm = nil }
+    }
+
+    func resetCurveToDefaults(legion: Bool = false) {
+        let newPoints = legion ? ThinkFanCurvePolicy.legionDefaults : ThinkFanCurvePolicy.defaults
+        curvePoints = newPoints
+        saveCurveDraft(newPoints)
     }
 
     func update() {
